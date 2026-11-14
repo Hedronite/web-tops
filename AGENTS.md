@@ -1,0 +1,38 @@
+# Agent standing orders (Web-TOPS 0.1.0, draft)
+
+Goal: correct, dense, accessible, fast web code. TypeScript first; HTML, CSS, Tailwind and Astro on top.
+Production: the fewest lines that keep the named invariants and measured budgets.
+Tests: as many as the contract needs. Never write tests by reading the implementation.
+
+The protocol text is [`WEB_TOPS.md`](WEB_TOPS.md). This file is the harness for work on this repo.
+[`config/AGENTS.md.tmpl`](config/AGENTS.md.tmpl) is the section `webtops init` will write into an adopting repo. It is not the harness for this repo.
+
+## State
+
+Milestone M0: the spec. There is no code, no `package.json`, no CLI and no CI yet. `webtops` does not exist. Do not document, run or claim a command that has not landed.
+
+Once code lands, the kit is TypeScript on Bun and gates itself `hard` with its own protocol (§17).
+
+## Do this
+
+1. Read the section of `WEB_TOPS.md` you are changing, and the schema once it exists. Fix the schema first, then the prose (§3.4).
+2. A change to `laws/`, `schema/`, `profiles/`, a threshold, a budget, a lint rule or tsconfig flag in the drop-ins, or normative text in `WEB_TOPS.md` is a protocol change. It carries the `protocol-change` label and a `CHANGELOG.md` entry, and bumps the protocol version together with the schema.
+3. Once code lands: write the oracle from the contract first, then the smallest shape that satisfies it, then run the gate.
+
+## Git
+
+- Work on a branch and open a draft PR. Never push `main`, force-push, tag or publish a release or package.
+- Fixes are new commits on the PR branch.
+- No secrets, tokens, `.env` files, local paths or internal notes in the repo.
+
+## Forbidden
+
+- Writing tests from the current function body.
+- Splitting a function only to lower its CRAP score (scar-guard).
+- Weakening a law, lint rule, tsconfig flag, threshold or budget so a check passes.
+- Counting `not-evaluated`, an unmapped layer, or an empty report as a pass.
+- `any`, `as` (other than `as const`) and `!` in kit code.
+- A suppression without the rule name and a reason; `@ts-ignore` and `@ts-nocheck`.
+- Floating promises.
+- Editing generated files. Fix the generator.
+- Adding a dependency that does not delete code or buy measured safety or performance.
