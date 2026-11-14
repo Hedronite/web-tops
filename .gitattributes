@@ -1,0 +1,2 @@
+# The AGENTS template is Markdown; without this, GitHub counts .tmpl as "Go Template"
+config/*.tmpl linguist-language=Markdown
