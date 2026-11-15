@@ -43,7 +43,7 @@ TypeScript is pinned to 6.0.x because `typescript-eslint` and `@astrojs/check` d
 | Path | What it is |
 |---|---|
 | [`WEB_TOPS.md`](WEB_TOPS.md) | The protocol, draft 0.1.0 |
-| [`config/AGENTS.md.tmpl`](config/AGENTS.md.tmpl) | The `AGENTS.md` section that `webtops init` will write into an adopting repo |
+| [`config/AGENTS.template.md`](config/AGENTS.template.md) | The `AGENTS.md` section that `webtops init` will write into an adopting repo |
 | [`AGENTS.md`](AGENTS.md) | Standing orders for agents working on this repo ([`CLAUDE.md`](CLAUDE.md) imports it) |
 
 ## Related

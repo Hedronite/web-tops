@@ -537,7 +537,7 @@ Exit codes: 0 pass; 1 gate failed; 2 config invalid or lock mismatch; 3 environm
 
 ## 13. Policies and `AGENTS.md`
 
-The template is [`config/AGENTS.md.tmpl`](config/AGENTS.md.tmpl). It merges the common-mistakes guide's §12 with the Go-TOPS
+The template is [`config/AGENTS.template.md`](config/AGENTS.template.md). It merges the common-mistakes guide's §12 with the Go-TOPS
 template's shape: each rule names the check that enforces it, or `[review]`.
 
 Non-negotiable:
@@ -637,7 +637,7 @@ web-tops/
 ├── laws/                    # W-NN.yaml
 ├── profiles/
 ├── schema/
-├── config/                  # drop-in templates, AGENTS.md.tmpl
+├── config/                  # drop-in templates, AGENTS.template.md
 ├── fixtures/lints/          # one deliberate violation per rule, with expect markers
 ├── examples/                # one per launch class
 ├── docs/brand/
@@ -701,7 +701,7 @@ Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any rele
 
 | Milestone | Contents | Exit criterion |
 |---|---|---|
-| **M0** | This spec, schemas, five profiles, `AGENTS.md.tmpl` | Reviewed; budgets marked for calibration |
+| **M0** | This spec, schemas, five profiles, `AGENTS.template.md` | Reviewed; budgets marked for calibration |
 | **M1** | CLI: `init`, `check`, `gate` (hygiene, tests, coverage, report) | Self-hosting green |
 | **M2** | Native CRAP; Stryker adapter; survivor ledger; baseline and ratchet | Gate fails on a deliberately weak test |
 | **M3** | Laws v0.1: 26 judged; `fixtures/lints`; `eslint-plugin-webtops` | Report shows "26 of 41 judged" |

@@ -5,7 +5,7 @@ Production: the fewest lines that keep the named invariants and measured budgets
 Tests: as many as the contract needs. Never write tests by reading the implementation.
 
 The protocol text is [`WEB_TOPS.md`](WEB_TOPS.md). This file is the harness for work on this repo.
-[`config/AGENTS.md.tmpl`](config/AGENTS.md.tmpl) is the section `webtops init` will write into an adopting repo. It is not the harness for this repo.
+[`config/AGENTS.template.md`](config/AGENTS.template.md) is the section `webtops init` will write into an adopting repo. It is not the harness for this repo.
 
 ## State
 
