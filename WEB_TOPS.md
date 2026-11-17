@@ -294,12 +294,15 @@ layers that ran; fewer ran than are in range fails the gate (§3.3, §11).
 
 The report holds `protocol`, `class`, `enforce`, `enforced` (false only under `advisory`),
 `max_tier`, `only` (or null), and `counts` with `in_range`, `ran`, `failed` and `not_evaluated`.
+`failed` counts `Refuse`, unacknowledged `Ack` and `not-run`; `not_evaluated` is counted apart
+and also fails the gate.
 Each entry in `layers` has `id` (`hygiene`, `tests`, `coverage`, `crap`, `mutation`,
 `build-output`, `laws`, or a `custom` id), `gate`, `tier`, `verdict` and `findings`. Verdicts are
 spelled as in §3.3: `pass`, `Refuse`, `Ack`, `skip`, `not-run`, `not-evaluated`. `skip` and
 `not-run` carry a `reason`. A stopped run's `not-run` reason is `stopped: gate <n> failed`. An
 `Ack` finding that is acknowledged carries `ack: { source: comment | ledger, reason }`; an
-unacknowledged one fails.
+unacknowledged one fails. The report may carry more fields (run timing, artifact paths, the exit
+code); `schema/gate-report.schema.json` lists every field, and the fields above are required.
 
 ### 6.7 Enforcement modes
 
