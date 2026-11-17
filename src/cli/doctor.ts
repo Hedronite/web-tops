@@ -121,7 +121,7 @@ function fromDoc(doc: unknown, nodeRange: string | undefined): Setup | string {
 function setupFrom(cwd: string): Setup | string {
   const config = readConfigDoc(cwd);
   const locked = lockedNodeRange(cwd);
-  if ("error" in locked) return `web-tops.lock is unusable: ${locked.error}`;
+  if ("error" in locked) return locked.error;
   if (config.state === "invalid") return `web-tops.yaml is not valid YAML: ${config.error}`;
   if (config.state === "absent") {
     return { className: undefined, typescript: TOOL_PINS.typescript, nodeRange: locked.range };
