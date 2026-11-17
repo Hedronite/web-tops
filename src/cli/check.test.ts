@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { checkConfigFile } from "../config/validate.ts";
-import { fixture, fixturesDir } from "../config/test-support.ts";
+import { containing, fixture, fixturesDir, get } from "../config/test-support.ts";
 import { runCheckCli } from "./check.ts";
 import type { Io } from "./io.ts";
 
@@ -44,7 +44,7 @@ const invalid: readonly (readonly [string, string])[] = [
   ["hard-step-off", "/gates/hygiene/eslint/enabled"],
   ["hard-format-off", "/gates/hygiene/format/enabled"],
   ["hard-stylelint-off-astro", "/gates/hygiene/stylelint/enabled"],
-  ["hard-astro-check-off-astro", "/gates/hygiene/astro_check/enabled"],
+  ["hard-astro-check-off-astro-site", "/gates/hygiene/astro_check/enabled"],
   ["custom-id-builtin", "/layers/custom/0/id"],
   ["custom-id-duplicate", "/layers/custom/1/id"],
   ["laws-select-bad", "/laws/select"],
@@ -85,6 +85,37 @@ describe("G1c: check fails each broken config with its JSON pointer", () => {
       expect(err()).toContain(`  ${pointer === "" ? "(document)" : pointer}: `);
     },
   );
+});
+
+// astro_check follows the project: package.json beside the config decides it (section 9).
+const projects: readonly (readonly [string, string | undefined])[] = [
+  ["vite-web-app", undefined],
+  ["no-package-json-web-app", undefined],
+  ["broken-package-json-web-app", undefined],
+  ["astro-lookalike-web-app", undefined],
+  ["astro-peer-web-app", undefined],
+  ["ui-components-no-astro", undefined],
+  ["astro-ts-library", undefined],
+  ["astro-web-app", "/gates/hygiene/astro_check/enabled"],
+  ["astro-dev-web-app", "/gates/hygiene/astro_check/enabled"],
+  ["astro-ui-components", "/gates/hygiene/astro_check/enabled"],
+];
+
+describe("R27: astro_check off under hard, by project", () => {
+  it.each(projects)("%s", async (name, pointer) => {
+    const path = `projects/${name}/web-tops.yaml`;
+    const result = checkConfigFile(fixture(path));
+    const { io: streams, err } = io();
+    const code = await runCheckCli([path], streams);
+    if (pointer === undefined) {
+      expect(result.ok).toBe(true);
+      expect(code).toBe(0);
+    } else {
+      expect(get(result, "problems")).toEqual([{ pointer, message: containing("astro_check") }]);
+      expect(code).toBe(2);
+      expect(err()).toContain(`  ${pointer}: `);
+    }
+  });
 });
 
 describe("check on a valid config", () => {

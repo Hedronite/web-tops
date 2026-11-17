@@ -1,0 +1,8 @@
+protocol: "0.2.1"
+version: "0.1.0"
+package: site
+class: web-app
+enforce: hard
+gates:
+  hygiene:
+    astro_check: { enabled: false, reason: "no Astro here" }

@@ -1,7 +1,8 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { profileFor, STEP_KEYS } from "./profiles.ts";
+import { mapsStep, profileFor, STEP_KEYS, type Project } from "./profiles.ts";
+import { readProject } from "./project.ts";
 import { LAYER_IDS } from "./report.ts";
 import type { Problem, WebTopsConfig } from "./types.ts";
 
@@ -10,6 +11,8 @@ export interface SemanticContext {
   readonly cwd: string;
   /** Today as YYYY-MM-DD, for exemption expiry; defaults to the current UTC date. */
   readonly today?: string;
+  /** What package.json says about the project; read from `cwd` when absent. */
+  readonly project?: Project;
 }
 
 function checkClass(config: WebTopsConfig): readonly Problem[] {
@@ -55,9 +58,10 @@ function checkAdvisory(config: WebTopsConfig, today: string): readonly Problem[]
 /**
  * Under `hard`, a gate or step the class maps at tier 1 or below cannot be switched off, except
  * crap, mutation, build output and laws (section 9). Gates 1 to 3 are always mapped; the steps
- * and the package exports check (a gate 1 step) are mapped per class.
+ * and the package exports check (a gate 1 step) are mapped per class, and `astro_check` also
+ * follows the project: package.json beside the config decides it for web-app and ui-components.
  */
-function checkHard(config: WebTopsConfig): readonly Problem[] {
+function checkHard(config: WebTopsConfig, project: Project): readonly Problem[] {
   if (config.enforce !== "hard") return [];
   const profile = profileFor(config.class);
   const hygiene = config.gates?.hygiene;
@@ -67,7 +71,10 @@ function checkHard(config: WebTopsConfig): readonly Problem[] {
       .filter((gate) => config.gates?.[gate]?.enabled === false)
       .map((gate) => `/gates/${gate}`),
     ...STEP_KEYS.filter(
-      (step) => profile?.steps.includes(step) === true && hygiene?.[step]?.enabled === false,
+      (step) =>
+        profile !== undefined &&
+        mapsStep(profile, step, project) &&
+        hygiene?.[step]?.enabled === false,
     ).map((step) => `/gates/hygiene/${step}`),
     ...(profile?.layers.includes("package_exports") === true &&
     exports?.enabled === false &&
@@ -135,7 +142,7 @@ export function runSemanticChecks(
     ...checkClass(config),
     ...checkSurvivors(config),
     ...checkAdvisory(config, today),
-    ...checkHard(config),
+    ...checkHard(config, context.project ?? readProject(context.cwd)),
     ...checkCustomIds(config),
     ...checkBaseline(config, context.cwd),
   ];

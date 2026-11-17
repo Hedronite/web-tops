@@ -48,8 +48,15 @@ export interface Profile {
   readonly unexplainedSurvivorsMax: number;
   /** Layers this class maps. Every other `layers.*` key is written `enabled: false` with a reason. */
   readonly layers: readonly LayerKey[];
-  /** Gate 1 steps this class maps. An unmapped step is `skip` with a reason that names the class. */
+  /** Gate 1 steps this class always maps. An unmapped step is `skip` with a reason. */
   readonly steps: readonly StepKey[];
+  /** Steps this class maps only when the project uses the tool: `astro_check`, when it depends on astro. */
+  readonly conditionalSteps: readonly StepKey[];
+}
+
+/** What the project's package.json says, for the steps that follow the project (section 9). */
+export interface Project {
+  readonly dependsOnAstro: boolean;
 }
 
 const CORE_STEPS: readonly StepKey[] = [
@@ -70,6 +77,7 @@ export const PROFILES: readonly Profile[] = [
     unexplainedSurvivorsMax: 0,
     layers: ["package_exports", "size_limit"],
     steps: CORE_STEPS,
+    conditionalSteps: [],
   },
   {
     class: "ui-components",
@@ -78,6 +86,7 @@ export const PROFILES: readonly Profile[] = [
     unexplainedSurvivorsMax: 1,
     layers: ["package_exports", "size_limit", "html_validate", "axe"],
     steps: [...CORE_STEPS, "stylelint"],
+    conditionalSteps: ["astro_check"],
   },
   {
     class: "astro-site",
@@ -86,6 +95,7 @@ export const PROFILES: readonly Profile[] = [
     unexplainedSurvivorsMax: 2,
     layers: ["html_validate", "axe", "rendered", "themes"],
     steps: [...CORE_STEPS, "astro_check", "stylelint"],
+    conditionalSteps: [],
   },
   {
     class: "web-app",
@@ -93,7 +103,8 @@ export const PROFILES: readonly Profile[] = [
     crapCap: 6,
     unexplainedSurvivorsMax: 2,
     layers: ["html_validate", "axe", "rendered", "themes"],
-    steps: [...CORE_STEPS, "astro_check", "stylelint"],
+    steps: [...CORE_STEPS, "stylelint"],
+    conditionalSteps: ["astro_check"],
   },
   {
     class: "node-service",
@@ -102,10 +113,19 @@ export const PROFILES: readonly Profile[] = [
     unexplainedSurvivorsMax: 1,
     layers: [],
     steps: CORE_STEPS,
+    conditionalSteps: [],
   },
 ];
 
 /** The profile of a class, or undefined for a class without a launch profile. */
 export function profileFor(name: string): Profile | undefined {
   return PROFILES.find((profile) => profile.class === name);
+}
+
+/** Whether the class maps a gate 1 step for this project (section 9): `astro_check` follows the project. */
+export function mapsStep(profile: Profile, step: StepKey, project: Project): boolean {
+  return (
+    profile.steps.includes(step) ||
+    (project.dependsOnAstro && profile.conditionalSteps.includes(step))
+  );
 }

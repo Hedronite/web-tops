@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { containing } from "./test-support.ts";
-import { PROFILES } from "./profiles.ts";
+import { PROFILES, type Project } from "./profiles.ts";
 import { PROTOCOL } from "./protocol.ts";
 import { runSemanticChecks } from "./semantic.ts";
 import type { WebTopsConfig } from "./types.ts";
@@ -48,8 +48,14 @@ function git(cwd: string, ...args: string[]): void {
   expect(result.status, result.stderr).toBe(0);
 }
 
-function pointers(config: WebTopsConfig, today = "2026-11-16", cwd = scratch()): string[] {
-  return runSemanticChecks(config, { cwd, today }).map((problem) => problem.pointer);
+function pointers(
+  config: WebTopsConfig,
+  today = "2026-11-16",
+  cwd = scratch(),
+  project?: Project,
+): string[] {
+  const context = { cwd, today, ...(project === undefined ? {} : { project }) };
+  return runSemanticChecks(config, context).map((problem) => problem.pointer);
 }
 
 describe("class has a profile", () => {
@@ -169,11 +175,44 @@ describe("under hard, a mapped gate or step cannot be switched off", () => {
       "/gates/hygiene/stylelint/enabled",
     ]);
     expect(pointers({ ...hard, class: "node-service", ...stylelint })).toEqual([]);
+  });
+
+  it("astro_check follows the project: always for astro-site, with an astro dependency for web-app and ui-components", () => {
     const astro = { gates: { hygiene: { astro_check: off } } } as const;
-    expect(pointers({ ...hard, class: "web-app", ...astro })).toEqual([
-      "/gates/hygiene/astro_check/enabled",
-    ]);
-    expect(pointers({ ...hard, class: "ui-components", ...astro })).toEqual([]);
+    const pointer = ["/gates/hygiene/astro_check/enabled"];
+    const withAstro = { dependsOnAstro: true };
+    const without = { dependsOnAstro: false };
+    for (const project of [withAstro, without]) {
+      expect(
+        pointers({ ...hard, class: "astro-site", ...astro }, undefined, undefined, project),
+      ).toEqual(pointer);
+      expect(
+        pointers({ ...hard, class: "ts-library", ...astro }, undefined, undefined, project),
+      ).toEqual([]);
+      expect(
+        pointers({ ...hard, class: "node-service", ...astro }, undefined, undefined, project),
+      ).toEqual([]);
+    }
+    for (const name of ["web-app", "ui-components"] as const) {
+      expect(pointers({ ...hard, class: name, ...astro }, undefined, undefined, withAstro)).toEqual(
+        pointer,
+      );
+      expect(pointers({ ...hard, class: name, ...astro }, undefined, undefined, without)).toEqual(
+        [],
+      );
+    }
+  });
+
+  it("reads the project from the package.json beside the config when none is given", () => {
+    const astro = { gates: { hygiene: { astro_check: off } } } as const;
+    const config: WebTopsConfig = { ...hard, class: "web-app", ...astro };
+    const dir = scratch();
+    expect(pointers(config, undefined, dir)).toEqual([]);
+    writeFileSync(
+      join(dir, "package.json"),
+      JSON.stringify({ devDependencies: { astro: "7.4.0" } }),
+    );
+    expect(pointers(config, undefined, dir)).toEqual(["/gates/hygiene/astro_check/enabled"]);
   });
 
   it("allows package_exports off where the class does not map it", () => {
