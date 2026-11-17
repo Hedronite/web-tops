@@ -6,6 +6,18 @@ All notable changes to this project are listed here. The protocol version and th
 
 ### Changed
 
+- Protocol 0.2.0 → 0.2.1 (draft), the keys the configuration schema needs before the CLI can be written:
+  - §9: every gate and layer, and `laws`, takes `enabled` and `reason`; `enabled: false` needs a reason, printed with `skip`. `gates.coverage.exclude` holds the reasoned coverage exclusions §6.1 already required.
+  - §3.3: `not-run` also covers layers a stopped run never reached. §6.6: the report counts the layers in range and the layers that ran.
+  - §3.3: verdict precedence (config off, class, no command) and what counts as in range, so `--only` runs and class-unmapped layers do not fail the count.
+  - §6.6: the report's fields, verdict spellings, reasons on `skip` and `not-run`, and how an acknowledged `Ack` is marked. §6.1: test files are excluded from coverage by default.
+  - §9: `exemption` for `advisory`; gate 1 step keys and `format.tool`; `custom` item shape; enums; `laws.enable` renamed `laws.select`; under `hard`, mapped gates and steps at tier 1 or below, other than CRAP, mutation, build output and laws, cannot be switched off; `exemption.until` is a UTC date valid through that day. `astro_check` follows the project, not only the class: always for `astro-site`, and for `web-app` and `ui-components` when they depend on `astro`, including as a peer. §6.6 names a finding's fields.
+  - §16: four items resolved (15 to 18); open items numbered O1 to O6. §14 header at 0.2.1; §18 sketch at 0.2.1.
+  - Node runs the tools in every class, in `^22.23.4 || ^24.15.0 || >=26`, recorded in `web-tops.lock`; the CI `gate` job sets it up; `doctor` and `lock --verify` check it (§1.3, §2, §10, §11, §12).
+  - §3.1: tools resolve from `node_modules`, never `PATH`; layers declare the artifacts they produce and consume, and a layer whose input is missing is `not-run` with the reason.
+  - §3.1, §6.1, §6.6: the gate passes the coverage include, reporters, reports directory and shuffle seed; every in-scope file needs an LCOV record; the `tests` layer records `seed`.
+  - §4, §11: `init` writes only CI jobs whose commands exist (`gate` alone for now) and an `AGENTS.md` section that claims no check that does not run. §8.2: W-04 reads each strict member, not `strict` alone. §16: items 19 to 22.
+  - Review fixes: the `tests` layer is judged from Vitest's JSON results, not its exit code, and the gate passes the coverage `exclude` too; the floor counts in-scope records only (§3.1, §6.1). A missing input is a `not-run` cause and a missing tool is `Refuse` (§3.3, §3.1). `gate` clears `.web-tops/out/` first and checks Bun's floor; CI pins an exact Node (§3.1, §11). `toolchain.runtime` names what the shipped code runs on (§9). The `package.json` beside `web-tops.yaml` decides `astro_check`; W-27 applies to Astro `web-app` and `ui-components` projects (§5.2, §9).
 - Protocol 0.1.0 → 0.2.0 (draft), from what the first adopter, LuminosiTS, proved in practice:
   - Lint pins: ESLint 9.39 and `eslint-plugin-astro` 1.7, because `eslint-plugin-jsx-a11y` 6.10 (still its latest) does not accept ESLint 10 and `eslint-plugin-astro` 3.x requires it. The move condition is in §2.
   - Node floor 22.23.4 where Astro 7 runs; `@playwright/test` 1.65 pinned; `typescript-eslint` 8.73.
