@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import pkg from "../../package.json" with { type: "json" };
+import vitestConfig from "../../vitest.config.ts";
 import { profileFor } from "../config/profiles.ts";
 import { at, get, keys, matching } from "../config/test-support.ts";
 import { checkConfigFile, parseYaml } from "../config/validate.ts";
@@ -65,12 +66,19 @@ describe("G7a: the kit's own web-tops.yaml", () => {
     expect(get(config, "version")).toBe(pkg.version);
   });
 
-  it("excludes the test helpers that are not *.test.* files, with a reason", () => {
-    const exclude = at(yamlOf("web-tops.yaml"), ["gates", "coverage", "exclude"]);
-    const entries = keys(exclude).map((index) => get(exclude, index));
-    const helpers = entries.find((entry) => get(entry, "glob") === "src/**/test-support*.ts");
-    expect(helpers).toBeDefined();
-    expect(get(helpers, "reason")).toEqual(matching(/\S/));
+  it.each(["src/**/test-support*.ts", "src/**/testkit.ts"])(
+    "excludes the test helper glob %s from coverage, with a reason",
+    (glob) => {
+      const exclude = at(yamlOf("web-tops.yaml"), ["gates", "coverage", "exclude"]);
+      const entries = keys(exclude).map((index) => get(exclude, index));
+      const entry = entries.find((candidate) => get(candidate, "glob") === glob);
+      expect(entry).toBeDefined();
+      expect(get(entry, "reason")).toEqual(matching(/\S/));
+    },
+  );
+
+  it("keeps the floor in the class profile only: vitest.config.ts sets no threshold", () => {
+    expect(at(vitestConfig, ["test", "coverage", "thresholds"])).toBeUndefined();
   });
 });
 

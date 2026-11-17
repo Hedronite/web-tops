@@ -281,6 +281,25 @@ describe("R24: ignore patterns are anchored, so a source directory of the same n
   });
 });
 
+describe("R42: lint skips the output directories the tools write", () => {
+  const ignored = (path: string): Promise<boolean> =>
+    new ESLint({ cwd: root }).isPathIgnored(join(root, path));
+
+  it.each([".astro/types.d.ts", ".web-tops/out/eslint.json", "coverage/x.js", "dist/x.js"])(
+    "ignores %s",
+    async (path) => {
+      expect(await ignored(path)).toBe(true);
+    },
+  );
+
+  it.each(["src/config/validate.ts", ".dependency-cruiser.cjs", "eslint.config.js"])(
+    "lints %s",
+    async (path) => {
+      expect(await ignored(path)).toBe(false);
+    },
+  );
+});
+
 describe("R9: the published sources import their neighbours with the .ts extension", () => {
   it("every relative import in a non-test source names a .ts or .json file", () => {
     const sources = readdirSync(join(root, "src"), { recursive: true, encoding: "utf8" }).filter(

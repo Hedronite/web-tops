@@ -25,6 +25,10 @@ gates:
     lines_floor: 85
     exclude:
       - { glob: "src/**/test-support*.ts", reason: "test helpers: no production code" }
+      - {
+          glob: "src/**/testkit.ts",
+          reason: "test helpers: the gate runner's fixtures, no production code",
+        }
   crap:
     enabled: false
     reason: "M2: native CRAP lands in milestone M2"
