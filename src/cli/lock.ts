@@ -2,7 +2,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import pkg from "../../package.json" with { type: "json" };
 import type { LockRead } from "../lock/config.ts";
-import { readLockFile } from "../lock/config.ts";
+import { NO_NODE_RANGE, readLockFile } from "../lock/config.ts";
 import type { Env } from "../lock/environment.ts";
 import { hostVersion } from "../lock/environment.ts";
 import { serializeLock } from "../lock/format.ts";
@@ -45,7 +45,8 @@ function toolProblems(lock: Lock, cwd: string): string[] {
 
 /** The line to print when the Node on the PATH is missing or outside the lock's range, else none. */
 function nodeProblems(lock: Lock, env: Env): string[] {
-  const range = lock["node"] ?? NODE_RANGE;
+  const range = lock["node"];
+  if (range === undefined) return [NO_NODE_RANGE];
   const found = hostVersion("node", env);
   if (found === undefined) return [`node: the lock needs ${range}, and no node is on the PATH`];
   return satisfiesNodeRange(found, range)

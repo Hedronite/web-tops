@@ -162,10 +162,13 @@ describe("webtops lock --verify, the Node range", () => {
     expect((await cli(["--verify"], dir, fakeHost({ node: "v24.22.3" }))).code).toBe(2);
   });
 
-  it("falls back to the protocol's range when the lock records none", async () => {
-    const dir = project(`typescript: 6.0.3\nwebtops: ${pkg.version}\n`);
-    expect((await cli(["--verify"], dir, fakeHost({ node: "v24.22.3" }))).code).toBe(0);
-    expect((await cli(["--verify"], dir, fakeHost({ node: "v23.1.0" }))).code).toBe(2);
+  it("exits 2 with the fix when the lock records no node range, whatever Node is running", async () => {
+    const dir = project(`eslint: 9.39.5\ntypescript: 6.0.3\nwebtops: ${pkg.version}\n`);
+    for (const node of ["v24.22.3", "v23.1.0"]) {
+      const { code, err } = await cli(["--verify"], dir, fakeHost({ node }));
+      expect(code).toBe(2);
+      expect(err).toContain("web-tops.lock has no node range; run webtops lock --update");
+    }
   });
 
   it("reports a tool mismatch and a Node mismatch together", async () => {

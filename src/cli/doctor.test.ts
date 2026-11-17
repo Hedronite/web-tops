@@ -62,6 +62,16 @@ describe("doctor diagnose", () => {
     expect(missing({ ...GOOD, node: "26.1.0" }, { ...SETUP, nodeRange: ">=26" })).toEqual([]);
   });
 
+  it("does not check Node when no lock records a range, and says so", () => {
+    const setup: Setup = { ...SETUP, nodeRange: undefined };
+    expect(missing({ ...GOOD, node: "18.0.0" }, setup)).toEqual([]);
+    expect(missing({ ...GOOD, node: undefined }, setup)).toEqual([]);
+    const node = diagnose(GOOD, setup).find((check) => check.name === "node");
+    expect(node?.status).toBe("info");
+    expect(node?.detail).toContain("not checked");
+    expect(node?.detail).toContain("24.22.3");
+  });
+
   it("says in the Node line which version was found and which range is needed", () => {
     const node = diagnose({ ...GOOD, node: "22.9.0" }, SETUP).find(
       (check) => check.name === "node",
@@ -135,6 +145,7 @@ describe("webtops doctor", () => {
       "web-tops.yaml",
       `class: ${className}\ntoolchain:\n  typescript: "6.0.3"\n  runtime: bun\n`,
     );
+    put(dir, "web-tops.lock", `node: "${NODE_RANGE}"\ntypescript: 6.0.3\n`);
     put(dir, "node_modules/typescript/package.json", JSON.stringify({ version: "6.0.3" }));
     put(dir, "node_modules/@playwright/test/package.json", JSON.stringify({ version: "1.65.1" }));
     if (revision !== null) {
@@ -183,13 +194,10 @@ describe("webtops doctor", () => {
     ["24.15.0", 0],
     ["25.0.0", 3],
     ["26.0.0", 0],
-  ])(
-    "with Node %s on the PATH exits %i, using the protocol's range when there is no lock",
-    async (node, expected) => {
-      const env = fakeHost({ bun: "1.4.4", node: `v${node}` });
-      expect((await cli([], project("ts-library"), env)).code).toBe(expected);
-    },
-  );
+  ])("with Node %s on the PATH exits %i, against the range in the lock", async (node, expected) => {
+    const env = fakeHost({ bun: "1.4.4", node: `v${node}` });
+    expect((await cli([], project("ts-library"), env)).code).toBe(expected);
+  });
 
   it("exits 3 and names node when Node is outside the range", async () => {
     const env = fakeHost({ bun: "1.4.4", node: "v22.23.3" });
@@ -210,6 +218,23 @@ describe("webtops doctor", () => {
     put(dir, "web-tops.lock", 'node: ">=26"\ntypescript: 6.0.3\n');
     expect((await cli([], dir, fakeHost({ bun: "1.4.4", node: "v24.22.3" }))).code).toBe(3);
     expect((await cli([], dir, fakeHost({ bun: "1.4.4", node: "v26.0.0" }))).code).toBe(0);
+  });
+
+  it("exits 2 with the fix when the lock records no node range, never falling back to a range of its own", async () => {
+    const dir = project("ts-library");
+    put(dir, "web-tops.lock", "typescript: 6.0.3\n");
+    const { code, err } = await cli([], dir, goodHost());
+    expect(code).toBe(2);
+    expect(err).toContain("web-tops.lock has no node range; run webtops lock --update");
+    expect((await cli([], dir, fakeHost({ bun: "1.4.4" }))).code).toBe(2);
+  });
+
+  it("does not check Node when there is no lock, and exits 0 on an otherwise good host", async () => {
+    const dir = project("ts-library");
+    rmSync(join(dir, "web-tops.lock"));
+    const { code, out } = await cli([], dir, fakeHost({ bun: "1.4.4", node: "v18.0.0" }));
+    expect(code).toBe(0);
+    expect(out).toMatch(/info\s+node\s+18\.0\.0; not checked/);
   });
 
   it("exits 2 when web-tops.lock cannot be read", async () => {

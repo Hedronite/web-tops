@@ -2,7 +2,6 @@ import { rmSync } from "node:fs";
 import { afterAll, describe, expect, it } from "vitest";
 import { madeDirs, put, tempDir } from "../init/test-support.ts";
 import { field, lockedNodeRange, readConfigDoc, readLockFile } from "./config.ts";
-import { NODE_RANGE } from "./pins.ts";
 
 afterAll(() => {
   for (const dir of madeDirs()) rmSync(dir, { recursive: true, force: true });
@@ -60,11 +59,16 @@ describe("readLockFile", () => {
 });
 
 describe("lockedNodeRange", () => {
-  it("is the protocol's range with no lock, or a lock that records none", () => {
-    expect(lockedNodeRange(tempDir())).toEqual({ range: NODE_RANGE });
+  it("is no range when there is no lock at all", () => {
+    expect(lockedNodeRange(tempDir())).toEqual({ range: undefined });
+  });
+
+  it("is an error naming the fix when the lock records no node range", () => {
     const dir = tempDir();
     put(dir, "web-tops.lock", "typescript: 6.0.3\n");
-    expect(lockedNodeRange(dir)).toEqual({ range: NODE_RANGE });
+    expect(lockedNodeRange(dir)).toEqual({
+      error: "web-tops.lock has no node range; run webtops lock --update",
+    });
   });
 
   it("is the range the lock records", () => {

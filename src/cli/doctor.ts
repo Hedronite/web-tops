@@ -23,8 +23,8 @@ export interface Probe {
 export interface Setup {
   readonly className: string | undefined;
   readonly typescript: string;
-  /** The Node range the tools run in: the one `web-tops.lock` records, else the protocol's. */
-  readonly nodeRange: string;
+  /** The Node range `web-tops.lock` records; undefined when there is no lock, and Node is then not checked. */
+  readonly nodeRange: string | undefined;
 }
 
 export interface Check {
@@ -39,11 +39,22 @@ function bunCheck(probe: Probe): Check {
   return { name: "bun", status: ok ? "ok" : "missing", detail };
 }
 
-/** Node runs the tools in every class (section 2), so it is checked in all of them. */
+const nodeInside = (found: string | undefined, range: string): boolean =>
+  found !== undefined && satisfiesNodeRange(found, range);
+
+/** Node runs the tools in every class (section 2), so it is checked in all of them, against the lock's range. */
 function nodeCheck(probe: Probe, setup: Setup): Check {
-  const ok = probe.node !== undefined && satisfiesNodeRange(probe.node, setup.nodeRange);
-  const detail = `${probe.node ?? "not found"} (needs ${setup.nodeRange})`;
-  return { name: "node", status: ok ? "ok" : "missing", detail };
+  const found = probe.node ?? "not found";
+  const range = setup.nodeRange;
+  if (range === undefined) {
+    return {
+      name: "node",
+      status: "info",
+      detail: `${found}; not checked: no web-tops.lock records a range`,
+    };
+  }
+  const status = nodeInside(probe.node, range) ? "ok" : "missing";
+  return { name: "node", status, detail: `${found} (needs ${range})` };
 }
 
 function typescriptCheck(probe: Probe, setup: Setup): Check {
@@ -96,7 +107,7 @@ export function diagnose(probe: Probe, setup: Setup): readonly Check[] {
 }
 
 /** What the project asks for: its class and TypeScript pin from web-tops.yaml, its Node range from web-tops.lock. */
-function fromDoc(doc: unknown, nodeRange: string): Setup | string {
+function fromDoc(doc: unknown, nodeRange: string | undefined): Setup | string {
   const className = field(doc, "class");
   if (typeof className !== "string" || className === "") return "web-tops.yaml names no class";
   const typescript = field(doc, "toolchain", "typescript");

@@ -4,7 +4,6 @@ import type { Problem } from "../config/types.ts";
 import { parseYaml } from "../config/validate.ts";
 import type { Lock } from "./format.ts";
 import { parseLock } from "./format.ts";
-import { NODE_RANGE } from "./pins.ts";
 
 export type ConfigRead =
   | { readonly state: "absent" }
@@ -53,11 +52,19 @@ export function readLockFile(dir: string): LockRead {
   return parsed.ok ? { state: "ok", lock: parsed.lock } : { state: "invalid", error: parsed.error };
 }
 
-/** The Node range the lock records, the protocol's range when there is no lock or it records none, else why the lock is unreadable. */
+export const NO_NODE_RANGE = "web-tops.lock has no node range; run webtops lock --update";
+
+/**
+ * The Node range the lock records: undefined when there is no lock, else an error when the lock
+ * cannot be read or records none. There is no fallback range: the lock is the one place a project's
+ * range is kept (pins.ts gives it to `init` and `lock --update` only).
+ */
 export function lockedNodeRange(
   dir: string,
-): { readonly range: string } | { readonly error: string } {
+): { readonly range: string | undefined } | { readonly error: string } {
   const read = readLockFile(dir);
-  if (read.state === "invalid") return { error: read.error };
-  return { range: (read.state === "ok" ? read.lock["node"] : undefined) ?? NODE_RANGE };
+  if (read.state === "absent") return { range: undefined };
+  if (read.state === "invalid") return { error: `web-tops.lock is unusable: ${read.error}` };
+  const range = read.lock["node"];
+  return range === undefined ? { error: NO_NODE_RANGE } : { range };
 }
