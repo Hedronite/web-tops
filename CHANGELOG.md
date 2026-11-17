@@ -9,7 +9,10 @@ All notable changes to this project are listed here. The protocol version and th
 - Protocol 0.2.0 → 0.2.1 (draft), the keys the configuration schema needs before the CLI can be written:
   - §9: every gate and layer, and `laws`, takes `enabled` and `reason`; `enabled: false` needs a reason, printed with `skip`. `gates.coverage.exclude` holds the reasoned coverage exclusions §6.1 already required.
   - §3.3: `not-run` also covers layers a stopped run never reached. §6.6: the report counts the layers enabled in range and the layers that ran.
-  - §16: two items resolved (15, 16); §18 sketch at 0.2.1.
+  - §3.3: verdict precedence (config off, class, no command) and what counts as in range, so `--only` runs and class-unmapped layers do not fail the count.
+  - §6.6: the report's fields, verdict spellings, reasons on `skip` and `not-run`, and how an acknowledged `Ack` is marked. §6.1: test files are excluded from coverage by default.
+  - §9: `exemption` for `advisory`; gate 1 step keys and `format.tool`; `custom` item shape; enums; `laws.enable` renamed `laws.select`; under `hard`, mapped tier-1 gates other than CRAP, mutation and build output cannot be switched off.
+  - §16: four items resolved (15 to 18); open items numbered O1 to O6. §14 header at 0.2.1; §18 sketch at 0.2.1.
 - Protocol 0.1.0 → 0.2.0 (draft), from what the first adopter, LuminosiTS, proved in practice:
   - Lint pins: ESLint 9.39 and `eslint-plugin-astro` 1.7, because `eslint-plugin-jsx-a11y` 6.10 (still its latest) does not accept ESLint 10 and `eslint-plugin-astro` 3.x requires it. The move condition is in §2.
   - Node floor 22.23.4 where Astro 7 runs; `@playwright/test` 1.65 pinned; `typescript-eslint` 8.73.

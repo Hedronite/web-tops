@@ -30,7 +30,7 @@ it:
 | Tailwind CSS | Utility classes, design tokens via `@theme` | Only the CSS that is used |
 | Astro | Components, routing, build; zero JS by default | HTML, CSS, and island JS |
 
-It has three parts: the written spec (this document, destined to become `WEB_TOPS.md`), a JSON
+It has three parts: the written spec (this document, `WEB_TOPS.md`), a JSON
 Schema (`schema/web-tops.schema.json` plus a gate-report schema), and per-class profiles
 (`profiles/*.yaml`). There is also a practice layer in `AGENTS.md` and an orchestrator CLI,
 **`webtops`**.
@@ -142,7 +142,14 @@ time: it reads the JSON those tools wrote in gate 1.
 | `Ack` | Soft rule; needs a recorded acknowledgement (`// webtops-ack W-NN: reason` or the ledger) | Fails if unacknowledged |
 | `skip` | The class does not require the layer, or config sets `enabled: false` with a `reason` (§9) | Printed with the reason |
 | `not-run` | The layer is enabled but has no command mapped, or the run stopped on an earlier failure before reaching it; the report gives which | **Fails the gate** |
-| `not-evaluated` | The reader or tool could not judge, or its config is off | Reported; **never a pass** |
+| `not-evaluated` | The reader or tool could not judge, or the tool's own rule or flag is off or below `error` (§8.1) | Reported; **never a pass** |
+
+**Which verdict, and what counts.** A layer gets `skip` when `web-tops.yaml` sets
+`enabled: false` (the reason is the config's), or when its class profile does not map it (the
+reason names the class). Otherwise a layer with no command is `not-run`. A layer is **in range**
+when it is enabled, mapped by the class, at or below `--max-tier`, and named by `--only` when
+`--only` is given. `skip` layers are never in range. The run fails when fewer layers ran than are
+in range.
 
 ### 3.4 Stated rules
 
@@ -226,7 +233,8 @@ Coverage counts `.ts` and `.tsx` modules. `.astro` components are judged by `ast
 
 - From the single Vitest run in gate 2 (v8 provider), LCOV plus JSON. Workspace packages merge
   into one profile.
-- Excluded by default: `*.d.ts`, generated code, `.astro/` type output, config files. Anything
+- Excluded by default: `*.d.ts`, test files (`*.test.*`, `*.spec.*`), generated code, `.astro/`
+  type output, config files. Anything
   else is excluded only by an explicit, reasoned entry in `web-tops.yaml` (`gates.coverage.exclude`, §9).
 - An empty or missing profile fails.
 
@@ -281,8 +289,17 @@ names each law's reader.
 
 `webtops gate` always writes `.web-tops/report.json` and prints text. The schema is
 `schema/gate-report.schema.json`. Every layer is present; `skip` carries a reason; `not-run`
-fails; `not_evaluated` is counted on its own. The report counts the layers enabled in range and
-the layers that ran; fewer ran than enabled fails the gate (§11).
+fails; `not_evaluated` is counted on its own. The report counts the layers in range and the
+layers that ran; fewer ran than are in range fails the gate (§3.3, §11).
+
+The report holds `protocol`, `class`, `enforce`, `enforced` (false only under `advisory`),
+`max_tier`, `only` (or null), and `counts` with `in_range`, `ran`, `failed` and `not_evaluated`.
+Each entry in `layers` has `id` (`hygiene`, `tests`, `coverage`, `crap`, `mutation`,
+`build-output`, `laws`, or a `custom` id), `gate`, `tier`, `verdict` and `findings`. Verdicts are
+spelled as in §3.3: `pass`, `Refuse`, `Ack`, `skip`, `not-run`, `not-evaluated`. `skip` and
+`not-run` carry a `reason`. A stopped run's `not-run` reason is `stopped: gate <n> failed`. An
+`Ack` finding that is acknowledged carries `ack: { source: comment | ledger, reason }`; an
+unacknowledged one fails.
 
 ### 6.7 Enforcement modes
 
@@ -484,6 +501,7 @@ package: "@hedronite/lts-core"      # or the site name
 class: ts-library
 enforce: ratchet                    # hard | ratchet | advisory (§6.7)
 baseline: .web-tops/baseline.json
+# exemption: { until: "2027-01-31", reason: "..." }   # required under advisory
 
 toolchain:
   typescript: "6.0.3"
@@ -492,6 +510,7 @@ toolchain:
 gates:
   hygiene:
     eslint: { config: eslint.config.js }
+    format: { tool: prettier }      # prettier | biome; one per repo
     stylelint: { enabled: false, reason: "no raw CSS in this package" }
     audit: { fail_on: high }
   tests:
@@ -522,7 +541,7 @@ layers:
   custom: []
 
 laws:
-  enable: default
+  select: default                   # default | all
   ack_ledger: .web-tops/acks.yaml
 
 report:
@@ -531,8 +550,23 @@ report:
 
 **Switching a layer off.** Every entry under `gates` and `layers`, and `laws` itself, takes
 `enabled` (default `true`) and `reason`. `enabled: false` requires a non-empty `reason`, and the
-report prints it with the `skip` verdict (§3.3). A comment is not a reason. Under `laws`, `enable`
+report prints it with the `skip` verdict (§3.3). A comment is not a reason. Under `laws`, `select`
 chooses which laws run and `enabled: false` turns the layer off.
+
+- `enabled` and `reason` apply to each gate (`gates.hygiene`), each step inside a gate
+  (`gates.hygiene.stylelint`) and each named entry under `layers`. A `layers.custom` item is
+  `{ id, tier, command }`; to switch one off, remove it.
+- Gate 1 steps: `install`, `tsc`, `astro_check`, `eslint`, `stylelint`, `format`,
+  `dependency_cruiser`, `audit`. `layers.package_exports` runs `publint` and `attw` inside gate 1.
+- `format.tool` is `prettier` or `biome`. Without the key, the gate reads the one formatter config
+  in the repo; none or both is a `Refuse`.
+- `audit.fail_on`: `low`, `moderate`, `high` or `critical`. `tests.runner`: `vitest`.
+- `laws.select`: `default` (the judged set) or `all`.
+- Under `hard`, a gate the class maps at tier 1 or below cannot be switched off, except
+  `crap`, `mutation` and build output; `check` exits 2. Under `advisory`, `exemption` is
+  required and its `until` date must be in the future.
+- Keys a config omits take the class profile's value (§5.2). The `crap` and `mutation` checks in
+  §12 apply when that gate is enabled.
 
 ---
 
@@ -551,7 +585,7 @@ The drop-in workflow `.github/workflows/web-tops.yml`:
 
 | Job | Content |
 |---|---|
-| `gate` | `bun install --frozen-lockfile`; Playwright browsers for the classes that need them; `bunx webtops gate --max-tier 1`. It fails if fewer layers ran than are enabled in range |
+| `gate` | `bun install --frozen-lockfile`; Playwright browsers for the classes that need them; `bunx webtops gate --max-tier 1`. It fails if fewer layers ran than are in range (§3.3) |
 | `nightly` | `bunx webtops gate --max-tier 2` on a schedule |
 | `release-verify` | Tier 3, on release |
 | `law-diff` | Fails a PR that weakens or removes a law, rule, tsconfig flag or budget without the `protocol-change` label |
@@ -568,7 +602,7 @@ nothing.
 | Command | Behavior |
 |---|---|
 | `init --class <c>` | Writes the drop-in set (§4). Refuses to overwrite without `--force` |
-| `check` | Validates `web-tops.yaml` against the JSON Schema, plus semantic checks: protocol id, class has a profile, `crap.cap ≥ 1`, `ts-library` keeps `unexplained_survivors_max = 0`, `advisory` has a dated exemption, under `ratchet` the baseline exists and is clean |
+| `check` | Validates `web-tops.yaml` against the JSON Schema, plus semantic checks: protocol id, class has a profile, `crap.cap ≥ 1`, `ts-library` keeps `unexplained_survivors_max = 0`, `advisory` has an `exemption` whose `until` is in the future, under `ratchet` the baseline exists and is clean, under `hard` no tier-1 gate the class maps is off except `crap`, `mutation` and build output (§9) |
 | `gate` | Runs enabled layers at or below `--max-tier` (default 1). `--base`, `--keep-going`, `--json`, `--only <layer>`, `--dry-run` (refused in CI) |
 | `baseline` | Writes `.web-tops/baseline.json` after a passing run; the only writer |
 | `laws [list \| run \| explain W-NN]` | Catalog with readers; laws alone; one law explained |
@@ -605,11 +639,11 @@ Non-negotiable:
 
 ## 14. Deltas
 
-| Area | TS-TOPS sketch 0.1.0 | Go-TOPS 0.3.0 | Web-TOPS 0.2.0 |
+| Area | TS-TOPS sketch 0.1.0 | Go-TOPS 0.3.0 | Web-TOPS 0.2.1 |
 |---|---|---|---|
 | Scope | TypeScript | Go | TypeScript + HTML, CSS, Tailwind, Astro; source and build output |
 | CRAP caps | Human and agent, agent "stricter" but numerically looser | One per class | One per class |
-| Unmapped layer | `skip` | `not-run` fails | `not-run` fails |
+| Enabled layer with no command | `skip` | `not-run` fails | `not-run` fails |
 | Enforcement | Absolute | `hard` / `ratchet` / `advisory` | Same |
 | Complexity discount | not specified | Error guards | Nullish handling (`??`, `?.`) |
 | Enums | Ack (T-04) | n/a | Refuse, mechanically, via `erasableSyntaxOnly` (W-05) |
@@ -645,7 +679,9 @@ agent contract.
 **Resolved for 0.2.1:**
 
 15. **Switching a layer off:** `enabled` and `reason` on every gate and layer and on `laws`; `enabled: false` needs a reason (§9).
-16. **A stopped run:** layers after a failed gate without `--keep-going` report `not-run` with the reason, and the report counts enabled and run layers (§3.3, §6.6).
+16. **A stopped run:** layers after a failed gate without `--keep-going` report `not-run` with the reason, and the report counts the layers in range and the layers that ran (§3.3, §6.6).
+17. **Verdict precedence and range:** config off, then class, then no command; `--only` narrows the range (§3.3).
+18. **Report fields** are listed in §6.6; `advisory` takes `exemption`; `laws.enable` is renamed `laws.select` (§9).
 
 **Resolved for 0.2.0:**
 
@@ -669,12 +705,12 @@ agent contract.
 
 **Open:**
 
-1. Byte budgets per class (§5.2 numbers are placeholders).
-2. Whether to add a TypeScript 7 `tsc --noEmit` leg as advisory for speed.
-3. Prettier or Biome as the drop-in default formatter.
-4. Tailwind 4 lint plugin choice, if any, beyond the custom W-23 rule **[verify v4 support]**.
-5. How a gate proves a WebGPU backend: a self-hosted runner with an adapter, or an advisory leg.
-6. Whether `webtops` ships the W-42 to W-46 readers itself or delegates to a project's own tool
+O1. Byte budgets per class (§5.2 numbers are placeholders).
+O2. Whether to add a TypeScript 7 `tsc --noEmit` leg as advisory for speed.
+O3. Prettier or Biome as the drop-in default formatter.
+O4. Tailwind 4 lint plugin choice, if any, beyond the custom W-23 rule **[verify v4 support]**.
+O5. How a gate proves a WebGPU backend: a self-hosted runner with an adapter, or an advisory leg.
+O6. Whether `webtops` ships the W-42 to W-46 readers itself or delegates to a project's own tool
    that emits the same report shape.
 
 ---

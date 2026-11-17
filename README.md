@@ -11,7 +11,7 @@ TypeScript is the foundational language; HTML, CSS, Tailwind CSS and Astro compl
 
 ## Status
 
-Draft. Protocol **0.2.1**. The package is unreleased (0.0.0). There is no code yet.
+Draft. Protocol **0.2.1**. The package is unreleased (0.0.0).
 
 This repo is at milestone M0: the spec. `webtops` does not exist yet, and nothing here is ready to copy into CI.
 
