@@ -77,7 +77,7 @@ Schema (`schema/web-tops.schema.json` plus a gate-report schema), and per-class 
 | Protocol version | **0.3.0** (draft, proposed) |
 | Package version | 0.1.0 (private; a GitHub release, not published to npm) |
 | TypeScript | **6.0.x** pinned (6.0.3 current); the gate runs the pin, and `erasableSyntaxOnly` needs 5.8 or later. See below |
-| Runtime | Bun ≥ 1.4 installs and runs `webtops`; Node `^22.23.4 \|\| ^24.15.0 \|\| >=26` runs the tools, in every class (where the pinned tools' engine ranges meet). The range is recorded in `web-tops.lock` (§10) |
+| Runtime | Bun ≥ 1.4 installs and runs `webtops`; Node `^22.23.4 \|\| ^24.15.0 \|\| >=26` runs the tools, in every class (where the pinned tools' engine ranges meet). The range is recorded in `web-tops.lock` (§10) and in `engines` of the kit's `package.json`, beside Bun |
 | Tool lock | `web-tops.lock`; dependency lock `bun.lock`, installed with `--frozen-lockfile` |
 | Lint | **ESLint 9.39** (held back, see below), `typescript-eslint` 8.73, `eslint-plugin-astro` **1.7**, `eslint-plugin-jsx-a11y` 6.10, `@eslint-community/eslint-plugin-eslint-comments` 4.8 |
 | Tests and coverage | Vitest 5.1, `@vitest/coverage-v8` 5.1 |
@@ -678,9 +678,10 @@ The drop-in workflow `.github/workflows/web-tops.yml`:
 CI rules: checkout with `fetch-depth: 0`; actions pinned by commit SHA; minimal `permissions:`;
 `--dry-run` refused; empty reports fail. `init` writes a job only when its command exists:
 until the tier 2 and 3 layers and `law-diff` exist, it writes the `gate` job alone.
-The gate is one job running one command. The drop-in
-does not repeat the tools as separate job steps, because steps that bypass `webtops` judge
-nothing.
+The gate is one job running one command. A matrix over operating systems is still that one job:
+the kit's own workflow runs it on `ubuntu-latest` and `macos-latest`, with the same steps and the
+same Node on both legs. The drop-in does not repeat the tools as separate job steps, because
+steps that bypass `webtops` judge nothing.
 
 ---
 

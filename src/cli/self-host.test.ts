@@ -17,6 +17,7 @@ import { profileFor } from "../config/profiles.ts";
 import { at, get, keys, matching } from "../config/test-support.ts";
 import { checkConfigFile, parseYaml } from "../config/validate.ts";
 import { PROTOCOL, inProtocolRange } from "../config/protocol.ts";
+import { satisfiesNodeRange } from "../lock/node.ts";
 import { NODE_RANGE, TOOL_PINS } from "../lock/pins.ts";
 import { runDoctorCli } from "./doctor.ts";
 import type { Io } from "./io.ts";
@@ -175,9 +176,8 @@ describe("G7b: CI is the one gate job", () => {
     expect(at(on, ["push", "branches"])).toEqual(["main"]);
   });
 
-  it("has one job, named gate, on ubuntu-latest", () => {
+  it("has one job, named gate", () => {
     expect(keys(get(workflow(), "jobs"))).toEqual(["gate"]);
-    expect(at(workflow(), ["jobs", "gate", "runs-on"])).toBe("ubuntu-latest");
   });
 
   it("runs the frozen install and one command, the gate at tier 1, and nothing else", () => {
@@ -224,6 +224,68 @@ describe("G7b: CI is the one gate job", () => {
   it("runs on pull requests and on pushes to main", () => {
     expect(keys(get(workflow(), "on")).sort()).toEqual(["pull_request", "push"]);
     expect(at(workflow(), ["on", "push", "branches"])).toEqual(["main"]);
+  });
+});
+
+describe("G5a: the one gate job runs as a matrix over ubuntu and macOS", () => {
+  const job = (): unknown => at(yamlOf(".github/workflows/web-tops.yml"), ["jobs", "gate"]);
+  const steps = (): unknown[] => {
+    const list = get(job(), "steps");
+    return keys(list).map((index) => get(list, index));
+  };
+
+  it("takes its runner from a matrix of ubuntu-latest and macos-latest, and lets both legs finish", () => {
+    expect(at(job(), ["strategy", "matrix", "os"])).toEqual(["ubuntu-latest", "macos-latest"]);
+    expect(get(job(), "runs-on")).toBe("${{ matrix.os }}");
+    expect(at(job(), ["strategy", "fail-fast"])).toBe(false);
+  });
+
+  it("has nothing in the matrix but the operating system, so both legs run the same steps", () => {
+    expect(keys(at(job(), ["strategy", "matrix"]))).toEqual(["os"]);
+    const text = readFileSync(join(root, ".github/workflows/web-tops.yml"), "utf8");
+    expect(text.match(/matrix\./g)).toHaveLength(1);
+    expect(text).not.toMatch(/\bif:/);
+  });
+
+  it("sets Node up at the one exact version on both legs, inside the engines range", () => {
+    const setup = steps().find((step) =>
+      String(get(step, "uses")).startsWith("actions/setup-node@"),
+    );
+    const version = at(setup, ["with", "node-version"]);
+    expect(version).toBe("24.22.3");
+    expect(satisfiesNodeRange(String(version), String(at(pkg, ["engines", "node"])))).toBe(true);
+  });
+});
+
+describe("G5b: engines, NODE_RANGE and the workflow agree", () => {
+  const setup = (action: string): unknown =>
+    keys(at(yamlOf(".github/workflows/web-tops.yml"), ["jobs", "gate", "steps"]))
+      .map((index) =>
+        at(yamlOf(".github/workflows/web-tops.yml"), ["jobs", "gate", "steps", index]),
+      )
+      .find((step) => String(get(step, "uses")).startsWith(action));
+
+  it("engines names Node and Bun, and nothing else", () => {
+    expect(keys(get(pkg, "engines")).sort()).toEqual(["bun", "node"]);
+  });
+
+  it("engines.node is the range NODE_RANGE holds, and the lock records it", () => {
+    expect(at(pkg, ["engines", "node"])).toBe(NODE_RANGE);
+    expect(get(yamlOf("web-tops.lock"), "node")).toBe(NODE_RANGE);
+  });
+
+  it("the workflow's Node is inside engines.node and NODE_RANGE", () => {
+    const version = String(at(setup("actions/setup-node@"), ["with", "node-version"]));
+    expect(satisfiesNodeRange(version, String(at(pkg, ["engines", "node"])))).toBe(true);
+    expect(satisfiesNodeRange(version, NODE_RANGE)).toBe(true);
+  });
+
+  it("the workflow's Bun is the packageManager Bun and meets engines.bun", () => {
+    const version = String(at(setup("oven-sh/setup-bun@"), ["with", "bun-version"]));
+    expect(get(pkg, "packageManager")).toBe(`bun@${version}`);
+    expect(at(pkg, ["engines", "bun"])).toBe(">=1.4.0");
+    // The clause syntax is the same, whatever the runtime: >=1.4.0 is read as a floor.
+    expect(satisfiesNodeRange(version, String(at(pkg, ["engines", "bun"])))).toBe(true);
   });
 });
 
