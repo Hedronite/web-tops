@@ -9,15 +9,16 @@ function lists(manifest: unknown, field: string, name: string): boolean {
 }
 
 /**
- * Reads the package.json in `dir`: the project depends on Astro when `astro` is in `dependencies`
- * or `devDependencies`. A missing or unreadable package.json is not Astro.
+ * Reads the package.json in `dir`: the project depends on Astro when `astro` is in `dependencies`,
+ * `devDependencies` or `peerDependencies`. A missing or unreadable package.json is not Astro.
  */
 export function readProject(dir: string): Project {
   try {
     const manifest: unknown = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
     return {
-      dependsOnAstro:
-        lists(manifest, "dependencies", "astro") || lists(manifest, "devDependencies", "astro"),
+      dependsOnAstro: ["dependencies", "devDependencies", "peerDependencies"].some((field) =>
+        lists(manifest, field, "astro"),
+      ),
     };
   } catch {
     return { dependsOnAstro: false };

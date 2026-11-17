@@ -22,7 +22,12 @@ describe("readProject: a project depends on Astro when package.json lists astro"
     ["dependencies", '{"dependencies":{"astro":"7.4.0"}}', true],
     ["devDependencies", '{"devDependencies":{"astro":"^7"}}', true],
     ["both", '{"dependencies":{"astro":"7"},"devDependencies":{"astro":"7"}}', true],
-    ["peerDependencies only", '{"peerDependencies":{"astro":"7"}}', false],
+    ["peerDependencies only", '{"peerDependencies":{"astro":"7"}}', true],
+    [
+      "peerDependencies of a package that only starts with astro",
+      '{"peerDependencies":{"astro-icon":"1"}}',
+      false,
+    ],
     ["optionalDependencies only", '{"optionalDependencies":{"astro":"7"}}', false],
     ["a package that only starts with astro", '{"dependencies":{"astro-icon":"1"}}', false],
     ["other dependencies", '{"dependencies":{"react":"19"}}', false],

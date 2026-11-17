@@ -93,12 +93,13 @@ const projects: readonly (readonly [string, string | undefined])[] = [
   ["no-package-json-web-app", undefined],
   ["broken-package-json-web-app", undefined],
   ["astro-lookalike-web-app", undefined],
-  ["astro-peer-web-app", undefined],
   ["ui-components-no-astro", undefined],
   ["astro-ts-library", undefined],
   ["astro-web-app", "/gates/hygiene/astro_check/enabled"],
   ["astro-dev-web-app", "/gates/hygiene/astro_check/enabled"],
   ["astro-ui-components", "/gates/hygiene/astro_check/enabled"],
+  ["astro-peer-web-app", "/gates/hygiene/astro_check/enabled"],
+  ["astro-peer-ui-components", "/gates/hygiene/astro_check/enabled"],
 ];
 
 describe("R27: astro_check off under hard, by project", () => {
