@@ -128,7 +128,7 @@ time: it reads the JSON those tools wrote in gate 1.
 
 **Tools and hand-offs.** Every tool resolves from the project's own `node_modules` (the
 installed package's `bin`), never from `PATH`. A tool not installed there is missing: its layer
-is `Refuse`, and the tool is not started. The runtimes are the exception: `bun` (install, audit)
+is `fail` (a tool error, §3.3), and the tool is not started. The runtimes are the exception: `bun` (install, audit)
 and `node` come from `PATH`. `gate` exits 3 when Bun is below the §2 floor; `doctor` and
 `lock --verify` check Node against the lock's range (§10), and CI pins an exact Node inside it
 (§11). `gate` clears `.web-tops/out/` before the first layer, so no layer judges an earlier run's
