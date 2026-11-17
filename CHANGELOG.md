@@ -35,7 +35,6 @@ All notable changes to this project are listed here. The protocol version and th
   - `gate` runs hygiene, tests and coverage and writes `.web-tops/report.json`; the CRAP, mutation, build-output and laws layers are registered stubs that report `not-run` when enabled.
   - `init --class` for the five launch classes, `report`, `lock`, `doctor` and `version`.
 - The kit gates itself: `web-tops.yaml` (`ts-library`, `hard`; CRAP, mutation, build output and laws off with M2, M3 and M4 as reasons), a draft `web-tops.lock`, and `.dependency-cruiser.cjs`.
-- Prettier 3.10 and a `format:check` script; `dependency-cruiser`, `publint` and `@arethetypeswrong/cli` pinned as dev dependencies.
 - `WEB_TOPS.md`: the Web-TOPS protocol, draft 0.1.0. It supersedes the TS-TOPS 0.1.0 sketch, renamed because the protocol covers the web stack (TypeScript, HTML, CSS, Tailwind, Astro), not only TypeScript.
 - `config/AGENTS.md.tmpl`: the `AGENTS.md` section that `webtops init` will write.
 - `AGENTS.md` and `CLAUDE.md`: standing orders for agents working on this repo.

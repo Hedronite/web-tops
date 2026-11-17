@@ -52,7 +52,7 @@ TypeScript is pinned to 6.0.x because `typescript-eslint` and `@astrojs/check` d
 |---|---|
 | [`WEB_TOPS.md`](WEB_TOPS.md) | The protocol, draft 0.2.1 |
 | [`schema/`](schema) | `web-tops.schema.json` and `gate-report.schema.json` |
-| [`src/`](src) | The `webtops` CLI (`src/cli`), the config module and class table (`src/config`), the gate runner (`src/gate`), `init` (`src/init`), the lock format (`src/lock`) and the report writer (`src/report`) |
+| [`src/`](src) | The `webtops` CLI (`src/cli`), the config module and class table (`src/config`), the gate runner (`src/gate`) and its layers (`src/layers`), `init` (`src/init`), the lock format (`src/lock`) and the report writer (`src/report`) |
 | [`web-tops.yaml`](web-tops.yaml) | This repo's own config: class `ts-library`, `enforce: hard` |
 | [`config/AGENTS.md.tmpl`](config/AGENTS.md.tmpl) | The `AGENTS.md` section that `webtops init` will write into an adopting repo |
 | [`AGENTS.md`](AGENTS.md) | Standing orders for agents working on this repo ([`CLAUDE.md`](CLAUDE.md) imports it) |
