@@ -10,12 +10,16 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { ESLint } from "eslint";
 import { afterEach, describe, expect, it } from "vitest";
 import pkg from "../../package.json" with { type: "json" };
-import vitestConfig from "../../vitest.config.ts";
 import { profileFor } from "../config/profiles.ts";
 import { at, get, keys, matching } from "../config/test-support.ts";
 import { checkConfigFile, parseYaml } from "../config/validate.ts";
+import { NODE_RANGE, TOOL_PINS } from "../lock/pins.ts";
+import { runDoctorCli } from "./doctor.ts";
+import type { Io } from "./io.ts";
+import { runLockCli } from "./lock.ts";
 
 const root = resolve(import.meta.dirname, "../..");
 
@@ -78,7 +82,18 @@ describe("G7a: the kit's own web-tops.yaml", () => {
   );
 
   it("keeps the floor in the class profile only: vitest.config.ts sets no threshold", () => {
-    expect(at(vitestConfig, ["test", "coverage", "thresholds"])).toBeUndefined();
+    // Read as text: loading the config would start Vite in the kit's own directory during the suite.
+    expect(readFileSync(join(root, "vitest.config.ts"), "utf8")).not.toContain("thresholds");
+  });
+});
+
+describe("G7: the lint config holds every function to complexity 4", () => {
+  it("sets complexity at error 4 for the kit's source and its tests", async () => {
+    const eslint = new ESLint({ cwd: root });
+    for (const file of ["src/config/validate.ts", "src/config/validate.test.ts"]) {
+      const config: unknown = await eslint.calculateConfigForFile(join(root, file));
+      expect(at(config, ["rules", "complexity"]), file).toEqual([2, 4]);
+    }
   });
 });
 
@@ -163,31 +178,57 @@ describe("G7b: CI is the one gate job", () => {
   });
 });
 
-describe("G7: web-tops.lock draft pins exact versions", () => {
-  it("lists webtops at the package version and every tool at its package.json pin", () => {
+describe("G7: web-tops.lock pins the tools and the Node range", () => {
+  const toolPins = (): Record<string, unknown> => ({ ...pkg.dependencies, ...pkg.devDependencies });
+
+  it("is the file lock --update writes: no draft header, webtops, the Node range, every tool at its pin", () => {
+    expect(readFileSync(join(root, "web-tops.lock"), "utf8")).not.toMatch(/draft/i);
     const lock = yamlOf("web-tops.lock");
-    const pins: Record<string, unknown> = { ...pkg.dependencies, ...pkg.devDependencies };
     expect(get(lock, "webtops")).toBe(pkg.version);
-    for (const name of keys(lock).filter((key) => key !== "webtops")) {
-      expect(get(lock, name), name).toBe(pins[name]);
+    expect(get(lock, "node")).toBe(NODE_RANGE);
+    for (const name of keys(lock).filter((key) => key !== "webtops" && key !== "node")) {
+      expect(get(lock, name), name).toBe(toolPins()[name]);
     }
   });
 
-  it("covers the section 2 tools the kit installs", () => {
-    const lock = keys(yamlOf("web-tops.lock"));
-    for (const name of [
-      "typescript",
-      "eslint",
-      "typescript-eslint",
-      "vitest",
-      "@vitest/coverage-v8",
-      "prettier",
-      "dependency-cruiser",
-      "publint",
-      "@arethetypeswrong/cli",
-    ]) {
-      expect(lock, name).toContain(name);
-    }
+  it("locks every installed tool that section 2 pins, and only those", () => {
+    const tools = Object.keys(TOOL_PINS).filter((name) => name in toolPins());
+    expect(
+      keys(yamlOf("web-tops.lock")).filter((key) => key !== "webtops" && key !== "node"),
+    ).toEqual([...tools].sort());
+  });
+
+  it.each(["@eslint/js", "typescript", "eslint", "vitest", "@arethetypeswrong/cli"])(
+    "covers %s",
+    (name) => {
+      expect(keys(yamlOf("web-tops.lock"))).toContain(name);
+    },
+  );
+});
+
+describe("G7: the kit passes its own lock and doctor", () => {
+  function run(command: (argv: readonly string[], io: Io) => Promise<number>): Promise<{
+    code: number;
+    text: string;
+  }> {
+    const lines: string[] = [];
+    const push = (text: string): void => {
+      lines.push(text);
+    };
+    const io: Io = { out: push, err: push, cwd: root, env: process.env };
+    return command([], io).then((code) => ({ code, text: lines.join("") }));
+  }
+
+  it("lock --verify exits 0: the installed tools and the Node on the PATH match web-tops.lock", async () => {
+    const { code, text } = await run(runLockCli);
+    expect(text).toContain("matches the installed versions");
+    expect(code).toBe(0);
+  });
+
+  it("doctor exits 0 with every requirement met", async () => {
+    const { code, text } = await run(runDoctorCli);
+    expect(text).toContain("every requirement is met");
+    expect(code).toBe(0);
   });
 });
 
