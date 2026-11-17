@@ -1,0 +1,390 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedronite.com/schemas/web-tops/0.2.1/web-tops.schema.json",
+  "title": "web-tops.yaml",
+  "type": "object",
+  "required": ["protocol", "version", "package", "class"],
+  "additionalProperties": false,
+  "properties": {
+    "protocol": {
+      "const": "0.2.1"
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "package": {
+      "type": "string",
+      "minLength": 1
+    },
+    "class": {
+      "enum": [
+        "ts-library",
+        "ui-components",
+        "astro-site",
+        "web-app",
+        "node-service",
+        "cli",
+        "workspace-root",
+        "config-only"
+      ]
+    },
+    "enforce": {
+      "enum": ["hard", "ratchet", "advisory"],
+      "default": "ratchet"
+    },
+    "baseline": {
+      "type": "string",
+      "minLength": 1,
+      "default": ".web-tops/baseline.json"
+    },
+    "exemption": {
+      "type": "object",
+      "required": ["until", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "until": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "reason": {
+          "$ref": "#/$defs/reason"
+        }
+      }
+    },
+    "toolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "typescript": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "runtime": {
+          "enum": ["bun", "node"]
+        }
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "hygiene": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/$defs/switch"
+            }
+          ],
+          "properties": {
+            "install": {
+              "$ref": "#/$defs/switchOnly"
+            },
+            "tsc": {
+              "$ref": "#/$defs/switchOnly"
+            },
+            "astro_check": {
+              "$ref": "#/$defs/switchOnly"
+            },
+            "eslint": {
+              "type": "object",
+              "allOf": [
+                {
+                  "$ref": "#/$defs/switch"
+                }
+              ],
+              "properties": {
+                "config": {
+                  "$ref": "#/$defs/path"
+                }
+              },
+              "unevaluatedProperties": false
+            },
+            "stylelint": {
+              "$ref": "#/$defs/switchOnly"
+            },
+            "format": {
+              "type": "object",
+              "allOf": [
+                {
+                  "$ref": "#/$defs/switch"
+                }
+              ],
+              "properties": {
+                "tool": {
+                  "enum": ["prettier", "biome"]
+                }
+              },
+              "unevaluatedProperties": false
+            },
+            "dependency_cruiser": {
+              "$ref": "#/$defs/switchOnly"
+            },
+            "audit": {
+              "type": "object",
+              "allOf": [
+                {
+                  "$ref": "#/$defs/switch"
+                }
+              ],
+              "properties": {
+                "fail_on": {
+                  "enum": ["low", "moderate", "high", "critical"]
+                }
+              },
+              "unevaluatedProperties": false
+            }
+          },
+          "unevaluatedProperties": false
+        },
+        "tests": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/$defs/switch"
+            }
+          ],
+          "properties": {
+            "runner": {
+              "const": "vitest"
+            },
+            "shuffle": {
+              "type": "boolean"
+            }
+          },
+          "unevaluatedProperties": false
+        },
+        "coverage": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/$defs/switch"
+            }
+          ],
+          "properties": {
+            "lines_floor": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "exclude": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["glob", "reason"],
+                "additionalProperties": false,
+                "properties": {
+                  "glob": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "reason": {
+                    "$ref": "#/$defs/reason"
+                  }
+                }
+              }
+            }
+          },
+          "unevaluatedProperties": false
+        },
+        "crap": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/$defs/switch"
+            }
+          ],
+          "properties": {
+            "cap": {
+              "type": "number",
+              "minimum": 1
+            },
+            "scope": {
+              "enum": ["diff", "all"]
+            },
+            "complexity": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "nullish_discount": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "unevaluatedProperties": false
+        },
+        "mutation": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/$defs/switch"
+            }
+          ],
+          "properties": {
+            "engine": {
+              "const": "stryker"
+            },
+            "scope": {
+              "enum": ["diff", "all"]
+            },
+            "base": {
+              "type": "string",
+              "minLength": 1
+            },
+            "unexplained_survivors_max": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "ledger": {
+              "$ref": "#/$defs/path"
+            }
+          },
+          "unevaluatedProperties": false
+        }
+      }
+    },
+    "layers": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "size_limit": {
+          "$ref": "#/$defs/layer"
+        },
+        "package_exports": {
+          "$ref": "#/$defs/layer"
+        },
+        "html_validate": {
+          "$ref": "#/$defs/layer"
+        },
+        "axe": {
+          "$ref": "#/$defs/layer"
+        },
+        "rendered": {
+          "$ref": "#/$defs/layer"
+        },
+        "themes": {
+          "$ref": "#/$defs/layer"
+        },
+        "custom": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "tier", "command"],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]*$"
+              },
+              "tier": {
+                "$ref": "#/$defs/tier"
+              },
+              "command": {
+                "type": "string",
+                "minLength": 1
+              },
+              "report": {
+                "$ref": "#/$defs/path"
+              }
+            }
+          }
+        }
+      }
+    },
+    "laws": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/switch"
+        }
+      ],
+      "properties": {
+        "select": {
+          "enum": ["default", "all"]
+        },
+        "ack_ledger": {
+          "$ref": "#/$defs/path"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "report": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "default": ".web-tops/report.json"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "tier": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "switch": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "reason": {
+          "$ref": "#/$defs/reason"
+        }
+      },
+      "if": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "const": false
+          }
+        },
+        "required": ["enabled"]
+      },
+      "then": {
+        "properties": {
+          "reason": true
+        },
+        "required": ["reason"]
+      }
+    },
+    "switchOnly": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/switch"
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "layer": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/switch"
+        }
+      ],
+      "properties": {
+        "tier": {
+          "$ref": "#/$defs/tier"
+        }
+      },
+      "unevaluatedProperties": false
+    }
+  }
+}

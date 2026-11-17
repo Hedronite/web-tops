@@ -1,0 +1,10 @@
+Checking formatting...
+[warn] .dependency-cruiser.cjs
+[warn] .stylelintrc.json
+[warn] a.css
+[warn] a.json
+[warn] b.json
+[warn] package.json
+[warn] src/bad.ts
+[warn] tsconfig.json
+[warn] Code style issues found in 8 files. Run Prettier with --write to fix.

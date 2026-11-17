@@ -6,7 +6,7 @@ dist/
 *.tsbuildinfo
 
 # Coverage, mutation, browser test output
-coverage/
+/coverage/
 .stryker-tmp/
 reports/
 playwright-report/
@@ -30,3 +30,6 @@ result-*
 .DS_Store
 *.swp
 /tmp
+
+# Per-run gate output; baseline.json stays tracked
+/.web-tops/out/

@@ -1,0 +1,297 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedronite.com/schemas/web-tops/0.2.1/gate-report.schema.json",
+  "title": "gate report (.web-tops/report.json)",
+  "type": "object",
+  "required": ["protocol", "class", "enforce", "enforced", "max_tier", "only", "counts", "layers"],
+  "additionalProperties": false,
+  "properties": {
+    "protocol": {
+      "const": "0.2.1"
+    },
+    "class": {
+      "enum": [
+        "ts-library",
+        "ui-components",
+        "astro-site",
+        "web-app",
+        "node-service",
+        "cli",
+        "workspace-root",
+        "config-only"
+      ]
+    },
+    "enforce": {
+      "enum": ["hard", "ratchet", "advisory"]
+    },
+    "enforced": {
+      "type": "boolean"
+    },
+    "max_tier": {
+      "$ref": "#/$defs/tier"
+    },
+    "counts": {
+      "type": "object",
+      "required": ["in_range", "ran", "failed", "not_evaluated"],
+      "additionalProperties": false,
+      "properties": {
+        "in_range": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ran": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "not_evaluated": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "layers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/layer"
+      },
+      "allOf": [
+        {
+          "contains": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "const": "hygiene"
+              }
+            },
+            "required": ["id"]
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "const": "tests"
+              }
+            },
+            "required": ["id"]
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "const": "coverage"
+              }
+            },
+            "required": ["id"]
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "const": "crap"
+              }
+            },
+            "required": ["id"]
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "const": "mutation"
+              }
+            },
+            "required": ["id"]
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "const": "build-output"
+              }
+            },
+            "required": ["id"]
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "const": "laws"
+              }
+            },
+            "required": ["id"]
+          }
+        }
+      ]
+    },
+    "only": {
+      "type": ["string", "null"]
+    },
+    "package": {
+      "type": "string",
+      "minLength": 1
+    },
+    "base": {
+      "type": ["string", "null"]
+    },
+    "keep_going": {
+      "type": "boolean"
+    },
+    "passed": {
+      "type": "boolean"
+    },
+    "exit_code": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4
+    },
+    "problems": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "message"],
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "tier": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "layer": {
+      "type": "object",
+      "required": ["id", "gate", "tier", "verdict", "findings"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*$"
+        },
+        "gate": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 6
+            },
+            {
+              "const": "laws"
+            }
+          ]
+        },
+        "tier": {
+          "$ref": "#/$defs/tier"
+        },
+        "verdict": {
+          "enum": ["pass", "Refuse", "Ack", "skip", "not-run", "not-evaluated"]
+        },
+        "reason": {
+          "$ref": "#/$defs/reason"
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/finding"
+          }
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "if": {
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "enum": ["skip", "not-run"]
+          }
+        },
+        "required": ["verdict"]
+      },
+      "then": {
+        "properties": {
+          "reason": true
+        },
+        "required": ["reason"]
+      }
+    },
+    "finding": {
+      "type": "object",
+      "required": ["rule", "verdict", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "rule": {
+          "type": "string",
+          "minLength": 1
+        },
+        "verdict": {
+          "enum": ["pass", "Refuse", "Ack", "skip", "not-run", "not-evaluated"]
+        },
+        "message": {
+          "type": "string"
+        },
+        "ack": {
+          "type": "object",
+          "required": ["source", "reason"],
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "enum": ["comment", "ledger"]
+            },
+            "reason": {
+              "$ref": "#/$defs/reason"
+            }
+          }
+        },
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    }
+  }
+}

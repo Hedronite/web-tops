@@ -1,0 +1,12 @@
+protocol: "0.2.1"
+version: "0.1.0"
+package: pkg
+class: ts-library
+enforce: hard
+gates:
+  crap: { enabled: false, reason: "M2" }
+  mutation: { enabled: false, reason: "M2", unexplained_survivors_max: 1 }
+layers:
+  size_limit: { enabled: false, reason: "M4" }
+  html_validate: { enabled: false, reason: "M4" }
+laws: { enabled: false, reason: "M3" }

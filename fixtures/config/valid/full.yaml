@@ -1,0 +1,61 @@
+# Every key of WEB_TOPS.md section 9 (protocol 0.2.1), set once. Under hard, the layers that
+# land later (crap, mutation, build output, laws) are off, each with its reason.
+protocol: "0.2.1"
+version: "0.1.0"
+package: "@example/lib"
+class: ts-library
+enforce: hard
+baseline: .web-tops/baseline.json
+toolchain:
+  typescript: "6.0.3"
+  runtime: bun
+gates:
+  hygiene:
+    enabled: true
+    install: { enabled: true }
+    tsc: { enabled: true }
+    astro_check: { enabled: false, reason: "ts-library: no .astro files" }
+    eslint: { enabled: true, config: eslint.config.js }
+    stylelint: { enabled: false, reason: "no raw CSS in this package" }
+    format: { enabled: true, tool: prettier }
+    dependency_cruiser: { enabled: true }
+    audit: { enabled: true, fail_on: high }
+  tests:
+    enabled: true
+    runner: vitest
+    shuffle: true
+  coverage:
+    enabled: true
+    lines_floor: 85
+    exclude:
+      - { glob: "src/generated/**", reason: "written by the schema compiler" }
+  crap:
+    enabled: false
+    reason: "M2: native CRAP is not built yet"
+    cap: 4
+    scope: diff
+    complexity: { nullish_discount: true }
+  mutation:
+    enabled: false
+    reason: "M2: mutation is not built yet"
+    engine: stryker
+    scope: diff
+    base: origin/main
+    unexplained_survivors_max: 0
+    ledger: .web-tops/survivors.yaml
+layers:
+  size_limit: { enabled: true, tier: 1 }
+  package_exports: { tier: 1 }
+  html_validate: { enabled: false, reason: "ts-library: no HTML output" }
+  axe: { enabled: false, reason: "ts-library: no pages" }
+  rendered: { enabled: false, reason: "ts-library: no pages", tier: 1 }
+  themes: { enabled: false, reason: "ts-library: no themes" }
+  custom:
+    - { id: bundle-check, tier: 1, command: "bun run bundle-check", report: .web-tops/out/bundle.json }
+laws:
+  enabled: false
+  reason: "M3: laws are not built yet"
+  select: default
+  ack_ledger: .web-tops/acks.yaml
+report:
+  path: .web-tops/report.json

@@ -5,9 +5,28 @@
   "description": "Web-TOPS: the Web Testing and Optimization Protocol Suite and its webtops CLI",
   "license": "MIT OR Apache-2.0",
   "type": "module",
+  "main": "./src/config/index.ts",
+  "types": "./src/config/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/config/index.ts",
+      "default": "./src/config/index.ts"
+    },
+    "./schema/web-tops.schema.json": "./schema/web-tops.schema.json",
+    "./schema/gate-report.schema.json": "./schema/gate-report.schema.json",
+    "./package.json": "./package.json"
+  },
   "bin": {
     "webtops": "src/cli/main.ts"
   },
+  "files": [
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/test-support*.ts",
+    "schema",
+    "config",
+    "profiles"
+  ],
   "engines": {
     "bun": ">=1.4.0"
   },
@@ -15,19 +34,25 @@
   "scripts": {
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
-    "test": "vitest run --coverage --sequence.shuffle"
+    "test": "vitest run --coverage --sequence.shuffle",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "ajv": "8.20.0",
     "yaml": "2.9.1"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.5",
     "@eslint-community/eslint-plugin-eslint-comments": "4.8.1",
     "@eslint/js": "9.39.5",
     "@types/bun": "1.4.4",
     "@vitest/coverage-v8": "5.1.0",
     "@vitest/eslint-plugin": "1.6.28",
+    "dependency-cruiser": "18.8.0",
     "eslint": "9.39.5",
+    "fast-check": "4.10.2",
+    "prettier": "3.10.1",
+    "publint": "0.3.25",
     "typescript": "6.0.3",
     "typescript-eslint": "8.73.0",
     "vitest": "5.1.0"
