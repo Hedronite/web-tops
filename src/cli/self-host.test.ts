@@ -64,6 +64,14 @@ describe("G7a: the kit's own web-tops.yaml", () => {
     expect(at(config, ["toolchain", "typescript"])).toBe(pkg.devDependencies.typescript);
     expect(get(config, "version")).toBe(pkg.version);
   });
+
+  it("excludes the test helpers that are not *.test.* files, with a reason", () => {
+    const exclude = at(yamlOf("web-tops.yaml"), ["gates", "coverage", "exclude"]);
+    const entries = keys(exclude).map((index) => get(exclude, index));
+    const helpers = entries.find((entry) => get(entry, "glob") === "src/**/test-support*.ts");
+    expect(helpers).toBeDefined();
+    expect(get(helpers, "reason")).toEqual(matching(/\S/));
+  });
 });
 
 describe("G7d: AGENTS.md says where the repo stands", () => {
@@ -114,8 +122,22 @@ describe("G7b: CI is the one gate job", () => {
     const used = steps()
       .map((step) => get(step, "uses"))
       .filter((value) => value !== undefined);
-    expect(used).toHaveLength(2);
+    expect(used).toHaveLength(3);
     for (const action of used) expect(action).toEqual(matching(/^[\w./-]+@[0-9a-f]{40}$/));
+  });
+
+  it("installs Node with setup-node at the pinned SHA and version, before the gate runs", () => {
+    const list = steps();
+    const index = list.findIndex((step) =>
+      String(get(step, "uses")).startsWith("actions/setup-node@"),
+    );
+    expect(index).toBeGreaterThan(-1);
+    expect(get(list[index], "uses")).toBe(
+      "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+    );
+    expect(at(list[index], ["with", "node-version"])).toBe("24.22.3");
+    const gate = list.findIndex((step) => String(get(step, "run")).includes("gate"));
+    expect(index).toBeLessThan(gate);
   });
 
   it("checks out with full history, no stored credentials, and minimal permissions", () => {
