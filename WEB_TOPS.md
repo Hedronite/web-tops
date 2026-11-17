@@ -572,7 +572,7 @@ chooses which laws run and `enabled: false` turns the layer off.
 - `laws.select`: `default` (the judged set) or `all`.
 - Under `hard`, a gate or step the class maps at tier 1 or below cannot be switched off, except
   `crap`, `mutation`, build output and `laws`, the layers that land after the first CLI release;
-  `check` exits 2. Steps the class does not map (such as `astro_check` outside Astro classes)
+  `check` exits 2. Steps the class does not map (such as `astro_check` in a project without Astro)
   stay `skip`. Under `advisory`, `exemption` is required; `until` is an ISO 8601 date
   (`YYYY-MM-DD`), compared in UTC, and the exemption holds through that day.
 - Keys a config omits take the class profile's value (§5.2). The `crap` and `mutation` checks in
