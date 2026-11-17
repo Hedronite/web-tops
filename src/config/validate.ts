@@ -17,8 +17,12 @@ export function validateConfig(doc: unknown): Validated<WebTopsConfig> {
   return { ok: false, problems: toProblems(validate.errors) };
 }
 
-/** Parses YAML text, then validates it. A syntax error or a duplicate key is a problem at "". */
-export function parseConfig(text: string): Validated<WebTopsConfig> {
+/**
+ * Parses YAML text into its plain JS value, and nothing more: no schema, no semantic checks. So
+ * `doctor` and `report` can read `class`, `toolchain` or `report.path` from a config that fails
+ * `check`. A syntax error or a duplicate key is a problem at "".
+ */
+export function parseYaml(text: string): Validated<unknown> {
   const document = parseDocument(text);
   if (document.errors.length > 0) {
     return {
@@ -31,10 +35,16 @@ export function parseConfig(text: string): Validated<WebTopsConfig> {
   }
   try {
     const value: unknown = document.toJS();
-    return validateConfig(value);
+    return { ok: true, value };
   } catch (error: unknown) {
     return fail("", error instanceof Error ? error.message : "cannot read the YAML document");
   }
+}
+
+/** Parses YAML text, then validates it against the schema. */
+export function parseConfig(text: string): Validated<WebTopsConfig> {
+  const parsed = parseYaml(text);
+  return parsed.ok ? validateConfig(parsed.value) : parsed;
 }
 
 /** Reads and validates a `web-tops.yaml`. A file that cannot be read is a problem at "". */

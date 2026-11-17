@@ -5,7 +5,7 @@ import { CLASSES, LAYER_KEYS, STEP_KEYS } from "./profiles.ts";
 import { PROTOCOL } from "./protocol.ts";
 import { LAYER_IDS, VERDICTS } from "./report.ts";
 import { at, containing, fixture, get, keyPaths, keys, matching, objectLike } from "./test-support.ts";
-import { loadConfig, parseConfig, validateConfig } from "./validate.ts";
+import { loadConfig, parseConfig, parseYaml, validateConfig } from "./validate.ts";
 
 function loaded(name: string): ReturnType<typeof loadConfig> {
   return loadConfig(fixture(name));
@@ -109,6 +109,23 @@ describe("G1a: web-tops.schema.json covers every section 9 key", () => {
       'protocol: "0.2.1"\nversion: "1"\npackage: p\nclass: web-app\nlayers: { axe: { zz: 1 } }\n',
     );
     expect(nested).toEqual({ ok: false, problems: [objectLike({ pointer: "/layers/axe/zz" })] });
+  });
+});
+
+describe("parseYaml", () => {
+  it("gives the plain value of a document that fails check, and a problem for one that will not parse", () => {
+    const text = 'class: cli\ntoolchain: { typescript: "^6" }\nreport: { path: r.json }\nzz: 1\n';
+    expect(parseConfig(text).ok).toBe(false);
+    expect(parseYaml(text)).toEqual({
+      ok: true,
+      value: { class: "cli", toolchain: { typescript: "^6" }, report: { path: "r.json" }, zz: 1 },
+    });
+    expect(parseYaml("")).toEqual({ ok: true, value: null });
+    expect(parseYaml("a: [unclosed\n")).toEqual({
+      ok: false,
+      problems: [{ pointer: "", message: matching(/line \d+/) }],
+    });
+    expect(parseYaml("a: 1\na: 2\n").ok).toBe(false);
   });
 });
 
