@@ -146,6 +146,40 @@ describe("G2c cli: --dry-run under CI=true exits 4; every §12 exit code", () =>
     expect(calls).toEqual(["tests"]);
   });
 
+  it("marks a layer pulled in by --only in the dry-run plan", async () => {
+    const calls: string[] = [];
+    const layers = [
+      fakeLayer({ id: "tests", gate: 2, calls }),
+      fakeLayer({ id: "coverage", gate: 3, calls, requires: ["tests"] }),
+    ];
+    const h = harness({ layers: () => layers });
+    expect(await h.go(["--dry-run", "--only", "coverage"])).toBe(0);
+    expect(h.io.stdout()).toMatch(/would run\s+tests \(required by coverage\)\s+tier 1/);
+    expect(h.io.stdout()).toMatch(/would run\s+coverage\s+tier 1/);
+    expect(calls).toEqual([]);
+  });
+
+  it.each(["../escape.json", "/etc/web-tops-report.json", "a/../../escape.json", ".", ""])(
+    "exits 2 with the pointer /report/path for a report.path of %j, and writes nothing",
+    async (reportPath) => {
+      const calls: string[] = [];
+      const h = harness({
+        layers: () => fakeBuiltins(calls),
+        config: { ok: true, config: cfg({ reportPath }) },
+      });
+      expect(await h.go([])).toBe(2);
+      expect(h.io.stderr()).toContain("/report/path");
+      expect(calls).toEqual([]);
+      expect(existsSync(h.reportPath)).toBe(false);
+    },
+  );
+
+  it("accepts a nested report.path inside the config directory", async () => {
+    const h = harness({ config: { ok: true, config: cfg({ reportPath: "out/deep/gate.json" }) } });
+    expect(await h.go([])).toBe(0);
+    expect(existsSync(join(h.dir, "out", "deep", "gate.json"))).toBe(true);
+  });
+
   it("accepts --flag=value forms", async () => {
     const calls: string[] = [];
     const h = harness({

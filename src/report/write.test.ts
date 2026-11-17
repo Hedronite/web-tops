@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   cfg,
@@ -12,7 +12,7 @@ import {
   type TempProject,
 } from "../gate/testkit.ts";
 import { runGate } from "../gate/runner.ts";
-import { writeReport } from "./write.ts";
+import { resolveReportPath, writeReport } from "./write.ts";
 import { formatText } from "./text.ts";
 import type { Report } from "./types.ts";
 
@@ -137,3 +137,26 @@ function parseReportFixture(): Report {
     layers: [],
   };
 }
+
+describe("resolveReportPath: report.path stays inside the config directory", () => {
+  const dir = resolve("/work/project");
+
+  it.each([
+    ["out/report.json", join(dir, "out", "report.json")],
+    [".web-tops/report.json", join(dir, ".web-tops", "report.json")],
+    ["./a/./b.json", join(dir, "a", "b.json")],
+    ["a/../b.json", join(dir, "b.json")],
+    [join(dir, "inside.json"), join(dir, "inside.json")],
+  ])("resolves %s to %s", (path, expected) => {
+    expect(resolveReportPath(dir, path)).toEqual({ ok: true, path: expected });
+  });
+
+  it.each(["../report.json", "a/../../report.json", "/etc/report.json", ".", "", "a/.."])(
+    "refuses %j, which does not name a file inside the directory",
+    (path) => {
+      const result = resolveReportPath(dir, path);
+      expect(result.ok).toBe(false);
+      expect(result.ok ? "" : result.message).toContain("inside the config directory");
+    },
+  );
+});

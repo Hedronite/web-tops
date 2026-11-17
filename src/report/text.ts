@@ -1,8 +1,21 @@
 import type { Report, ReportLayer } from "./types.ts";
 
+const REQUIRED_BY = /^(?:(.*) \()?required by ([^)]+?)\)?$/u;
+
+/** The reason with a trailing "required by X" taken out, and the name that goes beside the layer id. */
+function split(layer: ReportLayer): { name: string; reason: string | undefined } {
+  const match = layer.reason === undefined ? null : REQUIRED_BY.exec(layer.reason);
+  if (match?.[2] === undefined) {
+    return { name: layer.id, reason: layer.reason };
+  }
+  const reason = match[1] === undefined || match[1] === "" ? undefined : match[1];
+  return { name: `${layer.id} (required by ${match[2]})`, reason };
+}
+
 function layerLines(layer: ReportLayer): string[] {
-  const head = `  ${String(layer.gate).padEnd(7)}${layer.id.padEnd(14)}tier ${String(layer.tier)}  ${layer.verdict.padEnd(14)}`;
-  const lines = [layer.reason === undefined ? head.trimEnd() : `${head}${layer.reason}`];
+  const { name, reason } = split(layer);
+  const head = `  ${String(layer.gate).padEnd(7)}${`${name} `.padEnd(15)}tier ${String(layer.tier)}  ${layer.verdict.padEnd(14)}`;
+  const lines = [reason === undefined ? head.trimEnd() : `${head}${reason}`];
   for (const finding of layer.findings) {
     const file = finding.file === undefined ? "" : finding.file;
     const where = finding.line === undefined ? file : `${file}:${String(finding.line)}`;

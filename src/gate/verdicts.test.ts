@@ -113,4 +113,31 @@ describe("G2b runner: not-run fails, a short layer count fails, not-evaluated ne
     });
     expect(report.exit_code).toBe(1);
   });
+
+  it("counts a layer as ran only when it returns an evaluated verdict; a layer that skips itself leaves the range", async () => {
+    const layers = [
+      fakeLayer({ id: "hygiene", gate: 1 }),
+      fakeLayer({ id: "tests", gate: 2, verdict: "not-run", reason: "no command" }),
+      fakeLayer({ id: "coverage", gate: 3, verdict: "skip", reason: "not needed" }),
+      fakeLayer({ id: "crap", gate: 4, verdict: "Ack" }),
+      fakeLayer({ id: "mutation", gate: 5, verdict: "not-evaluated", reason: "no judge" }),
+    ];
+    const report = await run(layers, cfg(), opts({ keepGoing: true }));
+    expect(report.counts).toEqual({ in_range: 4, ran: 3, failed: 2, not_evaluated: 1 });
+    expect(report.problems).toEqual([
+      { path: "/counts/ran", message: "ran 3 of 4 layers in range" },
+    ]);
+    expect(report.passed).toBe(false);
+  });
+
+  it("shows ran 0 for a run in which every layer is a stub or never reached", async () => {
+    const stopped = await run(
+      [
+        fakeLayer({ id: "hygiene", gate: 1, verdict: "not-run", reason: "stub" }),
+        fakeLayer({ id: "tests", gate: 2 }),
+      ],
+      cfg(),
+    );
+    expect(stopped.counts).toEqual({ in_range: 2, ran: 0, failed: 2, not_evaluated: 0 });
+  });
 });

@@ -38,16 +38,24 @@ export interface PlanItem {
   readonly layer?: Layer;
   /** Present when the layer will not run, with the reason the report prints. */
   readonly skip?: string;
+  /** The `--only` layer that pulled this one in through `requires`. */
+  readonly requiredBy?: string;
 }
 
 /** The layers `--only` selects: the named ones and, transitively, what they require. */
-function selectedBy(only: string | undefined, layers: readonly Layer[]): ReadonlySet<string> {
-  const selected = new Set<string>();
-  const pending = only === undefined ? [] : [only];
-  for (let id = pending.shift(); id !== undefined; id = pending.shift()) {
+function selectedBy(
+  only: string | undefined,
+  layers: readonly Layer[],
+): ReadonlyMap<string, string | undefined> {
+  const selected = new Map<string, string | undefined>();
+  const pending: [string, string | undefined][] = only === undefined ? [] : [[only, undefined]];
+  for (let next = pending.shift(); next !== undefined; next = pending.shift()) {
+    const [id, requester] = next;
     if (!selected.has(id)) {
-      selected.add(id);
-      pending.push(...(layers.find((layer) => layer.id === id)?.requires ?? []));
+      selected.set(id, requester);
+      for (const required of layers.find((layer) => layer.id === id)?.requires ?? []) {
+        pending.push([required, requester ?? id]);
+      }
     }
   }
   return selected;
@@ -59,7 +67,7 @@ function skipReason(
   classes: readonly string[] | undefined,
   config: GateConfig,
   options: GateOptions,
-  selected: ReadonlySet<string>,
+  selected: ReadonlyMap<string, string | undefined>,
 ): string | undefined {
   const toggle = config.toggles[id];
   if (toggle?.enabled === false) {
@@ -88,12 +96,14 @@ export function planGate(
     .sort((a, b) => compareGates(a.gate, b.gate))
     .map((layer) => {
       const skip = skipReason(layer.id, layer.tier, layer.classes, config, options, selected);
+      const requiredBy = selected.get(layer.id);
       return {
         id: layer.id,
         gate: layer.gate,
         tier: layer.tier,
         layer,
         ...(skip === undefined ? {} : { skip }),
+        ...(requiredBy === undefined ? {} : { requiredBy }),
       };
     });
   const registered = new Set(layers.map((layer) => layer.id));
@@ -106,6 +116,25 @@ export function planGate(
   return items;
 }
 
+/** A layer pulled in by `--only` through `requires` says so in its reason; text and plan show it as "(required by X)". */
+function reasonOf(reason: string | undefined, requiredBy: string | undefined): { reason?: string } {
+  if (requiredBy === undefined) {
+    return reason === undefined ? {} : { reason };
+  }
+  return {
+    reason:
+      reason === undefined ? `required by ${requiredBy}` : `${reason} (required by ${requiredBy})`,
+  };
+}
+
+/** Verdicts of a layer that judged: only these count as `ran` (WEB_TOPS.md section 3.3). */
+const EVALUATED: ReadonlySet<Verdict> = new Set<Verdict>([
+  "pass",
+  "Refuse",
+  "Ack",
+  "not-evaluated",
+]);
+
 function entry(
   item: PlanItem,
   verdict: Verdict,
@@ -117,7 +146,7 @@ function entry(
     gate: item.gate,
     tier: item.tier,
     verdict,
-    ...(reason === undefined ? {} : { reason }),
+    ...reasonOf(reason, item.requiredBy),
     findings: rest.findings ?? [],
     artifacts: rest.artifacts ?? [],
     duration_ms: rest.duration_ms ?? 0,
@@ -181,6 +210,8 @@ async function execute(
 /** Runs the plan and builds the report (WEB_TOPS.md sections 3.1, 3.3, 6.6, 12). */
 export async function runGate(input: RunInput): Promise<RanReport> {
   const { config, options } = input;
+  // `--base` is handed to layers as a string and not checked here. The first layer that reads it is
+  // mutation (M2), which resolves the merge base and fails a ref that does not resolve (section 6.4).
   const base = options.base ?? config.base ?? "origin/main";
   const artifacts = new Map<string, string>();
   const layers: ReportLayer[] = [];
@@ -199,7 +230,12 @@ export async function runGate(input: RunInput): Promise<RanReport> {
       layers.push(entry(item, "not-run", `stopped: gate ${String(stoppedAt)} failed`));
     } else {
       const result = await execute(item, item.layer, input, base, artifacts);
-      ran += 1;
+      if (EVALUATED.has(result.layer.verdict)) {
+        ran += 1;
+      } else if (result.layer.verdict === "skip") {
+        // A layer that says it does not apply (with a reason) leaves the range, as a configured skip does.
+        inRange -= 1;
+      }
       layers.push(result.layer);
       for (const [name, path] of Object.entries(result.artifacts)) {
         artifacts.set(name, path);

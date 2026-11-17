@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { formatText } from "../report/text.ts";
 import type { Report } from "../report/types.ts";
 import { cfg, fakeBuiltins, fakeLayer, noExec, off, opts, tickingClock } from "./testkit.ts";
 import { runGate } from "./runner.ts";
@@ -111,6 +112,11 @@ describe("G2a runner: §3.1 order, stop on failure, --keep-going, --max-tier, --
     const report = await run(layers, cfg(), opts({ only: "coverage" }));
     expect(calls).toEqual(["tests", "coverage"]);
     expect(report.only).toBe("coverage");
+    expect(report.layers.find((layer) => layer.id === "tests")?.reason).toBe(
+      "required by coverage",
+    );
+    expect(report.layers.find((layer) => layer.id === "coverage")?.reason).toBeUndefined();
+    expect(formatText(report)).toContain("tests (required by coverage)");
     expect(report.layers.find((layer) => layer.id === "crap")).toMatchObject({
       verdict: "skip",
       reason: "not selected by --only coverage",
@@ -181,5 +187,17 @@ describe("G2a runner: §3.1 order, stop on failure, --keep-going, --max-tier, --
   it("records each layer's duration from the clock", async () => {
     const report = await run([fakeLayer({ id: "hygiene" })]);
     expect(report.layers[0]?.duration_ms).toBeGreaterThan(0);
+  });
+
+  it("keeps a pulled-in layer's own reason and adds who required it", async () => {
+    const layers = [
+      fakeLayer({ id: "tests", gate: 2, verdict: "Refuse", reason: "a test failed" }),
+      fakeLayer({ id: "coverage", gate: 3, requires: ["tests"] }),
+    ];
+    const report = await run(layers, cfg(), opts({ only: "coverage", keepGoing: true }));
+    expect(report.layers.find((layer) => layer.id === "tests")?.reason).toBe(
+      "a test failed (required by coverage)",
+    );
+    expect(formatText(report)).toContain("tests (required by coverage)");
   });
 });

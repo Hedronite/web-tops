@@ -44,6 +44,10 @@ describe("G2e stubs: crap, mutation, build-output and laws report not-run when e
       expect(layer?.reason).toContain(milestone);
       expect(report.exit_code).toBe(1);
       expect(report.layers.filter((entry) => entry.verdict === "not-run")).toHaveLength(1);
+      expect(report.counts.ran).toBe(0);
+      expect(report.problems).toEqual([
+        { path: "/counts/ran", message: "ran 0 of 1 layers in range" },
+      ]);
     },
   );
 

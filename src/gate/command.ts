@@ -1,7 +1,7 @@
 import { mkdirSync, rmSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { formatText } from "../report/text.ts";
-import { writeReport } from "../report/write.ts";
+import { resolveReportPath, writeReport } from "../report/write.ts";
 import { checkEnvironment, type Versions } from "./environment.ts";
 import { parseGateArgs } from "./options.ts";
 import { planGate, runGate } from "./runner.ts";
@@ -32,8 +32,10 @@ function planText(plan: ReturnType<typeof planGate>): string {
   const lines = ["webtops gate  dry run: nothing is executed and no report is written", ""];
   for (const item of plan) {
     const what = item.skip === undefined ? "would run" : "skip";
+    const name =
+      item.requiredBy === undefined ? item.id : `${item.id} (required by ${item.requiredBy})`;
     const why = item.skip === undefined ? "" : `  ${item.skip}`;
-    lines.push(`  ${what.padEnd(10)}${item.id.padEnd(14)}tier ${String(item.tier)}${why}`);
+    lines.push(`  ${what.padEnd(10)}${`${name} `.padEnd(15)}tier ${String(item.tier)}${why}`);
   }
   return `${lines.join("\n")}\n`;
 }
@@ -65,6 +67,11 @@ export async function gateCommand(
     return 2;
   }
   const { config } = loaded;
+  const target = resolveReportPath(deps.cwd, config.reportPath);
+  if (!target.ok) {
+    io.err(`webtops gate: web-tops.yaml /report/path: ${target.message}\n`);
+    return 2;
+  }
   const layers = deps.layers(config);
   const known = new Set(layers.map((layer) => layer.id));
   for (const id of options.only === undefined ? [] : [options.only]) {
@@ -78,7 +85,7 @@ export async function gateCommand(
     return 0;
   }
   const outDir = join(deps.cwd, ".web-tops", "out");
-  const reportPath = resolve(deps.cwd, config.reportPath);
+  const reportPath = target.path;
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
   rmSync(reportPath, { force: true });
