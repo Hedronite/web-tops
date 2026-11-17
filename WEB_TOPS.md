@@ -1,6 +1,6 @@
 # Web-TOPS: Web Testing and Optimization Protocol Suite
 
-**Spec status:** Draft 0.1.0 · **Date:** 2026-11-14 · **Owner:** Hedronite
+**Spec status:** Draft 0.2.0 · **Date:** 2026-11-16 · **Owner:** Hedronite
 **Supersedes:** the TS-TOPS 0.1.0 sketch (renamed: the protocol covers the web stack, not only TypeScript)
 **Modeled on:** [Rust-TOPS](https://github.com/Hedronite/rust-tops) and [Go-TOPS](https://github.com/Hedronite/go-tops) 0.3.0
 
@@ -10,7 +10,8 @@
 > `not-run` fails, ratchet for adopters, laws check that their tool config is live, no formal
 > layer. Values labeled **proposed** are defaults to tune on real code. **[verify]** marks a tool
 > behavior or flag not yet confirmed at pin time. Versions in §2 are npm `latest` as read on
-> 2026-11-14.
+> 2026-11-16, except where §2 says why a pin holds back. 0.2.0 folds in what the first adopter,
+> LuminosiTS, proved in practice (§20).
 
 ---
 
@@ -70,16 +71,16 @@ Schema (`schema/web-tops.schema.json` plus a gate-report schema), and per-class 
 
 | Item | Value |
 |---|---|
-| Protocol version | **0.1.0** (draft) |
+| Protocol version | **0.2.0** (draft) |
 | Package version | 0.0.0 (unreleased) |
 | TypeScript | **6.0.x** pinned (6.0.3 current). Floor 5.8 (`erasableSyntaxOnly`). See below |
-| Runtime | Bun ≥ 1.4 (primary); Node ≥ 22 LTS where a project needs Node |
+| Runtime | Bun ≥ 1.4 (primary); Node ≥ 22.23.4 where a project needs Node (Astro 7 declares it) |
 | Tool lock | `web-tops.lock`; dependency lock `bun.lock`, installed with `--frozen-lockfile` |
-| Lint | ESLint 10, `typescript-eslint` 8.72, `eslint-plugin-astro` 3.2, `eslint-plugin-jsx-a11y` 6.10, `@eslint-community/eslint-plugin-eslint-comments` 4.8 |
+| Lint | **ESLint 9.39** (held back, see below), `typescript-eslint` 8.73, `eslint-plugin-astro` **1.7**, `eslint-plugin-jsx-a11y` 6.10, `@eslint-community/eslint-plugin-eslint-comments` 4.8 |
 | Tests and coverage | Vitest 5.1, `@vitest/coverage-v8` 5.1 |
 | Mutation | StrykerJS 10.1 (`@stryker-mutator/core`, `vitest-runner`, `typescript-checker`) |
 | Astro, Tailwind, validation | Astro 7.4, `@astrojs/check` 0.9, Tailwind CSS 4.3, Zod 4.6 |
-| Build output | `html-validate` 11, `@axe-core/playwright` 4.14, Stylelint 18, `size-limit` 14, `@lhci/cli` 0.16 (tier 2) |
+| Build output | `html-validate` 11, `@playwright/test` 1.65, `@axe-core/playwright` 4.14, Stylelint 18, `size-limit` 14, `@lhci/cli` 0.16 (tier 2) |
 | Boundaries and packages | `dependency-cruiser` 18, `publint` 0.3, `@arethetypeswrong/cli` 0.18 |
 | Format | Prettier 3.10 or Biome 2.6, one per repo |
 
@@ -88,6 +89,15 @@ But `typescript-eslint` 8.72 declares `typescript >=4.8.4 <6.1.0`, and `@astrojs
 declares `^5.0.0 || ^6.0.0`. The laws layer depends on type-aware lint, so the gate's type
 checker is the pinned 6.0.x. A TypeScript 7 `tsc --noEmit` leg may be added as advisory for
 speed (§16, open). The pin moves when both peers accept 7.
+
+**Why ESLint 9 and not 10.** ESLint 10.15 is npm `latest`, and 0.1.0 pinned it beside
+`eslint-plugin-jsx-a11y` 6.10 and `eslint-plugin-astro` 3.2. That set cannot install:
+`jsx-a11y` 6.10.2, still its latest, declares `eslint ^3 || … || ^9`, and `eslint-plugin-astro`
+3.x requires `eslint >=10`. LuminosiTS hit this and runs ESLint 9.39 with `jsx-a11y` 6.10; on
+ESLint 9, `eslint-plugin-astro` 1.7 (`eslint >=8.57`) is the newest that fits. W-22 depends on
+`jsx-a11y`, so the lint pin holds at 9.39. It moves to 10 when `jsx-a11y` accepts 10, or when
+its fork `eslint-plugin-jsx-a11y-x` (0.2.0, `eslint ^9 || ^10`, an optional peer of
+`eslint-plugin-astro` 3.2) reaches 1.0 and an adopter proves it on W-22's fixtures.
 
 Protocol and package versions are separate planes. A protocol change bumps the protocol version
 and the schema together.
@@ -309,6 +319,8 @@ Baseline rules:
 | Package exports | `publint`, `@arethetypeswrong/cli` on the packed tarball | Any error | 1 |
 | Property tests | `fast-check` in Vitest | Per class: schemas, parsers, registries | 1 |
 | Lighthouse | `@lhci/cli`, median of N runs | Advisory, unless run on dedicated hardware | 2 |
+| Rendered checks | Playwright on the declared routes at a desktop width and at 320 CSS px, once with `prefers-reduced-motion: reduce` emulated (`web-app`, `astro-site`) | W-43 to W-46 | 1 |
+| Theme contrast | `webtops` reads the project's theme tokens and the color pairs its markup uses, and measures each pair in every theme and color scheme | W-42 | 1 when the project declares themes |
 | Visual regression | Playwright screenshots | Opt-in per project | 2 |
 | Cross-browser e2e | Playwright: Chromium, WebKit, Firefox | Any failure | 2 |
 | Custom | `layers.custom: [{ id, command, tier, report }]` | Same rules: missing tool fails, empty report fails, unmapped is `not-run` | declared |
@@ -319,6 +331,18 @@ tier 1. Rust-TOPS uses Callgrind instruction counts for the same reason.
 
 Project-specific budgets, such as polygon counts and texture sizes for 3D assets, are custom
 layers (§20).
+
+**Canvas and WebGL pages under Playwright.** Headless Chromium on CI has no GPU. Pages that
+draw with WebGL need `--use-angle=swiftshader --enable-unsafe-swiftshader`, and their first
+frame is slow enough that CI needs longer expect and test timeouts than a laptop. WebGPU needs
+a secure context and an adapter, so a CI run on `localhost` or plain HTTP exercises a
+renderer's WebGL 2 fallback. A project that renders with WebGPU states which backend its gate
+proves; proving WebGPU needs a runner with an adapter (§16, open).
+
+**Why rendered checks and a theme matrix.** axe on one page in one theme misses what LuminosiTS
+found in practice: a canvas that kept animating under reduced motion, 13 px checkbox targets,
+and two color pairs that failed contrast in 1 to 4 of 30 theme schemes while passing in the
+default one. Each needs the page laid out, or every theme measured, not the source alone.
 
 ---
 
@@ -345,7 +369,7 @@ Every delegated rule is proven to fire. `fixtures/lints/` breaks each enabled ru
 with an `// expect: <rule>` marker on the line. A test fails if a marked rule stays quiet or an
 unmarked one fires. Custom ESLint rules are tested with ESLint's `RuleTester`.
 
-### 8.2 Law catalog (draft: 41 laws, W-01…W-41)
+### 8.2 Law catalog (draft: 46 laws, W-01…W-46)
 
 Severity: **R** = Refuse, **A** = Ack. ✓ = judged in v0.1. Law IDs from the TS-TOPS sketch
 (T-NN) are noted where they map.
@@ -426,7 +450,20 @@ Severity: **R** = Refuse, **A** = Ack. ✓ = judged in v0.1. Law IDs from the TS
 | W-40 | `bun.lock` is committed and installs with `--frozen-lockfile` | R | tl | ✓ |
 | W-41 | Installed tool versions match `web-tops.lock` | R | an | ✓ |
 
-**v0.1 target:** 26 of 41 laws judged. Most are delegated, because the TypeScript and web
+**Rendered interface** (added in 0.2.0; judged once M4's rendered layer and theme reader land)
+
+| ID | Law | Sev | Reader | v0.1 |
+|---|---|---|---|---|
+| W-42 | Text and non-text contrast hold in **every** theme and color scheme the project ships: 4.5:1 for text, 3:1 for large text and for UI parts and focus indicators. Each pair is measured against its nearest painted background | R | an: theme reader over the token source and the class pairs in markup | |
+| W-43 | Motion honors `prefers-reduced-motion`: with reduce emulated, no canvas keeps rendering frames on its own and no CSS animation keeps running unless essential; anything that moves for more than 5 s has a visible pause (WCAG 2.2.2) | R | an: Playwright emulation, canvas frame counters, `document.getAnimations()` | |
+| W-44 | Pointer targets are at least 24 × 24 CSS px (WCAG 2.5.8); a control wrapped in its label counts the label; inline links in text are exempt | R | an: rendered | |
+| W-45 | Every element reached by keyboard shows a visible focus indicator | R | an: Tab through the page, read computed outline and box-shadow | |
+| W-46 | Pages reflow at 320 CSS px with no horizontal scroll (WCAG 1.4.10); tables, code and maps exempt | R | an: rendered | |
+
+LuminosiTS's `lumin-ui` skill implements all five against its catalog and is the reference for
+the readers.
+
+**v0.1 target:** 26 of 46 laws judged. Most are delegated, because the TypeScript and web
 ecosystem already ships the checks. Class-specific laws are `skip` for other classes.
 
 ### 8.3 Law metadata
@@ -439,7 +476,7 @@ rule names it maps, `rationale` and `fix`, as in Go-TOPS §8.3.
 ## 9. Configuration: `web-tops.yaml`
 
 ```yaml
-protocol: "0.1.0"
+protocol: "0.2.0"
 version: "0.1.0"
 package: "@hedronite/lts-core"      # or the site name
 class: ts-library
@@ -476,6 +513,8 @@ layers:
   package_exports: { tier: 1 }
   html_validate: { enabled: false }
   axe: { enabled: false }
+  rendered: { enabled: false }      # web-app, astro-site: routes, widths, reduced motion (W-43 to W-46)
+  themes: { enabled: false }        # token source and theme list for W-42
   custom: []
 
 laws:
@@ -557,7 +596,7 @@ Non-negotiable:
 
 ## 14. Deltas
 
-| Area | TS-TOPS sketch 0.1.0 | Go-TOPS 0.3.0 | Web-TOPS 0.1.0 |
+| Area | TS-TOPS sketch 0.1.0 | Go-TOPS 0.3.0 | Web-TOPS 0.2.0 |
 |---|---|---|---|
 | Scope | TypeScript | Go | TypeScript + HTML, CSS, Tailwind, Astro; source and build output |
 | CRAP caps | Human and agent, agent "stricter" but numerically looser | One per class | One per class |
@@ -594,6 +633,13 @@ agent contract.
 
 ## 16. Decisions
 
+**Resolved for 0.2.0:**
+
+11. **Lint pin:** ESLint 9.39 with `eslint-plugin-astro` 1.7 until `jsx-a11y` (or its fork, at 1.0) supports ESLint 10 (§2).
+12. **Profile order after launch:** `workspace-root` first, because the first adopter needs it, then `cli`.
+13. **Build-suite handbook:** kept outside this repository, as Go-TOPS keeps its build suite.
+14. **Rendered interface laws:** W-42 to W-46 join the catalog, judged with M4.
+
 **Resolved for 0.1.0:**
 
 1. **Name:** Web-TOPS / `webtops` / `Hedronite/web-tops`. TS-TOPS is retired.
@@ -613,8 +659,9 @@ agent contract.
 2. Whether to add a TypeScript 7 `tsc --noEmit` leg as advisory for speed.
 3. Prettier or Biome as the drop-in default formatter.
 4. Tailwind 4 lint plugin choice, if any, beyond the custom W-23 rule **[verify v4 support]**.
-5. Profile order after launch: `workspace-root` first (LuminosiTS needs it), then `cli`.
-6. Whether a Web build-suite handbook belongs in foundry, as Go's does.
+5. How a gate proves a WebGPU backend: a self-hosted runner with an adapter, or an advisory leg.
+6. Whether `webtops` ships the W-42 to W-46 readers itself or delegates to a project's own tool
+   that emits the same report shape.
 
 ---
 
@@ -656,12 +703,12 @@ Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any rele
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hedronite.com/schemas/web-tops/0.1.0/web-tops.schema.json",
+  "$id": "https://hedronite.com/schemas/web-tops/0.2.0/web-tops.schema.json",
   "type": "object",
   "required": ["protocol", "version", "package", "class"],
   "additionalProperties": false,
   "properties": {
-    "protocol": { "const": "0.1.0" },
+    "protocol": { "const": "0.2.0" },
     "version":  { "type": "string", "minLength": 1 },
     "package":  { "type": "string", "minLength": 1 },
     "class":    { "enum": ["ts-library", "ui-components", "astro-site", "web-app",
@@ -704,8 +751,8 @@ Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any rele
 | **M0** | This spec, schemas, five profiles, `AGENTS.md.tmpl` | Reviewed; budgets marked for calibration |
 | **M1** | CLI: `init`, `check`, `gate` (hygiene, tests, coverage, report) | Self-hosting green |
 | **M2** | Native CRAP; Stryker adapter; survivor ledger; baseline and ratchet | Gate fails on a deliberately weak test |
-| **M3** | Laws v0.1: 26 judged; `fixtures/lints`; `eslint-plugin-webtops` | Report shows "26 of 41 judged" |
-| **M4** | Build-output layers: `html-validate`, axe, links, byte budgets | An `astro-site` example passes; a broken page fails |
+| **M3** | Laws v0.1: 26 judged; `fixtures/lints`; `eslint-plugin-webtops` | Report shows "26 of 46 judged" |
+| **M4** | Build-output layers: `html-validate`, axe, links, byte budgets; rendered checks and the theme reader (W-42 to W-46) | An `astro-site` example passes; a broken page fails, including one that animates under reduced motion |
 | **M5** | First adopter: LuminosiTS | Packages gated under ratchet |
 | **M6** | Protocol 1.0 | Calibrated budgets and caps; frozen law IDs |
 
@@ -714,17 +761,19 @@ Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any rele
 ## 20. First adopter: LuminosiTS
 
 LuminosiTS is a style-agnostic TypeScript visual library: icons, Three.js primitives, objects,
-scenes, materials and shaders. It is a Bun + Turborepo monorepo with a Nix shell. It is a good
-first adopter because it exercises every class except `astro-site`. Web-TOPS judges it on
-correctness, density, accessibility and budgets, never on its look.
+scenes, materials, surface shaders and screen effects, with looks (themes) that color the
+interface and the 3D scene together. It is a Bun + Turborepo monorepo with a Nix shell. It
+exercises every launch class: since it gained an Astro site, `astro-site` too. Web-TOPS judges
+it on correctness, density, accessibility and budgets, never on its look.
 
 | LuminosiTS part | Class |
 |---|---|
-| `core`, `primitives`, `objects`, `scenes`, `materials`, `shaders` | `ts-library` |
+| `core`, `tokens`, `primitives`, `objects`, `scenes`, `materials`, `shaders`, `postfx` | `ts-library` |
 | `icons` (pure TS data plus a `./react` entry) | `ui-components` |
 | `adapters` (R3F components) | `ui-components` |
-| `catalog`, `playground` (Vite + React + R3F) | `web-app` |
-| `tools/` | `cli` (profile pending) |
+| `apps/catalog` (Vite + React + R3F; the playground is a view of it) | `web-app` |
+| `apps/site` (Astro, one island) | `astro-site` |
+| `tools/` (the `lumin` agent CLI and the asset, icon, looks and vendor generators) | `cli` (profile pending) |
 | repo root | `workspace-root` (profile pending) |
 
 Its manifesto's package rules become `dependency-cruiser` rules under W-16, W-17 and W-19:
@@ -733,8 +782,15 @@ Its manifesto's package rules become `dependency-cruiser` rules under W-16, W-17
 - adapters are optional, and raw packages work without them;
 - React and R3F are imported only from `./react` entries and `adapters`.
 
-Its optimization goals (polygon budgets, compressed formats, disposal) become custom layers once
-its `tools/` can report them as numbers.
+Its optimization goals (polygon budgets, compressed formats, disposal) become custom layers; its
+asset pipeline already checks glTF output against `assets/budgets.json`.
+
+**What it proved for 0.2.0.** The 0.1.0 lint pins could not install together (§2). Astro 7
+needs Node 22.23.4. Canvas pages need SwiftShader flags and longer timeouts on CI, and a plain
+HTTP origin runs WebGPU code on its WebGL 2 fallback (§7). And its scripted interface review
+(`lumin-ui`: rule tables over the parsed JSX, contrast across all 30 theme schemes, and a
+rendered pass) found failures that axe on one page in one theme did not: the source of W-42 to
+W-46.
 
 ---
 

@@ -11,7 +11,7 @@ TypeScript is the foundational language; HTML, CSS, Tailwind CSS and Astro compl
 
 ## Status
 
-Draft. Protocol **0.1.0**. The package is unreleased (0.0.0). There is no code yet.
+Draft. Protocol **0.2.0**. The package is unreleased (0.0.0). There is no code yet.
 
 This repo is at milestone M0: the spec. `webtops` does not exist yet, and nothing here is ready to copy into CI.
 
@@ -20,8 +20,8 @@ This repo is at milestone M0: the spec. `webtops` does not exist yet, and nothin
 | **M0** spec | `WEB_TOPS.md`, schemas, profiles for five launch classes, the AGENTS template |
 | M1 CLI | `init`, `check`, `gate`: hygiene, tests, coverage, `report.json`; Web-TOPS gates itself |
 | M2 | Native CRAP, Stryker adapter, survivor ledger, baseline and ratchet |
-| M3 | Laws v0.1: 26 of 41 judged; lint fixtures; `eslint-plugin-webtops` |
-| M4 | Build-output layers: HTML validity, axe, links, byte budgets |
+| M3 | Laws v0.1: 26 of 46 judged; lint fixtures; `eslint-plugin-webtops` |
+| M4 | Build-output layers: HTML validity, axe, links, byte budgets; rendered checks and theme contrast |
 | M5–M6 | First adopter, protocol 1.0 |
 
 The full roadmap is in [`WEB_TOPS.md` §19](WEB_TOPS.md#19-roadmap).
@@ -36,13 +36,13 @@ The full roadmap is in [`WEB_TOPS.md` §19](WEB_TOPS.md#19-roadmap).
 | Risk | Native CRAP, one cap per class, ratcheted for adopters |
 | What ships | `html-validate` and axe on built pages; JS and CSS bytes per page or route |
 
-TypeScript is pinned to 6.0.x because `typescript-eslint` and `@astrojs/check` do not yet accept TypeScript 7. See [§2](WEB_TOPS.md#2-pins).
+TypeScript is pinned to 6.0.x because `typescript-eslint` and `@astrojs/check` do not yet accept TypeScript 7, and ESLint to 9.39 because `eslint-plugin-jsx-a11y` does not yet accept ESLint 10. See [§2](WEB_TOPS.md#2-pins).
 
 ## What is here
 
 | Path | What it is |
 |---|---|
-| [`WEB_TOPS.md`](WEB_TOPS.md) | The protocol, draft 0.1.0 |
+| [`WEB_TOPS.md`](WEB_TOPS.md) | The protocol, draft 0.2.0 |
 | [`config/AGENTS.md.tmpl`](config/AGENTS.md.tmpl) | The `AGENTS.md` section that `webtops init` will write into an adopting repo |
 | [`AGENTS.md`](AGENTS.md) | Standing orders for agents working on this repo ([`CLAUDE.md`](CLAUDE.md) imports it) |
 
