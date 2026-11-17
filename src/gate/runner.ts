@@ -77,7 +77,7 @@ function entry(
   item: PlanItem,
   verdict: Verdict,
   reason: string | undefined,
-  rest: Partial<Pick<ReportLayer, "findings" | "artifacts" | "duration_ms">> = {},
+  rest: Partial<Pick<ReportLayer, "findings" | "artifacts" | "duration_ms" | "seed">> = {},
 ): ReportLayer {
   return {
     id: item.id,
@@ -158,6 +158,7 @@ async function execute(
         findings: result.findings,
         artifacts: Object.values(kept).map((path) => relative(input.cwd, path)),
         duration_ms: input.now() - started,
+        ...(result.seed === undefined ? {} : { seed: result.seed }),
       }),
     };
   } catch (error: unknown) {

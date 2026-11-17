@@ -31,6 +31,7 @@ export interface FakeLayerOptions {
   readonly produces?: readonly string[];
   readonly consumes?: readonly Consumed[];
   readonly artifacts?: Readonly<Record<string, string>>;
+  readonly seed?: number;
   /** Appended with the id each time `run` is invoked. */
   readonly calls?: string[];
   readonly onRun?: () => void | Promise<void>;
@@ -79,6 +80,7 @@ export function fakeLayer(options: FakeLayerOptions): Layer {
     findings: full.findings,
     artifacts: full.artifacts,
     ...reasonField(full.reason),
+    ...(full.seed === undefined ? {} : { seed: full.seed }),
   };
   return {
     id: full.id,
@@ -130,6 +132,8 @@ export function cfg(overrides: Partial<GateConfig> = {}): GateConfig {
     toggles: {},
     custom: [],
     hygiene: { steps: {}, auditFailOn: "high" },
+    tests: { shuffle: true },
+    coverage: { linesFloor: 85, exclude: [] },
     ...overrides,
   };
 }

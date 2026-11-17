@@ -46,6 +46,8 @@ export interface LayerReport {
   readonly findings: readonly Finding[];
   readonly artifacts?: readonly string[];
   readonly duration_ms?: number;
+  /** The shuffle seed the tests layer passed (WEB_TOPS.md section 6.6). */
+  readonly seed?: number;
 }
 
 export interface GateReport {

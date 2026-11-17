@@ -44,6 +44,8 @@ export interface LayerResult {
   readonly findings: readonly Finding[];
   /** Files this layer wrote this run, by name (for example `lcov`); later layers read them. */
   readonly artifacts: Readonly<Record<string, string>>;
+  /** The shuffle seed the tests layer passed, so a shuffled failure can be rerun (WEB_TOPS.md section 6.6). */
+  readonly seed?: number;
 }
 
 export interface LayerContext {
@@ -122,6 +124,25 @@ export interface HygieneSettings {
   readonly auditFailOn: AuditLevel;
 }
 
+export interface CoverageExclusion {
+  readonly glob: string;
+  readonly reason: string;
+}
+
+/** Gate 2 settings from `gates.tests`. */
+export interface TestsSettings {
+  /** `gates.tests.shuffle`. */
+  readonly shuffle: boolean;
+}
+
+/** Gate 3 settings from `gates.coverage`, with the class floor filled in by the adapter. */
+export interface CoverageSettings {
+  /** `gates.coverage.lines_floor`, else the class profile's floor (WEB_TOPS.md section 5.2). */
+  readonly linesFloor: number;
+  /** `gates.coverage.exclude`: reasoned exclusions beyond the defaults of section 6.1. */
+  readonly exclude: readonly CoverageExclusion[];
+}
+
 /** What the runner needs from a validated `web-tops.yaml`; a layer's own settings join it in G3 and G4. */
 export interface GateConfig {
   readonly protocol: typeof PROTOCOL;
@@ -136,6 +157,8 @@ export interface GateConfig {
   readonly toggles: Readonly<Record<string, Toggle>>;
   readonly custom: readonly CustomLayer[];
   readonly hygiene: HygieneSettings;
+  readonly tests: TestsSettings;
+  readonly coverage: CoverageSettings;
 }
 
 export interface GateOptions {
