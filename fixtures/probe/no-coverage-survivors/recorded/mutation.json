@@ -1,0 +1,510 @@
+{
+  "files": {
+    "src/price.ts": {
+      "language": "typescript",
+      "mutants": [
+        {
+          "id": "0",
+          "mutatorName": "BlockStatement",
+          "replacement": "{}",
+          "statusReason": "src/price.ts(1,59): error TS2355: A function whose declared type is neither 'undefined', 'void', nor 'any' must return a value.\n",
+          "status": "CompileError",
+          "static": false,
+          "coveredBy": [
+            "0",
+            "1",
+            "2"
+          ],
+          "location": {
+            "end": {
+              "column": 2,
+              "line": 6
+            },
+            "start": {
+              "column": 66,
+              "line": 1
+            }
+          }
+        },
+        {
+          "id": "1",
+          "mutatorName": "ConditionalExpression",
+          "replacement": "true",
+          "statusReason": "expected 90 to be 100 // Object.is equality",
+          "status": "Killed",
+          "static": false,
+          "testsCompleted": 2,
+          "duration": 2.5805410000002666,
+          "killedBy": [
+            "1"
+          ],
+          "coveredBy": [
+            "0",
+            "1",
+            "2"
+          ],
+          "location": {
+            "end": {
+              "column": 28,
+              "line": 2
+            },
+            "start": {
+              "column": 7,
+              "line": 2
+            }
+          }
+        },
+        {
+          "id": "2",
+          "mutatorName": "ConditionalExpression",
+          "replacement": "false",
+          "statusReason": "expected 200 to be 180 // Object.is equality",
+          "status": "Killed",
+          "static": false,
+          "testsCompleted": 1,
+          "duration": 2.156833000000006,
+          "killedBy": [
+            "0"
+          ],
+          "coveredBy": [
+            "0",
+            "1",
+            "2"
+          ],
+          "location": {
+            "end": {
+              "column": 28,
+              "line": 2
+            },
+            "start": {
+              "column": 7,
+              "line": 2
+            }
+          }
+        },
+        {
+          "id": "3",
+          "mutatorName": "LogicalOperator",
+          "replacement": "member || total > 100",
+          "statusReason": "expected 90 to be 100 // Object.is equality",
+          "status": "Killed",
+          "static": false,
+          "testsCompleted": 2,
+          "duration": 2.0826250000000073,
+          "killedBy": [
+            "1"
+          ],
+          "coveredBy": [
+            "0",
+            "1",
+            "2"
+          ],
+          "location": {
+            "end": {
+              "column": 28,
+              "line": 2
+            },
+            "start": {
+              "column": 7,
+              "line": 2
+            }
+          }
+        },
+        {
+          "id": "4",
+          "mutatorName": "ConditionalExpression",
+          "replacement": "true",
+          "statusReason": "expected 90 to be 100 // Object.is equality",
+          "status": "Killed",
+          "static": false,
+          "testsCompleted": 2,
+          "duration": 2.300666999999976,
+          "killedBy": [
+            "1"
+          ],
+          "coveredBy": [
+            "0",
+            "1"
+          ],
+          "location": {
+            "end": {
+              "column": 28,
+              "line": 2
+            },
+            "start": {
+              "column": 17,
+              "line": 2
+            }
+          }
+        },
+        {
+          "id": "5",
+          "mutatorName": "EqualityOperator",
+          "replacement": "total >= 100",
+          "statusReason": "expected 90 to be 100 // Object.is equality",
+          "status": "Killed",
+          "static": false,
+          "testsCompleted": 2,
+          "duration": 2.0695830000004207,
+          "killedBy": [
+            "1"
+          ],
+          "coveredBy": [
+            "0",
+            "1"
+          ],
+          "location": {
+            "end": {
+              "column": 28,
+              "line": 2
+            },
+            "start": {
+              "column": 17,
+              "line": 2
+            }
+          }
+        },
+        {
+          "id": "6",
+          "mutatorName": "EqualityOperator",
+          "replacement": "total <= 100",
+          "statusReason": "expected 200 to be 180 // Object.is equality",
+          "status": "Killed",
+          "static": false,
+          "testsCompleted": 1,
+          "duration": 4.397207999999864,
+          "killedBy": [
+            "0"
+          ],
+          "coveredBy": [
+            "0",
+            "1"
+          ],
+          "location": {
+            "end": {
+              "column": 28,
+              "line": 2
+            },
+            "start": {
+              "column": 17,
+              "line": 2
+            }
+          }
+        },
+        {
+          "id": "7",
+          "mutatorName": "BlockStatement",
+          "replacement": "{}",
+          "statusReason": "expected 200 to be 180 // Object.is equality",
+          "status": "Killed",
+          "static": false,
+          "testsCompleted": 1,
+          "duration": 5.351374999999734,
+          "killedBy": [
+            "0"
+          ],
+          "coveredBy": [
+            "0"
+          ],
+          "location": {
+            "end": {
+              "column": 4,
+              "line": 4
+            },
+            "start": {
+              "column": 30,
+              "line": 2
+            }
+          }
+        },
+        {
+          "id": "8",
+          "mutatorName": "ArithmeticOperator",
+          "replacement": "total / 0.9",
+          "statusReason": "expected 222.22222222222223 to be 180 // Object.is equality",
+          "status": "Killed",
+          "static": false,
+          "testsCompleted": 1,
+          "duration": 8.39837499999976,
+          "killedBy": [
+            "0"
+          ],
+          "coveredBy": [
+            "0"
+          ],
+          "location": {
+            "end": {
+              "column": 23,
+              "line": 3
+            },
+            "start": {
+              "column": 12,
+              "line": 3
+            }
+          }
+        },
+        {
+          "id": "9",
+          "mutatorName": "BlockStatement",
+          "replacement": "{}",
+          "statusReason": "src/price.ts(8,38): error TS2355: A function whose declared type is neither 'undefined', 'void', nor 'any' must return a value.\n",
+          "status": "CompileError",
+          "static": false,
+          "coveredBy": [],
+          "location": {
+            "end": {
+              "column": 2,
+              "line": 10
+            },
+            "start": {
+              "column": 45,
+              "line": 8
+            }
+          }
+        },
+        {
+          "id": "10",
+          "mutatorName": "ConditionalExpression",
+          "replacement": "true",
+          "status": "NoCoverage",
+          "static": false,
+          "coveredBy": [],
+          "location": {
+            "end": {
+              "column": 15,
+              "line": 9
+            },
+            "start": {
+              "column": 10,
+              "line": 9
+            }
+          }
+        },
+        {
+          "id": "11",
+          "mutatorName": "ConditionalExpression",
+          "replacement": "false",
+          "status": "NoCoverage",
+          "static": false,
+          "coveredBy": [],
+          "location": {
+            "end": {
+              "column": 15,
+              "line": 9
+            },
+            "start": {
+              "column": 10,
+              "line": 9
+            }
+          }
+        },
+        {
+          "id": "12",
+          "mutatorName": "EqualityOperator",
+          "replacement": "n >= 0",
+          "status": "NoCoverage",
+          "static": false,
+          "coveredBy": [],
+          "location": {
+            "end": {
+              "column": 15,
+              "line": 9
+            },
+            "start": {
+              "column": 10,
+              "line": 9
+            }
+          }
+        },
+        {
+          "id": "13",
+          "mutatorName": "EqualityOperator",
+          "replacement": "n <= 0",
+          "status": "NoCoverage",
+          "static": false,
+          "coveredBy": [],
+          "location": {
+            "end": {
+              "column": 15,
+              "line": 9
+            },
+            "start": {
+              "column": 10,
+              "line": 9
+            }
+          }
+        },
+        {
+          "id": "14",
+          "mutatorName": "ArithmeticOperator",
+          "replacement": "n - 1",
+          "status": "NoCoverage",
+          "static": false,
+          "coveredBy": [],
+          "location": {
+            "end": {
+              "column": 23,
+              "line": 9
+            },
+            "start": {
+              "column": 18,
+              "line": 9
+            }
+          }
+        },
+        {
+          "id": "15",
+          "mutatorName": "ArithmeticOperator",
+          "replacement": "n + 1",
+          "status": "NoCoverage",
+          "static": false,
+          "coveredBy": [],
+          "location": {
+            "end": {
+              "column": 31,
+              "line": 9
+            },
+            "start": {
+              "column": 26,
+              "line": 9
+            }
+          }
+        }
+      ],
+      "source": "export function discount(total: number, member: boolean): number {\n  if (member && total > 100) {\n    return total * 0.9;\n  }\n  return total;\n}\n\nexport function untested(n: number): number {\n  return n > 0 ? n + 1 : n - 1;\n}\n"
+    }
+  },
+  "schemaVersion": "1.0",
+  "thresholds": {
+    "high": 80,
+    "low": 60,
+    "break": null
+  },
+  "testFiles": {
+    "src/price.test.ts": {
+      "tests": [
+        {
+          "id": "0",
+          "name": "gives a member 10 percent off over 100",
+          "location": {
+            "start": {
+              "column": 1,
+              "line": 4
+            }
+          }
+        },
+        {
+          "id": "1",
+          "name": "gives a member nothing at 100 or under",
+          "location": {
+            "start": {
+              "column": 1,
+              "line": 8
+            }
+          }
+        },
+        {
+          "id": "2",
+          "name": "gives a non-member nothing",
+          "location": {
+            "start": {
+              "column": 1,
+              "line": 12
+            }
+          }
+        }
+      ],
+      "source": "import { expect, it } from \"vitest\";\nimport { discount } from \"./price.ts\";\n\nit(\"gives a member 10 percent off over 100\", () => {\n  expect(discount(200, true)).toBe(180);\n});\n\nit(\"gives a member nothing at 100 or under\", () => {\n  expect(discount(100, true)).toBe(100);\n});\n\nit(\"gives a non-member nothing\", () => {\n  expect(discount(200, false)).toBe(200);\n});\n"
+    }
+  },
+  "projectRoot": ".",
+  "config": {
+    "testRunner": "vitest",
+    "checkers": [
+      "typescript"
+    ],
+    "tsconfigFile": "tsconfig.json",
+    "coverageAnalysis": "perTest",
+    "reporters": [
+      "json"
+    ],
+    "jsonReporter": {
+      "fileName": "recorded/mutation.json"
+    },
+    "vitest": {
+      "configFile": "vitest.config.ts",
+      "related": true,
+      "pool": "threads"
+    },
+    "concurrency": 2,
+    "cleanTempDir": true,
+    "mutate": [
+      "src/price.ts"
+    ],
+    "allowConsoleColors": true,
+    "checkerNodeArgs": [],
+    "commandRunner": {
+      "command": "npm test"
+    },
+    "clearTextReporter": {
+      "allowColor": true,
+      "allowEmojis": false,
+      "logTests": true,
+      "maxTestsToLog": 3,
+      "reportTests": true,
+      "reportMutants": true,
+      "reportScoreTable": true,
+      "skipFull": false
+    },
+    "dashboard": {
+      "baseUrl": "https://dashboard.stryker-mutator.io/api/reports",
+      "reportType": "full"
+    },
+    "dryRunOnly": false,
+    "eventReporter": {
+      "baseDir": "reports/mutation/events"
+    },
+    "ignorePatterns": [],
+    "ignoreStatic": false,
+    "incremental": false,
+    "incrementalFile": "reports/stryker-incremental.json",
+    "force": false,
+    "fileLogLevel": "off",
+    "inPlace": false,
+    "logLevel": "info",
+    "maxConcurrentTestRunners": 9007199254740991,
+    "maxTestRunnerReuse": 0,
+    "mutator": {
+      "plugins": null,
+      "excludedMutations": []
+    },
+    "plugins": [
+      "@stryker-mutator/*"
+    ],
+    "appendPlugins": [],
+    "htmlReporter": {
+      "fileName": "reports/mutation/mutation.html"
+    },
+    "disableTypeChecks": true,
+    "symlinkNodeModules": true,
+    "tempDirName": ".stryker-tmp",
+    "testRunnerNodeArgs": [],
+    "thresholds": {
+      "high": 80,
+      "low": 60,
+      "break": null
+    },
+    "timeoutFactor": 1.5,
+    "timeoutMS": 5000,
+    "dryRunTimeoutMinutes": 5,
+    "warnings": true,
+    "disableBail": false,
+    "allowEmpty": false,
+    "ignorers": [],
+    "testFiles": [],
+    "typescriptChecker": {
+      "prioritizePerformanceOverAccuracy": true,
+      "experimentalNativePreview": false
+    }
+  }
+}

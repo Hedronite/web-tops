@@ -278,6 +278,8 @@ Coverage counts `.ts` and `.tsx` modules. `.astro` components are judged by `ast
   type output, config files. Anything
   else is excluded only by an explicit, reasoned entry in `web-tops.yaml` (`gates.coverage.exclude`, §9).
 - An empty or missing profile fails.
+- A coverage hint (`v8 ignore`, `istanbul ignore`, `c8 ignore`) removes lines from the profile,
+  so the floor never sees them. The suppression census (§6.7) counts each one.
 - The gate, not the project's Vitest config, chooses what is measured. It passes
   `--coverage.include` (the class source globs; `src/**/*.{ts,tsx}` for the launch classes),
   `--coverage.exclude` (the defaults above plus `gates.coverage.exclude`; a test helper that is
@@ -306,7 +308,15 @@ CRAP(f) = comp(f)² × (1 − cov(f))³ + comp(f)          cov(f) ∈ [0,1]
 
 - Native, so the formula, the counting rule and the caps are under protocol control. No mature
   TypeScript CRAP tool exists; existing ones are cross-checks at most.
-- `cov(f)` is line coverage of `f` from the LCOV.
+- `cov(f)` is **statement coverage inside the body of `f`**, read from `coverage-final.json`
+  (the `json` reporter of gate 2, §6.1). It is the fraction of the statements that start inside
+  `f`'s span with a non-zero hit count; the statements of a nested function count in the function
+  that contains it (§6.3). **When `f`'s own hit count is 0, `cov(f)` is 0**, whatever else shares its
+  line. A body with no statement is 1 when the function ran and 0 when it did not.
+- The LCOV stays the interchange format and the package line floor (§5.2), but it does not score a
+  function. A declaration runs when its module loads, so a one-line arrow that nothing calls reads
+  100% by line and 0 by statement: with complexity 4 its CRAP is 20, not 4.
+- A function is keyed as §6.7 says: file, container chain, name.
 - **Cap:** one per class (§5.2). Drop-in default 6.0. No authorship marking.
 - **Scope:** functions touched in the diff; `--all` for tier 2 trends.
 
@@ -330,14 +340,38 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
 
 ### 6.4 Mutation
 
-- **Engine:** StrykerJS with the Vitest runner. The TypeScript checker plugin drops mutants that
-  do not type-check, so they are neither killed nor counted as survivors.
-- **Scope:** lines changed against the merge base. `webtops` computes the ranges and passes them
-  as Stryker `mutate` entries with line ranges **[verify range syntax]**.
+- **Engine:** StrykerJS with the Vitest runner and per-test coverage. The TypeScript checker plugin
+  drops mutants that do not type-check: their status is `CompileError`, and they are neither killed
+  nor counted as survivors.
+- **Scope:** the lines changed against the merge base, **plus every function covered by a changed
+  test file**, so a change that only weakens a test is mutated. `webtops` computes the line ranges
+  and passes them as Stryker `mutate` entries, `file:start-end` (confirmed on Stryker 10.1.1);
+  Stryker's per-test coverage maps each changed test file to the functions it covers, and their
+  ranges are added.
+- **Statuses.** Stryker's status of each mutant decides what counts:
+
+| Status | Counts as |
+|---|---|
+| `Killed`, `Timeout` | killed |
+| `Survived`, `NoCoverage` | survivor |
+| `CompileError`, `RuntimeError`, `Ignored` | excluded |
+
+  `NoCoverage` counts with `Survived`: a function that no test runs has only `NoCoverage` mutants,
+  and counting `Survived` alone would score it best. Stryker classes `CompileError` and `RuntimeError` as invalid mutants, so both are
+  excluded. A status the table does not list makes the layer `fail`, with that status in the reason.
 - **Diff outcomes:** a diff that fails (no merge base, shallow clone) is `fail`, with no
-  exemption. A diff that succeeds but is empty is `vacuous` (§3.3). CI checks out with `fetch-depth: 0`.
+  exemption. A diff with no changed source line and no function covered by a changed test is
+  `vacuous` (§3.3); a diff that changes only tests is not. CI checks out with `fetch-depth: 0`.
 - **Survivors** are killed by a new test or listed in `.web-tops/survivors.yaml` with `reason`,
   `owner` and optional `expires`. Only unexplained survivors count.
+- **Survivor key.** A survivor is keyed by `file`, `function` (the §6.7 key), `mutator`,
+  `original`, `replacement` and `occurrence`: the 1-based order, in source order, of the same
+  mutator, original and replacement within that function. Never by Stryker's mutant id, which is a
+  run ordinal, and never by a line number, so a ledger entry survives edits elsewhere in the file.
+  A ledger entry carries those six fields beside `reason`, `owner` and `expires`.
+- **Time budget.** The layer has a time budget. A run that passes it is stopped and the layer is
+  `not-evaluated`, with the budget and the number of mutants judged in the reason. A run cut short is
+  never a pass. The value is set with the adapter (M2).
 
 ### 6.5 Law verdicts
 
@@ -398,19 +432,43 @@ Web-TOPS runs `hard` on itself.
 | Mode | What fails |
 |---|---|
 | `hard` | Any function in scope above the cap; coverage below the floor; any finding; any budget overrun |
-| `ratchet` | A new function above the cap; an existing function above its baseline; package coverage below its baseline; a per-rule, per-file finding count that rises; a page or route over its baseline bytes; a suppression count that rises |
+| `ratchet` | A new function above the cap; an existing function above its baseline; package coverage below its baseline; a per-rule, per-file finding count that rises; a page or route over its baseline bytes; a suppression count of any census kind that rises |
 | `advisory` | Nothing; needs a dated exemption, and the report prints the run as not enforced |
 
 Baseline rules:
 
 - `.web-tops/baseline.json` holds CRAP per function, coverage per package, finding counts per
-  rule per file, bytes per page or route, and suppression counts. Suppressions are
-  `eslint-disable`, `@ts-expect-error` and `stylelint-disable`.
+  rule per file, bytes per page or route, and suppression counts by census kind (below).
 - Only `webtops baseline` writes it, after a passing run. It is tracked and clean against
   `HEAD`. Under `ratchet` a missing baseline fails, and deleting it is not a reset.
-- A function is identified by file path, enclosing class and name. A renamed function is new.
-  A new file starts at 0 findings; a deleted file's allowance does not move.
+- **A function is keyed by its file, its container chain and its name**: the file path, then the
+  enclosing classes, namespaces and functions from the outside in, then the function's own name,
+  taken from its declaration, its method or property name, or the variable it is bound to. An
+  anonymous function takes its parent's key plus an ordinal, the 1-based order among that parent's
+  anonymous functions in source order. Module top-level code is one pseudo-function per file, named
+  `<module>`. A renamed function is new. A new file starts at 0 findings; a deleted file's
+  allowance does not move.
 - Legacy findings stay in the baseline. They are not wrapped in suppressions to zero the count.
+
+**Suppression census (normative).** Every way to pass a gate without fixing the cause is counted
+by kind. Each kind is counted, reported, held in the baseline and ratcheted: a count that rises
+fails under `ratchet`.
+
+| Kind | What is counted |
+|---|---|
+| `eslint-disable` | each ESLint directive comment that turns a rule off (block, `-line`, `-next-line`) |
+| `ts-expect-error`, `ts-ignore`, `ts-nocheck` | each directive |
+| `stylelint-disable` | each directive comment |
+| `v8-ignore`, `istanbul-ignore`, `c8-ignore` | each coverage hint |
+| `stryker-disable` | each `Stryker disable` comment |
+| `html-validate-disable` | each html-validate disable directive |
+| `biome-ignore` | each `biome-ignore` comment |
+| `axe-disable-rules`, `axe-exclude` | each rule in `disableRules`; each selector in `exclude` |
+| `eslint-ignores` | each tracked file in scope that an ESLint `ignores` entry leaves out |
+| `eslint-rule-off` | each (rule, tracked file in scope) pair whose effective level, from ESLint's `calculateConfigForFile`, is `off` while the rule is on for another tracked file: a per-file override that sets a rule off |
+| `tsconfig-exclude` | each tracked file in scope that `tsconfig.json` `exclude` leaves out of the program |
+
+A rule that is off everywhere is not a census item: for a required law it is `refuse` (§8.1).
 
 ---
 

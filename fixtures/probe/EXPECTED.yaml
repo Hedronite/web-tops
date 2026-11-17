@@ -1,0 +1,181 @@
+# What WEB_TOPS.md section 6 says about each cheat in this directory.
+#
+# Data only. No code reads it until M2, when the CRAP counter, the Stryker adapter and the census are
+# scored against it. A case names the cheat, the section that states the outcome, the recorded inputs,
+# the facts those inputs hold, and the outcome the protocol states. A test (src/layers/probe.test.ts)
+# holds the facts to the recordings, so a fixture cannot drift from what it claims.
+#
+# Outcomes assume a ts-library under `enforce: hard` (section 5.2): CRAP cap 4, line coverage floor
+# 85 %, `unexplained_survivors_max` 0, no baseline unless a case says one.
+protocol: "0.3"
+assume:
+  class: ts-library
+  enforce: hard
+  crap_cap: 4
+  coverage_floor: 85
+  unexplained_survivors_max: 0
+cases:
+  - id: e2-one-line-arrow
+    cheat: A one-line arrow with three branches that nothing calls. Its declaration runs at load, so by line it reads as covered.
+    section: "6.2"
+    inputs:
+      - src/sign.ts
+      - recorded/coverage-final.json
+      - recorded/lcov.info
+    facts:
+      complexity: 4
+      function_hits: 0
+      lcov_lines_found: 1
+      lcov_lines_hit: 1
+      body_statements: 1
+      body_statements_hit: 0
+    outcome:
+      verdicts:
+        crap: fail
+      cov: 0
+      crap: 20
+      note: The line reading gives cov 1 and CRAP 4, which passes the cap. The statement reading gives cov 0 and CRAP 4 * 4 * 1 + 4 = 20.
+
+  - id: e3-v8-ignore
+    cheat: A v8 ignore hint over an untested throw. The three lines vanish from the profile.
+    section: "6.7"
+    inputs:
+      - src/guard.ts
+      - recorded/lcov.info
+    facts:
+      hint_line: 2
+      lines_hidden: [3, 4, 5]
+      lcov_lines_found: 1
+      lcov_lines_hit: 1
+    outcome:
+      verdicts:
+        coverage: pass
+      census:
+        v8-ignore: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Coverage still reads 100 %. The census counts the hint, and under ratchet a count above the baseline fails.
+
+  - id: e4-unimported-file
+    cheat: A source file no test imports. Without the gate's include it is absent from the profile.
+    section: "6.1"
+    inputs:
+      - src/unimported.ts
+      - recorded/lcov-without-include.info
+      - recorded/lcov.info
+    facts:
+      records_without_include: [src/used.ts]
+      records_with_include: [src/unimported.ts, src/used.ts]
+      lcov_lines_found: 4
+      lcov_lines_hit: 1
+    outcome:
+      verdicts:
+        coverage: fail
+      findings:
+        - rule: no-coverage-record
+          file: src/unimported.ts
+      note: The gate passes the include and checks every tracked in-scope file for an SF record. Judged on the profile without the include, coverage would read 100 %.
+
+  - id: no-coverage-survivors
+    cheat: A function that no test runs. Every one of its mutants is NoCoverage, none is Survived.
+    section: "6.4"
+    inputs:
+      - src/price.ts
+      - recorded/mutation.json
+    facts:
+      statuses:
+        Killed: 8
+        NoCoverage: 6
+        CompileError: 2
+      no_coverage_function: src/price.ts::untested
+    outcome:
+      verdicts:
+        mutation: fail
+      survivors: 6
+      note: NoCoverage counts with Survived. Counting Survived alone gives 0 and a pass for the least-tested function.
+
+  - id: test-only-diff
+    cheat: A diff that only weakens a test. No source line changed.
+    section: "6.4"
+    inputs:
+      - changes.diff
+      - src/sum.ts
+      - src/sum.test.ts
+      - recorded/mutation.json
+    facts:
+      changed_files: [src/sum.test.ts]
+      changed_source_lines: 0
+      statuses:
+        Survived: 2
+        CompileError: 1
+    outcome:
+      verdicts:
+        mutation: fail
+      scope: [src/sum.ts::sum]
+      survivors: 2
+      note: The scope is the changed lines plus the functions a changed test covers, so sum is mutated. Scoped to changed source lines alone the layer would be vacuous and the weaker test would pass.
+
+  - id: rule-off-override
+    cheat: A per-file ESLint override that sets a rule to off for a directory.
+    section: "6.7"
+    inputs:
+      - eslint.config.js
+      - src/legacy/loose.ts
+      - src/strict.ts
+    facts:
+      rule: "@typescript-eslint/no-explicit-any"
+      override_files: "src/legacy/**"
+      tracked_files_off: [src/legacy/loose.ts]
+      tracked_files_on: [src/strict.ts]
+    outcome:
+      census:
+        eslint-rule-off: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: No directive comment appears in any file. The census reads the effective setting per tracked file.
+
+  - id: stryker-disable
+    cheat: A Stryker disable comment that silences the mutants of one line.
+    section: "6.7"
+    inputs:
+      - src/clamp.ts
+      - recorded/mutation.json
+    facts:
+      directive_line: 2
+      statuses:
+        Ignored: 4
+        Killed: 1
+        CompileError: 1
+    outcome:
+      verdicts:
+        mutation: pass
+      survivors: 0
+      census:
+        stryker-disable: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Stryker marks the four mutants Ignored and the table excludes them, so the layer passes. The census counts the comment.
+
+  - id: assertion-free-test
+    cheat: A test that runs the function and asserts nothing. Every line is covered and no mutant is killed.
+    section: "6.4"
+    inputs:
+      - src/total.ts
+      - src/total.test.ts
+      - recorded/lcov.info
+      - recorded/mutation.json
+    facts:
+      lcov_lines_found: 4
+      lcov_lines_hit: 4
+      statuses:
+        Survived: 2
+        CompileError: 1
+    outcome:
+      verdicts:
+        coverage: pass
+        mutation: fail
+      survivors: 2
+      note: Coverage cannot see a missing assertion. Mutation survival does.
