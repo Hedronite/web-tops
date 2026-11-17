@@ -224,6 +224,79 @@ describe("G2c hand-offs: produces, consumes and a missing input (R29 N5)", () =>
   });
 });
 
+describe("G2f hand-offs: an input is matched by name and by the layer that produces it (R37)", () => {
+  function twoProducers(box: Fixture, calls: string[], failFirst = false): Layer[] {
+    const first = box.write("first/results.json", "first\n");
+    const second = box.write("second/results.json", "second\n");
+    return [
+      fakeLayer({
+        id: "first",
+        gate: 1,
+        calls,
+        verdict: failFirst ? "Refuse" : "pass",
+        produces: ["results"],
+        artifacts: failFirst ? {} : { results: first },
+      }),
+      fakeLayer({
+        id: "second",
+        gate: 2,
+        calls,
+        produces: ["results"],
+        artifacts: { results: second },
+      }),
+    ];
+  }
+
+  it("hands a consumer the artifact of the layer it names, not another layer's of the same name", async () => {
+    const box = fixture();
+    const seen: (string | undefined)[] = [];
+    const consumer: Layer = {
+      ...fakeLayer({ id: "third", gate: 3, consumes: [{ artifact: "results", from: "first" }] }),
+      run: (context) => {
+        seen.push(context.artifacts.get("results"));
+        return Promise.resolve({ verdict: "pass", findings: [], artifacts: {} });
+      },
+    };
+    await box.run([...twoProducers(box, []), consumer]);
+    expect(seen).toEqual([join(box.outDir, "first", "results.json")]);
+  });
+
+  it("is not-run when the named producer left nothing, even though another layer left the same name", async () => {
+    const box = fixture();
+    const calls: string[] = [];
+    const consumer = fakeLayer({
+      id: "third",
+      gate: 3,
+      calls,
+      consumes: [{ artifact: "results", from: "first" }],
+    });
+    const report = await box.run(
+      [...twoProducers(box, calls, true), consumer],
+      cfg(),
+      opts({ keepGoing: true }),
+    );
+    expect(calls).toEqual(["first", "second"]);
+    expect(entryOf(report, "third")).toMatchObject({
+      verdict: "not-run",
+      reason: "input results missing: first Refuse",
+    });
+  });
+
+  it("shows a layer only the inputs it declared", async () => {
+    const box = fixture();
+    const seen: number[] = [];
+    const bystander: Layer = {
+      ...fakeLayer({ id: "third", gate: 3 }),
+      run: (context) => {
+        seen.push(context.artifacts.size);
+        return Promise.resolve({ verdict: "pass", findings: [], artifacts: {} });
+      },
+    };
+    await box.run([...twoProducers(box, []), bystander]);
+    expect(seen).toEqual([0]);
+  });
+});
+
 describe("G2c the real registry declares its hand-offs", () => {
   const layers = buildRegistry(cfg());
   const byId = new Map(layers.map((layer) => [layer.id, layer]));

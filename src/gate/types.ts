@@ -56,7 +56,7 @@ export interface LayerContext {
   readonly exec: Exec;
   /** `.web-tops/out`, emptied when the run starts so no layer reads a stale file. */
   readonly outDir: string;
-  /** Artifacts of the layers that already ran in this invocation. */
+  /** The inputs this layer declared in `consumes`, by artifact name, each from the layer it named. */
   readonly artifacts: ReadonlyMap<string, string>;
 }
 

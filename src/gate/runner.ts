@@ -10,7 +10,15 @@ import {
   type Verdict,
 } from "../report/types.ts";
 import { planGate, type PlanItem } from "./plan.ts";
-import type { Exec, GateConfig, GateOptions, Layer, LayerContext, LayerResult } from "./types.ts";
+import type {
+  Consumed,
+  Exec,
+  GateConfig,
+  GateOptions,
+  Layer,
+  LayerContext,
+  LayerResult,
+} from "./types.ts";
 
 export { planGate, type PlanItem } from "./plan.ts";
 
@@ -36,7 +44,8 @@ export interface RunInput {
 /** What the run knows so far: the entries in order, the artifacts that exist, and where it stopped. */
 interface RunState {
   readonly layers: ReportLayer[];
-  readonly artifacts: Map<string, string>;
+  /** What each layer that ran left on disk, by the layer's id and then the artifact's name. */
+  readonly produced: Map<string, Readonly<Record<string, string>>>;
   inRange: number;
   ran: number;
   stoppedAt: GateRef | undefined;
@@ -168,14 +177,26 @@ function verdictOf(state: RunState, id: string): Verdict {
   return state.layers.find((layer) => layer.id === id)?.verdict ?? "not-run";
 }
 
-/** R29 N5: the first input this layer consumes that no earlier layer left on disk, worded for the report. */
+function producedPath(state: RunState, need: Consumed): string | undefined {
+  return state.produced.get(need.from)?.[need.artifact];
+}
+
+/** R29 N5: the first input this layer consumes that its named producer did not leave on disk, worded for the report. */
 function missingInput(layer: Layer, state: RunState): string | undefined {
-  for (const need of layer.consumes) {
-    if (!state.artifacts.has(need.artifact)) {
-      return `input ${need.artifact} missing: ${need.from} ${verdictOf(state, need.from)}`;
-    }
-  }
-  return undefined;
+  const missing = layer.consumes.find((need) => producedPath(state, need) === undefined);
+  return missing === undefined
+    ? undefined
+    : `input ${missing.artifact} missing: ${missing.from} ${verdictOf(state, missing.from)}`;
+}
+
+/** What a layer is shown: each input it declared, by name, taken from the layer it named and no other (R37). */
+function inputsOf(layer: Layer, state: RunState): ReadonlyMap<string, string> {
+  return new Map(
+    layer.consumes.flatMap((need): [string, string][] => {
+      const path = producedPath(state, need);
+      return path === undefined ? [] : [[need.artifact, path]];
+    }),
+  );
 }
 
 type Admission = { readonly reason: string } | { readonly layer: Layer };
@@ -197,7 +218,7 @@ function record(state: RunState, item: PlanItem, done: Executed, keepGoing: bool
   if (EVALUATED.has(done.layer.verdict)) {
     state.ran += 1;
   }
-  Object.entries(done.artifacts).forEach(([name, path]) => state.artifacts.set(name, path));
+  state.produced.set(done.layer.id, done.artifacts);
   if (isFailing(done.layer.verdict) && !keepGoing) {
     state.stoppedAt = item.gate;
   }
@@ -214,7 +235,7 @@ async function step(item: PlanItem, input: RunInput, base: string, state: RunSta
     state.layers.push(entry(item, "not-run", admitted.reason));
     return;
   }
-  const done = await execute(item, admitted.layer, input, base, state.artifacts);
+  const done = await execute(item, admitted.layer, input, base, inputsOf(admitted.layer, state));
   record(state, item, done, input.options.keepGoing);
 }
 
@@ -281,7 +302,7 @@ export async function runGate(input: RunInput): Promise<RanReport> {
   const base = input.options.base ?? input.config.base ?? "origin/main";
   const state: RunState = {
     layers: [],
-    artifacts: new Map<string, string>(),
+    produced: new Map<string, Readonly<Record<string, string>>>(),
     inRange: 0,
     ran: 0,
     stoppedAt: undefined,
