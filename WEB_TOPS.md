@@ -564,8 +564,8 @@ chooses which laws run and `enabled: false` turns the layer off.
   layer id. To switch one off, remove it.
 - Gate 1 steps: `install`, `tsc`, `astro_check`, `eslint`, `stylelint`, `format`,
   `dependency_cruiser`, `audit`. `astro_check` is mapped for `astro-site`, and for `web-app` and
-  `ui-components` when the project's `package.json` lists `astro` in `dependencies` or
-  `devDependencies`; otherwise it is `skip`. `layers.package_exports` runs `publint` and `attw` inside gate 1.
+  `ui-components` when the project's `package.json` lists `astro` in `dependencies`,
+  `devDependencies` or `peerDependencies`; otherwise it is `skip`. `layers.package_exports` runs `publint` and `attw` inside gate 1.
 - `format.tool` is `prettier` or `biome`. Without the key, the gate reads the one formatter config
   in the repo; none or both is a `Refuse`.
 - `audit.fail_on`: `low`, `moderate`, `high` or `critical`. `tests.runner`: `vitest`.
