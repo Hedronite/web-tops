@@ -1,5 +1,4 @@
 import type { ClassName } from "./profiles.ts";
-import type { PROTOCOL } from "./protocol.ts";
 
 export type Tier = 0 | 1 | 2 | 3;
 export type Enforce = "hard" | "ratchet" | "advisory";
@@ -87,7 +86,7 @@ export interface Layers {
 
 /** A `web-tops.yaml` that passed the schema, with the schema's defaults filled in. */
 export interface WebTopsConfig {
-  readonly protocol: typeof PROTOCOL;
+  readonly protocol: string;
   readonly version: string;
   readonly package: string;
   readonly class: ClassName;

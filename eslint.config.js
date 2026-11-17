@@ -7,7 +7,18 @@ import tseslint from "typescript-eslint";
 // Every rule below is the reader behind a judged law (WEB_TOPS.md section 8.2) and stays at
 // "error". Presets are repeated here so the mapping survives a preset change.
 export default defineConfig(
-  { ignores: ["node_modules/", "coverage/", "dist/", ".web-tops/", ".astro/"] },
+  {
+    ignores: [
+      "node_modules/",
+      "coverage/",
+      "dist/",
+      ".web-tops/",
+      ".astro/",
+      // Reserved: the W-22 proof package and the deliberate cheats (WEB_TOPS.md section 6.7).
+      "probes/",
+      "fixtures/probe/",
+    ],
+  },
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
   {

@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { PROTOCOL } from "../config/protocol.ts";
 import type { Finding, GateRef, Report, Verdict } from "../report/types.ts";
 import type {
   Consumed,
@@ -124,7 +125,7 @@ export function fakeBuiltins(
 
 export function cfg(overrides: Partial<GateConfig> = {}): GateConfig {
   return {
-    protocol: "0.2.1",
+    protocol: PROTOCOL,
     package: "fixture",
     class: "ts-library",
     enforce: "hard",

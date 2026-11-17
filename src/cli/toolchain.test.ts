@@ -1,5 +1,13 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { ESLint } from "eslint";
@@ -348,5 +356,71 @@ describe("G0b: lint enables the rule behind every judged ts-library law, at erro
   it("W-35 reports unused disable directives as errors", async () => {
     const linterOptions = get(await printConfig("src/cli/main.ts"), "linterOptions");
     expect([2, "error"]).toContain(get(linterOptions, "reportUnusedDisableDirectives"));
+  });
+});
+
+describe("G0d: probes/** and fixtures/probe/** are reserved in every tool scope", () => {
+  const reserved = [
+    "probes/x.ts",
+    "probes/w22/run.ts",
+    "probes/w22/fixtures/a.tsx",
+    "fixtures/probe/x.ts",
+    "fixtures/probe/e2/cheat.ts",
+  ];
+  const checked = ["src/x.ts", "src/config/validate.ts", "src/probes/x.ts"];
+  const prettier = join(root, "node_modules/prettier/bin/prettier.cjs");
+  const made: string[] = [];
+
+  afterEach(() => {
+    for (const dir of made.splice(0)) rmSync(dir, { recursive: true, force: true });
+  });
+
+  const ignoredByPrettier = (path: string): unknown => {
+    const result = spawnSync(process.execPath, [prettier, "--file-info", path], {
+      cwd: root,
+      encoding: "utf8",
+    });
+    const info: unknown = JSON.parse(result.stdout);
+    return get(info, "ignored");
+  };
+
+  it.each(reserved)(
+    "ESLint ignores %s, so a planted lint error there does not fail lint",
+    async (path) => {
+      expect(await new ESLint({ cwd: root }).isPathIgnored(join(root, path))).toBe(true);
+    },
+  );
+
+  it.each(checked)("ESLint still lints %s", async (path) => {
+    expect(await new ESLint({ cwd: root }).isPathIgnored(join(root, path))).toBe(false);
+  });
+
+  it.each(reserved)("Prettier skips %s", (path) => {
+    expect(ignoredByPrettier(path)).toBe(true);
+  });
+
+  it.each(checked)("Prettier still checks %s", (path) => {
+    expect(ignoredByPrettier(path)).toBe(false);
+  });
+
+  it("tsconfig excludes both, even if its include were widened to the whole repo", () => {
+    const read = ts.readConfigFile(join(root, "tsconfig.json"), (file) => ts.sys.readFile(file));
+    expect(get(get(read.config, "exclude"), "length")).toBeGreaterThanOrEqual(2);
+    const dir = mkdtempSync(join(tmpdir(), "wt-tsconfig-"));
+    made.push(dir);
+    for (const name of [...reserved, "src/x.ts"]) {
+      mkdirSync(dirname(join(dir, name)), { recursive: true });
+      writeFileSync(join(dir, name), "export const x = 1;\n");
+    }
+    const config: unknown = read.config;
+    const widened = { ...(typeof config === "object" ? config : {}), include: ["**/*"] };
+    const parsed = ts.parseJsonConfigFileContent(widened, ts.sys, dir);
+    expect(parsed.fileNames.map((name) => name.slice(dir.length + 1)).sort()).toEqual(["src/x.ts"]);
+  });
+
+  it("vitest.config.ts excludes both from the tests it collects", () => {
+    const text = readFileSync(join(root, "vitest.config.ts"), "utf8");
+    expect(text).toMatch(/exclude: \[[^\]]*"probes\/\*\*"[^\]]*"fixtures\/probe\/\*\*"/);
+    expect(text).toContain('include: ["src/**/*.test.ts"]');
   });
 });

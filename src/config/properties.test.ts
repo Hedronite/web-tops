@@ -226,7 +226,7 @@ describe("validateConfig and parseConfig", () => {
       "---",
       "...",
       "\t",
-      'protocol: "0.2.1"',
+      'protocol: "0.3.0"',
       "!!str",
       "}",
     );

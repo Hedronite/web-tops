@@ -1,5 +1,4 @@
 import type { ClassName } from "../config/profiles.ts";
-import type { PROTOCOL } from "../config/protocol.ts";
 import type { Enforce, Finding, GateRef, Verdict } from "../report/types.ts";
 
 export type Tier = 0 | 1 | 2 | 3;
@@ -145,7 +144,7 @@ export interface CoverageSettings {
 
 /** What the runner needs from a validated `web-tops.yaml`; a layer's own settings join it in G3 and G4. */
 export interface GateConfig {
-  readonly protocol: typeof PROTOCOL;
+  readonly protocol: string;
   readonly package: string;
   readonly class: ClassName;
   readonly enforce: Enforce;

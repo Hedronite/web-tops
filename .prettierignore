@@ -1,5 +1,5 @@
 # Not formatted by Prettier: dependencies, output, the lockfile, the protocol text and other
-# Markdown, the drop-in templates, licenses, and fixtures (some are broken on purpose).
+# Markdown, the drop-in templates, licenses, fixtures (some are broken on purpose), and the reserved probe paths.
 # Directory patterns are anchored to the root, so src/config and src/layers/coverage stay in.
 /node_modules/
 /coverage/
@@ -10,3 +10,5 @@ bun.lock
 /docs/
 LICENSE*
 /fixtures/
+/probes/
+/fixtures/probe/

@@ -29,6 +29,10 @@ const invalid: readonly (readonly [string, string])[] = [
   ["unknown-nested-key", "/gates/crap/bogus"],
   ["missing-class", "/class"],
   ["wrong-protocol", "/protocol"],
+  ["protocol-below", "/protocol"],
+  ["protocol-above", "/protocol"],
+  ["protocol-malformed", "/protocol"],
+  ["protocol-not-a-string", "/protocol"],
   ["bad-class", "/class"],
   ["class-without-profile", "/class"],
   ["crap-cap-below-one", "/gates/crap/cap"],
@@ -102,6 +106,27 @@ const projects: readonly (readonly [string, string | undefined])[] = [
   ["astro-peer-ui-components", "/gates/hygiene/astro_check/enabled"],
 ];
 
+describe("G0c: check reads the protocol id by range", () => {
+  it.each([
+    ["protocol-below", '"0.2.1"'],
+    ["protocol-above", '"0.4.0"'],
+    ["protocol-malformed", '"0.3"'],
+  ])("%s says which id, and the range this webtops supports", async (name, id) => {
+    const { io: streams, out, err } = io();
+    expect(await runCheckCli([`invalid/${name}.yaml`], streams)).toBe(2);
+    expect(out()).toBe("");
+    expect(err()).toContain(
+      `  /protocol: protocol ${id} is outside the range this webtops supports (0.3.x)`,
+    );
+  });
+
+  it("accepts a later patch of the minor: 0.3.7 exits 0", async () => {
+    const { io: streams, out } = io();
+    expect(await runCheckCli(["valid/protocol-patch.yaml"], streams)).toBe(0);
+    expect(out()).toContain("valid/protocol-patch.yaml: ok");
+  });
+});
+
 describe("R27: astro_check off under hard, by project", () => {
   it.each(projects)("%s", async (name, pointer) => {
     const path = `projects/${name}/web-tops.yaml`;
@@ -127,6 +152,7 @@ describe("check on a valid config", () => {
     "valid/hard-later-layers-off.yaml",
     "valid/hard-exports-off-astro.yaml",
     "valid/hard-unmapped-steps-off.yaml",
+    "valid/protocol-patch.yaml",
   ])("%s exits 0 and says ok", async (path) => {
     const { io: streams, out, err } = io();
     expect(await runCheckCli([path], streams)).toBe(0);

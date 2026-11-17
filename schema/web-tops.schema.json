@@ -1,13 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hedronite.com/schemas/web-tops/0.2.1/web-tops.schema.json",
+  "$id": "https://hedronite.com/schemas/web-tops/0.3/web-tops.schema.json",
   "title": "web-tops.yaml",
   "type": "object",
   "required": ["protocol", "version", "package", "class"],
   "additionalProperties": false,
   "properties": {
     "protocol": {
-      "const": "0.2.1"
+      "type": "string",
+      "pattern": "^0\\.3\\.[0-9]+$"
     },
     "version": {
       "type": "string",

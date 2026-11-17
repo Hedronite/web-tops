@@ -2,7 +2,6 @@ import type { ErrorObject } from "ajv";
 import { ajv, toProblems } from "./ajv.ts";
 import schema from "../../schema/gate-report.schema.json" with { type: "json" };
 import type { ClassName } from "./profiles.ts";
-import type { PROTOCOL } from "./protocol.ts";
 import type { Enforce, Problem, Tier, Validated } from "./types.ts";
 
 /** The seven built-in layers every report lists (WEB_TOPS.md section 6.6). A report may add custom ids. */
@@ -51,7 +50,7 @@ export interface LayerReport {
 }
 
 export interface GateReport {
-  readonly protocol: typeof PROTOCOL;
+  readonly protocol: string;
   readonly class: ClassName;
   readonly enforce: Enforce;
   /** False only under `advisory`: verdicts are kept, but nothing fails. */
