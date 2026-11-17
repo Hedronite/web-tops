@@ -66,7 +66,7 @@ Schema (`schema/web-tops.schema.json` plus a gate-report schema), and per-class 
 - Bun installs dependencies and starts `webtops`: `bunx webtops gate`, or a workspace script.
   The tools the gate runs (Vitest with v8 coverage, ESLint, Stylelint, Stryker, `html-validate`,
   dependency-cruiser, Playwright) are Node programs, so every class needs Node in the range §2
-  pins. Vitest's v8 coverage does not run on Bun.
+  pins. Vitest supports v8 coverage only on Node; on Bun its counts differ.
 
 ---
 
@@ -116,7 +116,7 @@ Gates run in this order. A failing gate stops the run unless `--keep-going` is s
 | # | Gate | Command(s) | Pass condition |
 |---|---|---|---|
 | 1 | **Hygiene** | `bun install --frozen-lockfile`; `tsc -b --noEmit` (pinned 6.0) **[verify `-b` with `--noEmit`]**; `astro check` (Astro projects, §9); `eslint` type-aware, once, JSON output; `stylelint` on CSS and `<style>` blocks; format check; `dependency-cruiser`; `publint` and `attw` on the packed tarball (package classes); dependency audit | All clean; no high or critical advisory in production dependencies |
-| 2 | **Tests** | **one run**: `vitest run --coverage --sequence.shuffle --sequence.seed <n>`; the gate passes the seed, the v8 provider, the coverage `include`, the `json` + `lcov` reporters and the reports directory itself (§6.1) | All pass; no focused or skipped tests; zero tests is a failure |
+| 2 | **Tests** | **one run**: `vitest run --coverage --sequence.shuffle --sequence.seed <n>`; the gate passes the seed, the v8 provider, the coverage `include` and `exclude`, the `json` + `lcov` reporters, the reports directory and a JSON results file itself (§6.1) | All pass; no focused or skipped tests; zero tests is a failure. Judged from the JSON results, not Vitest's exit code |
 | 3 | **Coverage** | from the run in gate 2; **`test -s`** on the LCOV | Profile non-empty; class floor or ratchet met |
 | 4 | **CRAP** | native CRAP over the LCOV and the TypeScript AST (§6.2) | Cap or ratchet met |
 | 5 | **Mutation (diff)** | Stryker on lines changed against the merge base (§6.4) | Unexplained survivors ≤ max |
@@ -127,9 +127,12 @@ Gates run in this order. A failing gate stops the run unless `--keep-going` is s
 time: it reads the JSON those tools wrote in gate 1.
 
 **Tools and hand-offs.** Every tool resolves from the project's own `node_modules` (the
-installed package's `bin`), never from `PATH`. A tool not installed there is missing, and its
-layer fails. The runtimes are the exception: `bun` (install, audit) and `node` come from `PATH`,
-and their versions are checked against the lock (§10). Each layer declares the artifacts it produces and the ones it consumes, writes
+installed package's `bin`), never from `PATH`. A tool not installed there is missing: its layer
+is `Refuse`, and the tool is not started. The runtimes are the exception: `bun` (install, audit)
+and `node` come from `PATH`. `gate` exits 3 when Bun is below the §2 floor; `doctor` and
+`lock --verify` check Node against the lock's range (§10), and CI pins an exact Node inside it
+(§11). `gate` clears `.web-tops/out/` before the first layer, so no layer judges an earlier run's
+artifact. Each layer declares the artifacts it produces and the ones it consumes, writes
 them under `.web-tops/out/<layer>/`, and lists them in the report's `artifacts`; gate 3 consumes
 the LCOV gate 2 produced. A layer whose input is missing because its producer failed or did not
 run is `not-run` with reason `input <artifact> missing: <layer> <verdict>`. A layer whose input
@@ -165,7 +168,8 @@ below `error` is `refuse`, with the config line that disabled it, not `not-evalu
 
 **Which verdict, and what counts.** A layer gets `skip` when `web-tops.yaml` sets
 `enabled: false` (the reason is the config's), or when its class profile does not map it (the
-reason names the class). Otherwise a layer with no command is `not-run`. A layer is **in range**
+reason names the class). Otherwise a layer with no command, or with a missing input (§3.1), is
+`not-run`. A layer is **in range**
 when it is enabled, mapped by the class, at or below `--max-tier`, and named by `--only` when
 `--only` is given. `skip` layers are never in range. The run fails when fewer layers ran than are
 in range.
@@ -238,7 +242,7 @@ have different budgets.
 | `size-limit` per entry | required | required | no | no | no |
 | HTML validity, axe, links | no | on fixture pages | required | required | no |
 | JS per page or route (brotli) | n/a | n/a | 0 KB unless the page has islands; ≤ 50 KB with | ≤ 170 KB per route | n/a |
-| Extra laws | W-18 | W-18, W-22 | W-20–W-31 | W-20–W-29 | W-06 strict, W-37 |
+| Extra laws | W-18 | W-18, W-22; W-27 when Astro | W-20–W-31 | W-20–W-29; W-27 when Astro | W-06 strict, W-37 |
 
 There is one CRAP cap per class, the same for every author. Under `ratchet` (§6.7) it applies to
 new functions, and existing functions must not get worse. All numbers are **proposed**.
@@ -260,11 +264,17 @@ Coverage counts `.ts` and `.tsx` modules. `.astro` components are judged by `ast
 - An empty or missing profile fails.
 - The gate, not the project's Vitest config, chooses what is measured. It passes
   `--coverage.include` (the class source globs; `src/**/*.{ts,tsx}` for the launch classes),
+  `--coverage.exclude` (the defaults above plus `gates.coverage.exclude`; a test helper that is
+  not a `*.test.*` file needs a reasoned entry there),
   `--coverage.reporter=json --coverage.reporter=lcov` and
   `--coverage.reportsDirectory=.web-tops/out/tests/coverage` (the `tests` layer produces the LCOV, §3.1). Every tracked file the include selects,
   less the exclusions, has an `SF:` record in the LCOV; a missing record fails the coverage layer,
   because a file no test imports would otherwise leave the denominator. The floor comes from the
   class profile, or the baseline under `ratchet`, never from `thresholds` in the Vitest config.
+  The floor is computed over in-scope records only; any other `SF:` record is ignored. The
+  `tests` layer is judged from Vitest's JSON results (every test passed, none focused or skipped,
+  more than zero), so a project `thresholds` miss, which makes Vitest exit 1, does not fail it;
+  the exit code only tells a crash with no results file from a run.
 
 ### 6.2 CRAP
 
@@ -556,7 +566,7 @@ baseline: .web-tops/baseline.json
 
 toolchain:
   typescript: "6.0.3"
-  runtime: bun                      # bun | node
+  runtime: bun                      # bun | node: what the shipped code runs on; tools run on Node either way
 
 gates:
   hygiene:
@@ -610,15 +620,15 @@ chooses which laws run and `enabled: false` turns the layer off.
   layer id. To switch one off, remove it.
 - Gate 1 steps: `install`, `tsc`, `astro_check`, `eslint`, `stylelint`, `format`,
   `dependency_cruiser`, `audit`. `astro_check` is mapped for `astro-site`, and for `web-app` and
-  `ui-components` when the project's `package.json` lists `astro` in `dependencies`,
+  `ui-components` when the `package.json` beside `web-tops.yaml` lists `astro` in `dependencies`,
   `devDependencies` or `peerDependencies`; otherwise it is `skip`. `layers.package_exports` runs `publint` and `attw` inside gate 1.
 - `format.tool` is `prettier` or `biome`. Without the key, the gate reads the one formatter config
   in the repo; none or both is `refuse`.
 - `audit.fail_on`: `low`, `moderate`, `high` or `critical`. `tests.runner`: `vitest`.
 - `laws.select`: `default` (the judged set) or `all`.
-- Under `hard`, a gate or step the class maps at tier 1 or below cannot be switched off, except
+- Under `hard`, a gate or step the class (and, for `astro_check`, the project) maps at tier 1 or below cannot be switched off, except
   `crap`, `mutation`, build output and `laws`, the layers that land after the first CLI release;
-  `check` exits 2. Steps the class does not map (such as `astro_check` in a project without Astro)
+  `check` exits 2. Steps that are not mapped (such as `astro_check` in a project without Astro)
   stay `skip`. Under `advisory`, `exemption` is required; `until` is an ISO 8601 date
   (`YYYY-MM-DD`), compared in UTC, and the exemption holds through that day.
 - Keys a config omits take the class profile's value (§5.2). The `crap` and `mutation` checks in
@@ -642,14 +652,14 @@ The drop-in workflow `.github/workflows/web-tops.yml`:
 
 | Job | Content |
 |---|---|
-| `gate` | `actions/setup-node` with a Node in the lock's range; Bun; `bun install --frozen-lockfile`; Playwright browsers for the classes that need them; `bunx webtops gate --max-tier 1`. It fails if fewer layers ran than are in range (§3.3) |
+| `gate` | `actions/setup-node`, pinned by SHA, with one exact `node-version` inside the lock's range; Bun; `bun install --frozen-lockfile`; Playwright browsers for the classes that need them; `bunx webtops gate --max-tier 1`. It fails if fewer layers ran than are in range (§3.3) |
 | `nightly` | `bunx webtops gate --max-tier 2` on a schedule |
 | `release-verify` | Tier 3, on release |
 | `law-diff` | Fails a PR that weakens or removes a law, rule, tsconfig flag or budget without the `protocol-change` label |
 
 CI rules: checkout with `fetch-depth: 0`; actions pinned by commit SHA; minimal `permissions:`;
 `--dry-run` refused; empty reports fail. `init` writes a job only when its command exists:
-until `nightly`, `release-verify` and `law-diff` have commands, it writes the `gate` job alone.
+until the tier 2 and 3 layers and `law-diff` exist, it writes the `gate` job alone.
 The gate is one job running one command. The drop-in
 does not repeat the tools as separate job steps, because steps that bypass `webtops` judge
 nothing.
@@ -709,7 +719,7 @@ Non-negotiable:
 | T-09 / T-12 | Two laws | n/a | One law (W-15) |
 | Runtime validation | Refuse on "detectable patterns" | n/a | Falls out of `no-unsafe-*` plus env-through-schema (W-06) |
 | Mutation engine | open | pluggable | StrykerJS |
-| Test runner | Vitest, Bun test or Jest | `go test` | Vitest, run with Bun |
+| Test runner | Vitest, Bun test or Jest | `go test` | Vitest, run on Node |
 | TypeScript pin | ≥ 5.5 | n/a | 6.0.x; floor 5.8 |
 | Accessibility | not covered | n/a | axe, `html-validate`, `jsx-a11y` |
 | Performance | bundle analysis | `AllocsPerRun`, ns/op tier 2 | Bytes per page or route at tier 1; Lighthouse tier 2 |
@@ -746,7 +756,7 @@ agent contract.
 
 15. **Switching a layer off:** `enabled` and `reason` on every gate and layer and on `laws`; `enabled: false` needs a reason (§9).
 16. **A stopped run:** layers after a failed gate without `--keep-going` report `not-run` with the reason, and the report counts the layers in range and the layers that ran (§3.3, §6.6).
-17. **Verdict precedence and range:** config off, then class, then no command; `--only` narrows the range (§3.3).
+17. **Verdict precedence and range:** config off, then class, then no command or a missing input; `--only` narrows the range (§3.3).
 18. **Report fields** are listed in §6.6; `advisory` takes `exemption`; `laws.enable` is renamed `laws.select` (§9).
 19. **Runtime:** Node runs the tools in every class, in the range §2 pins; the lock records it (§1.3, §2, §10, §11, §12). This supersedes items 3 and 4 below: Bun installs and starts `webtops`; Vitest runs on Node.
 20. **Tool resolution and hand-offs:** tools come from `node_modules`, never `PATH`; layers declare the artifacts they produce and consume (§3.1).
@@ -787,7 +797,7 @@ O6. Whether `webtops` ships the W-42 to W-46 readers itself or delegates to a pr
 
 ## 17. Repository layout (proposed)
 
-The kit is written in TypeScript and runs on Bun, so it gates itself with its own protocol.
+The kit is written in TypeScript and is installed and started with Bun, so it gates itself with its own protocol.
 
 ```
 web-tops/
