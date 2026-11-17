@@ -1,4 +1,4 @@
-# Agent standing orders (Web-TOPS 0.2.1, draft)
+# Agent standing orders (Web-TOPS 0.3.0, draft)
 
 Goal: correct, dense, accessible, fast web code. TypeScript first; HTML, CSS, Tailwind and Astro on top.
 Production: the fewest lines that keep the named invariants and measured budgets.

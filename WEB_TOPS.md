@@ -1,6 +1,6 @@
 # Web-TOPS: Web Testing and Optimization Protocol Suite
 
-**Spec status:** Draft 0.2.1 · **Date:** 2026-11-16 · **Owner:** Hedronite
+**Spec status:** Draft 0.3.0 (proposed) · **Date:** 2026-11-17 · **Owner:** Hedronite
 **Supersedes:** the TS-TOPS 0.1.0 sketch (renamed: the protocol covers the web stack, not only TypeScript)
 **Modeled on:** [Rust-TOPS](https://github.com/Hedronite/rust-tops) and [Go-TOPS](https://github.com/Hedronite/go-tops) 0.3.0
 
@@ -12,7 +12,7 @@
 > behavior or flag not yet confirmed at pin time. Versions in §2 are npm `latest` as read on
 > 2026-11-16, except where §2 says why a pin holds back. 0.2.0 folds in what the first adopter,
 > LuminosiTS, proved in practice (§20). 0.2.1 adds what the M1 configuration schema needed:
-> `enabled` and `reason` on every gate and layer, a coverage exclusion key, and run counts in the report.
+> `enabled` and `reason` on every gate and layer, a coverage exclusion key, and run counts in the report. 0.3.0 (proposed) gives the report one verdict vocabulary, required items and the shape the M2 baseline reads.
 
 ---
 
@@ -74,7 +74,7 @@ Schema (`schema/web-tops.schema.json` plus a gate-report schema), and per-class 
 
 | Item | Value |
 |---|---|
-| Protocol version | **0.2.1** (draft) |
+| Protocol version | **0.3.0** (draft, proposed) |
 | Package version | 0.0.0 (unreleased) |
 | TypeScript | **6.0.x** pinned (6.0.3 current). Floor 5.8 (`erasableSyntaxOnly`). See below |
 | Runtime | Bun ≥ 1.4 installs and runs `webtops`; Node `^22.23.4 \|\| ^24.15.0 \|\| >=26` runs the tools, in every class (where the pinned tools' engine ranges meet). The range is recorded in `web-tops.lock` (§10) |
@@ -121,7 +121,7 @@ Gates run in this order. A failing gate stops the run unless `--keep-going` is s
 | 4 | **CRAP** | native CRAP over the LCOV and the TypeScript AST (§6.2) | Cap or ratchet met |
 | 5 | **Mutation (diff)** | Stryker on lines changed against the merge base (§6.4) | Unexplained survivors ≤ max |
 | 6 | **Build output** | `astro build` or `vite build`, then on `dist/`: `html-validate`, axe via Playwright, internal link check, bytes per page or route, `size-limit` per package entry | Per class (§7) |
-| ★ | **Laws** | maps findings from gates 1 and 6 to law IDs, then runs the custom `webtops` rules (§8) | No `Refuse`; `not-evaluated` never counts as a pass |
+| ★ | **Laws** | maps findings from gates 1 and 6 to law IDs, then runs the custom `webtops` rules (§8) | No `refuse` or `ack-missing`; `not-evaluated` never counts as a pass and fails on a required law |
 
 ★ The laws layer is tier 0 but executes last. It does not run ESLint, tsc or Stylelint a second
 time: it reads the JSON those tools wrote in gate 1.
@@ -146,14 +146,21 @@ still fails the run.
 
 ### 3.3 Verdicts
 
-| Verdict | Meaning | Effect |
+One vocabulary, lower case and hyphenated, for layers, laws and findings alike:
+
+| Verdict | Meaning | Ends the run non-zero |
 |---|---|---|
-| `pass` | Evaluated and satisfied | none |
-| `Refuse` | Hard rule violated | **Fails the gate** |
-| `Ack` | Soft rule; needs a recorded acknowledgement (`// webtops-ack W-NN: reason` or the ledger) | Fails if unacknowledged |
-| `skip` | The class does not require the layer, or config sets `enabled: false` with a `reason` (§9) | Printed with the reason |
-| `not-run` | The layer is enabled but has no command mapped, or the run stopped on an earlier failure before reaching it; the report gives which | **Fails the gate** |
-| `not-evaluated` | The reader or tool could not judge, or the tool's own rule or flag is off or below `error` (§8.1) | Reported; **never a pass** |
+| `pass` | Evaluated and satisfied | no |
+| `fail` | A threshold missed: a coverage floor, a CRAP cap, a survivor count, a byte budget, a failing test, a tool error | **yes** |
+| `refuse` | A hard law or rule broken | **yes** |
+| `ack-missing` | A soft rule broken with no recorded acknowledgement (`// webtops-ack W-NN: reason` or the ledger). An acknowledged one is `pass` with `ack` | **yes** |
+| `skip` | The class does not require the item, or config sets `enabled: false` with a `reason` (§9) | no; printed with the reason |
+| `not-run` | Enabled but no command is mapped, the run stopped before it, or its input is missing (§3.1); the reason says which | **yes** |
+| `not-evaluated` | The reader or tool could not judge, or the tool's own rule or flag is off or below `error` (§8.1) | **yes** when the item is `required`; otherwise counted and printed |
+| `vacuous` | Evaluated over nothing, such as an empty mutation diff | no; printed, and never a pass for any law |
+
+Each class profile lists its `required` layers and laws. A required law whose tool rule is off or
+below `error` is `refuse`, with the config line that disabled it, not `not-evaluated`.
 
 **Which verdict, and what counts.** A layer gets `skip` when `web-tops.yaml` sets
 `enabled: false` (the reason is the config's), or when its class profile does not map it (the
@@ -294,16 +301,16 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
   do not type-check, so they are neither killed nor counted as survivors.
 - **Scope:** lines changed against the merge base. `webtops` computes the ranges and passes them
   as Stryker `mutate` entries with line ranges **[verify range syntax]**.
-- **Diff outcomes:** a diff that fails (no merge base, shallow clone) is `Failed`, with no
-  exemption. A diff that succeeds but is empty is `Vacuous`: printed, and not counted as a pass
-  for any law. CI checks out with `fetch-depth: 0`.
+- **Diff outcomes:** a diff that fails (no merge base, shallow clone) is `fail`, with no
+  exemption. A diff that succeeds but is empty is `vacuous` (§3.3). CI checks out with `fetch-depth: 0`.
 - **Survivors** are killed by a new test or listed in `.web-tops/survivors.yaml` with `reason`,
   `owner` and optional `expires`. Only unexplained survivors count.
 
 ### 6.5 Law verdicts
 
-`Refuse` fails, `Ack` needs an acknowledgement, and `not-evaluated` is never a pass. The report
-names each law's reader.
+Laws use the §3.3 vocabulary. `refuse` and `ack-missing` fail; `not-evaluated` fails when the law
+is `required` by the class and is counted otherwise; it is never a pass. The report names each
+law's reader.
 
 ### 6.6 Report
 
@@ -314,19 +321,35 @@ layers that ran; fewer ran than are in range fails the gate (§3.3, §11).
 
 The report holds `protocol`, `class`, `enforce`, `enforced` (false only under `advisory`),
 `max_tier`, `only` (or null), and `counts` with `in_range`, `ran`, `failed` and `not_evaluated`.
-`failed` counts `Refuse`, unacknowledged `Ack` and `not-run`; `not_evaluated` is counted apart
-and also fails the gate.
+`failed` counts every verdict §3.3 marks as ending the run; `not_evaluated` is counted apart,
+and fails the gate only on a required item.
 Each entry in `layers` has `id` (`hygiene`, `tests`, `coverage`, `crap`, `mutation`,
 `build-output`, `laws`, or a `custom` id), `gate`, `tier`, `verdict` and `findings`. A finding has
 `rule` (a tool rule id or a law id), `message` and `verdict`, and `file` and `line` when it has a
 place. Verdicts are
-spelled as in §3.3: `pass`, `Refuse`, `Ack`, `skip`, `not-run`, `not-evaluated`. `skip` and
+spelled as in §3.3: `pass`, `fail`, `refuse`, `ack-missing`, `skip`, `not-run`, `not-evaluated`, `vacuous`. `skip` and
 `not-run` carry a `reason`. A stopped run's `not-run` reason is `stopped: gate <n> failed`. An
-`Ack` finding that is acknowledged carries `ack: { source: comment | ledger, reason }`; an
-unacknowledged one fails. The report may carry more fields (run timing, artifact paths, the exit
+acknowledged soft-rule finding is `pass` and carries `ack: { source: comment | ledger, reason }`;
+an unacknowledged one is `ack-missing`. The report may carry more fields (run timing, artifact paths, the exit
 code); `schema/gate-report.schema.json` lists every field, and the fields above are required.
 The `tests` layer also carries `seed`, the shuffle seed the gate passed, so a shuffled failure
 can be rerun.
+
+From 0.3.0 the report is the source the baseline is projected from, so it carries:
+
+- `report_version`, the report format's own version, separate from `protocol`; a protocol
+  patch that leaves the report alone does not change it;
+- `subject`, the package or workspace root the run judged;
+- `run`: git SHA, `bun` and `node` versions, the version of every tool that ran, and the
+  shuffle seed;
+- on each layer and law, `required` (from the class profile) and the §3.3 verdict;
+- on each layer, `metrics` shaped for `webtops baseline`: per function `{file, name, line,
+  complexity, coverage, crap}` for CRAP; per file `{file, lines_found, lines_hit}` for coverage;
+  per rule per file `{rule, file, count}` for findings; per page `{route, bytes}` for build
+  output. A layer that has no metrics yet carries an empty object.
+
+`counts` gains `required_not_evaluated`; `failed` counts every verdict §3.3 marks as ending the
+run.
 
 ### 6.7 Enforcement modes
 
@@ -417,7 +440,7 @@ unmarked one fires. Custom ESLint rules are tested with ESLint's `RuleTester`.
 
 ### 8.2 Law catalog (draft: 46 laws, W-01…W-46)
 
-Severity: **R** = Refuse, **A** = Ack. ✓ = judged in v0.1. Law IDs from the TS-TOPS sketch
+Severity: **R** = a break is `refuse`, **A** = a break needs an acknowledgement or is `ack-missing`. ✓ = judged in v0.1. Law IDs from the TS-TOPS sketch
 (T-NN) are noted where they map.
 
 **Types**
@@ -427,7 +450,7 @@ Severity: **R** = Refuse, **A** = Ack. ✓ = judged in v0.1. Law IDs from the TS
 | W-01 | No `any`, explicit or implicit, and no unchecked flow of an `any` value (T-01) | R | tl: `no-explicit-any`, `no-unsafe-assignment`, `-member-access`, `-call`, `-return`, `-argument`; `noImplicitAny` | ✓ |
 | W-02 | No type assertions (`as`, `<T>x`) and no non-null `!`; `as const` is allowed (T-02) | R | tl: `consistent-type-assertions` (`assertionStyle: "never"`), `no-non-null-assertion` | ✓ |
 | W-03 | User-defined type guards and assertion functions (`x is T`, `asserts x is T`) are derived from a schema or covered by a property test. The compiler trusts them like an `as` | A | an | |
-| W-04 | Strict tsconfig: `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch`, `verbatimModuleSyntax`, `isolatedModules`, `erasableSyntaxOnly` (T-03). `strict: true` beside a strict member set to `false` is a Refuse | R | an: reads every flag's resolved value through the `extends` chain, not `strict` alone; `tsc --showConfig` omits defaults and keeps `strict: true` beside a disabled member | ✓ |
+| W-04 | Strict tsconfig: `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch`, `verbatimModuleSyntax`, `isolatedModules`, `erasableSyntaxOnly` (T-03). `strict: true` beside a strict member set to `false` is `refuse` | R | an: reads every flag's resolved value through the `extends` chain, not `strict` alone; `tsc --showConfig` omits defaults and keeps `strict: true` beside a disabled member | ✓ |
 | W-05 | No `enum`, `namespace` or parameter properties: only erasable syntax (T-04, now mechanical) | R | tl: `erasableSyntaxOnly` | ✓ |
 | W-06 | External data is validated at the boundary: `response.json()`, `JSON.parse`, `FormData`, storage, `postMessage`, env (T-05) | R | tl: these return `any`, so W-01's `no-unsafe-*` refuses unvalidated use; an: env reads only through a schema (`astro:env` or a Zod module) | ✓ |
 | W-07 | Derived types (`Pick`, `Omit`, `Partial`, `z.infer`) over duplicated shapes (T-06) | A | at | |
@@ -522,7 +545,7 @@ rule names it maps, `rationale` and `fix`, as in Go-TOPS §8.3.
 ## 9. Configuration: `web-tops.yaml`
 
 ```yaml
-protocol: "0.2.1"
+protocol: "0.3.0"
 version: "0.1.0"
 package: "@hedronite/lts-core"      # or the site name
 class: ts-library
@@ -589,7 +612,7 @@ chooses which laws run and `enabled: false` turns the layer off.
   `ui-components` when the project's `package.json` lists `astro` in `dependencies`,
   `devDependencies` or `peerDependencies`; otherwise it is `skip`. `layers.package_exports` runs `publint` and `attw` inside gate 1.
 - `format.tool` is `prettier` or `biome`. Without the key, the gate reads the one formatter config
-  in the repo; none or both is a `Refuse`.
+  in the repo; none or both is `refuse`.
 - `audit.fail_on`: `low`, `moderate`, `high` or `critical`. `tests.runner`: `vitest`.
 - `laws.select`: `default` (the judged set) or `all`.
 - Under `hard`, a gate or step the class maps at tier 1 or below cannot be switched off, except
@@ -637,7 +660,7 @@ nothing.
 | Command | Behavior |
 |---|---|
 | `init --class <c>` | Writes the drop-in set (§4). Refuses to overwrite without `--force` |
-| `check` | Validates `web-tops.yaml` against the JSON Schema, plus semantic checks: protocol id, class has a profile, `crap.cap ≥ 1`, `ts-library` keeps `unexplained_survivors_max = 0`, `advisory` has an `exemption` whose `until` has not passed (UTC, through that day; §9), under `ratchet` the baseline exists and is clean, under `hard` no gate or step the class maps at tier 1 or below is off except `crap`, `mutation`, build output and `laws` (§9) |
+| `check` | Validates `web-tops.yaml` against the JSON Schema, plus semantic checks: the protocol id lies in the range this `webtops` supports (the schema does not pin it to one constant), class has a profile, `crap.cap ≥ 1`, `ts-library` keeps `unexplained_survivors_max = 0`, `advisory` has an `exemption` whose `until` has not passed (UTC, through that day; §9), under `ratchet` the baseline exists and is clean, under `hard` no gate or step the class maps at tier 1 or below is off except `crap`, `mutation`, build output and `laws` (§9) |
 | `gate` | Runs enabled layers at or below `--max-tier` (default 1). `--base`, `--keep-going`, `--json`, `--only <layer>`, `--dry-run` (refused in CI) |
 | `baseline` | Writes `.web-tops/baseline.json` after a passing run; the only writer |
 | `laws [list \| run \| explain W-NN]` | Catalog with readers; laws alone; one law explained |
@@ -674,7 +697,7 @@ Non-negotiable:
 
 ## 14. Deltas
 
-| Area | TS-TOPS sketch 0.1.0 | Go-TOPS 0.3.0 | Web-TOPS 0.2.1 |
+| Area | TS-TOPS sketch 0.1.0 | Go-TOPS 0.3.0 | Web-TOPS 0.3.0 |
 |---|---|---|---|
 | Scope | TypeScript | Go | TypeScript + HTML, CSS, Tailwind, Astro; source and build output |
 | CRAP caps | Human and agent, agent "stricter" but numerically looser | One per class | One per class |
@@ -710,6 +733,13 @@ agent contract.
 ---
 
 ## 16. Decisions
+
+**Proposed for 0.3.0:**
+
+23. **One verdict vocabulary:** `pass`, `fail`, `refuse`, `ack-missing`, `skip`, `not-run`, `not-evaluated`, `vacuous`, with one table of which end the run (§3.3, §6.4, §6.5).
+24. **Required items:** each class profile lists its required layers and laws; `not-evaluated` fails only on a required item, so the laws catalog can grow without the gate never passing (§3.3).
+25. **The report is the baseline's source:** `report_version`, `subject`, run context and per-layer `metrics` (§6.6).
+26. **Protocol id by range:** `check` accepts the protocol range the installed `webtops` supports; the schema matches the minor, not one patch (§12, §18).
 
 **Resolved for 0.2.1:**
 
@@ -792,12 +822,12 @@ Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any rele
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hedronite.com/schemas/web-tops/0.2.1/web-tops.schema.json",
+  "$id": "https://hedronite.com/schemas/web-tops/0.3/web-tops.schema.json",
   "type": "object",
   "required": ["protocol", "version", "package", "class"],
   "additionalProperties": false,
   "properties": {
-    "protocol": { "const": "0.2.1" },
+    "protocol": { "type": "string", "pattern": "^0\\.3\\.[0-9]+$" },
     "version":  { "type": "string", "minLength": 1 },
     "package":  { "type": "string", "minLength": 1 },
     "class":    { "enum": ["ts-library", "ui-components", "astro-site", "web-app",

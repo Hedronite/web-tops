@@ -11,7 +11,7 @@ TypeScript is the foundational language; HTML, CSS, Tailwind CSS and Astro compl
 
 ## Status
 
-Draft. Protocol **0.2.1**. The package is unreleased (0.0.0).
+Draft. Protocol **0.3.0** (proposed). The package is unreleased (0.0.0).
 
 This repo is at milestone M0: the spec. `webtops` does not exist yet, and nothing here is ready to copy into CI.
 
@@ -42,7 +42,7 @@ TypeScript is pinned to 6.0.x because `typescript-eslint` and `@astrojs/check` d
 
 | Path | What it is |
 |---|---|
-| [`WEB_TOPS.md`](WEB_TOPS.md) | The protocol, draft 0.2.1 |
+| [`WEB_TOPS.md`](WEB_TOPS.md) | The protocol, draft 0.3.0 |
 | [`config/AGENTS.md.tmpl`](config/AGENTS.md.tmpl) | The `AGENTS.md` section that `webtops init` will write into an adopting repo |
 | [`AGENTS.md`](AGENTS.md) | Standing orders for agents working on this repo ([`CLAUDE.md`](CLAUDE.md) imports it) |
 
