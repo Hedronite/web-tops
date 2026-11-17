@@ -52,7 +52,14 @@ export interface Profile {
   readonly steps: readonly StepKey[];
 }
 
-const CORE_STEPS: readonly StepKey[] = ["install", "tsc", "eslint", "format", "dependency_cruiser", "audit"];
+const CORE_STEPS: readonly StepKey[] = [
+  "install",
+  "tsc",
+  "eslint",
+  "format",
+  "dependency_cruiser",
+  "audit",
+];
 
 /** The launch classes, in section 5.2's column order. */
 export const PROFILES: readonly Profile[] = [

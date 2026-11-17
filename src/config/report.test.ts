@@ -18,23 +18,33 @@ describe("G1b: gate-report.schema.json covers section 6.6 and every section 3.3 
   });
 
   it("a layer without a verdict fails, naming the layer", () => {
-    expect(pointers(edit(buildReport(), ["layers", "3", "verdict"]))).toEqual(["/layers/3/verdict"]);
-  });
-
-  it("a verdict outside section 3.3 fails", () => {
-    expect(pointers(edit(buildReport(), ["layers", "3", "verdict"], "Maybe"))).toEqual(["/layers/3/verdict"]);
-    expect(pointers(edit(buildReport(), ["layers", "3", "verdict"], "pass "))).toEqual(["/layers/3/verdict"]);
-  });
-
-  it.each([["skip"], ["not-run"]] as const)("%s without a reason fails", (verdict) => {
-    expect(pointers(edit(buildReport({ crap: verdict }), ["layers", "3", "reason"]))).toEqual(["/layers/3/reason"]);
-    expect(pointers(edit(buildReport({ crap: verdict }), ["layers", "3", "reason"], "  "))).toEqual([
-      "/layers/3/reason",
+    expect(pointers(edit(buildReport(), ["layers", "3", "verdict"]))).toEqual([
+      "/layers/3/verdict",
     ]);
   });
 
+  it("a verdict outside section 3.3 fails", () => {
+    expect(pointers(edit(buildReport(), ["layers", "3", "verdict"], "Maybe"))).toEqual([
+      "/layers/3/verdict",
+    ]);
+    expect(pointers(edit(buildReport(), ["layers", "3", "verdict"], "pass "))).toEqual([
+      "/layers/3/verdict",
+    ]);
+  });
+
+  it.each([["skip"], ["not-run"]] as const)("%s without a reason fails", (verdict) => {
+    expect(pointers(edit(buildReport({ crap: verdict }), ["layers", "3", "reason"]))).toEqual([
+      "/layers/3/reason",
+    ]);
+    expect(pointers(edit(buildReport({ crap: verdict }), ["layers", "3", "reason"], "  "))).toEqual(
+      ["/layers/3/reason"],
+    );
+  });
+
   it("a not-evaluated layer needs no reason, and any verdict may carry one", () => {
-    expect(pointers(edit(buildReport({ crap: "not-evaluated" }), ["layers", "3", "reason"], "tool off"))).toEqual([]);
+    expect(
+      pointers(edit(buildReport({ crap: "not-evaluated" }), ["layers", "3", "reason"], "tool off")),
+    ).toEqual([]);
     expect(pointers(edit(buildReport(), ["layers", "3", "reason"], "kept"))).toEqual([]);
   });
 
@@ -54,7 +64,9 @@ describe("G1b: gate-report.schema.json covers section 6.6 and every section 3.3 
   });
 
   it("a layer id must be a lower-case token", () => {
-    expect(pointers(edit(buildReport(), ["layers", "0", "id"], "Hygiene"))).toContain("/layers/0/id");
+    expect(pointers(edit(buildReport(), ["layers", "0", "id"], "Hygiene"))).toContain(
+      "/layers/0/id",
+    );
   });
 
   it("a layer listed twice fails", () => {
@@ -65,14 +77,18 @@ describe("G1b: gate-report.schema.json covers section 6.6 and every section 3.3 
 
   it("requires gate, tier and findings on a layer", () => {
     for (const key of ["gate", "tier", "findings"]) {
-      expect(pointers(edit(buildReport(), ["layers", "0", key])), key).toEqual([`/layers/0/${key}`]);
+      expect(pointers(edit(buildReport(), ["layers", "0", key])), key).toEqual([
+        `/layers/0/${key}`,
+      ]);
     }
   });
 
   it("gate is 1 to 6 or laws", () => {
     expect(pointers(edit(buildReport(), ["layers", "0", "gate"], 7))).toContain("/layers/0/gate");
     expect(pointers(edit(buildReport(), ["layers", "0", "gate"], "laws"))).toEqual([]);
-    expect(pointers(edit(buildReport(), ["layers", "0", "gate"], "other"))).toContain("/layers/0/gate");
+    expect(pointers(edit(buildReport(), ["layers", "0", "gate"], "other"))).toContain(
+      "/layers/0/gate",
+    );
   });
 
   it("tier is 0 to 3", () => {
@@ -81,7 +97,16 @@ describe("G1b: gate-report.schema.json covers section 6.6 and every section 3.3 
   });
 
   it("requires every section 6.6 field and nothing unlisted", () => {
-    for (const key of ["protocol", "class", "enforce", "enforced", "max_tier", "only", "counts", "layers"]) {
+    for (const key of [
+      "protocol",
+      "class",
+      "enforce",
+      "enforced",
+      "max_tier",
+      "only",
+      "counts",
+      "layers",
+    ]) {
       expect(pointers(edit(buildReport(), [key])), key).toContain(`/${key}`);
     }
     for (const key of ["in_range", "ran", "failed", "not_evaluated"]) {
@@ -127,9 +152,14 @@ describe("G1b: gate-report.schema.json covers section 6.6 and every section 3.3 
     const layer = (extra: object) => ({ ...buildLayer("tests", 2), ...extra });
     const report = (extra: object): GateReport => {
       const base = buildReport();
-      return { ...base, layers: base.layers.map((entry) => (entry.id === "tests" ? layer(extra) : entry)) };
+      return {
+        ...base,
+        layers: base.layers.map((entry) => (entry.id === "tests" ? layer(extra) : entry)),
+      };
     };
-    expect(pointers(report({ artifacts: [".web-tops/out/lcov.info"], duration_ms: 0 }))).toEqual([]);
+    expect(pointers(report({ artifacts: [".web-tops/out/lcov.info"], duration_ms: 0 }))).toEqual(
+      [],
+    );
     expect(pointers(report({ artifacts: { lcov: "x" } }))).toEqual(["/layers/1/artifacts"]);
     expect(pointers(report({ artifacts: [""] }))).toEqual(["/layers/1/artifacts/0"]);
     expect(pointers(report({ duration_ms: -1 }))).toEqual(["/layers/1/duration_ms"]);
@@ -142,8 +172,14 @@ describe("a finding has rule, message and verdict, and file and line when it has
     edit(buildReport({ hygiene: "Refuse" }), ["layers", "0", "findings"], [finding]);
 
   it("accepts the minimal finding and one with a place", () => {
-    expect(pointers(withFinding({ rule: "no-explicit-any", message: "m", verdict: "Refuse" }))).toEqual([]);
-    expect(pointers(withFinding({ rule: "W-01", message: "m", verdict: "Refuse", file: "src/a.ts", line: 3 }))).toEqual([]);
+    expect(
+      pointers(withFinding({ rule: "no-explicit-any", message: "m", verdict: "Refuse" })),
+    ).toEqual([]);
+    expect(
+      pointers(
+        withFinding({ rule: "W-01", message: "m", verdict: "Refuse", file: "src/a.ts", line: 3 }),
+      ),
+    ).toEqual([]);
   });
 
   it.each(["rule", "message", "verdict"])("requires %s", (key) => {
@@ -153,10 +189,14 @@ describe("a finding has rule, message and verdict, and file and line when it has
 
   it("refuses path (the place is file and line), a line below 1 and a verdict outside section 3.3", () => {
     const finding = { rule: "r", message: "m", verdict: "Refuse" };
-    expect(pointers(withFinding({ ...finding, path: "a.ts" }))).toEqual(["/layers/0/findings/0/path"]);
+    expect(pointers(withFinding({ ...finding, path: "a.ts" }))).toEqual([
+      "/layers/0/findings/0/path",
+    ]);
     expect(pointers(withFinding({ ...finding, line: 0 }))).toEqual(["/layers/0/findings/0/line"]);
     expect(pointers(withFinding({ ...finding, file: "" }))).toEqual(["/layers/0/findings/0/file"]);
-    expect(pointers(withFinding({ ...finding, verdict: "Maybe" }))).toEqual(["/layers/0/findings/0/verdict"]);
+    expect(pointers(withFinding({ ...finding, verdict: "Maybe" }))).toEqual([
+      "/layers/0/findings/0/verdict",
+    ]);
   });
 
   it.each(VERDICTS)("takes %s as a finding verdict", (verdict) => {
@@ -174,7 +214,12 @@ describe("a finding has rule, message and verdict, and file and line when it has
   });
 
   it("an acknowledged Ack finding carries source and reason", () => {
-    const ack = { rule: "W-12", message: "m", verdict: "Ack", ack: { source: "ledger", reason: "bounded" } };
+    const ack = {
+      rule: "W-12",
+      message: "m",
+      verdict: "Ack",
+      ack: { source: "ledger", reason: "bounded" },
+    };
     expect(pointers(withFinding(ack))).toEqual([]);
     expect(pointers(withFinding({ ...ack, ack: { source: "memo", reason: "x" } }))).toEqual([
       "/layers/0/findings/0/ack/source",
@@ -187,14 +232,21 @@ describe("a finding has rule, message and verdict, and file and line when it has
 
 describe("what a schema cannot say: counts, enforcement and the verdict", () => {
   it("the not_evaluated count equals the not-evaluated layers", () => {
-    expect(pointers(edit(buildReport({ crap: "not-evaluated" }), ["counts", "not_evaluated"], 0))).toEqual([
+    expect(
+      pointers(edit(buildReport({ crap: "not-evaluated" }), ["counts", "not_evaluated"], 0)),
+    ).toEqual(["/counts/not_evaluated"]);
+    expect(pointers(edit(buildReport(), ["counts", "not_evaluated"], 1))).toEqual([
       "/counts/not_evaluated",
     ]);
-    expect(pointers(edit(buildReport(), ["counts", "not_evaluated"], 1))).toEqual(["/counts/not_evaluated"]);
   });
 
   it("the failed count is Refuse, unacknowledged Ack and not-run, and not-evaluated is not in it", () => {
-    const report = buildReport({ tests: "Refuse", crap: "Ack", mutation: "not-run", laws: "not-evaluated" });
+    const report = buildReport({
+      tests: "Refuse",
+      crap: "Ack",
+      mutation: "not-run",
+      laws: "not-evaluated",
+    });
     expect(report.counts).toEqual({ in_range: 7, ran: 6, failed: 3, not_evaluated: 1 });
     expect(pointers(report)).toEqual([]);
     expect(pointers(edit(report, ["counts", "failed"], 4))).toEqual(["/counts/failed"]);

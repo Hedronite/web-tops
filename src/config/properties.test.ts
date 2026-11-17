@@ -46,13 +46,18 @@ const gates: fc.Arbitrary<Gates> = fc.record(
           format: section(fc.record({ tool: fc.constantFrom("prettier", "biome") }, optional)),
           dependency_cruiser: section(none),
           audit: section(
-            fc.record({ fail_on: fc.constantFrom("low", "moderate", "high", "critical") }, optional),
+            fc.record(
+              { fail_on: fc.constantFrom("low", "moderate", "high", "critical") },
+              optional,
+            ),
           ),
         },
         optional,
       ),
     ),
-    tests: section(fc.record({ runner: fc.constantFrom("vitest"), shuffle: fc.boolean() }, optional)),
+    tests: section(
+      fc.record({ runner: fc.constantFrom("vitest"), shuffle: fc.boolean() }, optional),
+    ),
     coverage: section(
       fc.record(
         {
@@ -88,7 +93,9 @@ const gates: fc.Arbitrary<Gates> = fc.record(
   optional,
 );
 
-const layer = fc.tuple(toggle, fc.record({ tier }, optional)).map(([on, rest]) => ({ ...on, ...rest }));
+const layer = fc
+  .tuple(toggle, fc.record({ tier }, optional))
+  .map(([on, rest]) => ({ ...on, ...rest }));
 
 const layers: fc.Arbitrary<Layers> = fc.record(
   {
@@ -98,10 +105,7 @@ const layers: fc.Arbitrary<Layers> = fc.record(
     axe: layer,
     rendered: layer,
     themes: layer,
-    custom: fc.array(
-      fc.record({ id: word, tier, command: word }),
-      { maxLength: 3 },
-    ),
+    custom: fc.array(fc.record({ id: word, tier, command: word }), { maxLength: 3 }),
   },
   optional,
 );
@@ -212,7 +216,19 @@ describe("validateConfig and parseConfig", () => {
 
   it("never throw on text, and refuse text that is not a mapping", () => {
     const line = fc.constantFrom(
-      "a: 1", "- x", "key: [", "  b: {", "&a x", "*a", "? ", "---", "...", "\t", "protocol: \"0.2.1\"", "!!str", "}",
+      "a: 1",
+      "- x",
+      "key: [",
+      "  b: {",
+      "&a x",
+      "*a",
+      "? ",
+      "---",
+      "...",
+      "\t",
+      'protocol: "0.2.1"',
+      "!!str",
+      "}",
     );
     const yamlish = fc.array(line, { maxLength: 12 }).map((lines) => lines.join("\n"));
     fc.assert(
@@ -263,8 +279,9 @@ describe("runSemanticChecks", () => {
 
 describe("validateReport", () => {
   const verdicts = fc.array(fc.constantFrom(...VERDICTS), { minLength: 7, maxLength: 7 });
-  const generated = fc.tuple(verdicts, fc.constantFrom<Enforce>("hard", "ratchet", "advisory")).map(
-    ([list, enforce]) =>
+  const generated = fc
+    .tuple(verdicts, fc.constantFrom<Enforce>("hard", "ratchet", "advisory"))
+    .map(([list, enforce]) =>
       buildReport(
         {
           hygiene: list[0],
@@ -277,12 +294,14 @@ describe("validateReport", () => {
         },
         { enforce },
       ),
-  );
+    );
 
   it("accepts every consistent report", () => {
-    fc.assert(fc.property(generated, (report) => {
+    fc.assert(
+      fc.property(generated, (report) => {
         expect(validateReport(report)).toEqual({ ok: true, value: report });
-      }));
+      }),
+    );
   });
 
   it("refuses a report that loses a verdict, whichever layer", () => {
@@ -299,12 +318,17 @@ describe("validateReport", () => {
 
   it("refuses a count that is off by one", () => {
     fc.assert(
-      fc.property(generated, fc.constantFrom("failed", "not_evaluated"), fc.constantFrom(-1, 1), (report, key, delta) => {
-        const current = get(report.counts, key);
-        if (typeof current !== "number" || current + delta < 0) return;
-        const result = validateReport(edit(report, ["counts", key], current + delta));
-        expect(result.ok).toBe(false);
-      }),
+      fc.property(
+        generated,
+        fc.constantFrom("failed", "not_evaluated"),
+        fc.constantFrom(-1, 1),
+        (report, key, delta) => {
+          const current = get(report.counts, key);
+          if (typeof current !== "number" || current + delta < 0) return;
+          const result = validateReport(edit(report, ["counts", key], current + delta));
+          expect(result.ok).toBe(false);
+        },
+      ),
     );
   });
 
@@ -312,7 +336,9 @@ describe("validateReport", () => {
     fc.assert(
       fc.property(generated, (report) => {
         const claimsPass = validateReport(edit(report, ["passed"], true)).ok;
-        const clean = report.layers.every((entry) => entry.verdict === "pass" || entry.verdict === "skip");
+        const clean = report.layers.every(
+          (entry) => entry.verdict === "pass" || entry.verdict === "skip",
+        );
         if (report.enforced && !clean) expect(claimsPass).toBe(false);
       }),
     );

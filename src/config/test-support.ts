@@ -47,7 +47,11 @@ export function keys(value: unknown): string[] {
 }
 
 /** A deep copy of `value` with one property replaced, or removed when `replacement` is omitted. */
-export function edit(value: unknown, path: readonly string[], ...replacement: [] | [unknown]): unknown {
+export function edit(
+  value: unknown,
+  path: readonly string[],
+  ...replacement: [] | [unknown]
+): unknown {
   const copy: unknown = JSON.parse(JSON.stringify(value));
   const parent = at(copy, path.slice(0, -1));
   const key = path.at(-1);

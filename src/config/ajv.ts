@@ -50,6 +50,9 @@ export function toProblems(
   return [...seen.values()];
 }
 
-export function fail(pointer: string, message: string): { ok: false; problems: readonly Problem[] } {
+export function fail(
+  pointer: string,
+  message: string,
+): { ok: false; problems: readonly Problem[] } {
   return { ok: false, problems: [{ pointer, message }] };
 }

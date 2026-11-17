@@ -88,7 +88,12 @@ function checkCustomIds(config: WebTopsConfig): readonly Problem[] {
     const taken = seen.has(layer.id);
     seen.add(layer.id);
     return taken
-      ? [{ pointer: `/layers/custom/${String(index)}/id`, message: `layer id "${layer.id}" is already taken` }]
+      ? [
+          {
+            pointer: `/layers/custom/${String(index)}/id`,
+            message: `layer id "${layer.id}" is already taken`,
+          },
+        ]
       : [];
   });
 }
@@ -109,7 +114,9 @@ function checkBaseline(config: WebTopsConfig, cwd: string): readonly Problem[] {
   }
   const status = git(cwd, ["status", "--porcelain", "--", config.baseline]);
   if (!status.ok) return problem(`cannot check the baseline ${config.baseline} against HEAD`);
-  return status.out.trim() === "" ? [] : problem(`the baseline ${config.baseline} has uncommitted changes`);
+  return status.out.trim() === ""
+    ? []
+    : problem(`the baseline ${config.baseline} has uncommitted changes`);
 }
 
 /**

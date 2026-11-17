@@ -1,11 +1,12 @@
 # Not formatted by Prettier: dependencies, output, the lockfile, the protocol text and other
 # Markdown, the drop-in templates, licenses, and fixtures (some are broken on purpose).
-node_modules/
-coverage/
-.web-tops/
+# Directory patterns are anchored to the root, so src/config and src/layers/coverage stay in.
+/node_modules/
+/coverage/
+/.web-tops/
 bun.lock
 *.md
-config/
-docs/
+/config/
+/docs/
 LICENSE*
-fixtures/
+/fixtures/

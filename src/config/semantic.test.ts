@@ -34,7 +34,15 @@ afterEach(() => {
 function git(cwd: string, ...args: string[]): void {
   const result = spawnSync(
     "git",
-    ["-c", "user.name=test", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false", ...args],
+    [
+      "-c",
+      "user.name=test",
+      "-c",
+      "user.email=test@example.com",
+      "-c",
+      "commit.gpgsign=false",
+      ...args,
+    ],
     { cwd, encoding: "utf8" },
   );
   expect(result.status, result.stderr).toBe(0);
@@ -69,13 +77,20 @@ describe("ts-library keeps unexplained_survivors_max = 0", () => {
     expect(pointers(withMax(1))).toEqual(["/gates/mutation/unexplained_survivors_max"]);
   });
 
-  it.each([[0, undefined], [1, false]] as const)("allows %i when mutation is %s", (max, enabled) => {
+  it.each([
+    [0, undefined],
+    [1, false],
+  ] as const)("allows %i when mutation is %s", (max, enabled) => {
     expect(pointers(withMax(max, enabled))).toEqual([]);
   });
 
   it("leaves the other classes their own values", () => {
     expect(
-      pointers({ ...hard, class: "ui-components", gates: { mutation: { unexplained_survivors_max: 1 } } }),
+      pointers({
+        ...hard,
+        class: "ui-components",
+        gates: { mutation: { unexplained_survivors_max: 1 } },
+      }),
     ).toEqual([]);
   });
 });
@@ -124,7 +139,10 @@ describe("under hard, a mapped gate or step cannot be switched off", () => {
     [{ gates: { hygiene: { tsc: off } } }, "/gates/hygiene/tsc/enabled"],
     [{ gates: { hygiene: { eslint: off } } }, "/gates/hygiene/eslint/enabled"],
     [{ gates: { hygiene: { format: off } } }, "/gates/hygiene/format/enabled"],
-    [{ gates: { hygiene: { dependency_cruiser: off } } }, "/gates/hygiene/dependency_cruiser/enabled"],
+    [
+      { gates: { hygiene: { dependency_cruiser: off } } },
+      "/gates/hygiene/dependency_cruiser/enabled",
+    ],
     [{ gates: { hygiene: { audit: off } } }, "/gates/hygiene/audit/enabled"],
     [{ layers: { package_exports: off } }, "/layers/package_exports/enabled"],
   ] satisfies [Partial<WebTopsConfig>, string][])("%j is refused at %s", (patch, pointer) => {
@@ -144,11 +162,17 @@ describe("under hard, a mapped gate or step cannot be switched off", () => {
 
   it("refuses a step on the classes that map it, and allows it elsewhere", () => {
     const stylelint = { gates: { hygiene: { stylelint: off } } } as const;
-    expect(pointers({ ...hard, class: "astro-site", ...stylelint })).toEqual(["/gates/hygiene/stylelint/enabled"]);
-    expect(pointers({ ...hard, class: "ui-components", ...stylelint })).toEqual(["/gates/hygiene/stylelint/enabled"]);
+    expect(pointers({ ...hard, class: "astro-site", ...stylelint })).toEqual([
+      "/gates/hygiene/stylelint/enabled",
+    ]);
+    expect(pointers({ ...hard, class: "ui-components", ...stylelint })).toEqual([
+      "/gates/hygiene/stylelint/enabled",
+    ]);
     expect(pointers({ ...hard, class: "node-service", ...stylelint })).toEqual([]);
     const astro = { gates: { hygiene: { astro_check: off } } } as const;
-    expect(pointers({ ...hard, class: "web-app", ...astro })).toEqual(["/gates/hygiene/astro_check/enabled"]);
+    expect(pointers({ ...hard, class: "web-app", ...astro })).toEqual([
+      "/gates/hygiene/astro_check/enabled",
+    ]);
     expect(pointers({ ...hard, class: "ui-components", ...astro })).toEqual([]);
   });
 
@@ -167,8 +191,14 @@ describe("under hard, a mapped gate or step cannot be switched off", () => {
   });
 
   it("asks nothing of ratchet or advisory", () => {
-    const patch = { gates: { tests: off, hygiene: { eslint: off } }, layers: { package_exports: off } };
-    const advisory = { enforce: "advisory", exemption: { until: "2099-12-31", reason: "x" } } as const;
+    const patch = {
+      gates: { tests: off, hygiene: { eslint: off } },
+      layers: { package_exports: off },
+    };
+    const advisory = {
+      enforce: "advisory",
+      exemption: { until: "2099-12-31", reason: "x" },
+    } as const;
     expect(pointers({ ...hard, ...patch, ...advisory })).toEqual([]);
     const ratchet = pointers({ ...hard, ...patch, enforce: "ratchet" });
     expect(ratchet).toEqual(["/baseline"]);
@@ -187,7 +217,10 @@ describe("custom layer ids are unique and not built in", () => {
 
   it.each([
     [["hygiene"], ["/layers/custom/0/id"]],
-    [["laws", "x", "x"], ["/layers/custom/0/id", "/layers/custom/2/id"]],
+    [
+      ["laws", "x", "x"],
+      ["/layers/custom/0/id", "/layers/custom/2/id"],
+    ],
   ])("%j is refused at %j", (ids, expected) => {
     expect(pointers(custom(...ids))).toEqual(expected);
   });

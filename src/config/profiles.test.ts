@@ -22,13 +22,16 @@ describe("R7: the class table", () => {
     ["astro-site", 70, 6, 2],
     ["web-app", 70, 6, 2],
     ["node-service", 80, 5, 1],
-  ])("%s carries the section 5.2 floor %i, CRAP cap %i and survivors %i", (name, floor, cap, survivors) => {
-    expect(profileFor(name)).toMatchObject({
-      linesFloor: floor,
-      crapCap: cap,
-      unexplainedSurvivorsMax: survivors,
-    });
-  });
+  ])(
+    "%s carries the section 5.2 floor %i, CRAP cap %i and survivors %i",
+    (name, floor, cap, survivors) => {
+      expect(profileFor(name)).toMatchObject({
+        linesFloor: floor,
+        crapCap: cap,
+        unexplainedSurvivorsMax: survivors,
+      });
+    },
+  );
 
   it("maps the layers section 5.2 gives each class", () => {
     expect(profileFor("ts-library")?.layers).toEqual(["package_exports", "size_limit"]);
@@ -39,7 +42,12 @@ describe("R7: the class table", () => {
       "axe",
     ]);
     for (const name of ["astro-site", "web-app"]) {
-      expect(profileFor(name)?.layers, name).toEqual(["html_validate", "axe", "rendered", "themes"]);
+      expect(profileFor(name)?.layers, name).toEqual([
+        "html_validate",
+        "axe",
+        "rendered",
+        "themes",
+      ]);
     }
     expect(profileFor("node-service")?.layers).toEqual([]);
   });

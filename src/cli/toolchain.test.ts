@@ -164,6 +164,58 @@ async function printConfig(file: string): Promise<unknown> {
   return config;
 }
 
+describe("R24: ignore patterns are anchored, so a source directory of the same name stays in", () => {
+  const ignoredByGit = (path: string): boolean | undefined => {
+    const result = spawnSync("git", ["check-ignore", "-q", "--", path], { cwd: root });
+    return result.status === 0 ? true : result.status === 1 ? false : undefined;
+  };
+
+  const ignoredByPrettier = (path: string): unknown => {
+    const prettier = join(root, "node_modules", "prettier", "bin", "prettier.cjs");
+    const result = spawnSync(process.execPath, [prettier, "--file-info", path], {
+      cwd: root,
+      encoding: "utf8",
+    });
+    const info: unknown = JSON.parse(result.stdout);
+    return get(info, "ignored");
+  };
+
+  it.each(["src/layers/coverage/x.ts", "src/config/x.ts", "src/coverage/x.ts"])(
+    "git does not ignore %s",
+    (path) => {
+      expect(ignoredByGit(path)).toBe(false);
+    },
+  );
+
+  it.each([
+    "coverage/lcov.info",
+    "node_modules/x/index.js",
+    ".web-tops/out/x.json",
+    ".web-tops/report.json",
+  ])("git ignores the output %s", (path) => {
+    expect(ignoredByGit(path)).toBe(true);
+  });
+
+  it.each([
+    "src/layers/coverage/x.ts",
+    "src/config/validate.ts",
+    "src/cli/main.ts",
+    "schema/web-tops.schema.json",
+  ])("Prettier checks %s", (path) => {
+    expect(ignoredByPrettier(path)).toBe(false);
+  });
+
+  it.each([
+    "coverage/lcov.info",
+    "WEB_TOPS.md",
+    "config/AGENTS.md.tmpl",
+    "fixtures/config/valid/full.yaml",
+    "bun.lock",
+  ])("Prettier skips %s", (path) => {
+    expect(ignoredByPrettier(path)).toBe(true);
+  });
+});
+
 describe("R9: the published sources import their neighbours with the .ts extension", () => {
   it("every relative import in a non-test source names a .ts or .json file", () => {
     const sources = readdirSync(join(root, "src"), { recursive: true, encoding: "utf8" }).filter(

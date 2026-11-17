@@ -53,7 +53,10 @@ export function loadConfig(path: string): Validated<WebTopsConfig> {
   try {
     text = readFileSync(path, "utf8");
   } catch (error: unknown) {
-    return fail("", `cannot read ${path}: ${error instanceof Error ? error.message : "unknown error"}`);
+    return fail(
+      "",
+      `cannot read ${path}: ${error instanceof Error ? error.message : "unknown error"}`,
+    );
   }
   return parseConfig(text);
 }

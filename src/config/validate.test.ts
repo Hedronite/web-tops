@@ -4,7 +4,16 @@ import reportSchema from "../../schema/gate-report.schema.json" with { type: "js
 import { CLASSES, LAYER_KEYS, STEP_KEYS } from "./profiles.ts";
 import { PROTOCOL } from "./protocol.ts";
 import { LAYER_IDS, VERDICTS } from "./report.ts";
-import { at, containing, fixture, get, keyPaths, keys, matching, objectLike } from "./test-support.ts";
+import {
+  at,
+  containing,
+  fixture,
+  get,
+  keyPaths,
+  keys,
+  matching,
+  objectLike,
+} from "./test-support.ts";
 import { loadConfig, parseConfig, parseYaml, validateConfig } from "./validate.ts";
 
 function loaded(name: string): ReturnType<typeof loadConfig> {
@@ -103,7 +112,9 @@ describe("G1a: web-tops.schema.json covers every section 9 key", () => {
   });
 
   it("an unknown key fails, at the root and in a nested object", () => {
-    const root = parseConfig('protocol: "0.2.1"\nversion: "1"\npackage: p\nclass: web-app\nzz: 1\n');
+    const root = parseConfig(
+      'protocol: "0.2.1"\nversion: "1"\npackage: p\nclass: web-app\nzz: 1\n',
+    );
     expect(root).toEqual({ ok: false, problems: [objectLike({ pointer: "/zz" })] });
     const nested = parseConfig(
       'protocol: "0.2.1"\nversion: "1"\npackage: p\nclass: web-app\nlayers: { axe: { zz: 1 } }\n',
@@ -130,11 +141,14 @@ describe("parseYaml", () => {
 });
 
 describe("parse and validate edge cases", () => {
-  it.each([null, "text", 42, [], true])("validateConfig(%j) is a problem at the document", (value) => {
-    const result = validateConfig(value);
-    expect(result.ok).toBe(false);
-    expect(get(result, "problems")).toContainEqual(objectLike({ pointer: "" }));
-  });
+  it.each([null, "text", 42, [], true])(
+    "validateConfig(%j) is a problem at the document",
+    (value) => {
+      const result = validateConfig(value);
+      expect(result.ok).toBe(false);
+      expect(get(result, "problems")).toContainEqual(objectLike({ pointer: "" }));
+    },
+  );
 
   it("a YAML syntax error is a problem at the document, naming the line", () => {
     const result = parseConfig("a: [unclosed\nb: 2\n");

@@ -6,7 +6,7 @@ dist/
 *.tsbuildinfo
 
 # Coverage, mutation, browser test output
-coverage/
+/coverage/
 .stryker-tmp/
 reports/
 playwright-report/

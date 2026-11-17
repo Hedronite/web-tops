@@ -1,4 +1,10 @@
-import { LAYER_IDS, type BuiltInLayerId, type GateReport, type LayerReport, type Verdict } from "./report.ts";
+import {
+  LAYER_IDS,
+  type BuiltInLayerId,
+  type GateReport,
+  type LayerReport,
+  type Verdict,
+} from "./report.ts";
 import { PROTOCOL } from "./protocol.ts";
 import type { Enforce, Tier } from "./types.ts";
 
@@ -12,7 +18,11 @@ const GATES: Readonly<Record<BuiltInLayerId, LayerReport["gate"]>> = {
   laws: "laws",
 };
 
-export function buildLayer(id: string, gate: LayerReport["gate"], verdict: Verdict = "pass"): LayerReport {
+export function buildLayer(
+  id: string,
+  gate: LayerReport["gate"],
+  verdict: Verdict = "pass",
+): LayerReport {
   const tier: Tier = gate === "laws" ? 0 : 1;
   return verdict === "skip" || verdict === "not-run"
     ? { id, gate, tier, verdict, reason: `${verdict} in the test`, findings: [] }
