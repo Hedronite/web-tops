@@ -15,12 +15,11 @@
     {
       "id": "fork",
       "version": "0.2.0",
-      "pass": false,
-      "rows_passed": 36,
-      "rows_total": 39,
-      "pass_non_deprecated": true,
-      "rows_passed_non_deprecated": 36,
-      "rows_total_non_deprecated": 36,
+      "bar_pass": true,
+      "bar_rows_passed": 36,
+      "bar_rows_total": 36,
+      "all_rows_passed": 36,
+      "all_rows_total": 39,
       "rows": [
         {
           "rule": "accessible-emoji",
@@ -339,12 +338,11 @@
     {
       "id": "oxlint",
       "version": "1.94.0",
-      "pass": false,
-      "rows_passed": 36,
-      "rows_total": 39,
-      "pass_non_deprecated": true,
-      "rows_passed_non_deprecated": 36,
-      "rows_total_non_deprecated": 36,
+      "bar_pass": true,
+      "bar_rows_passed": 36,
+      "bar_rows_total": 36,
+      "all_rows_passed": 36,
+      "all_rows_total": 39,
       "rows": [
         {
           "rule": "accessible-emoji",
@@ -663,12 +661,11 @@
     {
       "id": "control",
       "version": "6.10.2",
-      "pass": true,
-      "rows_passed": 39,
-      "rows_total": 39,
-      "pass_non_deprecated": true,
-      "rows_passed_non_deprecated": 36,
-      "rows_total_non_deprecated": 36,
+      "bar_pass": true,
+      "bar_rows_passed": 36,
+      "bar_rows_total": 36,
+      "all_rows_passed": 39,
+      "all_rows_total": 39,
       "rows": [
         {
           "rule": "accessible-emoji",
@@ -985,6 +982,46 @@
       ]
     }
   ],
+  "deprecated": [
+    {
+      "rule": "accessible-emoji",
+      "replaced_by": [],
+      "cells": {
+        "jsx-a11y-x": "not-implemented",
+        "oxlint": "not-implemented",
+        "control": "pass"
+      },
+      "replacement_cells": {}
+    },
+    {
+      "rule": "label-has-for",
+      "replaced_by": [
+        "label-has-associated-control"
+      ],
+      "cells": {
+        "jsx-a11y-x": "not-implemented",
+        "oxlint": "not-implemented",
+        "control": "pass"
+      },
+      "replacement_cells": {
+        "label-has-associated-control": {
+          "jsx-a11y-x": "pass",
+          "oxlint": "pass",
+          "control": "pass"
+        }
+      }
+    },
+    {
+      "rule": "no-onchange",
+      "replaced_by": [],
+      "cells": {
+        "jsx-a11y-x": "not-implemented",
+        "oxlint": "not-implemented",
+        "control": "pass"
+      },
+      "replacement_cells": {}
+    }
+  ],
   "claims": [
     {
       "claim": "unlabeled <input type=text>",
@@ -1064,7 +1101,7 @@
     ]
   },
   "verdict": {
-    "w22_reader": "none",
-    "w22_reader_non_deprecated": "jsx-a11y-x"
+    "bar": "the rules not deprecated upstream",
+    "w22_reader": "jsx-a11y-x"
   }
 }

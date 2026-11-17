@@ -1,10 +1,11 @@
 # W-22 proof (P3 G6)
 
-Does a reader that runs on ESLint 10 implement every rule of `eslint-plugin-jsx-a11y` 6.10.2?
-`run.ts` answers it with one bad and one clean fixture for each of the 39 rules the plugin
-exports, through three engines: ESLint 10.15 with `eslint-plugin-jsx-a11y-x`, `oxlint` with its
-jsx-a11y plugin, and a control (ESLint 9.39.5 with `jsx-a11y` 6.10.2) that must pass every row
-or the fixtures are wrong. A reader passes only if every rule row passes; a rule it does not
+Does a reader that runs on ESLint 10 implement every rule of `eslint-plugin-jsx-a11y` 6.10.2
+that is not deprecated upstream? `run.ts` answers it with one bad and one clean fixture for each
+of the 39 rules the plugin exports, through three engines: ESLint 10.15 with
+`eslint-plugin-jsx-a11y-x`, `oxlint` with its jsx-a11y plugin, and a control (ESLint 9.39.5 with
+`jsx-a11y` 6.10.2) that must pass all 39 rows or the fixtures are wrong. The bar is the 36 rules
+not deprecated upstream: a reader passes only if every one of them passes, and a rule it does not
 implement is a failing row. The verdict line is `W-22 reader: jsx-a11y-x | oxlint | none`.
 
 ```sh
@@ -20,8 +21,10 @@ bun run.ts          # writes RESULT.json and RESULT.md, prints the table
 - `fixtures/stack/`: typed rules and `eslint-comments` running on ESLint 10.
 - `worker.ts` runs the ESLint engines under Node, as the protocol's R29 requires; `bun` only
   orchestrates.
-- The deprecated rules (`accessible-emoji`, `label-has-for`, `no-onchange`) are rule rows too.
-  `RESULT.json` also gives the verdict over the other 36 rows, marked informational.
+- The three deprecated rules (`accessible-emoji`, `label-has-for`, `no-onchange`) keep their
+  fixtures and are listed in `RESULT.md` with their upstream status and replacement
+  (`label-has-for` is replaced by `label-has-associated-control`, whose row is in the bar), but
+  they are outside the bar.
 
 The control plugin is installed under the alias `jsx-a11y-control`, so that
 `eslint-plugin-astro` (which prefers `eslint-plugin-jsx-a11y` when it can resolve it) finds only

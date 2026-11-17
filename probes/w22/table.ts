@@ -30,7 +30,7 @@ export function renderTable(engines: readonly EngineRows[], rules: readonly stri
   lines.push(`|${"---|".repeat(2 + engines.length * 3)}`);
   for (const rule of rules) {
     const rows = engines.map((e) => e.rows.find((r) => r.rule === rule));
-    const flag = rows[0]?.deprecated === true ? "yes" : "";
+    const flag = rows[0]?.deprecated === true ? "yes, not in bar" : "";
     const cells = rows.map((r) => `${cell(r)} | ${r === undefined ? "" : MARK[r.cell]}`);
     lines.push(`| ${rule} | ${flag} | ${cells.join(" | ")} |`);
   }

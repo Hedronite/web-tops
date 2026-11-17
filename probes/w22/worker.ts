@@ -27,6 +27,7 @@ interface Run {
   readonly prefix: string;
   readonly implemented: readonly string[];
   readonly deprecated: readonly string[];
+  readonly replacedBy: Readonly<Record<string, readonly string[]>>;
   readonly patterns: string[];
   readonly lint: Lintable;
 }
@@ -35,15 +36,35 @@ function levels(prefix: string, names: readonly string[]): Record<string, "error
   return Object.fromEntries(names.map((name) => [`${prefix}${name}`, "error" as const]));
 }
 
-function deprecatedIn(plugin: {
+interface Named {
   readonly rules?:
-    | Readonly<Record<string, { readonly meta?: { readonly deprecated?: unknown } | undefined }>>
+    | Readonly<
+        Record<
+          string,
+          {
+            readonly meta?:
+              { readonly deprecated?: unknown; readonly replacedBy?: unknown } | undefined;
+          }
+        >
+      >
     | undefined;
-}): string[] {
+}
+
+function deprecatedIn(plugin: Named): string[] {
   const rules = plugin.rules ?? {};
   return Object.keys(rules)
     .filter((name) => rules[name]?.meta?.deprecated === true)
     .sort();
+}
+
+function replacementsIn(plugin: Named): Record<string, string[]> {
+  const rules = plugin.rules ?? {};
+  return Object.fromEntries(
+    deprecatedIn(plugin).map((name) => {
+      const by = rules[name]?.meta?.replacedBy;
+      return [name, Array.isArray(by) ? by.filter((r) => typeof r === "string") : []];
+    }),
+  );
 }
 
 const FILES = ["**/*.tsx"];
@@ -78,8 +99,6 @@ function controlLint(names: readonly string[]): Lintable {
   });
 }
 
-type Named = Parameters<typeof deprecatedIn>[0];
-
 function jsxRun(engine: string, plugin: Named, pkg: string, lint: (n: string[]) => Lintable): Run {
   const names = Object.keys(plugin.rules ?? {}).sort();
   return {
@@ -88,6 +107,7 @@ function jsxRun(engine: string, plugin: Named, pkg: string, lint: (n: string[]) 
     prefix: "a11y/",
     implemented: names,
     deprecated: deprecatedIn(plugin),
+    replacedBy: replacementsIn(plugin),
     patterns: ["fixtures/rules", "fixtures/claims/unlabeled-input.tsx"],
     lint: lint(names),
   };
@@ -108,6 +128,7 @@ function astroRun(): Run {
     prefix: "astro/jsx-a11y/",
     implemented: [],
     deprecated: [],
+    replacedBy: {},
     patterns: ["fixtures/claims/astro-claim.astro"],
     lint,
   };
@@ -147,6 +168,7 @@ function stackRun(): Run {
       ...comments.map((n) => `@eslint-community/eslint-comments/${n}`),
     ],
     deprecated: [],
+    replacedBy: {},
     patterns: ["fixtures/stack"],
     lint,
   };
@@ -179,6 +201,7 @@ async function observe(run: Run): Promise<Observation> {
     version: run.version,
     implemented: run.implemented,
     deprecated: run.deprecated,
+    replaced_by: run.replacedBy,
     files,
   };
 }

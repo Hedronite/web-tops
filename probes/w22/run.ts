@@ -8,7 +8,7 @@ import { allPass, fixturePair, judgeRule } from "./judge.ts";
 import { observeOxlint } from "./oxlint.ts";
 import { installedVersion, ROOT } from "./support.ts";
 import { renderTable, type EngineRows } from "./table.ts";
-import type { Observation, Row } from "./types.ts";
+import type { Cell, DeprecatedNote, Observation, Row } from "./types.ts";
 
 const ORACLE = { name: "eslint-plugin-jsx-a11y", version: "6.10.2" };
 const STACK = [
@@ -51,19 +51,51 @@ function engineRows(
   return { id: obs.engine, label, version: obs.version, rows };
 }
 
+function inBar(row: Row): boolean {
+  return !row.deprecated;
+}
+
 function summary(engine: EngineRows) {
-  const kept = engine.rows.filter((row) => !row.deprecated);
+  const bar = engine.rows.filter(inBar);
   return {
     id: engine.id,
     version: engine.version,
-    pass: allPass(engine.rows),
-    rows_passed: engine.rows.filter((row) => row.cell === "pass").length,
-    rows_total: engine.rows.length,
-    pass_non_deprecated: allPass(kept),
-    rows_passed_non_deprecated: kept.filter((row) => row.cell === "pass").length,
-    rows_total_non_deprecated: kept.length,
+    bar_pass: allPass(bar),
+    bar_rows_passed: bar.filter((row) => row.cell === "pass").length,
+    bar_rows_total: bar.length,
+    all_rows_passed: engine.rows.filter((row) => row.cell === "pass").length,
+    all_rows_total: engine.rows.length,
     rows: engine.rows,
   };
+}
+
+function cellsOf(engines: readonly EngineRows[], rule: string): Record<string, Cell> {
+  const cell = (e: EngineRows): Cell => e.rows.find((r) => r.rule === rule)?.cell ?? "fail";
+  return Object.fromEntries(engines.map((e) => [e.label, cell(e)]));
+}
+
+function deprecatedNotes(engines: readonly EngineRows[], obs: Observation): DeprecatedNote[] {
+  return [...obs.deprecated].sort().map((rule) => {
+    const replaced_by = obs.replaced_by[rule] ?? [];
+    return {
+      rule,
+      replaced_by,
+      cells: cellsOf(engines, rule),
+      replacement_cells: Object.fromEntries(replaced_by.map((r) => [r, cellsOf(engines, r)])),
+    };
+  });
+}
+
+function show(cells: Readonly<Record<string, Cell>> | undefined): string {
+  return Object.entries(cells ?? {})
+    .map(([engine, cell]) => `${engine} ${cell}`)
+    .join(", ");
+}
+
+function noteLine(note: DeprecatedNote): string {
+  const by = note.replaced_by.map((r) => `${r} (${show(note.replacement_cells[r])})`).join("; ");
+  const next = by === "" ? "no replacement upstream" : `replaced upstream by ${by}`;
+  return `- ${note.rule}: deprecated upstream, not in the bar; here: ${show(note.cells)}; ${next}`;
 }
 
 function reader(candidates: readonly EngineRows[], keep: (row: Row) => boolean): string {
@@ -107,15 +139,16 @@ function stackRows(obs: Observation): Row[] {
 type Result = ReturnType<typeof build>["result"];
 
 function render(result: Result, table: string): string {
-  const lines = ["# W-22 proof result", "", table, ""];
+  const o = result.oracle;
+  const bar = `${o.rules} rules exported, ${o.deprecated.length} deprecated upstream, ${o.rules - o.deprecated.length} in the bar`;
+  const lines = ["# W-22 proof result", "", `${o.name} ${o.installed}: ${bar}.`, "", table, ""];
   for (const c of result.claims)
     lines.push(`- claim, ${c.claim}, ${c.engine}: ${c.fired.join(", ") || "nothing fired"}`);
   lines.push("");
   for (const row of result.stack.rows) lines.push(`- ESLint 10 stack, ${row.rule}: ${row.cell}`);
+  lines.push("", "Deprecated upstream (listed, outside the bar):");
+  lines.push(...result.deprecated.map(noteLine));
   lines.push("", `W-22 reader: ${result.verdict.w22_reader}`);
-  lines.push(
-    `W-22 reader (non-deprecated rules only, informational): ${result.verdict.w22_reader_non_deprecated}`,
-  );
   return `${lines.join("\n")}\n`;
 }
 
@@ -144,11 +177,12 @@ function build() {
       deprecated: [...dep].sort(),
     },
     engines: engines.map(summary),
+    deprecated: deprecatedNotes(engines, control),
     claims: claims(fork, ox, control, astro),
     stack: { version: installedVersion("eslint"), rows: stackRows(stack) },
     verdict: {
-      w22_reader: reader([forkRows, oxRows], () => true),
-      w22_reader_non_deprecated: reader([forkRows, oxRows], (row) => !row.deprecated),
+      bar: "the rules not deprecated upstream",
+      w22_reader: reader([forkRows, oxRows], inBar),
     },
   };
   return { result, table: renderTable(engines, rules) };

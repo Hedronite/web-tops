@@ -79,6 +79,7 @@ export function observeOxlint(): Observation {
       version: installedVersion("oxlint"),
       implemented: names,
       deprecated: [],
+      replaced_by: {},
       files: collect(diagnosticsOf(out)),
     };
   } finally {
