@@ -93,6 +93,18 @@ describe("the files webtops init writes: ESLint", () => {
     },
   );
 
+  it("ignores .astro/, which astro check writes, so a type file there is not linted", async () => {
+    expect(await eslint.isPathIgnored(join(baseDir, ".astro", "types.d.ts"))).toBe(true);
+  });
+
+  it.each(CLASSES)("%s's eslint.config.js ignores .astro/ and the usual output", (className) => {
+    const text = readFileSync(join(generated(className), "eslint.config.js"), "utf8");
+    const ignores = /ignores: \[([^\]]*)\]/.exec(text)?.[1] ?? "";
+    for (const entry of ["node_modules/", "coverage/", "dist/", ".astro/", ".web-tops/"]) {
+      expect(ignores, entry).toContain(`"${entry}"`);
+    }
+  });
+
   it.each(CLASSES)("lints the %s CommonJS and Stylelint config files clean", async (className) => {
     const dir = generated(className);
     expect(await lintMessages(eslint, baseDir, dir, ".dependency-cruiser.cjs")).toEqual([]);
