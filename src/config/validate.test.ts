@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import configSchema from "../../schema/web-tops.schema.json" with { type: "json" };
+import coreSchema from "../../schema/core.schema.json" with { type: "json" };
 import reportSchema from "../../schema/gate-report.schema.json" with { type: "json" };
 import { CLASSES, LAYER_KEYS, STEP_KEYS } from "./profiles.ts";
 import { PROTOCOL_PATTERN } from "./protocol.ts";
@@ -199,6 +200,28 @@ describe("parse and validate edge cases", () => {
     const lines = keys(problems).map((index) => JSON.stringify(get(problems, index)));
     expect(new Set(lines).size).toBe(lines.length);
     expect(lines.length).toBeGreaterThan(0);
+  });
+});
+
+describe("G3c: enforce takes its modes from the core schema", () => {
+  it("references the core enum, keeps the ratchet default, and holds no inline enum", () => {
+    const enforce = get(get(configSchema, "properties"), "enforce");
+    expect(get(enforce, "$ref")).toBe("core.schema.json#/$defs/enforce");
+    expect(get(enforce, "default")).toBe("ratchet");
+    expect(get(enforce, "enum")).toBeUndefined();
+    expect(get(get(get(coreSchema, "$defs"), "enforce"), "enum")).toEqual([
+      "hard",
+      "ratchet",
+      "advisory",
+    ]);
+  });
+
+  it("still fills ratchet for a config without enforce, and names the modes for a bad one", () => {
+    expect(get(get(loaded("valid/minimal.yaml"), "value"), "enforce")).toBe("ratchet");
+    expect(get(loaded("invalid/bad-enforce.yaml"), "problems")).toContainEqual({
+      pointer: "/enforce",
+      message: containing('"advisory"'),
+    });
   });
 });
 

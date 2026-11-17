@@ -1,0 +1,76 @@
+# Example web-tops.yaml for class node-service: what `webtops init --class node-service` writes, kept valid by a test.
+# Written by `webtops init` (WEB_TOPS.md sections 4 and 9). Under `hard`, only crap, mutation, build
+# output and laws may be off for a class that maps them: they are `enabled: false` with the milestone
+# that adds them. A layer the class does not map is off with the class as the reason.
+protocol: 0.3.0
+version: 1.0.0
+package: site
+class: node-service
+enforce: hard
+baseline: .web-tops/baseline.json
+toolchain:
+  typescript: 6.0.3
+  runtime: bun
+gates:
+  hygiene:
+    eslint:
+      config: eslint.config.js
+    format:
+      tool: prettier
+    astro_check:
+      enabled: false
+      reason: "not mapped for class: only Astro projects run astro check"
+    stylelint:
+      enabled: false
+      reason: "not mapped for class: a service has no CSS"
+    audit:
+      fail_on: high
+  tests:
+    runner: vitest
+    shuffle: true
+  coverage:
+    lines_floor: 80
+  crap:
+    cap: 5
+    scope: diff
+    complexity:
+      nullish_discount: true
+    enabled: false
+    reason: "milestone M2: native CRAP lands in M2"
+  mutation:
+    engine: stryker
+    scope: diff
+    base: origin/main
+    unexplained_survivors_max: 1
+    ledger: .web-tops/survivors.yaml
+    enabled: false
+    reason: "milestone M2: mutation testing lands in M2"
+layers:
+  size_limit:
+    tier: 1
+    enabled: false
+    reason: "not mapped for class: a service publishes no package entries"
+  package_exports:
+    tier: 1
+    enabled: false
+    reason: "not mapped for class: a service publishes no package exports"
+  html_validate:
+    enabled: false
+    reason: "not mapped for class: a service has no HTML output"
+  axe:
+    enabled: false
+    reason: "not mapped for class: a service has no pages"
+  rendered:
+    enabled: false
+    reason: "not mapped for class: a service has no pages"
+  themes:
+    enabled: false
+    reason: "not mapped for class: a service has no themes"
+  custom: []
+laws:
+  select: default
+  ack_ledger: .web-tops/acks.yaml
+  enabled: false
+  reason: "milestone M3: the laws layer lands in M3"
+report:
+  path: .web-tops/report.json

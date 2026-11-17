@@ -79,7 +79,8 @@ Schema (`schema/web-tops.schema.json` plus a gate-report schema), and per-class 
 | TypeScript | **6.0.x** pinned (6.0.3 current); the gate runs the pin, and `erasableSyntaxOnly` needs 5.8 or later. See below |
 | Runtime | Bun ≥ 1.4 installs and runs `webtops`; Node `^22.23.4 \|\| ^24.15.0 \|\| >=26` runs the tools, in every class (where the pinned tools' engine ranges meet). The range is recorded in `web-tops.lock` (§10) and in `engines` of the kit's `package.json`, beside Bun |
 | Tool lock | `web-tops.lock`; dependency lock `bun.lock`, installed with `--frozen-lockfile` |
-| Lint | **ESLint 9.39** (held back, see below), `typescript-eslint` 8.73, `eslint-plugin-astro` **1.7**, `eslint-plugin-jsx-a11y` 6.10, `@eslint-community/eslint-plugin-eslint-comments` 4.8 |
+| Lint | `eslint` **10.15**, `@eslint/js` 10.0, `typescript-eslint` 8.73, `eslint-plugin-astro` **3.2**, `eslint-plugin-jsx-a11y-x` 0.2, `@eslint-community/eslint-plugin-eslint-comments` 4.8 |
+| Law readers | Beyond the lint row: `@vitest/eslint-plugin` 1.6 (W-34), `fast-check` 4.10 (property tests, §7); the secrets scanner (W-39) and the internal link checker (§7) are chosen in M3 |
 | Tests and coverage | Vitest 5.1, `@vitest/coverage-v8` 5.1 |
 | Mutation | StrykerJS 10.1 (`@stryker-mutator/core`, `vitest-runner`, `typescript-checker`) |
 | Astro, Tailwind, validation | Astro 7.4, `@astrojs/check` 0.9, Tailwind CSS 4.3, Zod 4.6 |
@@ -93,14 +94,17 @@ declares `^5.0.0 || ^6.0.0`. The laws layer depends on type-aware lint, so the g
 checker is the pinned 6.0.x. A TypeScript 7 `tsc --noEmit` leg may be added as advisory for
 speed (§16, open). The pin moves when both peers accept 7.
 
-**Why ESLint 9 and not 10.** ESLint 10.15 is npm `latest`, and 0.1.0 pinned it beside
-`eslint-plugin-jsx-a11y` 6.10 and `eslint-plugin-astro` 3.2. That set cannot install:
-`jsx-a11y` 6.10.2, still its latest, declares `eslint ^3 || … || ^9`, and `eslint-plugin-astro`
-3.x requires `eslint >=10`. LuminosiTS hit this and runs ESLint 9.39 with `jsx-a11y` 6.10; on
-ESLint 9, `eslint-plugin-astro` 1.7 (`eslint >=8.57`) is the newest that fits. W-22 depends on
-`jsx-a11y`, so the lint pin holds at 9.39. It moves to 10 when `jsx-a11y` accepts 10, or when
-its fork `eslint-plugin-jsx-a11y-x` (0.2.0, `eslint ^9 || ^10`, an optional peer of
-`eslint-plugin-astro` 3.2) reaches 1.0 and an adopter proves it on W-22's fixtures.
+**Why ESLint 10.** ESLint 10.15 is npm `latest`. 0.1.0 pinned it beside `eslint-plugin-jsx-a11y` 6.10
+and `eslint-plugin-astro` 3.2, and that set cannot install: `jsx-a11y` 6.10.2, still its latest,
+declares `eslint ^3 || … || ^9`, and `eslint-plugin-astro` 3.x requires `eslint >=10`. W-22's reader
+is therefore `eslint-plugin-jsx-a11y-x` 0.2 (`eslint ^9 || ^10`, an optional peer of
+`eslint-plugin-astro` 3.2), the fork of `jsx-a11y`. `probes/w22/` is the proof: through the fork
+on ESLint 10, every `jsx-a11y` 6.10.2 rule that upstream has not deprecated fires on its bad fixture
+and stays quiet on its clean one, and both claim rows pass (an unlabeled `<input type="text">`, and
+the Astro a11y rules on an `.astro` fixture). `typescript-eslint` 8.73 and `eslint-plugin-eslint-comments` 4.8 accept ESLint 10, and
+`@eslint/js` 10 adds three recommended rules (`no-unassigned-vars`, `no-useless-assignment`,
+`preserve-caught-error`), at `error`. `eslint-plugin-jsx-a11y` is not pinned: it does not run on
+ESLint 10.
 
 Protocol and package versions are separate planes. A protocol change bumps the protocol version
 and the schema together.
@@ -258,10 +262,21 @@ have different budgets.
 | `size-limit` per entry | required | required | no | no | no |
 | HTML validity, axe, links | no | on fixture pages | required | required | no |
 | JS per page or route (brotli) | n/a | n/a | 0 KB unless the page has islands; ≤ 50 KB with | ≤ 170 KB per route | n/a |
-| Extra laws | W-18 | W-18, W-22; W-27 when Astro | W-20–W-31 | W-20–W-29; W-27 when Astro | W-06 strict, W-37 |
+| Extra laws | W-18 | W-18, W-22, W-37; W-27 when Astro | W-20–W-31, W-37, W-42–W-46 | W-20–W-29, W-37, W-42–W-46; W-27 when Astro | W-06 strict |
+| Required layers | hygiene, tests, coverage, crap, mutation, build-output, laws | hygiene, tests, coverage, crap, mutation, build-output, laws | hygiene, tests, coverage, crap, mutation, build-output, laws | hygiene, tests, coverage, crap, mutation, build-output, laws | hygiene, tests, coverage, crap, mutation, laws |
 
-There is one CRAP cap per class, the same for every author. Under `ratchet` (§6.7) it applies to
-new functions, and existing functions must not get worse. All numbers are **proposed**.
+There is one CRAP cap per class, the same for every author; there is no per-author cap. The cap
+binds new and changed functions: under `ratchet` (§6.7) it applies to them, and the ratchet holds
+legacy functions at their baseline, so they must not get worse. All numbers are **proposed**, and
+the caps stay proposed until set from measurement in M2.5.
+
+**Required.** A class requires every built-in layer it maps (§3.3): the gates, `crap`, `mutation`
+and `laws`, and build output only where the class maps a build-output layer. It requires the judged
+laws it maps (§8.2, the tick column): the laws no class gates, plus its "Extra laws" row, with
+W-27 only when the project depends on Astro. `W-06 strict` for `node-service` is a reading of W-06,
+which every class maps. A law a class maps but that has no reader yet (W-37, W-42 to W-46) is
+required when it is judged. Under `hard`, `check` refuses a coverage floor below, and a CRAP cap or
+`unexplained_survivors_max` above, the class's value in this table (§9, §12).
 
 Coverage counts `.ts` and `.tsx` modules. `.astro` components are judged by `astro check`,
 `html-validate`, axe, and W-31, which moves frontmatter logic into testable modules.
@@ -680,11 +695,11 @@ gates:
 
 layers:
   size_limit: { tier: 1 }
-  package_exports: { tier: 1 }
+  package_exports: { tier: 1 }                                   # or skip_private: "<reason>" for a "private": true package
   html_validate: { enabled: false, reason: "ts-library: no HTML output" }
   axe: { enabled: false, reason: "ts-library: no pages" }
-  rendered: { enabled: false, reason: "ts-library: no pages" }   # web-app, astro-site: routes, widths, reduced motion (W-43 to W-46)
-  themes: { enabled: false, reason: "ts-library: no themes" }    # token source and theme list for W-42
+  rendered: { enabled: false, reason: "ts-library: no pages" }   # web-app, astro-site: routes, widths, reduced_motion (W-43 to W-46)
+  themes: { enabled: false, reason: "ts-library: no themes" }    # mechanism, schemes, tokens for W-42
   custom: []
 
 laws:
@@ -708,6 +723,15 @@ chooses which laws run and `enabled: false` turns the layer off.
   `dependency_cruiser`, `audit`. `astro_check` is mapped for `astro-site`, and for `web-app` and
   `ui-components` when the `package.json` beside `web-tops.yaml` lists `astro` in `dependencies`,
   `devDependencies` or `peerDependencies`; otherwise it is `skip`. `layers.package_exports` runs `publint` and `attw` inside gate 1.
+- `layers.package_exports.skip_private` takes a reason. When the `package.json` beside
+  `web-tops.yaml` says `"private": true`, the layer is `skip` with that reason, and `hard` does not
+  refuse it. Any other package cannot set it: `check` exits 2 at that key. It is for adopters whose
+  package is never published; this kit keeps both checks live.
+- `layers.rendered` and `layers.themes` have reserved shapes, validated now and read from M5 (§7).
+  `rendered` takes `routes` (paths starting `/`), `widths` (CSS px, each at least 320) and
+  `reduced_motion` (boolean). `themes` takes `switch` (`mechanism`: `attribute`, `class` or `media`,
+  and its `name`), `schemes` and `tokens` (custom properties starting `--`). Each is optional, and
+  an unknown key under either is refused.
 - `format.tool` is `prettier` or `biome`. Without the key, the gate reads the one formatter config
   in the repo; none or both is `refuse`.
 - `audit.fail_on`: `low`, `moderate`, `high` or `critical`. `tests.runner`: `vitest`.
@@ -717,6 +741,9 @@ chooses which laws run and `enabled: false` turns the layer off.
   `check` exits 2. Steps that are not mapped (such as `astro_check` in a project without Astro)
   stay `skip`. Under `advisory`, `exemption` is required; `until` is an ISO 8601 date
   (`YYYY-MM-DD`), compared in UTC, and the exemption holds through that day.
+- Under `hard`, `check` also exits 2 at `gates.coverage.lines_floor` below the class profile's,
+  `gates.crap.cap` above it (while `crap` is on) and `gates.mutation.unexplained_survivors_max`
+  above it (while `mutation` is on). Under `ratchet` and `advisory` a config may be looser.
 - Keys a config omits take the class profile's value (§5.2). The `crap` and `mutation` checks in
   §12 apply when that gate is enabled.
 
@@ -758,7 +785,7 @@ steps that bypass `webtops` judge nothing.
 | Command | Behavior |
 |---|---|
 | `init --class <c>` | Writes the drop-in set (§4). Refuses to overwrite without `--force` |
-| `check` | Validates `web-tops.yaml` against the JSON Schema, plus semantic checks: the protocol id lies in the range this `webtops` supports (the schema does not pin it to one constant), class has a profile, `crap.cap ≥ 1`, `ts-library` keeps `unexplained_survivors_max = 0`, `advisory` has an `exemption` whose `until` has not passed (UTC, through that day; §9), under `ratchet` the baseline exists and is clean, under `hard` no gate or step the class maps at tier 1 or below is off except `crap`, `mutation`, build output and `laws` (§9) |
+| `check` | Validates `web-tops.yaml` against the JSON Schema, plus semantic checks: the protocol id lies in the range this `webtops` supports (the schema does not pin it to one constant), class has a profile, `crap.cap ≥ 1`, `ts-library` keeps `unexplained_survivors_max = 0`, `advisory` has an `exemption` whose `until` has not passed (UTC, through that day; §9), under `ratchet` the baseline exists and is clean, under `hard` no gate or step the class maps at tier 1 or below is off except `crap`, `mutation`, build output and `laws` (§9), and no coverage floor below, nor CRAP cap or survivors limit above, the class profile's (§5.2), `skip_private` only for a `"private": true` package |
 | `gate` | Runs enabled layers at or below `--max-tier` (default 1). `--base`, `--keep-going`, `--json`, `--only <layer>`, `--dry-run` (refused in CI) |
 | `baseline` | Writes `.web-tops/baseline.json` after a passing run; the only writer |
 | `laws [list \| run \| explain W-NN]` | Catalog with readers; laws alone; one law explained |
@@ -950,6 +977,37 @@ Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any rele
           "properties": {
             "engine": { "const": "stryker" },
             "unexplained_survivors_max": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "layers": {
+      "type": "object",
+      "properties": {
+        "package_exports": {
+          "type": "object",
+          "properties": { "skip_private": { "type": "string", "pattern": "\\S" } }
+        },
+        "rendered": {
+          "type": "object",
+          "properties": {
+            "routes": { "type": "array", "minItems": 1, "uniqueItems": true,
+                        "items": { "type": "string", "pattern": "^/" } },
+            "widths": { "type": "array", "minItems": 1, "uniqueItems": true,
+                        "items": { "type": "integer", "minimum": 320 } },
+            "reduced_motion": { "type": "boolean" }
+          }
+        },
+        "themes": {
+          "type": "object",
+          "properties": {
+            "switch": { "type": "object", "required": ["mechanism", "name"],
+                        "properties": { "mechanism": { "enum": ["attribute", "class", "media"] },
+                                        "name": { "type": "string", "minLength": 1 } } },
+            "schemes": { "type": "array", "minItems": 1, "uniqueItems": true,
+                         "items": { "type": "string", "minLength": 1 } },
+            "tokens": { "type": "array", "uniqueItems": true,
+                        "items": { "type": "string", "pattern": "^--" } }
           }
         }
       }

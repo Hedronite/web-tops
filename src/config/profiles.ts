@@ -52,12 +52,31 @@ export interface Profile {
   readonly steps: readonly StepKey[];
   /** Steps this class maps only when the project uses the tool: `astro_check`, when it depends on astro. */
   readonly conditionalSteps: readonly StepKey[];
+  /**
+   * Laws only this class maps (section 5.2 "Extra laws"). Every other law is shared by every class.
+   * `W-06 strict` for node-service is a reading of a shared law, not a gate, so it is not listed.
+   */
+  readonly extraLaws: readonly string[];
+  /** Laws this class maps only when the project depends on Astro (W-27). */
+  readonly conditionalLaws: readonly string[];
 }
 
 /** What the project's package.json says, for the steps that follow the project (section 9). */
 export interface Project {
   readonly dependsOnAstro: boolean;
+  /** package.json says `"private": true`: `layers.package_exports.skip_private` may apply. */
+  readonly isPrivate?: boolean;
 }
+
+function lawIds(from: number, to: number): string[] {
+  return Array.from(
+    { length: to - from + 1 },
+    (_, index) => `W-${String(from + index).padStart(2, "0")}`,
+  );
+}
+
+const BROWSER_LAWS = [...lawIds(20, 26), ...lawIds(28, 29)];
+const RENDERED_LAWS = lawIds(42, 46);
 
 const CORE_STEPS: readonly StepKey[] = [
   "install",
@@ -78,6 +97,8 @@ export const PROFILES: readonly Profile[] = [
     layers: ["package_exports", "size_limit"],
     steps: CORE_STEPS,
     conditionalSteps: [],
+    extraLaws: ["W-18"],
+    conditionalLaws: [],
   },
   {
     class: "ui-components",
@@ -87,6 +108,8 @@ export const PROFILES: readonly Profile[] = [
     layers: ["package_exports", "size_limit", "html_validate", "axe"],
     steps: [...CORE_STEPS, "stylelint"],
     conditionalSteps: ["astro_check"],
+    extraLaws: ["W-18", "W-22", "W-37"],
+    conditionalLaws: ["W-27"],
   },
   {
     class: "astro-site",
@@ -96,6 +119,8 @@ export const PROFILES: readonly Profile[] = [
     layers: ["html_validate", "axe", "rendered", "themes"],
     steps: [...CORE_STEPS, "astro_check", "stylelint"],
     conditionalSteps: [],
+    extraLaws: [...lawIds(20, 31), "W-37", ...RENDERED_LAWS],
+    conditionalLaws: [],
   },
   {
     class: "web-app",
@@ -105,6 +130,8 @@ export const PROFILES: readonly Profile[] = [
     layers: ["html_validate", "axe", "rendered", "themes"],
     steps: [...CORE_STEPS, "stylelint"],
     conditionalSteps: ["astro_check"],
+    extraLaws: [...BROWSER_LAWS, "W-37", ...RENDERED_LAWS],
+    conditionalLaws: ["W-27"],
   },
   {
     class: "node-service",
@@ -114,6 +141,8 @@ export const PROFILES: readonly Profile[] = [
     layers: [],
     steps: CORE_STEPS,
     conditionalSteps: [],
+    extraLaws: [],
+    conditionalLaws: [],
   },
 ];
 

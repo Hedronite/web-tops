@@ -23,6 +23,24 @@ export interface LayerConfig extends Switch {
   readonly tier?: Tier;
 }
 
+/** `skip_private` skips the exports check for a package whose package.json says `"private": true`. */
+export interface PackageExportsLayer extends LayerConfig {
+  readonly skip_private?: string;
+}
+
+/** Reserved for M4 and M5: validated, not read yet (section 9). */
+export interface RenderedLayer extends LayerConfig {
+  readonly routes?: readonly string[];
+  readonly widths?: readonly number[];
+  readonly reduced_motion?: boolean;
+}
+
+export interface ThemesLayer extends LayerConfig {
+  readonly switch?: { readonly mechanism: "attribute" | "class" | "media"; readonly name: string };
+  readonly schemes?: readonly string[];
+  readonly tokens?: readonly string[];
+}
+
 /** A `layers.custom` item. To switch one off, remove it (section 9). */
 export interface CustomLayer {
   readonly id: string;
@@ -76,11 +94,11 @@ export interface Gates {
 
 export interface Layers {
   readonly size_limit?: LayerConfig;
-  readonly package_exports?: LayerConfig;
+  readonly package_exports?: PackageExportsLayer;
   readonly html_validate?: LayerConfig;
   readonly axe?: LayerConfig;
-  readonly rendered?: LayerConfig;
-  readonly themes?: LayerConfig;
+  readonly rendered?: RenderedLayer;
+  readonly themes?: ThemesLayer;
   readonly custom?: readonly CustomLayer[];
 }
 
