@@ -69,7 +69,13 @@ describe("G1d a stopped run still judges what ran with the laws layer", () => {
       reason: "stopped: gate 2 failed",
     });
     expect(entryOf(report, "laws").verdict).toBe("pass");
-    expect(report.counts).toEqual({ in_range: 7, ran: 3, failed: 5, not_evaluated: 0 });
+    expect(report.counts).toEqual({
+      in_range: 7,
+      ran: 3,
+      failed: 5,
+      not_evaluated: 0,
+      required_not_evaluated: 0,
+    });
     expect(report.exit_code).toBe(1);
     expect(validateReport(report).ok).toBe(true);
   });

@@ -27,7 +27,66 @@ export const VERDICTS = [
   "vacuous",
 ] as const;
 
+/** The report format's own version (WEB_TOPS.md section 6.6): it changes only when the report's shape does. */
+export const REPORT_VERSION = "1.0.0";
+
 export type BuiltInLayerId = (typeof LAYER_IDS)[number];
+
+/** Per function `{file, name, line, complexity, coverage, crap}`, for the CRAP layer. */
+export interface CrapMetric {
+  readonly file: string;
+  readonly name: string;
+  readonly line: number;
+  readonly complexity: number;
+  readonly coverage: number;
+  readonly crap: number;
+}
+
+/** Per file `{file, lines_found, lines_hit}`, for the coverage layer. */
+export interface CoverageMetric {
+  readonly file: string;
+  readonly lines_found: number;
+  readonly lines_hit: number;
+}
+
+/** Per rule per file `{rule, file, count}`, for the layers that report findings. */
+export interface FindingMetric {
+  readonly rule: string;
+  readonly file: string;
+  readonly count: number;
+}
+
+/** Per page `{route, bytes}`, for build output. */
+export interface PageMetric {
+  readonly route: string;
+  readonly bytes: number;
+}
+
+/** What `webtops baseline` projects from (section 6.6): an empty object until a layer has metrics. */
+export interface Metrics {
+  readonly crap?: readonly CrapMetric[];
+  readonly coverage?: readonly CoverageMetric[];
+  readonly findings?: readonly FindingMetric[];
+  readonly pages?: readonly PageMetric[];
+}
+
+/** The package and the root the run judged. */
+export interface Subject {
+  readonly package: string;
+  /** The project's directory, relative to the git top level; `.` at the top level itself. */
+  readonly root: string;
+}
+
+/** What the run ran on; a value that could not be read is null (section 6.6). */
+export interface RunBlock {
+  readonly sha: string | null;
+  readonly bun: string | null;
+  readonly node: string | null;
+  /** The version of every tool that ran, read from its package in `node_modules`, by package name. */
+  readonly tools: Readonly<Record<string, string>>;
+  /** The shuffle seed the tests layer passed. */
+  readonly seed: number | null;
+}
 export type Verdict = (typeof VERDICTS)[number];
 
 interface Failure {
@@ -49,12 +108,6 @@ export const FAILURE: Readonly<Record<Verdict, Failure>> = {
   vacuous: { ends_run: false, only_when_required: false },
 };
 
-/**
- * Every layer and law is required until G3's class profiles carry the `required` field (SPEC-p3 G1).
- * One constant, so G2 and G3 replace it by the profile's value in one place.
- */
-export const REQUIRED_UNTIL_PROFILES = true;
-
 /** Whether a verdict on an item ends the run (WEB_TOPS.md section 3.3). */
 export function endsRun(verdict: Verdict, required: boolean): boolean {
   const row = FAILURE[verdict];
@@ -69,6 +122,8 @@ export interface Finding {
   readonly message: string;
   readonly file?: string;
   readonly line?: number;
+  /** On a law finding: whether the class profile requires the law (section 3.3). */
+  readonly required?: boolean;
   /** Present on an acknowledged soft-rule finding, whose verdict is `pass` (section 3.3). */
   readonly ack?: { readonly source: "comment" | "ledger"; readonly reason: string };
 }
@@ -79,10 +134,14 @@ export interface LayerReport {
   /** The gate number of section 3.1; `laws` runs last, at the tier of the layers it reads. */
   readonly gate: 1 | 2 | 3 | 4 | 5 | 6 | "laws";
   readonly tier: Tier;
+  /** Whether the class profile requires the layer; only a required `not-evaluated` ends the run (section 3.3). */
+  readonly required: boolean;
   readonly verdict: Verdict;
   /** Required on `skip` and `not-run`. */
   readonly reason?: string;
   readonly findings: readonly Finding[];
+  /** Shaped for `webtops baseline`; empty until the layer has metrics (section 6.6). */
+  readonly metrics: Metrics;
   readonly artifacts?: readonly string[];
   readonly duration_ms?: number;
   /** The shuffle seed the tests layer passed (WEB_TOPS.md section 6.6). */
@@ -90,6 +149,7 @@ export interface LayerReport {
 }
 
 export interface GateReport {
+  readonly report_version: string;
   readonly protocol: string;
   readonly class: ClassName;
   readonly enforce: Enforce;
@@ -98,6 +158,8 @@ export interface GateReport {
   readonly max_tier: Tier;
   /** The `--only` layer, or null. */
   readonly only: string | null;
+  readonly subject: Subject;
+  readonly run: RunBlock;
   readonly counts: {
     /** Layers enabled, mapped by the class, within `--max-tier` and `--only` (section 3.3). */
     readonly in_range: number;
@@ -105,6 +167,8 @@ export interface GateReport {
     /** Every layer whose verdict ends the run (section 3.3); a required `not-evaluated` is in it and in `not_evaluated`. */
     readonly failed: number;
     readonly not_evaluated: number;
+    /** The `not-evaluated` layers the class profile requires: the ones that end the run. */
+    readonly required_not_evaluated: number;
   };
   readonly layers: readonly LayerReport[];
   // Optional fields the runner writes beside the required set.
@@ -129,9 +193,9 @@ function count(report: GateReport, verdicts: readonly Verdict[]): number {
   return report.layers.filter((layer) => verdicts.includes(layer.verdict)).length;
 }
 
-/** The layers whose verdict ends the run, with every item required (`REQUIRED_UNTIL_PROFILES`). */
+/** The layers whose verdict ends the run: a `not-evaluated` only when the layer is required. */
 function endingCount(report: GateReport): number {
-  return report.layers.filter((layer) => endsRun(layer.verdict, REQUIRED_UNTIL_PROFILES)).length;
+  return report.layers.filter((layer) => endsRun(layer.verdict, layer.required)).length;
 }
 
 function one(pointer: string, message: string): readonly Problem[] {
@@ -146,7 +210,7 @@ function duplicateLayers(report: GateReport): readonly Problem[] {
 }
 
 /** The verdicts that end the run, named in a message. */
-const ENDING = VERDICTS.filter((verdict) => endsRun(verdict, REQUIRED_UNTIL_PROFILES));
+const ENDING = `${VERDICTS.filter((verdict) => endsRun(verdict, false)).join(", ")}, and a required not-evaluated`;
 
 function notEvaluatedCount(report: GateReport): readonly Problem[] {
   const claimed = report.counts.not_evaluated;
@@ -158,13 +222,25 @@ function notEvaluatedCount(report: GateReport): readonly Problem[] {
   );
 }
 
+function requiredNotEvaluatedCount(report: GateReport): readonly Problem[] {
+  const claimed = report.counts.required_not_evaluated;
+  const held = report.layers.filter(
+    (layer) => layer.verdict === "not-evaluated" && layer.required,
+  ).length;
+  if (claimed === held) return [];
+  return one(
+    "/counts/required_not_evaluated",
+    `counts ${String(claimed)} required not-evaluated layers, the layers hold ${String(held)}`,
+  );
+}
+
 function failedCount(report: GateReport): readonly Problem[] {
   const claimed = report.counts.failed;
   const held = endingCount(report);
   if (claimed === held) return [];
   return one(
     "/counts/failed",
-    `counts ${String(claimed)} failed layers (${ENDING.join(", ")}), the layers hold ${String(held)}`,
+    `counts ${String(claimed)} failed layers (${ENDING}), the layers hold ${String(held)}`,
   );
 }
 
@@ -200,6 +276,7 @@ function passedFlag(report: GateReport): readonly Problem[] {
 const CHECKS: readonly ((report: GateReport) => readonly Problem[])[] = [
   duplicateLayers,
   notEvaluatedCount,
+  requiredNotEvaluatedCount,
   failedCount,
   ranCount,
   enforcedFlag,

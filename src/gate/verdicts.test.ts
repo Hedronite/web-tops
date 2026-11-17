@@ -83,7 +83,13 @@ describe("G2b runner: not-run fails, a short layer count fails, not-evaluated ne
     const six = fakeBuiltins([]).filter((layer) => layer.id !== "crap");
     const config = cfg({ toggles: { crap: { enabled: true } } });
     const report = await run(six, config);
-    expect(report.counts).toEqual({ in_range: 7, ran: 6, failed: 1, not_evaluated: 0 });
+    expect(report.counts).toEqual({
+      in_range: 7,
+      ran: 6,
+      failed: 1,
+      not_evaluated: 0,
+      required_not_evaluated: 0,
+    });
     expect(report.problems).toEqual([
       { path: "/counts/ran", message: "ran 6 of 7 layers in range" },
     ]);
@@ -149,7 +155,13 @@ describe("G2b runner: not-run fails, a short layer count fails, not-evaluated ne
       fakeLayer({ id: "mutation", gate: 5, verdict: "not-evaluated", reason: "no judge" }),
     ];
     const report = await run(layers, cfg(), opts({ keepGoing: true }));
-    expect(report.counts).toEqual({ in_range: 4, ran: 3, failed: 3, not_evaluated: 1 });
+    expect(report.counts).toEqual({
+      in_range: 4,
+      ran: 3,
+      failed: 3,
+      not_evaluated: 1,
+      required_not_evaluated: 1,
+    });
     expect(report.problems).toEqual([
       { path: "/counts/ran", message: "ran 3 of 4 layers in range" },
     ]);
@@ -162,7 +174,13 @@ describe("G2b runner: not-run fails, a short layer count fails, not-evaluated ne
       fakeLayer({ id: "tests", gate: 2, verdict: "skip", reason: "nothing to do here" }),
     ];
     const report = await run(layers);
-    expect(report.counts).toEqual({ in_range: 2, ran: 2, failed: 1, not_evaluated: 1 });
+    expect(report.counts).toEqual({
+      in_range: 2,
+      ran: 2,
+      failed: 1,
+      not_evaluated: 1,
+      required_not_evaluated: 1,
+    });
     expect(report.layers.find((layer) => layer.id === "tests")).toMatchObject({
       verdict: "not-evaluated",
       reason: "skip returned by an in-range layer",
@@ -179,6 +197,12 @@ describe("G2b runner: not-run fails, a short layer count fails, not-evaluated ne
       ],
       cfg(),
     );
-    expect(stopped.counts).toEqual({ in_range: 2, ran: 0, failed: 2, not_evaluated: 0 });
+    expect(stopped.counts).toEqual({
+      in_range: 2,
+      ran: 0,
+      failed: 2,
+      not_evaluated: 0,
+      required_not_evaluated: 0,
+    });
   });
 });

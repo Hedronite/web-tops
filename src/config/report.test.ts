@@ -247,7 +247,13 @@ describe("what a schema cannot say: counts, enforcement and the verdict", () => 
       mutation: "not-run",
       laws: "not-evaluated",
     });
-    expect(report.counts).toEqual({ in_range: 7, ran: 6, failed: 4, not_evaluated: 1 });
+    expect(report.counts).toEqual({
+      in_range: 7,
+      ran: 6,
+      failed: 4,
+      not_evaluated: 1,
+      required_not_evaluated: 1,
+    });
     expect(pointers(report)).toEqual([]);
     expect(pointers(edit(report, ["counts", "failed"], 5))).toEqual(["/counts/failed"]);
     expect(pointers(edit(report, ["counts", "failed"], 3))).toEqual(["/counts/failed"]);
@@ -274,7 +280,13 @@ describe("what a schema cannot say: counts, enforcement and the verdict", () => 
       "build-output": "skip",
       laws: "skip",
     });
-    expect(allSkipped.counts).toEqual({ in_range: 0, ran: 0, failed: 0, not_evaluated: 0 });
+    expect(allSkipped.counts).toEqual({
+      in_range: 0,
+      ran: 0,
+      failed: 0,
+      not_evaluated: 0,
+      required_not_evaluated: 0,
+    });
     expect(allSkipped.passed).toBe(false);
     expect(pointers(allSkipped)).toEqual([]);
     const claimed = validateReport(edit(allSkipped, ["passed"], true));

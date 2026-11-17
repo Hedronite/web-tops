@@ -130,6 +130,7 @@ describe("G2d report: written to report.path, valid against the schema, text pri
           id: "hygiene",
           gate: 1,
           tier: 1,
+          required: true,
           verdict: "fail",
           reason: "1 finding",
           findings: [
@@ -141,6 +142,7 @@ describe("G2d report: written to report.path, valid against the schema, text pri
               line: 3,
             },
           ],
+          metrics: {},
           artifacts: [],
           duration_ms: 5,
         },
@@ -158,8 +160,11 @@ describe("G2d report: written to report.path, valid against the schema, text pri
 
 function parseReportFixture(): Report {
   return {
+    report_version: "1.0.0",
     protocol: "0.3.0",
     package: "p",
+    subject: { package: "p", root: "." },
+    run: { sha: null, bun: null, node: null, tools: {}, seed: null },
     class: "ts-library",
     enforce: "hard",
     enforced: true,
@@ -169,7 +174,13 @@ function parseReportFixture(): Report {
     only: null,
     passed: true,
     exit_code: 0,
-    counts: { in_range: 1, ran: 1, failed: 0, not_evaluated: 0 },
+    counts: {
+      in_range: 1,
+      ran: 1,
+      failed: 0,
+      not_evaluated: 0,
+      required_not_evaluated: 0,
+    },
     problems: [],
     layers: [],
   };
