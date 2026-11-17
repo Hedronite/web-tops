@@ -4,6 +4,10 @@ All notable changes to this project are listed here. The protocol version and th
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-17
+
+The `webtops` CLI in this release implements protocol 0.2.1; the 0.3.0 text is merged but not yet implemented.
+
 ### Changed
 
 - Protocol 0.2.1 → 0.3.0 (draft, proposed), the report shape the M2 baseline reads:

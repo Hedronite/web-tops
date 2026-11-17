@@ -97,6 +97,38 @@ describe("G7: the lint config holds every function to complexity 4", () => {
   });
 });
 
+describe("R48: the 0.1.0 release", () => {
+  const text = (name: string): string => readFileSync(join(root, name), "utf8");
+
+  it("is version 0.1.0 in package.json, web-tops.yaml and web-tops.lock, and stays private", () => {
+    expect(pkg.version).toBe("0.1.0");
+    expect(get(yamlOf("web-tops.yaml"), "version")).toBe("0.1.0");
+    expect(get(yamlOf("web-tops.lock"), "webtops")).toBe("0.1.0");
+    expect(get(pkg, "private")).toBe(true);
+  });
+
+  it("dates the changelog entry, with an empty Unreleased above it and the protocol line first", () => {
+    const changelog = text("CHANGELOG.md");
+    const unreleased = changelog.indexOf("## [Unreleased]");
+    const release = changelog.indexOf("## [0.1.0] - 2026-11-17");
+    expect(unreleased).toBeGreaterThan(-1);
+    expect(release).toBeGreaterThan(unreleased);
+    expect(changelog.slice(unreleased, release).trim()).toBe("## [Unreleased]");
+    const first = changelog
+      .slice(release)
+      .split("\n")
+      .find((line, i) => i > 0 && line.trim() !== "");
+    expect(first).toMatch(/implements protocol 0\.2\.1/);
+    expect(first).toMatch(/0\.3\.0/);
+  });
+
+  it("says the same in the README status line and in AGENTS.md", () => {
+    expect(text("README.md")).toMatch(/version 0\.1\.0|0\.1\.0/);
+    expect(text("README.md")).not.toContain("unreleased (0.0.0)");
+    expect(text("AGENTS.md")).toContain("0.1.0");
+  });
+});
+
 describe("G7d: AGENTS.md says where the repo stands", () => {
   const state = (): string => {
     const text = readFileSync(join(root, "AGENTS.md"), "utf8");
