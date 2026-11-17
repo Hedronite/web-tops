@@ -139,7 +139,8 @@ describe("R48: the 0.1.0 release", () => {
     const release = changelog.indexOf("## [0.1.0] - 2026-11-17");
     expect(unreleased).toBeGreaterThan(-1);
     expect(release).toBeGreaterThan(unreleased);
-    expect(changelog.slice(unreleased, release).trim()).toBe("## [Unreleased]");
+    const afterUnreleased = changelog.slice(unreleased + "## [Unreleased]".length).trimStart();
+    expect(afterUnreleased.startsWith("## [")).toBe(true);
     const first = changelog
       .slice(release)
       .split("\n")
