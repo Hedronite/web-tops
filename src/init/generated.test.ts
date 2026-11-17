@@ -19,7 +19,10 @@ const FORMATTED = [
   "tsconfig.strict.json",
   ".github/workflows/web-tops.yml",
   "web-tops.yaml",
+  "AGENTS.md",
 ];
+/** Prettier's own width, which an inited project gets because init writes it no config, and the kit's. */
+const WIDTHS = [80, 100];
 
 const made: string[] = [];
 
@@ -40,22 +43,26 @@ function generated(className: string): string {
 
 afterAll(() => {
   for (const dir of made) rmSync(dir, { recursive: true, force: true });
-  rmSync(join(root, "tmp"), { recursive: true, force: true });
 });
 
-async function unformatted(dir: string): Promise<string[]> {
+/**
+ * The files Prettier would change at `width`. No config is resolved: init writes the project none, so
+ * what applies is Prettier's defaults, and the kit's `printWidth` is tried as well.
+ */
+async function unformatted(dir: string, width: number): Promise<string[]> {
   const bad: string[] = [];
   for (const file of FORMATTED) {
-    const config = await prettier.resolveConfig(join(root, file));
     const text = readFileSync(join(dir, file), "utf8");
-    if (!(await prettier.check(text, { ...config, filepath: join(root, file) }))) bad.push(file);
+    if (!(await prettier.check(text, { filepath: join(dir, file), printWidth: width }))) {
+      bad.push(file);
+    }
   }
   return bad;
 }
 
 describe.each(CLASSES)("the files webtops init --class %s writes: Prettier", (className) => {
-  it("formats every generated file as the kit's Prettier config does", async () => {
-    expect(await unformatted(generated(className))).toEqual([]);
+  it.each(WIDTHS)("formats every generated file as Prettier does at width %i", async (width) => {
+    expect(await unformatted(generated(className), width)).toEqual([]);
   });
 });
 

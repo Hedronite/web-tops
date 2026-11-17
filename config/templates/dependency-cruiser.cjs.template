@@ -16,7 +16,7 @@ module.exports = {
     },
     {
       name: "no-unresolvable",
-      comment: "W-17: an unresolvable import is broken, deep imports past exports included.",
+      comment: "W-17: an unresolvable import is broken, deep ones too.",
       severity: "error",
       from: {},
       to: { couldNotResolve: true },
