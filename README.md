@@ -17,12 +17,15 @@ This repo has shipped milestone M1 and is releasing protocol 0.3.0: the `webtops
 
 | Milestone | Contents |
 |---|---|
-| M0 spec | `WEB_TOPS.md`, schemas, profiles for five launch classes, the AGENTS template |
-| **M1** CLI | `init`, `check`, `gate`: hygiene, tests, coverage, `report.json`; Web-TOPS gates itself |
-| M2 | Native CRAP, Stryker adapter, survivor ledger, baseline and ratchet |
-| M3 | Laws v0.1: 26 of 46 judged; lint fixtures; `eslint-plugin-webtops` |
-| M4 | Build-output layers: HTML validity, axe, links, byte budgets; rendered checks and theme contrast |
-| M5–M6 | First adopter, protocol 1.0 |
+| **M0** | `WEB_TOPS.md`, schemas, profiles for five launch classes, the AGENTS template |
+| **M1** | `init`, `check`, `gate`: hygiene, tests, coverage, `report.json`; Web-TOPS gates itself |
+| **P3** | Protocol 0.3.0, the truth pass: one verdict set, required layers and laws per class, the report shape, risk definitions, the protocol id by range, ESLint 10 (this repo) |
+| **M2** | The risk engine: native CRAP, the Stryker adapter, the survivor ledger, baseline and ratchet |
+| **M3** | Laws v1: `laws/W-NN.yaml`, law fixtures, `eslint-plugin-webtops`, the non-lint readers, `law-diff` |
+| **M4** | Build output: HTML validity, links, page and route bytes, axe, `size-limit` per entry |
+| **M5** | Rendered interface and themes: reflow, focus, motion, theme contrast |
+| **M6** | Workspaces and adoption: the `workspace-root` and `cli` profiles, the adopter PRs |
+| **M7** | Calibration and 1.0 |
 
 The full roadmap is in [`WEB_TOPS.md` §19](WEB_TOPS.md#19-roadmap).
 

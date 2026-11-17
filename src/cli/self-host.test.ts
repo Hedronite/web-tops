@@ -158,6 +158,20 @@ describe("R48: the 0.1.0 release", () => {
     );
   });
 
+  it("lists in the README the milestones of section 19, in its order", () => {
+    const ids = (pattern: RegExp, from: string): (string | undefined)[] =>
+      from
+        .split("\n")
+        .map((line) => pattern.exec(line)?.[1])
+        .filter((id) => id !== undefined);
+    const spec = text("WEB_TOPS.md");
+    const roadmap = spec.slice(spec.indexOf("## 19."), spec.indexOf("## 20."));
+    const status = text("README.md");
+    expect(ids(/^\| \*\*(M\d|P3)\*\*/, status.slice(status.indexOf("| Milestone |")))).toEqual(
+      ids(/^\| \*\*(M\d|P3)\*\*/, roadmap),
+    );
+  });
+
   it("says the same in the README status line and in AGENTS.md", () => {
     expect(text("README.md")).toMatch(/version 0\.1\.0|0\.1\.0/);
     expect(text("README.md")).not.toContain("unreleased (0.0.0)");
