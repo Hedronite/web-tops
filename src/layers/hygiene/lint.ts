@@ -1,4 +1,4 @@
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Finding } from "../../report/types.ts";
 import {
@@ -156,10 +156,21 @@ export function chooseFormatter(
 
 const PRETTIER_WARN = /^\[warn\] (.+)$/u;
 
-const FORMAT_ARGS: Readonly<Record<"prettier" | "biome", readonly string[]>> = {
-  prettier: ["--check", "."],
-  biome: ["format", "."],
-};
+/** The gate's own output (`.web-tops/`) is never judged, whatever the project's ignore files say (R41). */
+const GATE_DIRECTORY = ".web-tops";
+
+/** Prettier takes a negated pattern after the paths; the project's own ignore files still apply on top. */
+const PRETTIER_ARGS = ["--check", ".", `!${GATE_DIRECTORY}/**`];
+
+/** Biome has no exclude flag, so it is given every top-level entry but the gate's directory. */
+function biomeArgs(cwd: string): string[] | undefined {
+  const entries = readdirSync(cwd).filter((name) => name !== GATE_DIRECTORY);
+  return entries.length > 0 ? ["format", ...entries] : undefined;
+}
+
+function formatArgs(cwd: string, tool: "prettier" | "biome"): readonly string[] | undefined {
+  return tool === "prettier" ? PRETTIER_ARGS : biomeArgs(cwd);
+}
 
 function unformatted(result: ExecResult): Finding[] {
   return `${result.stdout}\n${result.stderr}`.split("\n").flatMap((line) => {
@@ -183,7 +194,11 @@ export async function format(step: StepContext): Promise<StepResult> {
   if ("finding" in chosen) {
     return { findings: [chosen.finding] };
   }
-  const outcome = await ran(step, chosen.tool, FORMAT_ARGS[chosen.tool]);
+  const args = formatArgs(step.ctx.cwd, chosen.tool);
+  if (args === undefined) {
+    return { findings: [] };
+  }
+  const outcome = await ran(step, chosen.tool, args);
   if ("failed" in outcome) {
     return outcome.failed;
   }

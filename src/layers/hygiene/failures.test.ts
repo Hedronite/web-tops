@@ -119,6 +119,19 @@ describe("G3c hygiene: a missing tool fails, an empty output fails, class-only t
     expect(result.findings[0]?.message).toContain("bun");
   });
 
+  it("a project with no lockfile makes bun audit print nothing on stdout: output-empty naming the lockfile, not a pass", async () => {
+    const item = setup({ "package.json": PACKAGE });
+    const handlers = {
+      "bun audit": () => ({ code: 1, stdout: "", stderr: recorded("audit-no-lockfile.stderr") }),
+    };
+    const result = await runHygiene(item, fakeExec(item.project.dir, handlers).exec);
+    expect(failures(result)).toEqual(["output-empty"]);
+    expect(result.findings.find((finding) => finding.rule === "output-empty")?.message).toContain(
+      "missing lockfile, nothing to audit",
+    );
+    expect(result.verdict).toBe("Refuse");
+  });
+
   it("a tool that outlives its timeout is a tool-timeout Refuse", async () => {
     const item = setup({ "package.json": PACKAGE });
     const result = await runHygiene(item, fakeExec(item.project.dir, { tsc: TIMEOUT }).exec);
