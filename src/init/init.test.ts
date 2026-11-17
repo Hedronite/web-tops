@@ -127,7 +127,7 @@ const BASE_TOOLS = [
   "webtops",
 ];
 const PACKAGE_TOOLS = ["@arethetypeswrong/cli", "publint"];
-const REACT_TOOLS = ["eslint-plugin-jsx-a11y", "stylelint"];
+const REACT_TOOLS = ["eslint-plugin-jsx-a11y-x", "stylelint"];
 const TOOLS: Record<Class, readonly string[]> = {
   "ts-library": [...BASE_TOOLS, ...PACKAGE_TOOLS],
   "ui-components": [...BASE_TOOLS, ...PACKAGE_TOOLS, ...REACT_TOOLS, "@playwright/test"],

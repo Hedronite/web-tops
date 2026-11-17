@@ -16,7 +16,7 @@ tools:
   - "@vitest/eslint-plugin"
   - "dependency-cruiser"
   - "eslint"
-  - "eslint-plugin-jsx-a11y"
+  - "eslint-plugin-jsx-a11y-x"
   - "prettier"
   - "publint"
   - "stylelint"
