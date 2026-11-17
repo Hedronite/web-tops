@@ -522,9 +522,9 @@ describe("webtops init, astro check follows the project", () => {
   );
 
   it.each(["ui-components", "web-app"] as const)(
-    "%s runs it only when astro is a dependency",
+    "%s runs it only when astro is a dependency, a dev dependency or a peer",
     (className) => {
-      for (const where of ["dependencies", "devDependencies"] as const) {
+      for (const where of ["dependencies", "devDependencies", "peerDependencies"] as const) {
         const { dir } = initInto(className, { "package.json": withAstro(where) });
         expect(at(astroCheck(dir), "enabled"), where).not.toBe(false);
         expect(locked(dir), where).toEqual(expect.arrayContaining(["astro", "@astrojs/check"]));
@@ -537,7 +537,7 @@ describe("webtops init, astro check follows the project", () => {
     (className) => {
       for (const files of [
         {},
-        { "package.json": withAstro("peerDependencies") },
+        { "package.json": JSON.stringify({ name: "p", dependencies: { react: "19.0.0" } }) },
         { "package.json": "{ nope" },
       ]) {
         const { dir } = initInto(className, files);
