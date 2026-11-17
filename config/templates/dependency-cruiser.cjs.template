@@ -1,5 +1,9 @@
+/* global module -- a CommonJS config file */
 // Written by `webtops init` (WEB_TOPS.md sections 3.1 and 8.2). W-16: no import cycles.
-// W-17: no deep imports into another package's internals; imports go through `exports`.
+// W-17: no deep imports into another package's internals; imports go through `exports`. The
+// resolver reads each package's `exports`, so an import through a path it does not expose cannot be
+// resolved and fails at no-unresolvable. A rule on the resolved path would flag every normal import,
+// because a package's own types resolve into its dist.
 /** @type {import("dependency-cruiser").IConfiguration} */
 module.exports = {
   forbidden: [
@@ -11,15 +15,8 @@ module.exports = {
       to: { circular: true },
     },
     {
-      name: "no-deep-dist-imports",
-      comment: "W-17: import through a package's exports, never pkg/dist/....",
-      severity: "error",
-      from: {},
-      to: { path: "node_modules/(@[^/]+/)?[^/]+/dist/" },
-    },
-    {
       name: "no-unresolvable",
-      comment: "An import that cannot be resolved is a broken import.",
+      comment: "W-17: an unresolvable import is broken, deep ones too.",
       severity: "error",
       from: {},
       to: { couldNotResolve: true },

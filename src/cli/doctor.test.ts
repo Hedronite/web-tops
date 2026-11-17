@@ -245,6 +245,24 @@ describe("webtops doctor", () => {
     expect(err).toContain("web-tops.lock");
   });
 
+  it("says a lock that is not YAML is unusable once, not once per layer of the code", async () => {
+    const dir = project("ts-library");
+    put(dir, "web-tops.lock", "a: [unclosed\n");
+    const { code, err } = await cli([], dir, goodHost());
+    expect(code).toBe(2);
+    expect(err.split("web-tops.lock is unusable").length - 1).toBe(1);
+    expect(err.startsWith("webtops doctor: web-tops.lock is unusable: ")).toBe(true);
+  });
+
+  it("prints the missing node range message as it is, with no prefix", async () => {
+    const dir = project("ts-library");
+    put(dir, "web-tops.lock", "typescript: 6.0.3\n");
+    const { err } = await cli([], dir, goodHost());
+    expect(err).toBe(
+      "webtops doctor: web-tops.lock has no node range; run webtops lock --update\n",
+    );
+  });
+
   it("checks Bun, Node and TypeScript only, and never writes, with no web-tops.yaml", async () => {
     const dir = tempDir();
     put(dir, "node_modules/typescript/package.json", JSON.stringify({ version: "6.0.3" }));
