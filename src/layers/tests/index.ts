@@ -1,5 +1,7 @@
 import { randomInt } from "node:crypto";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import { join, relative } from "node:path";
 import type { Finding } from "../../report/types.ts";
 import type { ExecResult, Layer, LayerContext, LayerResult } from "../../gate/types.ts";
@@ -34,18 +36,34 @@ function projectConfig(cwd: string): string | undefined {
 }
 
 /**
+ * Where `vite` is, found the way Vitest finds it: from the real directory of the installed `vitest`. In a Bun
+ * workspace or any isolated install `vite` sits beside `vitest` and nowhere the project can name, so the kit
+ * config imports the file this resolves to (R44). The bare name is the fallback, for a hoisted install.
+ */
+function viteUrl(cwd: string): string {
+  try {
+    const vitest = realpathSync(join(cwd, "node_modules", "vitest", "package.json"));
+    return pathToFileURL(createRequire(vitest).resolve("vite")).href;
+  } catch {
+    return "vite";
+  }
+}
+
+/**
  * The config the gate runs Vitest with. The kit judges the floor itself (gate 3), so it loads the project's
  * own config, whichever form it takes, and removes `test.coverage.thresholds` whole: a glob key, `100: true`,
  * `perFile` and `autoUpdate` all fail a run too, and zeroing the global keys would not stop them (R43).
  */
-function kitConfig(project: string | undefined): string {
+function kitConfig(project: string | undefined, vite: string): string {
   if (project === undefined) {
     return "export default {};\n";
   }
   return [
-    'import { loadConfigFromFile } from "vite";',
+    `const viteUrl = ${JSON.stringify(vite)};`,
     `const project = ${JSON.stringify(project)};`,
     "export default async function config(env) {",
+    // A dynamic import by variable, so Vite's config loader does not bundle Vite into the kit config.
+    "  const { loadConfigFromFile } = await import(/* @vite-ignore */ viteUrl);",
     "  const loaded = await loadConfigFromFile(env, project);",
     "  const { test = {}, ...rest } = loaded?.config ?? {};",
     "  const { coverage = {}, ...otherTest } = test;",
@@ -283,7 +301,7 @@ async function run(ctx: LayerContext): Promise<LayerResult> {
   const seed = seedFor(ctx);
   const jsonPath = join(directory, "vitest.json");
   const configPath = join(directory, "vitest.config.mjs");
-  writeFileSync(configPath, kitConfig(projectConfig(ctx.cwd)));
+  writeFileSync(configPath, kitConfig(projectConfig(ctx.cwd), viteUrl(ctx.cwd)));
   const result = await runTool(ctx, "vitest", vitestArgs(ctx, seed, jsonPath, configPath));
   const launch = launchFailure("vitest", result);
   if (launch !== undefined) {

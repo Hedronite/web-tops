@@ -22,11 +22,38 @@ export interface Project {
  * A temp project that can run the real Vitest: the kit's `node_modules` is linked in, so `vitest` and the
  * coverage provider resolve. Files are written as given; the out directory is made.
  */
-export function realProject(files: Readonly<Record<string, string>>, link = true): Project {
-  const project = tempProject();
-  if (link) {
-    symlinkSync(join(REPO_ROOT, "node_modules"), join(project.dir, "node_modules"));
+/**
+ * How a project gets its tools: `linked` is a hoisted install (every package reachable from the project's
+ * `node_modules`), `isolated` is a Bun workspace or any isolated install (only what the project declares is
+ * there, and `vite` is reachable only from beside `vitest`), `none` has no `node_modules` at all.
+ */
+export type Install = "linked" | "isolated" | "none";
+
+/** Only `vitest` and its coverage provider, each a link to the real package: no `vite` next to them. */
+function isolatedModules(dir: string): void {
+  const modules = join(dir, "node_modules");
+  mkdirSync(join(modules, "@vitest"), { recursive: true });
+  symlinkSync(join(REPO_ROOT, "node_modules", "vitest"), join(modules, "vitest"));
+  symlinkSync(
+    join(REPO_ROOT, "node_modules", "@vitest", "coverage-v8"),
+    join(modules, "@vitest", "coverage-v8"),
+  );
+}
+
+function installModules(dir: string, install: Install): void {
+  if (install === "linked") {
+    symlinkSync(join(REPO_ROOT, "node_modules"), join(dir, "node_modules"));
+  } else if (install === "isolated") {
+    isolatedModules(dir);
   }
+}
+
+export function realProject(
+  files: Readonly<Record<string, string>>,
+  install: Install = "linked",
+): Project {
+  const project = tempProject();
+  installModules(project.dir, install);
   writeFileSync(join(project.dir, "package.json"), '{ "name": "fixture", "type": "module" }\n');
   for (const [name, text] of Object.entries(files)) {
     mkdirSync(dirname(join(project.dir, name)), { recursive: true });

@@ -1,4 +1,6 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { realExec } from "../../gate/exec.ts";
@@ -229,7 +231,7 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
       calls.push(tool);
       return Promise.resolve({ code: 0, stdout: "", stderr: "" });
     };
-    const item = realProject({}, false);
+    const item = realProject({}, "none");
     projects.push(item);
     const result = await runTests(item, exec);
     expect(calls).toEqual([]);
@@ -569,6 +571,59 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
       expect(text).toContain(join(item.project.dir, "vitest.config.ts"));
       expect(calls[0]).toContain("--config=.web-tops/out/tests/vitest.config.mjs");
       expect(calls[0]?.some((arg) => arg.startsWith("--coverage.thresholds"))).toBe(false);
+    });
+
+    it("resolves vite the way Vitest does: in an isolated install, where vite sits only beside vitest", async () => {
+      const item = realProject(
+        {
+          "src/a.ts": SOURCE,
+          "src/b.ts": B_UNTESTED,
+          "src/a.test.ts": CLEAN,
+          "vitest.config.ts":
+            'import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { coverage: { thresholds: { 100: true, "src/b.ts": { functions: 100 } } } } });\n',
+        },
+        "isolated",
+      );
+      projects.push(item);
+      expect(existsSync(join(item.project.dir, "node_modules", "vite"))).toBe(false);
+      const result = await runTests(item, realExec);
+      expect(rulesOf(result)).toEqual([]);
+      expect(result.verdict).toBe("pass");
+    });
+
+    it("an isolated install with no project config passes too", async () => {
+      const item = realProject({ "src/a.ts": SOURCE, "src/a.test.ts": CLEAN }, "isolated");
+      projects.push(item);
+      expect((await runTests(item, realExec)).verdict).toBe("pass");
+    });
+
+    it("an isolated install with a config that does not load still names why, with no bundler noise first", async () => {
+      const item = realProject(
+        {
+          "src/a.ts": SOURCE,
+          "src/a.test.ts": CLEAN,
+          "vitest.config.ts": 'throw new Error("config is broken");\n',
+        },
+        "isolated",
+      );
+      projects.push(item);
+      const result = await runTests(item, realExec);
+      expect(rulesOf(result)).toEqual(["vitest-failed"]);
+      expect(result.findings[0]?.message).toContain("config is broken");
+      expect(result.findings[0]?.message).not.toContain("UNRESOLVED_IMPORT");
+    });
+
+    it("imports vite by the file it resolves to from the real vitest directory, not by name", async () => {
+      const exec: Exec = () => Promise.resolve({ code: 0, stdout: "", stderr: "" });
+      const item = realProject({ "vitest.config.ts": "export default {};\n" }, "isolated");
+      projects.push(item);
+      await runTests(item, exec);
+      const text = readFileSync(join(item.outDir, "tests", "vitest.config.mjs"), "utf8");
+      const vite = createRequire(
+        realpathSync(join(item.project.dir, "node_modules", "vitest", "package.json")),
+      ).resolve("vite");
+      expect(text).toContain(pathToFileURL(vite).href);
+      expect(text).not.toContain('from "vite"');
     });
 
     it("loads vite.config only when no vitest.config exists, and none at all when neither does", async () => {
