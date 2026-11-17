@@ -108,7 +108,7 @@ export const PROFILES: readonly Profile[] = [
     layers: ["package_exports", "size_limit", "html_validate", "axe"],
     steps: [...CORE_STEPS, "stylelint"],
     conditionalSteps: ["astro_check"],
-    extraLaws: ["W-18", "W-22", "W-37"],
+    extraLaws: ["W-18", "W-22", "W-37", "W-47"],
     conditionalLaws: ["W-27"],
   },
   {
@@ -119,7 +119,7 @@ export const PROFILES: readonly Profile[] = [
     layers: ["html_validate", "axe", "rendered", "themes"],
     steps: [...CORE_STEPS, "astro_check", "stylelint"],
     conditionalSteps: [],
-    extraLaws: [...lawIds(20, 31), "W-37", ...RENDERED_LAWS],
+    extraLaws: [...lawIds(20, 31), "W-37", ...RENDERED_LAWS, "W-47"],
     conditionalLaws: [],
   },
   {
@@ -130,7 +130,7 @@ export const PROFILES: readonly Profile[] = [
     layers: ["html_validate", "axe", "rendered", "themes"],
     steps: [...CORE_STEPS, "stylelint"],
     conditionalSteps: ["astro_check"],
-    extraLaws: [...BROWSER_LAWS, "W-37", ...RENDERED_LAWS],
+    extraLaws: [...BROWSER_LAWS, "W-37", ...RENDERED_LAWS, "W-47"],
     conditionalLaws: ["W-27"],
   },
   {

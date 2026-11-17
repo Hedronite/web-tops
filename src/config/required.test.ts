@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { PROFILES, profileFor, type Profile } from "./profiles.ts";
 import {
   JUDGED_LAWS,
+  LAW_COUNT,
   isRequiredLayer,
   mappedLaws,
   requiredLayers,
@@ -187,5 +188,37 @@ describe("G3d: section 5.2 states how the caps work (X2)", () => {
     ["no per-author cap", /no per-author cap/i],
   ])("says: %s", (_what, pattern) => {
     expect(section).toMatch(pattern);
+  });
+});
+
+describe("R55: W-47 and W-48 join the catalog, unjudged", () => {
+  it("counts as many laws as section 8.2 lists, 48", () => {
+    const rows = spec.split("\n").filter((line) => /^\| W-\d+ /.test(line));
+    expect(LAW_COUNT).toBe(48);
+    expect(rows).toHaveLength(LAW_COUNT);
+  });
+
+  it("maps W-47 (React hooks) to the classes with components, and W-48 to every class", () => {
+    const among = (id: string): string[] =>
+      PROFILES.filter((p) => mappedLaws(p, noAstro).includes(id)).map((p) => p.class);
+    expect(among("W-47")).toEqual(["ui-components", "astro-site", "web-app"]);
+    expect(among("W-48")).toEqual(PROFILES.map((p) => p.class));
+  });
+
+  it("states W-47 in the Extra laws cells of those three classes, and no class gates W-48", () => {
+    const cells = row("Extra laws");
+    PROFILES.forEach((p, index) => {
+      expect(lawsIn(cells[index] ?? "").includes("W-47"), p.class).toBe(
+        p.extraLaws.includes("W-47"),
+      );
+      expect(p.extraLaws, p.class).not.toContain("W-48");
+    });
+  });
+
+  it("leaves the judged set and the required counts as they were", () => {
+    expect(JUDGED_LAWS).toHaveLength(26);
+    expect(JUDGED_LAWS).not.toContain("W-47");
+    expect(JUDGED_LAWS).not.toContain("W-48");
+    expect(PROFILES.map((p) => requiredLaws(p, noAstro).length)).toEqual([19, 20, 25, 24, 18]);
   });
 });

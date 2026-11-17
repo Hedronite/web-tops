@@ -23,6 +23,7 @@ export const TOOL_PINS = {
   "eslint-plugin-jsx-a11y-x": "0.2.0",
   "eslint-plugin-react-hooks": "7.1.1",
   "html-validate": "11.21.1",
+  knip: "6.45.1",
   prettier: "3.10.1",
   publint: "0.3.25",
   "size-limit": "14.3.0",
