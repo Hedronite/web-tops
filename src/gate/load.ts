@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { readProject } from "../config/project.ts";
 import { checkConfigFile } from "../config/validate.ts";
 import { toGateConfig } from "./adapter.ts";
 import type { LoadedConfig } from "./command.ts";
@@ -9,7 +10,7 @@ export const CONFIG_FILE = "web-tops.yaml";
 export function loadGateConfig(cwd: string): Promise<LoadedConfig> {
   const result = checkConfigFile(resolve(cwd, CONFIG_FILE));
   if (result.ok) {
-    return Promise.resolve({ ok: true, config: toGateConfig(result.value) });
+    return Promise.resolve({ ok: true, config: toGateConfig(result.value, readProject(cwd)) });
   }
   const errors = result.problems.map(
     (problem) =>

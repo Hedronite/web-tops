@@ -93,6 +93,35 @@ export interface CustomLayer {
   readonly command?: string;
 }
 
+/** Gate 1 steps (WEB_TOPS.md section 9); `package_exports` runs publint and attw inside the gate. */
+export const HYGIENE_STEPS = [
+  "install",
+  "tsc",
+  "astro_check",
+  "eslint",
+  "stylelint",
+  "format",
+  "dependency_cruiser",
+  "audit",
+  "package_exports",
+] as const;
+
+export type HygieneStep = (typeof HYGIENE_STEPS)[number];
+
+export type AuditLevel = "low" | "moderate" | "high" | "critical";
+
+/** Gate 1 settings from `gates.hygiene` and `layers.package_exports`, resolved against the class profile. */
+export interface HygieneSettings {
+  /** Step switches by key; a step with no entry is enabled. */
+  readonly steps: Readonly<Partial<Record<HygieneStep, Toggle>>>;
+  /** `gates.hygiene.eslint.config`. */
+  readonly eslintConfig?: string;
+  /** `gates.hygiene.format.tool`; unset means read the one formatter config in the repo. */
+  readonly formatTool?: "prettier" | "biome";
+  /** `gates.hygiene.audit.fail_on`. */
+  readonly auditFailOn: AuditLevel;
+}
+
 /** What the runner needs from a validated `web-tops.yaml`; a layer's own settings join it in G3 and G4. */
 export interface GateConfig {
   readonly protocol: typeof PROTOCOL;
@@ -106,6 +135,7 @@ export interface GateConfig {
   /** Enable switches by layer id; an id with no entry is enabled (section 9). */
   readonly toggles: Readonly<Record<string, Toggle>>;
   readonly custom: readonly CustomLayer[];
+  readonly hygiene: HygieneSettings;
 }
 
 export interface GateOptions {

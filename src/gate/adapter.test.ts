@@ -3,12 +3,12 @@ import { parseConfig } from "../config/validate.ts";
 import { toGateConfig } from "./adapter.ts";
 import type { GateConfig } from "./types.ts";
 
-function adapt(yaml: string): GateConfig {
+function adapt(yaml: string, dependsOnAstro = false): GateConfig {
   const parsed = parseConfig(yaml);
   if (!parsed.ok) {
     throw new Error(JSON.stringify(parsed.problems));
   }
-  return toGateConfig(parsed.value);
+  return toGateConfig(parsed.value, { dependsOnAstro });
 }
 
 const HEAD = 'protocol: "0.2.1"\nversion: "0.1.0"\npackage: pkg\n';
@@ -63,5 +63,71 @@ describe("toGateConfig: the validated web-tops.yaml as the runner sees it", () =
       `${HEAD}class: ts-library\nlayers:\n  custom:\n    - { id: budgets, tier: 2, command: "bun run budgets" }\n`,
     );
     expect(config.custom).toEqual([{ id: "budgets", tier: 2, command: "bun run budgets" }]);
+  });
+
+  it("derives the gate 1 steps from the class profile and the config switches", () => {
+    const config = adapt(
+      `${HEAD}class: ui-components\ngates:\n  hygiene:\n    audit: { enabled: false, reason: "offline lab", fail_on: critical }\n    eslint: { config: lint.config.js }\n    format: { tool: biome }\n`,
+    );
+    expect(config.hygiene).toEqual({
+      steps: {
+        astro_check: {
+          enabled: false,
+          reason: "class ui-components maps astro_check only when package.json lists astro",
+        },
+        audit: { enabled: false, reason: "offline lab" },
+      },
+      eslintConfig: "lint.config.js",
+      formatTool: "biome",
+      auditFailOn: "critical",
+    });
+  });
+
+  it("maps package_exports from the layers table, and defaults the audit level to high", () => {
+    const library = adapt(`${HEAD}class: ts-library\n`).hygiene;
+    expect(Object.keys(library.steps).toSorted()).toEqual(["astro_check", "stylelint"]);
+    expect(library.auditFailOn).toBe("high");
+    const service = adapt(`${HEAD}class: node-service\n`).hygiene;
+    expect(service.steps.package_exports).toEqual({
+      enabled: false,
+      reason: "class node-service does not map package_exports",
+    });
+    const off = adapt(
+      `${HEAD}class: ts-library\nlayers:\n  package_exports: { enabled: false, reason: "private package" }\n`,
+    ).hygiene;
+    expect(off.steps.package_exports).toEqual({ enabled: false, reason: "private package" });
+  });
+
+  it.each([
+    ["astro-site", false, false],
+    ["astro-site", true, false],
+    ["web-app", false, true],
+    ["web-app", true, false],
+    ["ui-components", false, true],
+    ["ui-components", true, false],
+  ] as const)(
+    "%s with astro in package.json %s: astro_check is switched off %s",
+    (className, dependsOnAstro, switchedOff) => {
+      const config = adapt(`${HEAD}class: ${className}\n`, dependsOnAstro);
+      expect(config.hygiene.steps.astro_check).toEqual(
+        switchedOff
+          ? {
+              enabled: false,
+              reason: `class ${className} maps astro_check only when package.json lists astro`,
+            }
+          : undefined,
+      );
+    },
+  );
+
+  it("never maps astro_check for a class outside the Astro table, whatever package.json lists", () => {
+    expect(adapt(`${HEAD}class: node-service\n`, true).hygiene.steps.astro_check).toEqual({
+      enabled: false,
+      reason: "class node-service does not map astro_check",
+    });
+    expect(adapt(`${HEAD}class: ts-library\n`, true).hygiene.steps.astro_check).toEqual({
+      enabled: false,
+      reason: "class ts-library does not map astro_check",
+    });
   });
 });
