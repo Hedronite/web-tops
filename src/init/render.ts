@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { stringify } from "yaml";
 import { PROTOCOL } from "../config/protocol.ts";
-import { TOOL_PINS } from "../lock/pins.ts";
+import { NODE_CI, TOOL_PINS } from "../lock/pins.ts";
 import type { EslintVariant, DropIn } from "./profile.ts";
 
 export const TEMPLATES_DIR = resolve(import.meta.dirname, "../../config/templates");
@@ -62,19 +62,69 @@ export function workflow(profile: DropIn): string {
   const step = profile.playwright
     ? "      - run: bunx playwright install --with-deps chromium"
     : "";
-  return fill(readTemplate("workflow.yml.template"), { PLAYWRIGHT_STEP: step });
+  return fill(readTemplate("workflow.yml.template"), {
+    PLAYWRIGHT_STEP: step,
+    NODE_VERSION: NODE_CI,
+  });
 }
 
-export function agentsSection(profile: DropIn, subject: Subject): string {
+const enabled = (profile: DropIn, layer: string): boolean => profile.disabled[layer] === undefined;
+
+/** A line of the Floors list, kept only while the layer that measures it is enabled. */
+function floorLine(profile: DropIn, layer: string, text: string): string {
+  return enabled(profile, layer) ? text : "";
+}
+
+/** What the gate runs, in the order section 3 lists it, for the layers the written config enables. */
+const VERIFIED: readonly (readonly [string, string])[] = [
+  ["crap", "CRAP"],
+  ["mutation", "mutation on the diff"],
+  ["package_exports", "package export checks"],
+  ["size_limit", "size limits"],
+  ["html_validate", "HTML validation"],
+  ["axe", "accessibility checks"],
+  ["rendered", "rendered checks"],
+  ["themes", "theme checks"],
+  ["laws", "the laws"],
+];
+
+function joinList(items: readonly string[]): string {
+  const last = items.at(-1) ?? "";
+  return items.length < 2 ? last : `${items.slice(0, -1).join(", ")}, and ${last}`;
+}
+
+function verifies(profile: DropIn, astroCheck: AstroCheck): string {
+  const hygiene = astroCheck.mapped
+    ? ["type checks", "astro check", "lint"]
+    : ["type checks", "lint"];
+  const layers = VERIFIED.filter(([layer]) => enabled(profile, layer)).map(([, name]) => name);
+  return joinList([...hygiene, "tests with coverage", ...layers]);
+}
+
+/** The AGENTS.md section: it names only the commands this kit has and the layers the config enables. */
+export function agentsSection(profile: DropIn, subject: Subject, astroCheck: AstroCheck): string {
   return fill(readFileSync(AGENTS_TEMPLATE, "utf8"), {
     CLASS: profile.class,
     PACKAGE: subject.name,
     PROTOCOL: PROTOCOL,
     ENFORCE: "hard",
     COVERAGE_FLOOR: String(profile.coverage_floor),
-    CRAP_CAP: String(profile.crap_cap),
-    SURVIVORS_MAX: String(profile.survivors_max),
-    JS_BUDGET: profile.js_budget,
+    CRAP_LINE: floorLine(
+      profile,
+      "crap",
+      `- CRAP cap ≤ \`${String(profile.crap_cap)}\`, the same for every author. \`??\` and \`?.\` count 0 toward complexity`,
+    ),
+    SURVIVORS_LINE: floorLine(
+      profile,
+      "mutation",
+      `- Unexplained mutation survivors ≤ \`${String(profile.survivors_max)}\`, on lines changed against \`origin/main\``,
+    ),
+    BUDGET_LINE: floorLine(
+      profile,
+      "rendered",
+      `- JS per page or route ≤ \`${profile.js_budget}\` (brotli, from the build output), where the class ships pages`,
+    ),
+    VERIFIES: verifies(profile, astroCheck),
   });
 }
 

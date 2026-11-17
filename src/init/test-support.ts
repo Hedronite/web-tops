@@ -34,15 +34,18 @@ export function put(dir: string, relative: string, text: string): void {
 }
 
 /** Every file under dir as relative path to contents, sorted by path. */
-export function snapshot(dir: string, sub = ""): ReadonlyMap<string, string> {
-  const out = new Map<string, string>();
+export function snapshot(dir: string): ReadonlyMap<string, string> {
+  const out = [...filesUnder(dir, "")].map((path): [string, string] => [
+    path,
+    readFileSync(join(dir, path), "utf8"),
+  ]);
+  return new Map(out.sort(([a], [b]) => a.localeCompare(b)));
+}
+
+function* filesUnder(dir: string, sub: string): Generator<string> {
   for (const entry of readdirSync(join(dir, sub), { withFileTypes: true })) {
     const relative = sub === "" ? entry.name : `${sub}/${entry.name}`;
-    if (entry.isDirectory()) {
-      for (const [path, text] of snapshot(dir, relative)) out.set(path, text);
-    } else {
-      out.set(relative, readFileSync(join(dir, relative), "utf8"));
-    }
+    if (entry.isDirectory()) yield* filesUnder(dir, relative);
+    else yield relative;
   }
-  return new Map([...out].sort(([a], [b]) => a.localeCompare(b)));
 }

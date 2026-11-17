@@ -13,17 +13,15 @@ This section is the contract between this repository and any AI coding agents (o
 ```bash
 bunx webtops check          # validate config
 bunx webtops gate           # the merge gate (tier ≤ 1): the definition of done
-bunx webtops laws run       # laws only
 bunx webtops report --format text
 ```
 
 ## Floors (this class)
 
 - Line coverage ≥ `{COVERAGE_FLOOR}%`
-- CRAP cap ≤ `{CRAP_CAP}`, the same for every author. `??` and `?.` count 0 toward complexity
-- Unexplained mutation survivors ≤ `{SURVIVORS_MAX}`, on lines changed against `origin/main`
-- JS per page or route ≤ `{JS_BUDGET}` (brotli, from the build output), where the class ships pages
-- Under `ratchet`: new functions meet the cap, and nothing gets worse than `.web-tops/baseline.json` (function scores, coverage, per-file finding counts, page bytes, suppressions)
+{CRAP_LINE}
+{SURVIVORS_LINE}
+{BUDGET_LINE}
 - Other layers: see `web-tops.yaml`
 
 ## Policies (non-negotiable)
@@ -88,7 +86,7 @@ bunx webtops report --format text
 bunx webtops gate
 ```
 
-It runs type checks, lint, tests with coverage, CRAP, mutation on the diff, the build-output checks, and the laws. Running `tsc` or `eslint` by hand is not done. A green gate is.
+It runs {VERIFIES}. Running `tsc` or `eslint` by hand is not done. A green gate is.
 
 ---
 

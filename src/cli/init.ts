@@ -1,4 +1,5 @@
 import { LAUNCH_CLASSES } from "../init/profile.ts";
+import type { InitOutcome } from "../init/run.ts";
 import { runInit } from "../init/run.ts";
 import type { Io } from "./io.ts";
 
@@ -9,25 +10,51 @@ interface Args {
   readonly force: boolean;
 }
 
-function parseArgs(argv: readonly string[]): Args | string {
-  let className: string | undefined;
-  let force = false;
-  for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i] ?? "";
-    if (arg === "--force") {
-      force = true;
-    } else if (arg.startsWith("--class=")) {
-      className = arg.slice("--class=".length);
-    } else if (arg === "--class") {
-      const next = argv[i + 1];
-      if (next === undefined || next.startsWith("--")) return "--class needs a value";
-      className = next;
-      i += 1;
-    } else {
-      return `unknown option "${arg}"`;
-    }
+/** What one option sets, and how many arguments it used. */
+interface Option extends Args {
+  readonly used: number;
+}
+
+/** `--class` takes the next argument, which must not be another option. */
+function classValue(next: string | undefined): Option | string {
+  if (next === undefined || next.startsWith("--")) return "--class needs a value";
+  return { className: next, force: false, used: 2 };
+}
+
+function readOption(arg: string, next: string | undefined): Option | string {
+  if (arg === "--force") return { className: undefined, force: true, used: 1 };
+  if (arg.startsWith("--class=")) {
+    return { className: arg.slice("--class=".length), force: false, used: 1 };
   }
-  return { className, force };
+  return arg === "--class" ? classValue(next) : `unknown option "${arg}"`;
+}
+
+const merge = (args: Args, option: Option): Args => ({
+  className: option.className ?? args.className,
+  force: option.force || args.force,
+});
+
+function parseArgs(argv: readonly string[]): Args | string {
+  let args: Args = { className: undefined, force: false };
+  let i = 0;
+  while (i < argv.length) {
+    const option = readOption(argv[i] ?? "", argv[i + 1]);
+    if (typeof option === "string") return option;
+    args = merge(args, option);
+    i += option.used;
+  }
+  return args;
+}
+
+/** Prints what the run wrote, or why it did not, and returns its exit code. */
+function report(outcome: InitOutcome, io: Io): number {
+  if (outcome.code !== 0) {
+    for (const problem of outcome.problems) io.err(`webtops init: ${problem}\n`);
+    return outcome.code;
+  }
+  io.out(outcome.written.map((path) => `wrote ${path}\n`).join(""));
+  io.out(`install the pinned tools:\n  bun add -d ${outcome.install.join(" ")}\n`);
+  return 0;
 }
 
 function initCommand(argv: readonly string[], io: Io): number {
@@ -40,15 +67,7 @@ function initCommand(argv: readonly string[], io: Io): number {
     io.err(`${USAGE}classes: ${LAUNCH_CLASSES.join(", ")}\n`);
     return 2;
   }
-  const outcome = runInit({ className: args.className, dir: io.cwd, force: args.force });
-  if (outcome.code !== 0) {
-    for (const problem of outcome.problems) io.err(`webtops init: ${problem}\n`);
-    return outcome.code;
-  }
-  io.out(outcome.written.map((path) => `wrote ${path}\n`).join(""));
-  io.out(`deferred to M2: ${outcome.deferred.join(", ")} (mutation testing)\n`);
-  io.out(`install the pinned tools:\n  bun add -d ${outcome.install.join(" ")}\n`);
-  return 0;
+  return report(runInit({ className: args.className, dir: io.cwd, force: args.force }), io);
 }
 
 /** `webtops init --class <c> [--force]` (WEB_TOPS.md section 4): writes the drop-in set into the working directory. */

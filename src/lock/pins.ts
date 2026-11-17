@@ -34,3 +34,17 @@ export const TOOL_PINS = {
 } as const satisfies Readonly<Record<string, string>>;
 
 export type PinnedTool = keyof typeof TOOL_PINS;
+
+/**
+ * The Node range every class's tools run in (WEB_TOPS.md section 2): where the pinned tools' engine
+ * ranges meet. The lock records it as `node`; `lock --verify` and `doctor` check the running Node
+ * against it.
+ */
+export const NODE_RANGE = "^22.23.4 || ^24.15.0 || >=26";
+
+/**
+ * The one exact Node the generated workflow installs: the latest 24.x LTS in the nodejs.org dist
+ * index on 2026-11-17 (v24.22.3). `actions/setup-node` takes a version, not a range, so the range
+ * above is never handed to it. A test holds it inside `NODE_RANGE`.
+ */
+export const NODE_CI = "24.22.3";

@@ -13,6 +13,9 @@ describe("drop-in profiles agree with the class table", () => {
     expect(files).toEqual(PROFILES.map((profile) => profile.class).sort());
   });
 
+  const unmappedReason = (reason: string | undefined): boolean =>
+    reason?.startsWith("not mapped for class:") ?? false;
+
   describe.each(PROFILES)("$class", (table) => {
     const loaded = loadProfile(table.class);
     if (!loaded.ok) throw new Error(loaded.error);
@@ -26,10 +29,13 @@ describe("drop-in profiles agree with the class table", () => {
 
     it("disables a layer as 'not mapped' exactly when the class table does not map it", () => {
       for (const key of LAYER_KEYS) {
-        const reason = profile.disabled[key];
-        const unmapped = !table.layers.includes(key);
-        expect(reason?.startsWith("not mapped for class:") ?? false, key).toBe(unmapped);
-        if (!unmapped && reason !== undefined) expect(reason, key).toMatch(/^milestone M[234]: /);
+        expect(unmappedReason(profile.disabled[key]), key).toBe(!table.layers.includes(key));
+      }
+    });
+
+    it("gives a layer the class maps but M1 leaves off a milestone reason", () => {
+      for (const key of LAYER_KEYS.filter((layer) => table.layers.includes(layer))) {
+        expect(profile.disabled[key] ?? "milestone M2: none", key).toMatch(/^milestone M[234]: /);
       }
     });
 

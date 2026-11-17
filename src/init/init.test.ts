@@ -6,7 +6,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import pkg from "../../package.json" with { type: "json" };
 import { PROTOCOL } from "../config/protocol.ts";
 import { checkConfigFile } from "../config/validate.ts";
-import { TOOL_PINS } from "../lock/pins.ts";
+import { NODE_CI, NODE_RANGE, TOOL_PINS } from "../lock/pins.ts";
 import { parseLock } from "../lock/format.ts";
 import { runInit } from "./run.ts";
 import { at, madeDirs, put, snapshot, tempDir } from "./test-support.ts";
@@ -179,6 +179,35 @@ const lawRules = (source: string): ReadonlySet<string> =>
     ),
   );
 
+const WORKFLOW = ".github/workflows/web-tops.yml";
+/** The actions/setup-node release the workflow pins, read from its tag on 2026-11-17. */
+const SETUP_NODE = "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1";
+
+const keysOf = (node: unknown): string[] => Object.keys(node ?? {});
+const actionRefs = (text: string): string[] =>
+  [...text.matchAll(/uses:\s*(\S+)/g)].map((m) => m[1] ?? "");
+const runLines = (text: string): string[] =>
+  text.split("\n").filter((line) => /^\s*-?\s*run:/.test(line));
+
+/** The layers whose lines and Verification names the AGENTS section keeps only while the config enables them. */
+const LINE_FOR: Record<string, string> = {
+  crap: "- CRAP cap ≤",
+  mutation: "- Unexplained mutation survivors ≤",
+  rendered: "- JS per page or route ≤",
+};
+const NAME_FOR: Record<string, string> = {
+  crap: "CRAP",
+  mutation: "mutation",
+  package_exports: "package export checks",
+  size_limit: "size limits",
+  html_validate: "HTML validation",
+  axe: "accessibility checks",
+  rendered: "rendered checks",
+  themes: "theme checks",
+  laws: "the laws",
+};
+const verifies = (text: string): string => /It runs (.+?)\. Running/s.exec(text)?.[1] ?? "";
+
 describe.each(CLASSES)("webtops init --class %s", (className) => {
   const { dir, out } = initInto(className, {
     "package.json": JSON.stringify({ name: "@example/subject", version: "1.2.3" }),
@@ -188,7 +217,6 @@ describe.each(CLASSES)("webtops init --class %s", (className) => {
   it("succeeds and writes the section 4 drop-in set, no baseline, no stryker file", () => {
     expect(out.code).toBe(0);
     expect([...snapshot(dir).keys()].filter((p) => p !== "package.json")).toEqual(FILES);
-    expect(out.deferred).toEqual(["stryker.config.json"]);
   });
 
   it("writes the identity, the floors and enforce hard", () => {
@@ -267,8 +295,31 @@ describe.each(CLASSES)("webtops init --class %s", (className) => {
       expect(version, "every protocol version in the section").toBe(PROTOCOL);
     }
     expect(text).toContain(`Line coverage ≥ \`${String(floors.coverage)}%\``);
-    expect(text).toContain(`CRAP cap ≤ \`${String(floors.crap)}\``);
-    expect(text).toContain(`survivors ≤ \`${String(floors.survivors)}\``);
+  });
+
+  it("names only commands this kit has, and no ratchet line under enforce hard", () => {
+    const text = read(dir, "AGENTS.md");
+    expect(text).not.toContain("laws run");
+    expect(text).not.toContain("Under `ratchet`");
+    for (const command of ["check", "gate", "report --format text"]) {
+      expect(text).toContain(`bunx webtops ${command}`);
+    }
+  });
+
+  it("keeps a floor line only while the config enables the layer behind it", () => {
+    const text = read(dir, "AGENTS.md");
+    for (const [layer, phrase] of Object.entries(LINE_FOR)) {
+      expect(text.includes(phrase), layer).toBe(DISABLED[className][layer] === undefined);
+    }
+  });
+
+  it("lists in the Verification line the layers the written config enables, and no other", () => {
+    const sentence = verifies(read(dir, "AGENTS.md"));
+    for (const [layer, name] of Object.entries(NAME_FOR)) {
+      expect(sentence.includes(name), layer).toBe(DISABLED[className][layer] === undefined);
+    }
+    expect(sentence).toContain("tests with coverage");
+    expect(sentence.includes("astro check")).toBe(className === "astro-site");
   });
 
   it("carries every W-04 flag in tsconfig.strict.json", () => {
@@ -313,31 +364,56 @@ describe.each(CLASSES)("webtops init --class %s", (className) => {
     const lock = parseLock(read(dir, "web-tops.lock"));
     expect(lock.ok).toBe(true);
     if (!lock.ok) return;
-    expect(Object.keys(lock.lock).sort()).toEqual([...TOOLS[className]].sort());
-    for (const [tool, version] of Object.entries(lock.lock)) {
+    expect(Object.keys(lock.lock).sort()).toEqual([...TOOLS[className], "node"].sort());
+    expect(lock.lock["node"]).toBe(NODE_RANGE);
+    for (const [tool, version] of Object.entries(lock.lock).filter(([tool]) => tool !== "node")) {
       expect(version, tool).toBe(tool === "webtops" ? pkg.version : Reflect.get(TOOL_PINS, tool));
     }
   });
 
-  it("writes the section 11 workflow: one gate job, pinned actions, minimal permissions", () => {
-    const workflow: unknown = parse(read(dir, ".github/workflows/web-tops.yml"));
+  it("leaves node out of the install line, because bun does not install it", () => {
+    expect(out.install.some((entry) => entry.startsWith("node@"))).toBe(false);
+  });
+
+  it("writes the section 11 workflow: the gate job alone, minimal permissions, no schedule or release", () => {
+    const text = read(dir, WORKFLOW);
+    const workflow: unknown = parse(text);
     expect(at(workflow, "permissions")).toEqual({ contents: "read" });
-    const jobs = at(workflow, "jobs");
-    expect(Object.keys(typeof jobs === "object" && jobs !== null ? jobs : {})).toEqual([
-      "gate",
-      "nightly",
-      "release-verify",
-    ]);
-    const text = read(dir, ".github/workflows/web-tops.yml");
-    for (const [, ref] of text.matchAll(/uses:\s*(\S+)/g)) {
-      expect(ref, "an action ref").toMatch(/^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/);
-    }
-    expect(text.match(/fetch-depth: 0/g)?.length).toBe(3);
+    expect(keysOf(at(workflow, "jobs"))).toEqual(["gate"]);
+    expect(keysOf(at(workflow, "on"))).toEqual(["push", "pull_request"]);
+    expect(text).not.toMatch(/nightly|release-verify|law-diff|max-tier [23]/);
+    expect(text.match(/fetch-depth: 0/g)?.length).toBe(1);
     expect(text).toContain("bunx webtops gate --max-tier 1");
-    expect(text).toContain("bunx webtops gate --max-tier 2");
-    expect(text).toContain("bunx webtops gate --max-tier 3");
+  });
+
+  it("pins every action by SHA, and sets up Node before Bun installs", () => {
+    const text = read(dir, WORKFLOW);
+    expect(actionRefs(text).map((ref) => ref.split("@")[0])).toEqual([
+      "actions/checkout",
+      "actions/setup-node",
+      "oven-sh/setup-bun",
+    ]);
+    expect(actionRefs(text)).toContain(SETUP_NODE);
+    for (const ref of actionRefs(text)) expect(ref).toMatch(/^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/);
+    expect(text.indexOf("setup-node")).toBeLessThan(text.indexOf("setup-bun"));
+    expect(text.indexOf("setup-bun")).toBeLessThan(text.indexOf("bun install --frozen-lockfile"));
+  });
+
+  it("gives setup-node the one exact Node from pins.ts, never the range", () => {
+    const text = read(dir, WORKFLOW);
+    expect(text).toContain(`node-version: "${NODE_CI}"`);
+    expect(text).not.toContain("||");
+    const steps: unknown = at(parse(text), "jobs", "gate", "steps");
+    const nodeStep: unknown = Array.isArray(steps)
+      ? steps.find((step) => at(step, "with", "node-version") !== undefined)
+      : undefined;
+    expect(at(nodeStep, "with", "node-version")).toBe(NODE_CI);
+  });
+
+  it("runs the gate through webtops alone, with Playwright browsers only where the class needs them", () => {
+    const text = read(dir, WORKFLOW);
     expect(text).toContain("bun install --frozen-lockfile");
-    for (const line of text.split("\n").filter((l) => /^\s*-?\s*run:/.test(l))) {
+    for (const line of runLines(text)) {
       expect(line, "a run step beside the gate").not.toMatch(
         /\b(eslint|tsc|vitest|stylelint|prettier|depcruise|publint|attw)\b/,
       );
@@ -633,7 +709,7 @@ describe("webtops init, AGENTS.md blocks that already exist", () => {
 });
 
 describe("the AGENTS template init renders", () => {
-  it("keeps its markers and its eight placeholders, the protocol among them", () => {
+  it("keeps its markers and its placeholders, the protocol among them", () => {
     const text = readFileSync(join(root, "config/AGENTS.md.tmpl"), "utf8");
     expect(text.match(/<!-- web-tops:begin -->/g)?.length).toBe(1);
     expect(text.match(/<!-- web-tops:end -->/g)?.length).toBe(1);
@@ -643,9 +719,10 @@ describe("the AGENTS template init renders", () => {
       "PACKAGE",
       "ENFORCE",
       "COVERAGE_FLOOR",
-      "CRAP_CAP",
-      "SURVIVORS_MAX",
-      "JS_BUDGET",
+      "CRAP_LINE",
+      "SURVIVORS_LINE",
+      "BUDGET_LINE",
+      "VERIFIES",
     ]) {
       expect(text, name).toContain(`{${name}}`);
     }

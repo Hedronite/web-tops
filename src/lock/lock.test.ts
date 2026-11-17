@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import pkg from "../../package.json" with { type: "json" };
 import { parseLock, serializeLock } from "./format.ts";
-import { TOOL_PINS } from "./pins.ts";
+import { NODE_RANGE, TOOL_PINS } from "./pins.ts";
 
 const fixture = (name: string): string =>
   readFileSync(resolve(import.meta.dirname, "../../fixtures/lock", name), "utf8");
@@ -35,6 +35,23 @@ describe("web-tops.lock format", () => {
     expect(parseLock("typescript: 6.0\n").ok).toBe(false);
   });
 
+  it("reads node as a range, the one entry that is not an exact version", () => {
+    expect(parseLock('node: "^22.23.4 || ^24.15.0 || >=26"\nwebtops: "0.0.0"\n')).toEqual({
+      ok: true,
+      lock: { node: "^22.23.4 || ^24.15.0 || >=26", webtops: "0.0.0" },
+    });
+  });
+
+  it.each(["24.15.0", "latest", "~24.15.0", "^24", ""])("rejects the node value %j", (value) => {
+    const result = parseLock(`node: "${value}"\n`);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("node");
+  });
+
+  it("still holds every other tool to an exact version when node is present", () => {
+    expect(parseLock('node: ">=26"\ntypescript: "^6.0.3"\n').ok).toBe(false);
+  });
+
   it("rejects text that is not YAML", () => {
     expect(parseLock("a: [unclosed\n").ok).toBe(false);
   });
@@ -49,6 +66,11 @@ describe("web-tops.lock format", () => {
       .filter((line) => line !== "" && !line.startsWith("#"))
       .map((line) => line.split(":")[0]?.replaceAll('"', ""));
     expect(keys).toEqual(["@eslint/js", "typescript", "webtops"]);
+  });
+
+  it("round-trips the node range", () => {
+    const lock = { node: NODE_RANGE, typescript: "6.0.3", webtops: "0.0.0" };
+    expect(parseLock(serializeLock(lock))).toEqual({ ok: true, lock });
   });
 
   it("round-trips through parse", () => {

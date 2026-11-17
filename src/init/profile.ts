@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import Ajv from "ajv";
 import { parse } from "yaml";
-import { PROFILES } from "../config/profiles.ts";
+import type { Profile } from "../config/profiles.ts";
+import { PROFILES, profileFor } from "../config/profiles.ts";
 
 /** The classes that have a launch profile: the rows of the one class table (src/config/profiles.ts). */
 export const LAUNCH_CLASSES: readonly string[] = PROFILES.map((profile) => profile.class);
@@ -56,22 +57,25 @@ const validate = new Ajv().compile<DropIn>(schema);
 export const PROFILES_DIR = resolve(import.meta.dirname, "../../profiles");
 
 export type ProfileLoad =
-  { readonly ok: true; readonly profile: DropIn } | { readonly ok: false; readonly error: string };
+  | { readonly ok: true; readonly profile: DropIn; readonly table: Profile }
+  | { readonly ok: false; readonly error: string };
 
-/** Loads `profiles/<className>.yaml`; only a launch class has one. */
-export function loadProfile(className: string): ProfileLoad {
-  if (!LAUNCH_CLASSES.includes(className)) {
-    return { ok: false, error: `no launch profile for class "${className}"` };
-  }
-  let doc: unknown;
+type Read =
+  { readonly ok: true; readonly doc: unknown } | { readonly ok: false; readonly error: string };
+
+function readProfileFile(className: string): Read {
   try {
-    doc = parse(readFileSync(resolve(PROFILES_DIR, `${className}.yaml`), "utf8"));
-  } catch (error) {
     return {
-      ok: false,
-      error: `profiles/${className}.yaml is unreadable: ${error instanceof Error ? error.message : "?"}`,
+      ok: true,
+      doc: parse(readFileSync(resolve(PROFILES_DIR, `${className}.yaml`), "utf8")),
     };
+  } catch (error) {
+    const why = error instanceof Error ? error.message : "?";
+    return { ok: false, error: `profiles/${className}.yaml is unreadable: ${why}` };
   }
+}
+
+function checkProfile(className: string, table: Profile, doc: unknown): ProfileLoad {
   if (!validate(doc)) {
     return {
       ok: false,
@@ -81,5 +85,18 @@ export function loadProfile(className: string): ProfileLoad {
   if (doc.class !== className) {
     return { ok: false, error: `profiles/${className}.yaml declares class "${doc.class}"` };
   }
-  return { ok: true, profile: doc };
+  return { ok: true, profile: doc, table };
+}
+
+const noProfile = (className: string | undefined): string =>
+  className === undefined || className === ""
+    ? "no class given"
+    : `no launch profile for class "${className}"`;
+
+/** Loads `profiles/<className>.yaml` with the class's row of the one class table; only a launch class has both. */
+export function loadProfile(className: string | undefined): ProfileLoad {
+  const table = profileFor(className ?? "");
+  if (table === undefined) return { ok: false, error: noProfile(className) };
+  const read = readProfileFile(table.class);
+  return read.ok ? checkProfile(table.class, table, read.doc) : read;
 }

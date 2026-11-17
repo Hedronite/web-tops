@@ -34,8 +34,8 @@ describe("webtops init (command)", () => {
     expect(code).toBe(0);
     expect(err).toBe("");
     for (const path of snapshot(dir).keys()) expect(out).toContain(path);
-    expect(out).toContain("stryker.config.json");
-    expect(out).toContain("M2");
+    expect(out).not.toContain("stryker");
+    expect(out).not.toContain("deferred");
   });
 
   it("accepts --class=<name>", async () => {
