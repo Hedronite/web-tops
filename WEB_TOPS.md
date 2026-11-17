@@ -75,7 +75,7 @@ Schema (`schema/web-tops.schema.json` plus a gate-report schema), and per-class 
 | Item | Value |
 |---|---|
 | Protocol version | **0.3.0** (draft, proposed) |
-| Package version | 0.1.0 (private; a GitHub release, not published to npm) |
+| Package version | 0.2.0 (private; a GitHub release, not published to npm) |
 | TypeScript | **6.0.x** pinned (6.0.3 current); the gate runs the pin, and `erasableSyntaxOnly` needs 5.8 or later. See below |
 | Runtime | Bun ≥ 1.4 installs and runs `webtops`; Node `^22.23.4 \|\| ^24.15.0 \|\| >=26` runs the tools, in every class (where the pinned tools' engine ranges meet). The range is recorded in `web-tops.lock` (§10) and in `engines` of the kit's `package.json`, beside Bun |
 | Tool lock | `web-tops.lock`; dependency lock `bun.lock`, installed with `--frozen-lockfile` |

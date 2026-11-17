@@ -4,9 +4,9 @@ All notable changes to this project are listed here. The protocol version and th
 
 ## [Unreleased]
 
-## [0.3.0] - unreleased
+## [0.2.0] - 2026-11-17
 
-Protocol 0.3.0, the truth pass: the text, the schemas and the fixtures agree, and the kit gates itself on them.
+The `webtops` CLI in this release implements protocol 0.3.0. The verdicts, the report schema, the lint stack and the configuration changed since 0.1.0, which implemented protocol 0.2.1. Protocol 0.3.0 is the truth pass: the text, the schemas and the fixtures agree, and the kit gates itself on them.
 
 - Protocol id checked by the supported range: `check` accepts 0.3.x and exits 2 at `/protocol` outside it. `probes/**` and `fixtures/probe/**` are reserved in every tool scope. (G0)
 - Protocol 0.3.0 has one verdict set in `schema/core.schema.json`. The report, runner and printer use it. Laws run at tier 1 and judge a stopped run. (G1)

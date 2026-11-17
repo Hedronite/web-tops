@@ -11,7 +11,7 @@ The protocol text is [`WEB_TOPS.md`](WEB_TOPS.md). This file is the harness for 
 
 Milestone M1: the `webtops` CLI exists and gates this repo on itself. It runs from source on Bun, not from npm: `bun src/cli/main.ts <command>` for `check`, `gate`, `init`, `report`, `lock`, `doctor` and `version`. CI is the one `gate` job (`.github/workflows/web-tops.yml`). [`web-tops.yaml`](web-tops.yaml) sets class `ts-library` under `enforce: hard`, with CRAP, mutation, build output and laws off until M2, M3 and M4.
 
-This tree implements protocol 0.3.0 (the 0.1.0 release implements 0.2.1). The M2 engines (native CRAP, mutation, baseline and ratchet) are not built yet.
+Version 0.2.0 implements protocol 0.3.0 (the 0.1.0 release implements 0.2.1). The M2 engines (native CRAP, mutation, baseline and ratchet) are not built yet.
 
 Before you finish, from a clean tree: `bun install --frozen-lockfile`, `bun run format:check`, `bun run typecheck`, `bun run lint`, `bun run test`, then `bun src/cli/main.ts gate`. Do not document, run or claim a command that has not landed: `baseline` and `survivors` are M2, `laws` is M3.
 
