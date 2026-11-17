@@ -92,7 +92,7 @@ describe("G2c cli: --dry-run under CI=true exits 4; every §12 exit code", () =>
   });
 
   it("exits 1 when a layer fails", async () => {
-    const h = harness({ layers: () => fakeBuiltins([], { tests: "Refuse" }) });
+    const h = harness({ layers: () => fakeBuiltins([], { tests: "fail" }) });
     expect(await h.go([])).toBe(1);
     expect(h.io.stdout()).toContain("gate failed");
   });
@@ -166,7 +166,7 @@ describe("G2c cli: --dry-run under CI=true exits 4; every §12 exit code", () =>
   );
 
   it("--json prints the report and nothing else on stdout, and the exit code does not change", async () => {
-    const h = harness({ layers: () => fakeBuiltins([], { tests: "Refuse" }) });
+    const h = harness({ layers: () => fakeBuiltins([], { tests: "fail" }) });
     expect(await h.go(["--json"])).toBe(1);
     const parsed = parseReport(h.io.stdout());
     expect(parsed.exit_code).toBe(1);
@@ -175,7 +175,7 @@ describe("G2c cli: --dry-run under CI=true exits 4; every §12 exit code", () =>
 
   it("runs only the --only layer and keeps going under --keep-going", async () => {
     const calls: string[] = [];
-    const h = harness({ layers: () => fakeBuiltins(calls, { hygiene: "Refuse" }) });
+    const h = harness({ layers: () => fakeBuiltins(calls, { hygiene: "fail" }) });
     expect(await h.go(["--keep-going"])).toBe(1);
     expect(calls).toHaveLength(7);
     calls.length = 0;

@@ -10,7 +10,7 @@ afterAll(() => {
   for (const dir of madeDirs()) rmSync(dir, { recursive: true, force: true });
 });
 
-const sample = () => buildReport({ tests: "Refuse", coverage: "not-evaluated", crap: "skip" });
+const sample = () => buildReport({ tests: "fail", coverage: "not-evaluated", crap: "skip" });
 
 async function cli(argv: readonly string[], cwd: string) {
   let out = "";

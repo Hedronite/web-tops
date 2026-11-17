@@ -227,9 +227,9 @@ describe("G3a hygiene: each tool runs once per gate; ESLint JSON kept on disk", 
       depcruise: () => ({ code: 1, stdout: recorded("depcruise-circular.json"), stderr: "" }),
     });
     const result = await runHygiene(item, fake.exec);
-    expect(result.verdict).toBe("Refuse");
+    expect(result.verdict).toBe("fail");
     const byRule = new Map(result.findings.toReversed().map((finding) => [finding.rule, finding]));
-    expect(byRule.get("TS2322")).toMatchObject({ file: "src/z.ts", line: 1, verdict: "Refuse" });
+    expect(byRule.get("TS2322")).toMatchObject({ file: "src/z.ts", line: 1, verdict: "fail" });
     expect(byRule.get("@typescript-eslint/no-explicit-any")).toMatchObject({
       file: "src/a.ts",
       line: 4,
@@ -253,7 +253,7 @@ describe("G3a hygiene: each tool runs once per gate; ESLint JSON kept on disk", 
     const advisories = high.findings.filter((finding) => finding.rule.startsWith("GHSA-"));
     expect(advisories.length).toBeGreaterThanOrEqual(3);
     expect(advisories[0]?.message).toContain("lodash:");
-    expect(high.verdict).toBe("Refuse");
+    expect(high.verdict).toBe("fail");
     const critical = await runHygiene(item, fakeExec(item.project.dir, vulnerable).exec, {
       settings: { auditFailOn: "critical" },
     });
@@ -272,13 +272,13 @@ describe("G3a hygiene: each tool runs once per gate; ESLint JSON kept on disk", 
     });
     const result = await runHygiene(item, fake.exec);
     expect(sequence(fake)).toEqual(["bun install"]);
-    expect(result.findings[0]).toMatchObject({ rule: "install-failed", verdict: "Refuse" });
+    expect(result.findings[0]).toMatchObject({ rule: "install-failed", verdict: "fail" });
     expect(
       result.findings
         .filter((finding) => finding.verdict === "not-run")
         .map((finding) => finding.message),
     ).toEqual(Array(6).fill("stopped: install failed"));
-    expect(result.verdict).toBe("Refuse");
+    expect(result.verdict).toBe("fail");
   });
 });
 

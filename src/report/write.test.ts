@@ -25,7 +25,7 @@ afterEach(() => {
 });
 
 async function sample(
-  verdicts: Record<string, "pass" | "Refuse" | "not-evaluated"> = {},
+  verdicts: Record<string, "pass" | "fail" | "not-evaluated"> = {},
 ): Promise<Report> {
   return runGate({
     layers: fakeBuiltins([], verdicts),
@@ -81,7 +81,7 @@ describe("G2d report: written to report.path, valid against the schema, text pri
     const project = tempProject();
     projects.push(project);
     const path = join(project.dir, "nested", "deeper", "report.json");
-    const report = await sample({ tests: "Refuse" });
+    const report = await sample({ tests: "fail" });
     writeReport(path, report);
     expect(existsSync(path)).toBe(true);
     const text = readFileSync(path, "utf8");
@@ -102,7 +102,7 @@ describe("G2d report: written to report.path, valid against the schema, text pri
 
   it("prints text with each layer, its verdict, its reason and its findings, and the counts", async () => {
     const report = await runGate({
-      layers: fakeBuiltins([], { tests: "Refuse" }),
+      layers: fakeBuiltins([], { tests: "fail" }),
       config: cfg(),
       options: opts(),
       cwd: "/unused",
@@ -114,9 +114,9 @@ describe("G2d report: written to report.path, valid against the schema, text pri
     const text = formatText(report);
     expect(text).toContain("webtops gate  ts-library  hard  protocol 0.3.0");
     expect(text).toMatch(/hygiene\s+tier 1\s+pass/);
-    expect(text).toMatch(/tests\s+tier 1\s+Refuse\s+fake Refuse/);
+    expect(text).toMatch(/tests\s+tier 1\s+fail\s+fake fail/);
     expect(text).toMatch(/coverage\s+tier 1\s+not-run\s+stopped: gate 2 failed/);
-    expect(text).toContain("layers: 7 in range, 2 ran, 6 failed, 0 not-evaluated");
+    expect(text).toContain("layers: 7 in range, 3 ran, 5 failed, 0 not-evaluated");
     expect(text).toContain("gate failed (exit 1)");
   });
 
@@ -130,12 +130,12 @@ describe("G2d report: written to report.path, valid against the schema, text pri
           id: "hygiene",
           gate: 1,
           tier: 1,
-          verdict: "Refuse",
+          verdict: "fail",
           reason: "1 finding",
           findings: [
             {
               rule: "output-empty",
-              verdict: "Refuse",
+              verdict: "fail",
               message: "eslint wrote nothing",
               file: ".web-tops/out/eslint.json",
               line: 3,
@@ -149,7 +149,7 @@ describe("G2d report: written to report.path, valid against the schema, text pri
     };
     const text = formatText(report);
     expect(text).toContain(
-      "- [Refuse] output-empty: eslint wrote nothing (.web-tops/out/eslint.json:3)",
+      "- [fail] output-empty: eslint wrote nothing (.web-tops/out/eslint.json:3)",
     );
     expect(text).toContain("problem: ran 1 of 2 layers in range (/counts/ran)");
     expect(text).toContain("not enforced (advisory)");

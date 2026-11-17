@@ -84,6 +84,7 @@ describe("G0a: pins exactly as WEB_TOPS.md section 2", () => {
       get(dot, "default"),
       get(pkg.exports, "./schema/web-tops.schema.json"),
       get(pkg.exports, "./schema/gate-report.schema.json"),
+      get(pkg.exports, "./schema/core.schema.json"),
       get(pkg.exports, "./package.json"),
       pkg.bin.webtops,
     ]) {

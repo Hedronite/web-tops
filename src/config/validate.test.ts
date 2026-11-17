@@ -3,7 +3,7 @@ import configSchema from "../../schema/web-tops.schema.json" with { type: "json"
 import reportSchema from "../../schema/gate-report.schema.json" with { type: "json" };
 import { CLASSES, LAYER_KEYS, STEP_KEYS } from "./profiles.ts";
 import { PROTOCOL_PATTERN } from "./protocol.ts";
-import { LAYER_IDS, VERDICTS } from "./report.ts";
+import { LAYER_IDS } from "./report.ts";
 import {
   at,
   containing,
@@ -203,9 +203,11 @@ describe("parse and validate edge cases", () => {
 });
 
 describe("G1b reader tables match the schema", () => {
-  it("lists the built-in layers and the verdicts of section 3.3", () => {
+  it("lists the built-in layers and takes the verdicts of section 3.3 from the core schema", () => {
     const layer = get(get(reportSchema, "$defs"), "layer");
-    expect(get(get(get(layer, "properties"), "verdict"), "enum")).toEqual([...VERDICTS]);
+    expect(get(get(get(layer, "properties"), "verdict"), "$ref")).toBe(
+      "core.schema.json#/$defs/verdict",
+    );
     const contains = get(reportSchema, "properties");
     expect(JSON.stringify(get(get(contains, "layers"), "allOf"))).toBe(
       JSON.stringify(

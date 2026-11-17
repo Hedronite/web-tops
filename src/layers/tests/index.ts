@@ -15,7 +15,7 @@ import {
   printed,
   readOutput,
   records,
-  refuse,
+  failFinding,
   relativeTo,
   runTool,
   str,
@@ -108,8 +108,8 @@ function assertion(messages: string): string {
 /** A test `.only` makes Vitest fail it under `--allowOnly=false`; that failure is a focused test, not a bug in it. */
 function failedFinding(name: string, title: string, messages: readonly string[]): Finding {
   return messages.some((message) => FOCUSED.test(message))
-    ? refuse("focused-test", `${title}: a focused test (.only) is committed`, { file: name })
-    : refuse("test-failed", `${title}: ${assertion(messages.join("\n"))}`, { file: name });
+    ? failFinding("focused-test", `${title}: a focused test (.only) is committed`, { file: name })
+    : failFinding("test-failed", `${title}: ${assertion(messages.join("\n"))}`, { file: name });
 }
 
 /** One failing, skipped or todo test, as a finding. */
@@ -120,9 +120,9 @@ function assertionFinding(name: string, assertion: Record<string, unknown>): Fin
     return [failedFinding(name, title, messagesOf(assertion))];
   }
   if (SKIPPED.has(status)) {
-    return [refuse("skipped-test", `${title} is skipped`, { file: name })];
+    return [failFinding("skipped-test", `${title} is skipped`, { file: name })];
   }
-  return status === "todo" ? [refuse("todo-test", `${title} is a todo`, { file: name })] : [];
+  return status === "todo" ? [failFinding("todo-test", `${title} is a todo`, { file: name })] : [];
 }
 
 /** A file that failed with no failing test did not load; with no message at all it holds a focused suite. */
@@ -135,8 +135,8 @@ function suiteFinding(name: string, file: Record<string, unknown>): Finding[] {
   // Under --allowOnly=false a focused suite (describe.only) fails the file with no message at all and skips its tests.
   return [
     message === ""
-      ? refuse("focused-test", `${name}: a focused suite (.only) is committed`, { file: name })
-      : refuse("suite-failed", `${name} did not load: ${tail(message, 3)}`, { file: name }),
+      ? failFinding("focused-test", `${name}: a focused suite (.only) is committed`, { file: name })
+      : failFinding("suite-failed", `${name} did not load: ${tail(message, 3)}`, { file: name }),
   ];
 }
 
@@ -156,7 +156,7 @@ function zeroTests(report: Record<string, unknown>): Finding[] {
   const total = report["numTotalTests"];
   return total === 0
     ? [
-        refuse(
+        failFinding(
           "zero-tests",
           "no test ran: zero tests is a failure (WEB_TOPS.md section 3.1, gate 2)",
         ),
@@ -197,8 +197,8 @@ function vitestArgs(
 
 function emptyFinding(shown: string, result: ExecResult): Finding {
   return result.code === 0
-    ? refuse("output-empty", `vitest wrote no results to ${shown}`, { file: shown })
-    : refuse(
+    ? failFinding("output-empty", `vitest wrote no results to ${shown}`, { file: shown })
+    : failFinding(
         "vitest-failed",
         `vitest exited ${String(result.code)} before writing results: ${head(printed(result, "stderr"), 6)}`,
       );
@@ -211,7 +211,7 @@ function parseReport(
   const value = parseJson(text);
   if (value === undefined) {
     return {
-      finding: refuse("output-unparseable", `vitest results in ${shown} are not JSON`, {
+      finding: failFinding("output-unparseable", `vitest results in ${shown} are not JSON`, {
         file: shown,
       }),
     };
@@ -219,7 +219,7 @@ function parseReport(
   return isRecord(value)
     ? { report: value }
     : {
-        finding: refuse("output-unparseable", `vitest results in ${shown} are not an object`, {
+        finding: failFinding("output-unparseable", `vitest results in ${shown} are not an object`, {
           file: shown,
         }),
       };
@@ -254,15 +254,15 @@ function withRunFailure(found: readonly Finding[], result: ExecResult): Finding[
   }
   const said = head(printed(result, "stderr"), 6);
   return [
-    refuse(
+    failFinding(
       "vitest-run-failed",
       `vitest exited ${String(result.code)} though no test failed: ${said}`,
     ),
   ];
 }
 
-function refused(finding: Finding, seed?: number): LayerResult {
-  const entry: LayerResult = { verdict: "Refuse", findings: [finding], artifacts: {} };
+function failedResult(finding: Finding, seed?: number): LayerResult {
+  const entry: LayerResult = { verdict: "fail", findings: [finding], artifacts: {} };
   return seed === undefined ? entry : { ...entry, seed };
 }
 
@@ -283,7 +283,7 @@ function finish(
 ): LayerResult {
   const capped = capFindings(findings, "tests");
   return {
-    verdict: capped.some((finding) => finding.verdict === "Refuse") ? "Refuse" : "pass",
+    verdict: capped.some((finding) => finding.verdict === "fail") ? "fail" : "pass",
     findings: capped,
     artifacts: artifactsOf(directory),
     ...(seed === undefined ? {} : { seed }),
@@ -305,11 +305,11 @@ async function run(ctx: LayerContext): Promise<LayerResult> {
   const result = await runTool(ctx, "vitest", vitestArgs(ctx, seed, jsonPath, configPath));
   const launch = launchFailure("vitest", result);
   if (launch !== undefined) {
-    return refused(launch);
+    return failedResult(launch);
   }
   const read = readReport(ctx.cwd, jsonPath, result);
   if ("finding" in read) {
-    return refused(read.finding, seed);
+    return failedResult(read.finding, seed);
   }
   return finish(directory, withRunFailure(judge(read.report, ctx.cwd), result), seed);
 }

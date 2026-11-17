@@ -36,7 +36,8 @@ export function stubLayer(
 export const CRAP_STUB = stubLayer("crap", 4, 1, "M2");
 export const MUTATION_STUB = stubLayer("mutation", 5, 1, "M2");
 export const BUILD_OUTPUT_STUB = stubLayer("build-output", 6, 1, "M4");
-export const LAWS_STUB = stubLayer("laws", "laws", 0, "M3", ["hygiene"]);
+/** Laws run at the tier of the layer they read: hygiene is tier 1 (WEB_TOPS.md section 3.2). */
+export const LAWS_STUB = stubLayer("laws", "laws", 1, "M3", ["hygiene"]);
 
 /** A custom layer (WEB_TOPS.md section 7): unmapped is `not-run`; running one is M4's work. */
 export function customLayer(id: string, tier: Tier, command: string | undefined): Layer {

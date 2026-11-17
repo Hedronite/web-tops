@@ -1,7 +1,9 @@
 import { existsSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import {
-  isFailing,
+  endsRun,
+  hasRun,
+  REQUIRED_UNTIL_PROFILES,
   type Counts,
   type GateRef,
   type Problem,
@@ -62,16 +64,10 @@ function reasonOf(reason: string | undefined, requiredBy: string | undefined): {
   };
 }
 
-/** Verdicts of a layer that judged: only these count as `ran` (WEB_TOPS.md section 3.3). */
-const EVALUATED: ReadonlySet<Verdict> = new Set<Verdict>([
-  "pass",
-  "Refuse",
-  "Ack",
-  "not-evaluated",
-]);
-
-/** Verdicts that count in `failed`; `not-evaluated` is counted apart (section 6.6). */
-const FAILED: ReadonlySet<Verdict> = new Set<Verdict>(["Refuse", "Ack", "not-run"]);
+/** Whether a verdict ends the run: the failure table of WEB_TOPS.md section 3.3, every item required until G3. */
+function ends(verdict: Verdict): boolean {
+  return endsRun(verdict, REQUIRED_UNTIL_PROFILES);
+}
 
 function entry(
   item: PlanItem,
@@ -165,8 +161,8 @@ async function execute(
     const message = describeError(error);
     return {
       artifacts: {},
-      layer: entry(item, "not-evaluated", `layer threw: ${message}`, {
-        findings: [{ rule: "layer-threw", verdict: "not-evaluated", message }],
+      layer: entry(item, "fail", `layer threw: ${message}`, {
+        findings: [{ rule: "layer-threw", verdict: "fail", message }],
         duration_ms: input.now() - started,
       }),
     };
@@ -202,25 +198,37 @@ function inputsOf(layer: Layer, state: RunState): ReadonlyMap<string, string> {
 
 type Admission = { readonly reason: string } | { readonly layer: Layer };
 
+/**
+ * The laws layer reads what the layers before it wrote, so it judges a stopped run too, once every layer it
+ * requires has run (R49, WEB_TOPS.md section 6.5). Every other layer stays stopped.
+ */
+function judgesAfterStop(layer: Layer, state: RunState): boolean {
+  return layer.gate === "laws" && layer.requires.every((id) => hasRun(verdictOf(state, id)));
+}
+
+function stoppedReason(layer: Layer, state: RunState): string | undefined {
+  if (state.stoppedAt === undefined || judgesAfterStop(layer, state)) {
+    return undefined;
+  }
+  return `stopped: gate ${String(state.stoppedAt)} failed`;
+}
+
 /** Whether a layer in range gets to run: it needs a registration, a run that has not stopped, and its inputs. */
 function admit(item: PlanItem, state: RunState): Admission {
   if (item.layer === undefined) {
     return { reason: "no layer is registered for this id" };
   }
-  if (state.stoppedAt !== undefined) {
-    return { reason: `stopped: gate ${String(state.stoppedAt)} failed` };
-  }
-  const missing = missingInput(item.layer, state);
-  return missing === undefined ? { layer: item.layer } : { reason: missing };
+  const reason = stoppedReason(item.layer, state) ?? missingInput(item.layer, state);
+  return reason === undefined ? { layer: item.layer } : { reason };
 }
 
 function record(state: RunState, item: PlanItem, done: Executed, keepGoing: boolean): void {
   state.layers.push(done.layer);
-  if (EVALUATED.has(done.layer.verdict)) {
+  if (hasRun(done.layer.verdict)) {
     state.ran += 1;
   }
   state.produced.set(done.layer.id, done.artifacts);
-  if (isFailing(done.layer.verdict) && !keepGoing) {
+  if (ends(done.layer.verdict) && !keepGoing) {
     state.stoppedAt = item.gate;
   }
 }
@@ -244,7 +252,7 @@ function countsOf(state: RunState): Counts {
   return {
     in_range: state.inRange,
     ran: state.ran,
-    failed: state.layers.filter((layer) => FAILED.has(layer.verdict)).length,
+    failed: state.layers.filter((layer) => ends(layer.verdict)).length,
     not_evaluated: state.layers.filter((layer) => layer.verdict === "not-evaluated").length,
   };
 }
@@ -266,7 +274,7 @@ function problemsOf(state: RunState): Problem[] {
 
 function passedOf(state: RunState, problems: readonly Problem[]): boolean {
   const clean = problems.length === 0 && state.ran === state.inRange;
-  return clean && !state.layers.some((layer) => isFailing(layer.verdict));
+  return clean && !state.layers.some((layer) => ends(layer.verdict));
 }
 
 function exitCodeOf(passed: boolean, enforced: boolean): 0 | 1 {

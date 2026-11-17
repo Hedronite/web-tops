@@ -1,5 +1,7 @@
 import {
+  endsRun,
   LAYER_IDS,
+  REQUIRED_UNTIL_PROFILES,
   type BuiltInLayerId,
   type GateReport,
   type LayerReport,
@@ -27,7 +29,7 @@ export function buildLayer(
   gate: LayerReport["gate"],
   verdict: Verdict = "pass",
 ): LayerReport {
-  const tier: Tier = gate === "laws" ? 0 : 1;
+  const tier: Tier = 1;
   return needsReason(verdict)
     ? { id, gate, tier, verdict, reason: `${verdict} in the test`, findings: [] }
     : { id, gate, tier, verdict, findings: [] };
@@ -46,7 +48,7 @@ function countsOf(layers: readonly LayerReport[]): GateReport["counts"] {
   return {
     in_range: layers.length - among(["skip"]),
     ran: layers.length - among(["skip", "not-run"]),
-    failed: among(["Refuse", "Ack", "not-run"]),
+    failed: layers.filter((layer) => endsRun(layer.verdict, REQUIRED_UNTIL_PROFILES)).length,
     not_evaluated: among(["not-evaluated"]),
   };
 }

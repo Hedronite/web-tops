@@ -98,7 +98,7 @@ describe("G3b hygiene: observed forms on the pins (tsc -b --noEmit, bun audit)",
       steps: ONLY("tsc"),
     });
     expect(result.findings).toContainEqual(
-      expect.objectContaining({ rule: "TS2322", file: "src/index.ts", line: 1, verdict: "Refuse" }),
+      expect.objectContaining({ rule: "TS2322", file: "src/index.ts", line: 1, verdict: "fail" }),
     );
   });
 
@@ -126,11 +126,7 @@ describe("G3b hygiene: observed forms on the pins (tsc -b --noEmit, bun audit)",
         "bun audit": () => ({ code: 1, stdout: "", stderr: "error: nope" }),
       }).exec,
     );
-    expect([clean.verdict, vulnerable.verdict, empty.verdict]).toEqual([
-      "pass",
-      "Refuse",
-      "Refuse",
-    ]);
+    expect([clean.verdict, vulnerable.verdict, empty.verdict]).toEqual(["pass", "fail", "fail"]);
     expect(failures(empty)).toEqual(["output-empty"]);
   });
 
@@ -198,7 +194,7 @@ describe("R18: attw runs with --profile esm-only only for an ESM-only package", 
     expect(result.findings.map((finding) => finding.rule)).toEqual(
       expect.arrayContaining(["attw:NoResolution", "attw:CJSResolvesToESM"]),
     );
-    expect(result.verdict).toBe("Refuse");
+    expect(result.verdict).toBe("fail");
     expect(result.findings).toContainEqual(
       expect.objectContaining({
         rule: "attw-profile",
@@ -224,7 +220,7 @@ describe("R18: attw runs with --profile esm-only only for an ESM-only package", 
     );
     expect(result.findings).toContainEqual(expect.objectContaining({ rule: "attw:NoResolution" }));
     expect(result.findings.filter((finding) => finding.rule === "publint")).toHaveLength(2);
-    expect(result.verdict).toBe("Refuse");
+    expect(result.verdict).toBe("fail");
   });
 
   it("does not fail on publint suggestions or warnings, only on its Errors list", async () => {

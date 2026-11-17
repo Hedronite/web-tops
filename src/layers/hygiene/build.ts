@@ -3,7 +3,7 @@ import {
   capFindings,
   exitFinding,
   ran,
-  refuse,
+  failFinding,
   type StepContext,
   type StepResult,
 } from "./tooling.ts";
@@ -63,7 +63,7 @@ function tscFinding(text: string): Finding | undefined {
   if (match === null) {
     return undefined;
   }
-  return refuse(group(match, 3), group(match, 4), {
+  return failFinding(group(match, 3), group(match, 4), {
     file: group(match, 1),
     line: Number.parseInt(group(match, 2), 10),
   });

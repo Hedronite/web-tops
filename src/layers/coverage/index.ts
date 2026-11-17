@@ -5,7 +5,7 @@ import {
   exitFinding,
   launchFailure,
   readOutput,
-  refuse,
+  failFinding,
   relativeTo,
 } from "../hygiene/tooling.ts";
 import { isBelow, parseRecords, percent, totalsOf, type LcovTotals } from "./lcov.ts";
@@ -19,8 +19,8 @@ interface Profile {
   readonly records: ReadonlySet<string>;
 }
 
-function refused(finding: Finding): LayerResult {
-  return { verdict: "Refuse", findings: [finding], artifacts: {} };
+function failedResult(finding: Finding): LayerResult {
+  return { verdict: "fail", findings: [finding], artifacts: {} };
 }
 
 /** The LCOV must exist and have lines (`test -s`, and a profile that is not empty). */
@@ -28,7 +28,7 @@ function readProfile(ctx: LayerContext, path: string): Profile | LayerResult {
   const shown = relativeTo(ctx.cwd, path);
   const text = readOutput(path);
   if (text === undefined) {
-    return refused(refuse("lcov-missing", `${shown} does not exist`, { file: shown }));
+    return failedResult(failFinding("lcov-missing", `${shown} does not exist`, { file: shown }));
   }
   const all = parseRecords(text).map((entry) => ({
     ...entry,
@@ -37,8 +37,8 @@ function readProfile(ctx: LayerContext, path: string): Profile | LayerResult {
   const excludes = excludesOf(ctx.config);
   const totals = totalsOf(all.filter((entry) => inScope(entry.file, excludes)));
   if (totals.files === 0 || totals.found === 0) {
-    return refused(
-      refuse("lcov-empty", `${shown} holds no instrumented lines in scope`, { file: shown }),
+    return failedResult(
+      failFinding("lcov-empty", `${shown} holds no instrumented lines in scope`, { file: shown }),
     );
   }
   return { totals, records: new Set(all.map((entry) => entry.file)) };
@@ -74,7 +74,7 @@ function missingRecords(
   return files
     .filter((file) => inScope(file, excludes) && !records.has(file))
     .map((file) =>
-      refuse(
+      failFinding(
         "no-coverage-record",
         `${file} is tracked and in scope but has no SF record in ${shown}: no test imports it`,
         { file },
@@ -89,7 +89,7 @@ function summaryOf(totals: LcovTotals): string {
 function floorFindings(totals: LcovTotals, floor: number): Finding[] {
   const summary = summaryOf(totals);
   return isBelow(totals, floor)
-    ? [refuse("coverage-below-floor", `${summary} is below the floor of ${String(floor)} %`)]
+    ? [failFinding("coverage-below-floor", `${summary} is below the floor of ${String(floor)} %`)]
     : [{ rule: "coverage", verdict: "pass", message: `${summary}, floor ${String(floor)} %` }];
 }
 
@@ -107,7 +107,7 @@ function judgeFindings(ctx: LayerContext, totals: LcovTotals): Finding[] {
 
 function outcome(failed: boolean, ratchet: boolean): Pick<LayerResult, "verdict" | "reason"> {
   if (failed) {
-    return { verdict: "Refuse" };
+    return { verdict: "fail" };
   }
   return ratchet ? { verdict: "not-evaluated", reason: RATCHET_REASON } : { verdict: "pass" };
 }
@@ -137,7 +137,7 @@ async function run(ctx: LayerContext): Promise<LayerResult> {
   }
   const scope = await scopeFindings(ctx, profile, path);
   const findings = capFindings([...scope, ...judgeFindings(ctx, profile.totals)], "coverage");
-  const failed = findings.some((finding) => finding.verdict === "Refuse");
+  const failed = findings.some((finding) => finding.verdict === "fail");
   return { ...outcome(failed, ctx.enforce === "ratchet"), findings, artifacts: {} };
 }
 

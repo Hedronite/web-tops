@@ -23,7 +23,7 @@
       ]
     },
     "enforce": {
-      "enum": ["hard", "ratchet", "advisory"]
+      "$ref": "core.schema.json#/$defs/enforce"
     },
     "enforced": {
       "type": "boolean"
@@ -208,7 +208,7 @@
           "$ref": "#/$defs/tier"
         },
         "verdict": {
-          "enum": ["pass", "Refuse", "Ack", "skip", "not-run", "not-evaluated"]
+          "$ref": "core.schema.json#/$defs/verdict"
         },
         "reason": {
           "$ref": "#/$defs/reason"
@@ -261,7 +261,7 @@
           "minLength": 1
         },
         "verdict": {
-          "enum": ["pass", "Refuse", "Ack", "skip", "not-run", "not-evaluated"]
+          "$ref": "core.schema.json#/$defs/verdict"
         },
         "message": {
           "type": "string"
@@ -286,6 +286,15 @@
         "line": {
           "type": "integer",
           "minimum": 1
+        }
+      },
+      "dependentSchemas": {
+        "ack": {
+          "properties": {
+            "verdict": {
+              "const": "pass"
+            }
+          }
         }
       }
     },
