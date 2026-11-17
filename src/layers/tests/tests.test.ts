@@ -115,7 +115,9 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
     });
     const exec: Exec = async (_tool, args) => {
       const out =
-        args.find((arg) => arg.startsWith("--outputFile="))?.slice("--outputFile=".length) ?? "";
+        args
+          .find((arg) => arg.startsWith("--outputFile.json="))
+          ?.slice("--outputFile.json=".length) ?? "";
       const { writeFileSync } = await import("node:fs");
       writeFileSync(out, failing);
       return { code: 0, stdout: "", stderr: "" };
@@ -124,7 +126,7 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
     expect(rulesOf(result)).toEqual(["test-failed"]);
   });
 
-  it("writes Vitest's JSON under .web-tops/out/tests/ with --reporter=json and --outputFile", async () => {
+  it("writes Vitest's JSON under .web-tops/out/tests/ with the json reporter beside the default one", async () => {
     const calls: (readonly string[])[] = [];
     const exec: Exec = (_tool, args) => {
       calls.push(args);
@@ -133,8 +135,10 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
     const item = real({});
     await runTests(item, exec);
     const args = calls[0] ?? [];
+    expect(args).toContain("--reporter=default");
     expect(args).toContain("--reporter=json");
-    expect(args).toContain(`--outputFile=${join(item.outDir, "tests", "vitest.json")}`);
+    expect(args).toContain(`--outputFile.json=${join(item.outDir, "tests", "vitest.json")}`);
+    expect(args.some((arg) => arg.startsWith("--outputFile="))).toBe(false);
   });
 
   it("a threshold in the project's own Vitest config does not decide gate 2", async () => {
@@ -173,6 +177,7 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
         "--coverage.reportsDirectory=.web-tops/out/tests/coverage",
         "--sequence.shuffle",
         "--allowOnly=false",
+        "--reporter=default",
         "--reporter=json",
         "--coverage.exclude=**/*.d.ts",
         "--coverage.exclude=src/gen/**",
@@ -267,13 +272,15 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
     expect(rulesOf(result)).toEqual([rule]);
   });
 
-  it("results that are not JSON, not an object, or all-passing under a non-zero exit are findings, not passes", async () => {
+  it("results that are not JSON or not an object are findings, not passes", async () => {
     const item = real({});
     const writes =
       (text: string, code: number): Exec =>
       (_tool, args) => {
         const out =
-          args.find((arg) => arg.startsWith("--outputFile="))?.slice("--outputFile=".length) ?? "";
+          args
+            .find((arg) => arg.startsWith("--outputFile.json="))
+            ?.slice("--outputFile.json=".length) ?? "";
         return import("node:fs").then(({ writeFileSync }) => {
           writeFileSync(out, text);
           return { code, stdout: "", stderr: "" };
@@ -287,10 +294,157 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
         { name: "a", status: "passed", assertionResults: [{ status: "passed", title: "a" }] },
       ],
     });
-    // R36: the results decide, never the exit code. A passing JSON under exit 1 (a threshold in the project's
-    // config, say) is a pass; the exit code only tells a crash that left no results from a run that wrote them.
+    // R43: results with no failing test and a non-zero exit mean Vitest failed the run itself; the gate says so.
     const passing = await runTests(item, writes(oneTest, 1));
-    expect(rulesOf(passing)).toEqual([]);
-    expect(passing.verdict).toBe("pass");
+    expect(rulesOf(passing)).toEqual(["vitest-run-failed"]);
+    expect(passing.verdict).toBe("Refuse");
+  });
+
+  describe("R43 a run Vitest fails itself is not a pass", () => {
+    const PASSING_RESULTS = JSON.stringify({
+      numTotalTests: 1,
+      testResults: [
+        { name: "a", status: "passed", assertionResults: [{ status: "passed", title: "a" }] },
+      ],
+    });
+
+    function answers(code: number, stderr: string, stdout = "", text = PASSING_RESULTS): Exec {
+      return async (_tool, args) => {
+        const out =
+          args
+            .find((arg) => arg.startsWith("--outputFile.json="))
+            ?.slice("--outputFile.json=".length) ?? "";
+        const { writeFileSync } = await import("node:fs");
+        writeFileSync(out, text);
+        return { code, stdout, stderr };
+      };
+    }
+
+    it("an unhandled rejection after a passing test is vitest-run-failed, quoting the error", async () => {
+      const item = real({
+        "src/a.ts": SOURCE,
+        "src/a.test.ts": testFile(
+          'it("adds", () => { expect(add(1, 2)).toBe(3); void Promise.reject(new Error("late rejection")); });',
+        ),
+      });
+      const result = await runTests(item, realExec);
+      expect(rulesOf(result)).toEqual(["vitest-run-failed"]);
+      expect(result.verdict).toBe("Refuse");
+      const message = result.findings[0]?.message ?? "";
+      expect(message).toContain("late rejection");
+      expect(message).toContain("Unhandled");
+      expect(message).not.toContain("node_modules/vitest/dist");
+    });
+
+    it("an error thrown from a timer is vitest-run-failed too", async () => {
+      const item = real({
+        "src/a.ts": SOURCE,
+        "src/a.test.ts": testFile(
+          'it("adds", () => { expect(add(1, 2)).toBe(3); setTimeout(() => { throw new Error("timer boom"); }, 0); });\nit("waits", async () => { await new Promise((done) => setTimeout(done, 30)); });',
+        ),
+      });
+      const result = await runTests(item, realExec);
+      expect(rulesOf(result)).toEqual(["vitest-run-failed"]);
+      expect(result.findings[0]?.message).toContain("timer boom");
+    });
+
+    it("a project config whose only complaint is a coverage threshold still passes", async () => {
+      const item = real({
+        "src/a.ts": `${SOURCE}export const unused = (): number => {\n  return 1;\n};\n`,
+        "src/a.test.ts": CLEAN,
+        "vitest.config.ts":
+          'import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { coverage: { thresholds: { lines: 100, functions: 100 } } } });\n',
+      });
+      const result = await runTests(item, realExec);
+      expect(rulesOf(result)).toEqual([]);
+      expect(result.verdict).toBe("pass");
+    });
+
+    it("quotes the first lines of what Vitest printed, with colour codes taken out", async () => {
+      const esc = String.fromCharCode(27);
+      const stderr = `${esc}[31m⎯⎯ Unhandled Errors ⎯⎯${esc}[39m\n\nVitest caught 1 unhandled error\n${esc}[1mError${esc}[22m: late\n❯ src/a.test.ts:3:1\n  at one\n  at two\n  at three\n  at four\n  at five\n  at six\n`;
+      const result = await runTests(real({}), answers(1, stderr));
+      const message = result.findings[0]?.message ?? "";
+      expect(message).toContain("Error: late");
+      expect(message).not.toContain(esc);
+      expect(message).not.toContain("at six");
+    });
+
+    it("falls back to stdout when Vitest printed nothing on stderr", async () => {
+      const result = await runTests(real({}), answers(1, "", "Errors 1 error\n"));
+      expect(result.findings[0]?.message).toContain("Errors 1 error");
+    });
+
+    it("a failing test under a non-zero exit is test-failed alone: the exit code is already explained", async () => {
+      const failing = JSON.stringify({
+        numTotalTests: 1,
+        testResults: [
+          {
+            name: "a",
+            status: "failed",
+            assertionResults: [
+              { status: "failed", title: "a", failureMessages: ["AssertionError: x"] },
+            ],
+          },
+        ],
+      });
+      const result = await runTests(real({}), answers(1, "FAIL", "", failing));
+      expect(rulesOf(result)).toEqual(["test-failed"]);
+    });
+
+    it("a clean exit with passing results is a pass", async () => {
+      const result = await runTests(real({}), answers(0, ""));
+      expect(result.verdict).toBe("pass");
+    });
+  });
+
+  describe("G4-2 a test-failed finding quotes the assertion, not the stack", () => {
+    it("quotes the first lines of failureMessages", async () => {
+      const failing = JSON.stringify({
+        numTotalTests: 1,
+        testResults: [
+          {
+            name: "/x/a.test.ts",
+            status: "failed",
+            assertionResults: [
+              {
+                status: "failed",
+                fullName: "adds",
+                failureMessages: [
+                  "AssertionError: expected 3 to be 4 // Object.is equality\n\n- Expected\n+ Received\n\n- 4\n+ 3\n\n ❯ src/a.test.ts:3:5\n ❯ node_modules/vitest/dist/chunks/run.js:1632:35",
+                ],
+              },
+            ],
+          },
+        ],
+      });
+      const exec: Exec = async (_tool, args) => {
+        const out =
+          args
+            .find((arg) => arg.startsWith("--outputFile.json="))
+            ?.slice("--outputFile.json=".length) ?? "";
+        const { writeFileSync } = await import("node:fs");
+        writeFileSync(out, failing);
+        return { code: 1, stdout: "", stderr: "" };
+      };
+      const result = await runTests(real({}), exec);
+      const message = result.findings[0]?.message ?? "";
+      expect(message).toContain("adds: AssertionError: expected 3 to be 4 // Object.is equality");
+      expect(message).not.toContain("node_modules");
+      expect(message).not.toContain("run.js");
+    });
+
+    it("quotes the assertion of a real failing test", async () => {
+      const item = real({
+        "src/a.ts": SOURCE,
+        "src/a.test.ts": testFile('it("adds", () => { expect(add(1, 2)).toBe(4); });'),
+      });
+      const result = await runTests(item, realExec);
+      const message =
+        result.findings.find((finding) => finding.rule === "test-failed")?.message ?? "";
+      expect(message).toContain("expected 3 to be 4");
+      expect(message).not.toContain("node_modules");
+      expect(message).not.toMatch(/^\s+at /mu);
+    });
   });
 });

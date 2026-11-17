@@ -36,11 +36,34 @@ function messagesOf(assertion: Record<string, unknown>): string[] {
   return arrayOf(assertion["failureMessages"]).map((message) => str(message, ""));
 }
 
+const ESCAPE = String.fromCharCode(27);
+const COLOUR = new RegExp(`${ESCAPE}\\[[0-9;]*m`, "gu");
+
+/** The first non-empty lines of some output, without colour codes: where a tool names what went wrong. */
+function head(text: string, lines: number): string {
+  return text
+    .replace(COLOUR, "")
+    .split("\n")
+    .filter((line) => line.trim() !== "")
+    .slice(0, lines)
+    .join("\n");
+}
+
+const STACK_FRAME = /^\s*(?:at |❯)/u;
+
+/** What a failed assertion says: the lines before its stack, so the finding quotes the assertion and not the frames. */
+function assertion(messages: string): string {
+  const lines = head(messages, Number.MAX_SAFE_INTEGER).split("\n");
+  const frame = lines.findIndex((line) => STACK_FRAME.test(line));
+  const before = frame === -1 ? lines : lines.slice(0, frame);
+  return (before.length > 0 ? before : lines.slice(0, 1)).slice(0, 3).join("\n");
+}
+
 /** A test `.only` makes Vitest fail it under `--allowOnly=false`; that failure is a focused test, not a bug in it. */
 function failedFinding(name: string, title: string, messages: readonly string[]): Finding {
   return messages.some((message) => FOCUSED.test(message))
     ? refuse("focused-test", `${title}: a focused test (.only) is committed`, { file: name })
-    : refuse("test-failed", `${title}: ${tail(messages.join("\n"), 3)}`, { file: name });
+    : refuse("test-failed", `${title}: ${assertion(messages.join("\n"))}`, { file: name });
 }
 
 /** One failing, skipped or todo test, as a finding. */
@@ -114,8 +137,10 @@ function vitestArgs(ctx: LayerContext, seed: number | undefined, jsonPath: strin
     ...NEUTRAL_THRESHOLDS,
     "--allowOnly=false",
     ...shuffleArgs(seed),
+    // The default reporter runs beside json so that what Vitest prints on stderr names an error it fails the run for.
+    "--reporter=default",
     "--reporter=json",
-    `--outputFile=${jsonPath}`,
+    `--outputFile.json=${jsonPath}`,
   ];
 }
 
@@ -162,9 +187,27 @@ function readReport(
   return parseReport(shown, text);
 }
 
-/** What the results say: no tests, or a test that failed, was skipped or was focused. The exit code is not read (R36). */
+/** What the results say: no tests, or a test that failed, was skipped or was focused. */
 function judge(report: Record<string, unknown>, cwd: string): Finding[] {
   return [...zeroTests(report), ...testFindings(report["testResults"], cwd)];
+}
+
+/**
+ * Results that show no failing test under a non-zero exit mean Vitest failed the run itself (an unhandled
+ * rejection or a thrown timer after a passing test): `vitest-run-failed`, quoting what it printed (R43).
+ * The exit code is read only here; a project threshold cannot cause it, because the gate neutralises them.
+ */
+function withRunFailure(found: readonly Finding[], result: ExecResult): Finding[] {
+  if (found.length > 0 || result.code === 0) {
+    return [...found];
+  }
+  const said = head(printed(result, "stderr"), 6);
+  return [
+    refuse(
+      "vitest-run-failed",
+      `vitest exited ${String(result.code)} though no test failed: ${said}`,
+    ),
+  ];
 }
 
 function refused(finding: Finding, seed?: number): LayerResult {
@@ -215,7 +258,7 @@ async function run(ctx: LayerContext): Promise<LayerResult> {
   if ("finding" in read) {
     return refused(read.finding, seed);
   }
-  return finish(directory, judge(read.report, ctx.cwd), seed);
+  return finish(directory, withRunFailure(judge(read.report, ctx.cwd), result), seed);
 }
 
 export const testsLayer: Layer = {
