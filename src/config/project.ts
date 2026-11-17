@@ -11,9 +11,13 @@ function lists(manifest: unknown, field: string, name: string): boolean {
   return isObject(table) && Object.hasOwn(table, name);
 }
 
+function isPrivate(manifest: unknown): boolean {
+  return isObject(manifest) && Reflect.get(manifest, "private") === true;
+}
+
 /**
  * Reads the package.json in `dir`: the project depends on Astro when `astro` is in `dependencies`,
- * `devDependencies` or `peerDependencies`. A missing or unreadable package.json is not Astro.
+ * `devDependencies` or `peerDependencies`. It is private when `private` is `true`. A missing or unreadable package.json is neither.
  */
 export function readProject(dir: string): Project {
   try {
@@ -22,6 +26,7 @@ export function readProject(dir: string): Project {
       dependsOnAstro: ["dependencies", "devDependencies", "peerDependencies"].some((field) =>
         lists(manifest, field, "astro"),
       ),
+      isPrivate: isPrivate(manifest),
     };
   } catch {
     return { dependsOnAstro: false };

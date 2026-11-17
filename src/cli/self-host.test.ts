@@ -13,7 +13,9 @@ import { dirname, join, resolve } from "node:path";
 import { ESLint } from "eslint";
 import { afterEach, describe, expect, it } from "vitest";
 import pkg from "../../package.json" with { type: "json" };
+import { toGateConfig } from "../gate/adapter.ts";
 import { profileFor } from "../config/profiles.ts";
+import { readProject } from "../config/project.ts";
 import { at, get, keys, matching } from "../config/test-support.ts";
 import { checkConfigFile, parseYaml } from "../config/validate.ts";
 import { PROTOCOL, inProtocolRange } from "../config/protocol.ts";
@@ -36,6 +38,20 @@ describe("G0c: the kit speaks protocol 0.3.0", () => {
     expect(PROTOCOL).toBe("0.3.0");
     expect(get(yamlOf("web-tops.yaml"), "protocol")).toBe("0.3.0");
     expect(inProtocolRange(get(yamlOf("web-tops.yaml"), "protocol"))).toBe(true);
+  });
+});
+
+describe("G3c: the kit keeps publint and attw live although it is private", () => {
+  it("is private, sets no skip_private, and the runner maps the exports step on", () => {
+    expect(get(pkg, "private")).toBe(true);
+    const config = checkConfigFile(join(root, "web-tops.yaml"));
+    expect(config.ok).toBe(true);
+    if (!config.ok) return;
+    expect(at(config.value, ["layers", "package_exports", "skip_private"])).toBeUndefined();
+    const project = readProject(root);
+    expect(project.isPrivate).toBe(true);
+    const steps = get(get(toGateConfig(config.value, project), "hygiene"), "steps");
+    expect(get(steps, "package_exports")).toBeUndefined();
   });
 });
 
