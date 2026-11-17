@@ -1,0 +1,4 @@
+# web-tops.lock: exact tool versions (WEB_TOPS.md section 10). Change it with `webtops lock --update`.
+eslint: 9.39.5
+typescript: 6.0.3
+webtops: 0.0.0

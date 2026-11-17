@@ -11,7 +11,6 @@ const root = resolve(import.meta.dirname, "../..");
 describe("R1 stubs: a command another step builds", () => {
   it.each([
     ["gate", "G2"],
-    ["init", "G5"],
     ["report", "G6"],
     ["lock", "G6"],
     ["doctor", "G6"],

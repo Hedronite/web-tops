@@ -1,0 +1,9 @@
+# Project notes
+
+Keep this line.
+
+<!-- web-tops:begin -->
+old generated text
+<!-- web-tops:end -->
+
+Trailing notes, no newline at end
