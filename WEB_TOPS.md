@@ -205,6 +205,13 @@ run fails when fewer layers ran than are in range.
 7. **Judge what ships.** Browser-facing checks run on the build output.
 8. **One gate.** `webtops gate` is the verification command. Running its tools separately is
    not "done".
+9. **Explain every accepted mutation survivor**, with a reason, an owner and an optional expiry.
+10. **Every suppression names its rule and a reason** (W-35). No `@ts-ignore` or `@ts-nocheck`.
+11. **Agent-authored code meets the same gate and the same cap** as human code.
+12. **Do not edit generated files.** Fix the generator.
+13. **Prefer deleting code to adding configuration.**
+14. **Never edit `.web-tops/baseline.json` by hand**, and never wrap old findings in suppressions to
+    zero a count.
 
 ---
 
@@ -674,7 +681,7 @@ family before the 1.0 freeze.
 | W-40 | `bun.lock` is committed and installs with `--frozen-lockfile` | R | tl | ✓ |
 | W-41 | Installed tool versions match `web-tops.lock` | R | an | ✓ |
 
-**Rendered interface** (added in 0.2.0; judged once M4's rendered layer and theme reader land)
+**Rendered interface** (added in 0.2.0; judged once M5's rendered layer and theme reader land)
 
 | ID | Law | Sev | Reader | v0.1 |
 |---|---|---|---|---|
@@ -907,11 +914,18 @@ agent contract.
 
 **Proposed for 0.3.0:**
 
+27. **Migration:** 0.3.0 takes effect with the slice that moves the code, schemas and fixtures to it; until that slice lands, the kit implements 0.2.1. From then on `check` refuses a 0.2.x config with exit 2, and `init --force` or a one-line `protocol:` edit migrates it.
+
+**Resolved for 0.3.0:**
+
 23. **One verdict vocabulary:** `pass`, `fail`, `refuse`, `ack-missing`, `skip`, `not-run`, `not-evaluated`, `vacuous`, with one table of which end the run (§3.3, §6.4, §6.5).
 24. **Required items:** required by default (every in-range layer, every judged law the class maps); a profile may mark a layer or law optional, with a reason; `not-evaluated` fails only on a required item, so the laws catalog can grow without the gate never passing (§3.3).
 25. **The report is the baseline's source:** `report_version`, `subject`, run context and per-layer `metrics` (§6.6).
 26. **Protocol id by range:** `check` accepts the protocol range the installed `webtops` supports; the schema matches the minor, not one patch (§12, §18).
-27. **Migration:** 0.3.0 takes effect with the slice that moves the code, schemas and fixtures to it; until that slice lands, the kit implements 0.2.1. From then on `check` refuses a 0.2.x config with exit 2, and `init --force` or a one-line `protocol:` edit migrates it.
+28. **A shared core:** verdicts, enforcement modes and the failure table live once, in §3.3 and `schema/core.schema.json`, which is the seam. The sibling protocols copy that core by a checked sync and adopt it in their next revision (§3.3, §18).
+29. **Audience and platforms:** a house standard first, for Hedronite repositories on macOS development machines with Bun, and built to be public: no private paths, clean licenses. No Windows. Where the kit runs on Macs, a macOS lane is required: the kit's own gate runs on `ubuntu-latest` and `macos-latest` as one job (§11).
+30. **ESLint 10:** `probes/w22/` ran every `eslint-plugin-jsx-a11y` 6.10.2 rule that upstream has not deprecated, with a bad and a clean fixture each, through `eslint-plugin-jsx-a11y-x` on ESLint 10 and through `oxlint`. Both passed the rule rows. Only the fork also passed both claim rows (an unlabeled input fires; the Astro rules fire on an `.astro` page), so it is W-22's reader, and §2 pins ESLint 10.15, `eslint-plugin-astro` 3.2 and the fork. This supersedes item 11.
+31. **Rendered readers:** the kit ships the W-42 to W-46 readers, with a project's own scripted review as a reference and a possible delegate through a custom layer (§7, §8.2). This closes O6.
 
 **Resolved for 0.2.1:**
 
@@ -926,17 +940,17 @@ agent contract.
 
 **Resolved for 0.2.0:**
 
-11. **Lint pin:** ESLint 9.39 with `eslint-plugin-astro` 1.7 until `jsx-a11y` (or its fork, at 1.0) supports ESLint 10 (§2).
+11. **Lint pin:** ESLint 9.39 with `eslint-plugin-astro` 1.7 until `jsx-a11y` (or its fork, at 1.0) supports ESLint 10 (§2). Superseded by item 30.
 12. **Profile order after launch:** `workspace-root` first, because the first adopter needs it, then `cli`.
 13. **Build-suite handbook:** kept outside this repository, as Go-TOPS keeps its build suite.
-14. **Rendered interface laws:** W-42 to W-46 join the catalog, judged with M4.
+14. **Rendered interface laws:** W-42 to W-46 join the catalog, judged with M5 (§19).
 
 **Resolved for 0.1.0:**
 
 1. **Name:** Web-TOPS / `webtops` / `Hedronite/web-tops`. TS-TOPS is retired.
 2. **TypeScript:** pinned 6.0.x for typed lint and `astro check`; floor 5.8.
-3. **Runtime:** Bun first; Node LTS supported for `node-service`.
-4. **Test runner:** Vitest, run with Bun. Stryker's Vitest runner and v8 coverage are why.
+3. **Runtime:** Bun first; Node LTS supported for `node-service`. Superseded by item 19.
+4. **Test runner:** Vitest, run with Bun. Stryker's Vitest runner and v8 coverage are why. Superseded by item 19: Vitest runs on Node.
 5. **Mutation:** StrykerJS, diff-scoped, with the TypeScript checker.
 6. **CRAP:** native; one cap per class; nullish discount on in every class.
 7. **Enforcement:** `ratchet` for adopters, `hard` for the kit.
@@ -951,8 +965,15 @@ O2. Whether to add a TypeScript 7 `tsc --noEmit` leg as advisory for speed.
 O3. Prettier or Biome as the drop-in default formatter.
 O4. Tailwind 4 lint plugin choice, if any, beyond the custom W-23 rule **[verify v4 support]**.
 O5. How a gate proves a WebGPU backend: a self-hosted runner with an adapter, or an advisory leg.
-O6. Whether `webtops` ships the W-42 to W-46 readers itself or delegates to a project's own tool
-   that emits the same report shape.
+O7. Distribution: a git dependency pinned by SHA in the lock, or an npm publish, which needs a
+   release decision (M6).
+O8. The theme contract: whether a project must declare its themes as custom properties (§9
+   `layers.themes`) (M5).
+O9. The accessibility bar for W-21 and W-44: WCAG 2.2 AA as the default (M4).
+O10. The second adopter: an Astro site, to calibrate beside the first (M7).
+O11. The tier-1 time budget, and the time budget past which mutation is `not-evaluated` (§6.4) (M2).
+O12. Who may apply the `protocol-change` label that `law-diff` honors (M3).
+O13. Whether Lighthouse stays advisory at tier 2 or is dropped (M7).
 
 ---
 
@@ -1073,11 +1094,16 @@ also takes `enabled` and `reason`, and `enabled: false` requires `reason`.)
 |---|---|---|
 | **M0** | This spec, schemas, five profiles, `AGENTS.md.tmpl` | Reviewed; budgets marked for calibration |
 | **M1** | CLI: `init`, `check`, `gate` (hygiene, tests, coverage, report) | Self-hosting green |
-| **M2** | Native CRAP; Stryker adapter; survivor ledger; baseline and ratchet | Gate fails on a deliberately weak test |
-| **M3** | Laws v0.1: 26 judged; `fixtures/lints`; `eslint-plugin-webtops` | Report shows "26 of 46 judged" |
-| **M4** | Build-output layers: `html-validate`, axe, links, byte budgets; rendered checks and the theme reader (W-42 to W-46) | An `astro-site` example passes; a broken page fails, including one that animates under reduced motion |
-| **M5** | First adopter: LuminosiTS | Packages gated under ratchet |
-| **M6** | Protocol 1.0 | Calibrated budgets and caps; frozen law IDs |
+| **P3** | Protocol 0.3.0, the truth pass: one verdict set and failure table; required layers and laws per class; the report's shape, from which the baseline is projected; coverage, CRAP, mutation and suppression definitions; the protocol id by range; ESLint 10 with the fork, proved by `probes/w22/`; the catalog and template corrected; the kit's gate on Ubuntu and macOS | Protocol 0.3.0 is true in the text, the schemas and the fixtures, and the kit's own gate is green on it |
+| **M2** | The risk engine: a findings model; coverage per function; the complexity counter and the native CRAP layer; the diff engine; the Stryker adapter; the survivor ledger; baseline and ratchet; one cap per class set from measurement | A planted weak test fails the kit's own `hard` gate, with or without a source change, and every coverage and mutation trick in `fixtures/probe/` is caught |
+| **M3** | Laws v1: `laws/W-NN.yaml` with `laws list` and `laws explain`; importable drop-ins; law fixtures and `laws probe`; readers that prove their rules are live; `eslint-plugin-webtops` (W-23, W-36, W-37) and the Astro rules (W-28, W-30, W-31); the ack ledger; the non-lint readers; `law-diff` | Every law the class profile marks required is judged; the report prints N of M by class |
+| **M4** | Build output: one build, one static server and one page inventory; HTML validity (W-20); links; page bytes and route bytes (W-29); the axe layer (W-21, W-44); `size-limit` per `exports` entry | `examples/astro-site` and `examples/web-app` pass, and each of four planted defects fails with its law id |
+| **M5** | Rendered interface and themes: the render rig; reflow (W-46), focus (W-45) and motion (W-43); the theme contract and the token-pair trace (W-42); parity with the first adopter's scripted review; `report --format html` | On the first adopter at a known-bad commit (`570304b`) the kit reports the animation under reduced motion, the small checkbox targets and the two failing color pairs; at the known-good commit (`04cc3a3`) it reports none |
+| **M6** | Workspaces and adoption: the `workspace-root` and `cli` profiles; distribution; the adopter PRs (libraries under ratchet, mutation on the diff, build output, rendered checks); the gate swap | The first adopter's required status is `webtops gate` under ratchet, for every package and both apps |
+| **M7** | Calibration and 1.0: a second adopter; caps, floors and budgets set from data; tier 2 nightly and tier 3 release checks; agent skills; engine legs; SARIF; a red-team pass | Two adopters across at least four classes; caps and budgets set from their data; law ids and schemas frozen |
+
+An adopter PR (M6, M7) is written by this protocol's maintainers and approved and merged by the
+adopter's own maintainers under its own gate.
 
 ---
 
@@ -1096,8 +1122,8 @@ it on correctness, density, accessibility and budgets, never on its look.
 | `adapters` (R3F components) | `ui-components` |
 | `apps/catalog` (Vite + React + R3F; the playground is a view of it) | `web-app` |
 | `apps/site` (Astro, one island) | `astro-site` |
-| `tools/` (the `lumin` agent CLI and the asset, icon, looks and vendor generators) | `cli` (profile pending) |
-| repo root | `workspace-root` (profile pending) |
+| `tools/` (the `lumin` agent CLI and the asset, icon, looks and vendor generators) | `cli` (profile in M6) |
+| repo root | `workspace-root` (profile in M6) |
 
 Its manifesto's package rules become `dependency-cruiser` rules under W-16, W-17 and W-19:
 - no circular dependencies;
@@ -1114,6 +1140,17 @@ HTTP origin runs WebGPU code on its WebGL 2 fallback (§7). And its scripted int
 (`lumin-ui`: rule tables over the parsed JSX, contrast across all 30 theme schemes, and a
 rendered pass) found failures that axe on one page in one theme did not: the source of W-42 to
 W-46.
+
+**What it proves for 0.3.0.** It already runs `knip` and `eslint-plugin-react-hooks`, the readers
+behind W-48 and W-47. Its scripted interface review is the reference for the W-42 to W-46 readers
+the kit ships (§16, item 31). Its lint pins, ESLint 9.39 with `jsx-a11y` 6.10, move to ESLint 10 with
+the fork when it adopts.
+
+**Adoption (M6).** Four PRs, each written by this protocol's maintainers and approved and merged by
+LuminosiTS's maintainers under its own gate: the libraries under `ratchet` with a CRAP baseline;
+mutation on the diff with a survivor ledger; build output for the apps, with budgets in brotli bytes;
+and W-42 to W-46 on both apps, which leaves its scripted review only the judgment a script cannot
+make. Then one required status, `webtops gate`, replaces its 15-step chain.
 
 ---
 
