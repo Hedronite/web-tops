@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join, relative, sep } from "node:path";
 import {
   isFailing,
   type Counts,
@@ -7,9 +9,10 @@ import {
   type ReportLayer,
   type Verdict,
 } from "../report/types.ts";
-import { relative } from "node:path";
-import { compareGates } from "./order.ts";
-import type { Exec, GateConfig, GateOptions, Layer, LayerResult, Tier } from "./types.ts";
+import { planGate, type PlanItem } from "./plan.ts";
+import type { Exec, GateConfig, GateOptions, Layer, LayerContext, LayerResult } from "./types.ts";
+
+export { planGate, type PlanItem } from "./plan.ts";
 
 /** What `runGate` returns: the schema's report, with the exit code the run settled on. */
 export type RanReport = Report & { readonly exit_code: 0 | 1 };
@@ -30,90 +33,13 @@ export interface RunInput {
   readonly now: () => number;
 }
 
-export interface PlanItem {
-  readonly id: string;
-  readonly gate: GateRef;
-  readonly tier: Tier;
-  /** Absent for an id the config enables but nothing registers. */
-  readonly layer?: Layer;
-  /** Present when the layer will not run, with the reason the report prints. */
-  readonly skip?: string;
-  /** The `--only` layer that pulled this one in through `requires`. */
-  readonly requiredBy?: string;
-}
-
-/** The layers `--only` selects: the named ones and, transitively, what they require. */
-function selectedBy(
-  only: string | undefined,
-  layers: readonly Layer[],
-): ReadonlyMap<string, string | undefined> {
-  const selected = new Map<string, string | undefined>();
-  const pending: [string, string | undefined][] = only === undefined ? [] : [[only, undefined]];
-  for (let next = pending.shift(); next !== undefined; next = pending.shift()) {
-    const [id, requester] = next;
-    if (!selected.has(id)) {
-      selected.set(id, requester);
-      for (const required of layers.find((layer) => layer.id === id)?.requires ?? []) {
-        pending.push([required, requester ?? id]);
-      }
-    }
-  }
-  return selected;
-}
-
-function skipReason(
-  id: string,
-  tier: Tier,
-  classes: readonly string[] | undefined,
-  config: GateConfig,
-  options: GateOptions,
-  selected: ReadonlyMap<string, string | undefined>,
-): string | undefined {
-  const toggle = config.toggles[id];
-  if (toggle?.enabled === false) {
-    return toggle.reason ?? "disabled in web-tops.yaml";
-  }
-  if (classes !== undefined && !classes.includes(config.class)) {
-    return `class ${config.class} does not map this layer`;
-  }
-  if (tier > options.maxTier) {
-    return `tier ${String(tier)} is above --max-tier ${String(options.maxTier)}`;
-  }
-  if (options.only !== undefined && !selected.has(id)) {
-    return `not selected by --only ${options.only}`;
-  }
-  return undefined;
-}
-
-/** What a run would do, layer by layer, in gate order. `--dry-run` prints it; `runGate` follows it. */
-export function planGate(
-  layers: readonly Layer[],
-  config: GateConfig,
-  options: GateOptions,
-): PlanItem[] {
-  const selected = selectedBy(options.only, layers);
-  const items: PlanItem[] = [...layers]
-    .sort((a, b) => compareGates(a.gate, b.gate))
-    .map((layer) => {
-      const skip = skipReason(layer.id, layer.tier, layer.classes, config, options, selected);
-      const requiredBy = selected.get(layer.id);
-      return {
-        id: layer.id,
-        gate: layer.gate,
-        tier: layer.tier,
-        layer,
-        ...(skip === undefined ? {} : { skip }),
-        ...(requiredBy === undefined ? {} : { requiredBy }),
-      };
-    });
-  const registered = new Set(layers.map((layer) => layer.id));
-  for (const [id, toggle] of Object.entries(config.toggles)) {
-    if (toggle.enabled && !registered.has(id) && options.only === undefined) {
-      const skip = skipReason(id, 1, undefined, config, options, selected);
-      items.push({ id, gate: 6, tier: 1, ...(skip === undefined ? {} : { skip }) });
-    }
-  }
-  return items;
+/** What the run knows so far: the entries in order, the artifacts that exist, and where it stopped. */
+interface RunState {
+  readonly layers: ReportLayer[];
+  readonly artifacts: Map<string, string>;
+  inRange: number;
+  ran: number;
+  stoppedAt: GateRef | undefined;
 }
 
 /** A layer pulled in by `--only` through `requires` says so in its reason; text and plan show it as "(required by X)". */
@@ -135,6 +61,9 @@ const EVALUATED: ReadonlySet<Verdict> = new Set<Verdict>([
   "not-evaluated",
 ]);
 
+/** Verdicts that count in `failed`; `not-evaluated` is counted apart (section 6.6). */
+const FAILED: ReadonlySet<Verdict> = new Set<Verdict>(["Refuse", "Ack", "not-run"]);
+
 function entry(
   item: PlanItem,
   verdict: Verdict,
@@ -147,9 +76,10 @@ function entry(
     tier: item.tier,
     verdict,
     ...reasonOf(reason, item.requiredBy),
-    findings: rest.findings ?? [],
-    artifacts: rest.artifacts ?? [],
-    duration_ms: rest.duration_ms ?? 0,
+    findings: [],
+    artifacts: [],
+    duration_ms: 0,
+    ...rest,
   };
 }
 
@@ -169,6 +99,39 @@ function checked(result: LayerResult): LayerResult {
   return result;
 }
 
+/** One artifact survives when the layer declared it, wrote it under its own `.web-tops/out/<layer>/`, and the file exists. */
+function keeps(layer: Layer, home: string, name: string, path: string): boolean {
+  return layer.produces.includes(name) && path.startsWith(home) && existsSync(path);
+}
+
+function keepArtifacts(
+  layer: Layer,
+  found: Readonly<Record<string, string>>,
+  outDir: string,
+): Record<string, string> {
+  const home = `${join(outDir, layer.id)}${sep}`;
+  return Object.fromEntries(
+    Object.entries(found).filter(([name, path]) => keeps(layer, home, name, path)),
+  );
+}
+
+function contextOf(
+  input: RunInput,
+  base: string,
+  artifacts: ReadonlyMap<string, string>,
+): LayerContext {
+  return {
+    cwd: input.cwd,
+    config: input.config,
+    base,
+    enforce: input.config.enforce,
+    env: input.env,
+    exec: input.exec,
+    outDir: input.outDir,
+    artifacts,
+  };
+}
+
 async function execute(
   item: PlanItem,
   layer: Layer,
@@ -177,20 +140,17 @@ async function execute(
   artifacts: ReadonlyMap<string, string>,
 ): Promise<Executed> {
   const started = input.now();
-  let result: LayerResult;
   try {
-    result = checked(
-      await layer.run({
-        cwd: input.cwd,
-        config: input.config,
-        base,
-        enforce: input.config.enforce,
-        env: input.env,
-        exec: input.exec,
-        outDir: input.outDir,
-        artifacts,
+    const result = checked(await layer.run(contextOf(input, base, artifacts)));
+    const kept = keepArtifacts(layer, result.artifacts, input.outDir);
+    return {
+      artifacts: kept,
+      layer: entry(item, result.verdict, result.reason, {
+        findings: result.findings,
+        artifacts: Object.values(kept).map((path) => relative(input.cwd, path)),
+        duration_ms: input.now() - started,
       }),
-    );
+    };
   } catch (error: unknown) {
     const message = describeError(error);
     return {
@@ -201,71 +161,100 @@ async function execute(
       }),
     };
   }
+}
+
+/** What happened to a layer a consumer needs: its verdict in this run, `not-run` when it has no entry. */
+function verdictOf(state: RunState, id: string): Verdict {
+  return state.layers.find((layer) => layer.id === id)?.verdict ?? "not-run";
+}
+
+/** R29 N5: the first input this layer consumes that no earlier layer left on disk, worded for the report. */
+function missingInput(layer: Layer, state: RunState): string | undefined {
+  for (const need of layer.consumes) {
+    if (!state.artifacts.has(need.artifact)) {
+      return `input ${need.artifact} missing: ${need.from} ${verdictOf(state, need.from)}`;
+    }
+  }
+  return undefined;
+}
+
+type Admission = { readonly reason: string } | { readonly layer: Layer };
+
+/** Whether a layer in range gets to run: it needs a registration, a run that has not stopped, and its inputs. */
+function admit(item: PlanItem, state: RunState): Admission {
+  if (item.layer === undefined) {
+    return { reason: "no layer is registered for this id" };
+  }
+  if (state.stoppedAt !== undefined) {
+    return { reason: `stopped: gate ${String(state.stoppedAt)} failed` };
+  }
+  const missing = missingInput(item.layer, state);
+  return missing === undefined ? { layer: item.layer } : { reason: missing };
+}
+
+function record(state: RunState, item: PlanItem, done: Executed, keepGoing: boolean): void {
+  state.layers.push(done.layer);
+  if (EVALUATED.has(done.layer.verdict)) {
+    state.ran += 1;
+  }
+  Object.entries(done.artifacts).forEach(([name, path]) => state.artifacts.set(name, path));
+  if (isFailing(done.layer.verdict) && !keepGoing) {
+    state.stoppedAt = item.gate;
+  }
+}
+
+async function step(item: PlanItem, input: RunInput, base: string, state: RunState): Promise<void> {
+  if (item.skip !== undefined) {
+    state.layers.push(entry(item, "skip", item.skip));
+    return;
+  }
+  state.inRange += 1;
+  const admitted = admit(item, state);
+  if ("reason" in admitted) {
+    state.layers.push(entry(item, "not-run", admitted.reason));
+    return;
+  }
+  const done = await execute(item, admitted.layer, input, base, state.artifacts);
+  record(state, item, done, input.options.keepGoing);
+}
+
+function countsOf(state: RunState): Counts {
   return {
-    artifacts: result.artifacts,
-    layer: entry(item, result.verdict, result.reason, {
-      findings: result.findings,
-      artifacts: Object.values(result.artifacts).map((path) => relative(input.cwd, path)),
-      duration_ms: input.now() - started,
-    }),
+    in_range: state.inRange,
+    ran: state.ran,
+    failed: state.layers.filter((layer) => FAILED.has(layer.verdict)).length,
+    not_evaluated: state.layers.filter((layer) => layer.verdict === "not-evaluated").length,
   };
 }
 
-/** Runs the plan and builds the report (WEB_TOPS.md sections 3.1, 3.3, 6.6, 12). */
-export async function runGate(input: RunInput): Promise<RanReport> {
+function problemsOf(state: RunState): Problem[] {
+  if (state.inRange === 0) {
+    return [{ path: "/counts/in_range", message: "no layer ran" }];
+  }
+  if (state.ran < state.inRange && state.stoppedAt === undefined) {
+    return [
+      {
+        path: "/counts/ran",
+        message: `ran ${String(state.ran)} of ${String(state.inRange)} layers in range`,
+      },
+    ];
+  }
+  return [];
+}
+
+function passedOf(state: RunState, problems: readonly Problem[]): boolean {
+  const clean = problems.length === 0 && state.ran === state.inRange;
+  return clean && !state.layers.some((layer) => isFailing(layer.verdict));
+}
+
+function exitCodeOf(passed: boolean, enforced: boolean): 0 | 1 {
+  return passed || !enforced ? 0 : 1;
+}
+
+function reportOf(input: RunInput, base: string, state: RunState): RanReport {
   const { config, options } = input;
-  // `--base` is handed to layers as a string and not checked here. The first layer that reads it is
-  // mutation (M2), which resolves the merge base and fails a ref that does not resolve (section 6.4).
-  const base = options.base ?? config.base ?? "origin/main";
-  const artifacts = new Map<string, string>();
-  const layers: ReportLayer[] = [];
-  let inRange = 0;
-  let ran = 0;
-  let stoppedAt: GateRef | undefined;
-  for (const item of planGate(input.layers, config, options)) {
-    if (item.skip !== undefined) {
-      layers.push(entry(item, "skip", item.skip));
-      continue;
-    }
-    inRange += 1;
-    if (item.layer === undefined) {
-      layers.push(entry(item, "not-run", "no layer is registered for this id"));
-    } else if (stoppedAt !== undefined) {
-      layers.push(entry(item, "not-run", `stopped: gate ${String(stoppedAt)} failed`));
-    } else {
-      const result = await execute(item, item.layer, input, base, artifacts);
-      if (EVALUATED.has(result.layer.verdict)) {
-        ran += 1;
-      }
-      layers.push(result.layer);
-      for (const [name, path] of Object.entries(result.artifacts)) {
-        artifacts.set(name, path);
-      }
-      if (isFailing(result.layer.verdict) && !options.keepGoing) {
-        stoppedAt = item.gate;
-      }
-    }
-  }
-  const counts: Counts = {
-    in_range: inRange,
-    ran,
-    failed: layers.filter(
-      (layer) =>
-        layer.verdict === "Refuse" || layer.verdict === "Ack" || layer.verdict === "not-run",
-    ).length,
-    not_evaluated: layers.filter((layer) => layer.verdict === "not-evaluated").length,
-  };
-  const problems: Problem[] = [];
-  if (inRange === 0) {
-    problems.push({ path: "/counts/in_range", message: "no layer ran" });
-  } else if (ran < inRange && stoppedAt === undefined) {
-    problems.push({
-      path: "/counts/ran",
-      message: `ran ${String(ran)} of ${String(inRange)} layers in range`,
-    });
-  }
-  const passed =
-    problems.length === 0 && ran === inRange && !layers.some((layer) => isFailing(layer.verdict));
+  const problems = problemsOf(state);
+  const passed = passedOf(state, problems);
   const enforced = config.enforce !== "advisory";
   return {
     protocol: config.protocol,
@@ -278,9 +267,27 @@ export async function runGate(input: RunInput): Promise<RanReport> {
     keep_going: options.keepGoing,
     only: options.only ?? null,
     passed,
-    exit_code: passed || !enforced ? 0 : 1,
-    counts,
+    exit_code: exitCodeOf(passed, enforced),
+    counts: countsOf(state),
     problems,
-    layers,
+    layers: state.layers,
   };
+}
+
+/** Runs the plan and builds the report (WEB_TOPS.md sections 3.1, 3.3, 6.6, 12). */
+export async function runGate(input: RunInput): Promise<RanReport> {
+  // `--base` is handed to layers as a string and not checked here. The first layer that reads it is
+  // mutation (M2), which resolves the merge base and fails a ref that does not resolve (section 6.4).
+  const base = input.options.base ?? input.config.base ?? "origin/main";
+  const state: RunState = {
+    layers: [],
+    artifacts: new Map<string, string>(),
+    inRange: 0,
+    ran: 0,
+    stoppedAt: undefined,
+  };
+  for (const item of planGate(input.layers, input.config, input.options)) {
+    await step(item, input, base, state);
+  }
+  return reportOf(input, base, state);
 }

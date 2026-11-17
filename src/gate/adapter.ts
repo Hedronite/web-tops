@@ -19,45 +19,57 @@ const BUILD_OUTPUT_KEYS: readonly LayerKey[] = [
   "themes",
 ];
 
+/** The gates whose `enabled` switch is `gates.<id>.enabled`. */
+const GATE_SWITCHES = ["hygiene", "tests", "coverage", "crap", "mutation"] as const;
+
+function mappedBuildKeys(config: WebTopsConfig): LayerKey[] {
+  const mapped = profileFor(config.class)?.layers ?? [];
+  return BUILD_OUTPUT_KEYS.filter((key) => mapped.includes(key));
+}
+
+/** Every mapped build layer is switched off: the reason is the config's, else a generic one. */
+function allOff(config: WebTopsConfig, keys: readonly LayerKey[]): Toggle | undefined {
+  const entries = keys.map((key) => config.layers?.[key]);
+  if (!entries.every((entry) => entry?.enabled === false)) {
+    return undefined;
+  }
+  const reason = entries.find((entry) => entry?.reason !== undefined)?.reason;
+  return { enabled: false, reason: reason ?? "disabled in web-tops.yaml" };
+}
+
 /**
  * Build output is switched off when the class maps none of its layers, or the config switches off every
  * one the class maps. The reason is the config's, else names the class.
  */
 function buildOutput(config: WebTopsConfig): Toggle | undefined {
-  const mapped = profileFor(config.class)?.layers ?? [];
-  const keys = BUILD_OUTPUT_KEYS.filter((key) => mapped.includes(key));
-  if (keys.length === 0) {
-    return { enabled: false, reason: `class ${config.class} maps no build-output layer` };
-  }
-  const entries = keys.map((key) => config.layers?.[key]);
-  if (entries.every((entry) => entry?.enabled === false)) {
-    return {
-      enabled: false,
-      reason:
-        entries.find((entry) => entry?.reason !== undefined)?.reason ?? "disabled in web-tops.yaml",
-    };
-  }
-  return undefined;
+  const keys = mappedBuildKeys(config);
+  return keys.length === 0
+    ? { enabled: false, reason: `class ${config.class} maps no build-output layer` }
+    : allOff(config, keys);
+}
+
+function togglesOf(config: WebTopsConfig): Record<string, Toggle> {
+  const entries: readonly [string, Toggle | undefined][] = [
+    ...GATE_SWITCHES.map((id): [string, Toggle | undefined] => [id, off(config.gates?.[id])]),
+    ["build-output", buildOutput(config)],
+    ["laws", off(config.laws)],
+  ];
+  return Object.fromEntries(
+    entries.flatMap(([id, toggle]) => (toggle === undefined ? [] : [[id, toggle]])),
+  );
+}
+
+function baseOf(config: WebTopsConfig): string | undefined {
+  return config.gates?.mutation?.base;
+}
+
+function customOf(config: WebTopsConfig): GateConfig["custom"] {
+  return (config.layers?.custom ?? []).map(({ id, tier, command }) => ({ id, tier, command }));
 }
 
 /** Narrows a validated `web-tops.yaml` to what the runner needs (the class profile and the switches). */
 export function toGateConfig(config: WebTopsConfig): GateConfig {
-  const entries: readonly [string, Toggle | undefined][] = [
-    ["hygiene", off(config.gates?.hygiene)],
-    ["tests", off(config.gates?.tests)],
-    ["coverage", off(config.gates?.coverage)],
-    ["crap", off(config.gates?.crap)],
-    ["mutation", off(config.gates?.mutation)],
-    ["build-output", buildOutput(config)],
-    ["laws", off(config.laws)],
-  ];
-  const toggles: Record<string, Toggle> = {};
-  for (const [id, toggle] of entries) {
-    if (toggle !== undefined) {
-      toggles[id] = toggle;
-    }
-  }
-  const base = config.gates?.mutation?.base;
+  const base = baseOf(config);
   return {
     protocol: config.protocol,
     package: config.package,
@@ -65,7 +77,7 @@ export function toGateConfig(config: WebTopsConfig): GateConfig {
     enforce: config.enforce,
     ...(base === undefined ? {} : { base }),
     reportPath: config.report.path,
-    toggles,
-    custom: (config.layers?.custom ?? []).map(({ id, tier, command }) => ({ id, tier, command })),
+    toggles: togglesOf(config),
+    custom: customOf(config),
   };
 }

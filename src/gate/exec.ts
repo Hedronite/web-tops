@@ -1,20 +1,25 @@
 import { spawn } from "node:child_process";
-import type { Exec, ExecResult } from "./types.ts";
+import type { Exec, ExecOptions, ExecResult } from "./types.ts";
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
+
+/** The environment a process gets: the given one, else this process's, without undefined values. */
+function environmentOf(env: ExecOptions["env"]): NodeJS.ProcessEnv {
+  const clean: NodeJS.ProcessEnv = {};
+  for (const [key, value] of Object.entries(env ?? process.env)) {
+    if (value !== undefined) {
+      clean[key] = value;
+    }
+  }
+  return clean;
+}
 
 /** Runs one process and captures it. A missing binary and a timeout come back as `failure`, never as a throw. */
 export const realExec: Exec = (command, args, options = {}) =>
   new Promise<ExecResult>((resolve) => {
-    const env: NodeJS.ProcessEnv = {};
-    for (const [key, value] of Object.entries(options.env ?? process.env)) {
-      if (value !== undefined) {
-        env[key] = value;
-      }
-    }
     const child = spawn(command, [...args], {
       cwd: options.cwd,
-      env,
+      env: environmentOf(options.env),
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";

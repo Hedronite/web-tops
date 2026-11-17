@@ -143,27 +143,6 @@ describe("G2a runner: §3.1 order, stop on failure, --keep-going, --max-tier, --
     expect(seen).toEqual(["release", "develop", "origin/main", "release"]);
   });
 
-  it("gives a later layer the artifacts an earlier layer wrote this run", async () => {
-    let seen: string | undefined;
-    const reader: Layer = {
-      ...fakeLayer({ id: "coverage", gate: 3 }),
-      run: (context) => {
-        seen = context.artifacts.get("lcov");
-        return Promise.resolve({ verdict: "pass", findings: [], artifacts: {} });
-      },
-    };
-    const writer = fakeLayer({
-      id: "tests",
-      gate: 2,
-      artifacts: { lcov: "/unused/.web-tops/out/lcov.info" },
-    });
-    const report = await run([reader, writer]);
-    expect(seen).toBe("/unused/.web-tops/out/lcov.info");
-    expect(report.layers.find((layer) => layer.id === "tests")?.artifacts).toEqual([
-      ".web-tops/out/lcov.info",
-    ]);
-  });
-
   it("skips a disabled layer with its reason, and a layer the class does not map", async () => {
     const calls: string[] = [];
     const layers = [

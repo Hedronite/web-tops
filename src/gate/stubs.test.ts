@@ -32,10 +32,12 @@ describe("G2e stubs: crap, mutation, build-output and laws report not-run when e
   it.each(LATER)(
     "enabling %s yields not-run naming %s, and a failed gate",
     async (id, milestone) => {
-      const only: Record<string, { enabled: boolean; reason?: string }> = {};
-      for (const [other] of LATER) {
-        only[other] = other === id ? { enabled: true } : off(`later milestone ${other}`);
-      }
+      const only = Object.fromEntries(
+        LATER.map(([other]) => [
+          other,
+          other === id ? { enabled: true } : off(`later milestone ${other}`),
+        ]),
+      );
       const report = await runReal(
         cfg({ toggles: { ...only, hygiene: off("t"), tests: off("t"), coverage: off("t") } }),
       );

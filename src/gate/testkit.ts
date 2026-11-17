@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Finding, GateRef, Report, Verdict } from "../report/types.ts";
 import type {
+  Consumed,
   Exec,
   GateConfig,
   GateOptions,
@@ -26,6 +27,9 @@ export interface FakeLayerOptions {
   readonly findings?: readonly Finding[];
   readonly classes?: readonly string[];
   readonly requires?: readonly string[];
+  /** Defaults to the names in `artifacts`. */
+  readonly produces?: readonly string[];
+  readonly consumes?: readonly Consumed[];
   readonly artifacts?: Readonly<Record<string, string>>;
   /** Appended with the id each time `run` is invoked. */
   readonly calls?: string[];
@@ -33,27 +37,58 @@ export interface FakeLayerOptions {
   readonly throws?: Error;
 }
 
+interface FakeDefaults {
+  readonly gate: GateRef;
+  readonly tier: Tier;
+  readonly verdict: Verdict;
+  readonly findings: readonly Finding[];
+  readonly classes: readonly string[];
+  readonly requires: readonly string[];
+  readonly consumes: readonly Consumed[];
+  readonly artifacts: Readonly<Record<string, string>>;
+}
+
+const FAKE_DEFAULTS: FakeDefaults = {
+  gate: 1,
+  tier: 1,
+  verdict: "pass",
+  findings: [],
+  classes: ALL_CLASSES,
+  requires: [],
+  consumes: [],
+  artifacts: {},
+};
+
+function reasonField(reason: string | undefined): { reason?: string } {
+  return reason === undefined ? {} : { reason };
+}
+
+async function play(options: FakeLayerOptions, result: LayerResult): Promise<LayerResult> {
+  options.calls?.push(options.id);
+  await options.onRun?.();
+  if (options.throws !== undefined) {
+    throw options.throws;
+  }
+  return result;
+}
+
 export function fakeLayer(options: FakeLayerOptions): Layer {
+  const full = { ...FAKE_DEFAULTS, ...options };
   const result: LayerResult = {
-    verdict: options.verdict ?? "pass",
-    ...(options.reason === undefined ? {} : { reason: options.reason }),
-    findings: options.findings ?? [],
-    artifacts: options.artifacts ?? {},
+    verdict: full.verdict,
+    findings: full.findings,
+    artifacts: full.artifacts,
+    ...reasonField(full.reason),
   };
   return {
-    id: options.id,
-    gate: options.gate ?? 1,
-    tier: options.tier ?? 1,
-    classes: options.classes ?? ALL_CLASSES,
-    requires: options.requires ?? [],
-    run: async () => {
-      options.calls?.push(options.id);
-      await options.onRun?.();
-      if (options.throws !== undefined) {
-        throw options.throws;
-      }
-      return result;
-    },
+    id: full.id,
+    gate: full.gate,
+    tier: full.tier,
+    classes: full.classes,
+    requires: full.requires,
+    produces: full.produces ?? Object.keys(full.artifacts),
+    consumes: full.consumes,
+    run: () => play(full, result),
   };
 }
 
@@ -155,17 +190,33 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function isCounts(value: unknown): boolean {
+  return isRecord(value) && typeof value["ran"] === "number";
+}
+
+function isLayerEntry(layer: unknown): boolean {
+  return isRecord(layer) && typeof layer["id"] === "string";
+}
+
+function hasLayers(value: unknown): boolean {
+  return Array.isArray(value) && value.every(isLayerEntry);
+}
+
+function hasReportFields(value: Record<string, unknown>): boolean {
+  return (
+    typeof value["protocol"] === "string" &&
+    typeof value["passed"] === "boolean" &&
+    (value["exit_code"] === 0 || value["exit_code"] === 1)
+  );
+}
+
 /** Checks the fields the report always carries; the schema test in G1's validator is the full check. */
 function isReport(value: unknown): value is Report {
   return (
     isRecord(value) &&
-    typeof value["protocol"] === "string" &&
-    typeof value["passed"] === "boolean" &&
-    (value["exit_code"] === 0 || value["exit_code"] === 1) &&
-    isRecord(value["counts"]) &&
-    typeof value["counts"]["ran"] === "number" &&
-    Array.isArray(value["layers"]) &&
-    value["layers"].every((layer: unknown) => isRecord(layer) && typeof layer["id"] === "string")
+    hasReportFields(value) &&
+    isCounts(value["counts"]) &&
+    hasLayers(value["layers"])
   );
 }
 

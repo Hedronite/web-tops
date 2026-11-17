@@ -20,6 +20,8 @@ export function stubLayer(
     tier,
     classes: ALL_LAUNCH_CLASSES,
     requires,
+    produces: [],
+    consumes: [],
     run: () =>
       Promise.resolve({
         verdict: "not-run",
@@ -49,6 +51,8 @@ export function customLayer(id: string, tier: Tier, command: string | undefined)
     tier,
     classes: ALL_LAUNCH_CLASSES,
     requires: [],
+    produces: [],
+    consumes: [],
     run: () =>
       Promise.resolve({
         verdict: "not-run",

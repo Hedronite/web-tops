@@ -29,24 +29,31 @@ interface Harness {
   readonly reportPath: string;
 }
 
-function harness(
-  options: {
-    readonly layers?: (config: GateConfig) => Layer[];
-    readonly config?: LoadedConfig;
-    readonly env?: Record<string, string | undefined>;
-    readonly versions?: { bun?: string; node: string };
-  } = {},
-): Harness {
+interface HarnessOptions {
+  readonly layers: (config: GateConfig) => Layer[];
+  readonly config: LoadedConfig;
+  readonly env: Record<string, string | undefined>;
+  readonly versions: { bun?: string; node: string };
+}
+
+function harness(options: Partial<HarnessOptions> = {}): Harness {
+  const full: HarnessOptions = {
+    layers: () => fakeBuiltins([]),
+    config: { ok: true, config: cfg() },
+    env: {},
+    versions: { bun: "1.4.4", node: "24.0.0" },
+    ...options,
+  };
   const project = tempProject();
   projects.push(project);
   const io = memoryIo();
   const deps: GateDeps = {
     cwd: project.dir,
-    env: options.env ?? {},
+    env: full.env,
     exec: noExec,
-    versions: options.versions ?? { bun: "1.4.4", node: "24.0.0" },
-    loadConfig: () => Promise.resolve(options.config ?? { ok: true, config: cfg() }),
-    layers: options.layers ?? (() => fakeBuiltins([])),
+    versions: full.versions,
+    loadConfig: () => Promise.resolve(full.config),
+    layers: full.layers,
     now: () => 1000,
   };
   return {

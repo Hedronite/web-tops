@@ -60,6 +60,12 @@ export interface LayerContext {
   readonly artifacts: ReadonlyMap<string, string>;
 }
 
+/** An input a layer reads: the artifact's name and the layer that produces it (R29 N5, WEB_TOPS.md section 3.1). */
+export interface Consumed {
+  readonly artifact: string;
+  readonly from: string;
+}
+
 export interface Layer {
   readonly id: string;
   readonly gate: GateRef;
@@ -68,6 +74,10 @@ export interface Layer {
   readonly classes: readonly string[];
   /** Layers whose artifacts this one reads; `--only` runs them too. */
   readonly requires: readonly string[];
+  /** Artifacts this layer writes, by name, under `.web-tops/out/<id>/`; it lists the ones it wrote in its result. */
+  readonly produces: readonly string[];
+  /** Artifacts this layer reads; one that is missing makes the layer `not-run` before it starts. */
+  readonly consumes: readonly Consumed[];
   readonly run: (context: LayerContext) => Promise<LayerResult>;
 }
 
