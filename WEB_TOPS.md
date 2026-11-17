@@ -279,7 +279,7 @@ Coverage counts `.ts` and `.tsx` modules. `.astro` components are judged by `ast
   keys, `100: true`) can make Vitest exit non-zero. The exit code then tells the rest apart. With no
   results file, the run crashed. With results that show no failing test and a non-zero exit, Vitest
   failed the run itself, for example on an unhandled rejection or an error thrown after a test
-  ended: the `tests` layer is `Refuse` with reason `vitest-run-failed`, quoting Vitest's stderr. The
+  ended: the `tests` layer is `fail` with reason `vitest-run-failed`, quoting Vitest's stderr. The
   gate runs Vitest's default reporter beside `json`, so that stderr names the error.
 
 ### 6.2 CRAP
