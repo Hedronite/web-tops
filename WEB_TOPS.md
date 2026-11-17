@@ -116,7 +116,7 @@ Gates run in this order. A failing gate stops the run unless `--keep-going` is s
 | # | Gate | Command(s) | Pass condition |
 |---|---|---|---|
 | 1 | **Hygiene** | `bun install --frozen-lockfile`; `tsc -b --noEmit` (pinned 6.0) **[verify `-b` with `--noEmit`]**; `astro check` (Astro projects, §9); `eslint` type-aware, once, JSON output; `stylelint` on CSS and `<style>` blocks; format check; `dependency-cruiser`; `publint` and `attw` on the packed tarball (package classes); dependency audit | All clean; no high or critical advisory in production dependencies |
-| 2 | **Tests** | **one run**: `vitest run --coverage --sequence.shuffle --sequence.seed <n>`; the gate passes the seed, the v8 provider, the coverage `include` and `exclude`, the `json` + `lcov` reporters, the reports directory and a JSON results file itself (§6.1) | All pass; no focused or skipped tests; zero tests is a failure. Judged from the JSON results, not Vitest's exit code |
+| 2 | **Tests** | **one run**: `vitest run --coverage --sequence.shuffle --sequence.seed <n>`; the gate passes the seed, the v8 provider, the coverage `include` and `exclude`, the `json` + `lcov` coverage reporters, the reports directory, Vitest's default reporter beside `json`, and the JSON results path (`--outputFile.json`) itself; it runs Vitest through a kit config that drops the project's coverage thresholds (§6.1) | All pass; no focused or skipped tests; zero tests is a failure; Vitest's own run failure (an unhandled error) fails too. Judged from the JSON results and the exit code (§6.1) |
 | 3 | **Coverage** | from the run in gate 2; **`test -s`** on the LCOV | Profile non-empty; class floor or ratchet met |
 | 4 | **CRAP** | native CRAP over the LCOV and the TypeScript AST (§6.2) | Cap or ratchet met |
 | 5 | **Mutation (diff)** | Stryker on lines changed against the merge base (§6.4) | Unexplained survivors ≤ max |
@@ -266,8 +266,14 @@ Coverage counts `.ts` and `.tsx` modules. `.astro` components are judged by `ast
   class profile, or the baseline under `ratchet`, never from `thresholds` in the Vitest config.
   The floor is computed over in-scope records only; any other `SF:` record is ignored. The
   `tests` layer is judged from Vitest's JSON results (every test passed, none focused or skipped,
-  more than zero), so a project `thresholds` miss, which makes Vitest exit 1, does not fail it;
-  the exit code only tells a crash with no results file from a run.
+  more than zero), so a project `thresholds` miss does not fail it. The gate runs Vitest with a
+  kit config, written to `.web-tops/out/tests/vitest.config.mjs`, that loads the project's Vitest
+  config and removes `test.coverage.thresholds` whole, so no threshold form (global keys, glob
+  keys, `100: true`) can make Vitest exit non-zero. The exit code then tells the rest apart. With no
+  results file, the run crashed. With results that show no failing test and a non-zero exit, Vitest
+  failed the run itself, for example on an unhandled rejection or an error thrown after a test
+  ended: the `tests` layer is `Refuse` with reason `vitest-run-failed`, quoting Vitest's stderr. The
+  gate runs Vitest's default reporter beside `json`, so that stderr names the error.
 
 ### 6.2 CRAP
 
