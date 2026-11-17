@@ -1,0 +1,38 @@
+{
+  "report_version": "1.0.0",
+  "subject": {
+    "package": "fixture",
+    "root": "."
+  },
+  "crap": {
+    "src/wire.ts::decode": {
+      "complexity": 4,
+      "coverage": 0.75,
+      "crap": 7.0
+    },
+    "src/legacy/loose.ts::parseLoose": {
+      "complexity": 2,
+      "coverage": 0,
+      "crap": 6.0
+    }
+  },
+  "coverage": {
+    "fixture": {
+      "lines_found": 40,
+      "lines_hit": 31
+    }
+  },
+  "findings": {
+    "@typescript-eslint/no-explicit-any": {
+      "src/legacy/loose.ts": 2,
+      "src/wire.ts": 1
+    },
+    "no-console": {
+      "src/wire.ts": 3
+    }
+  },
+  "pages": {
+    "/": 18432,
+    "/about": 9120
+  }
+}

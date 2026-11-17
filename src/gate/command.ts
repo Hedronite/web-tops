@@ -4,6 +4,7 @@ import { formatText } from "../report/text.ts";
 import { realOf, resolveReportPath, writeReport } from "../report/write.ts";
 import { checkEnvironment, type Versions } from "./environment.ts";
 import { parseGateArgs } from "./options.ts";
+import { describeRun, recordTools } from "./run-info.ts";
 import { planGate, runGate } from "./runner.ts";
 import type { Exec, GateConfig, GateOptions, Io, Layer } from "./types.ts";
 
@@ -151,15 +152,18 @@ async function execute(prepared: Prepared, io: Io, deps: GateDeps): Promise<numb
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
   rmSync(prepared.reportPath, { force: true });
+  const tools = recordTools(deps.exec);
   const report = await runGate({
     layers: prepared.layers,
     config: prepared.config,
     options: prepared.options,
     cwd: deps.cwd,
     env: deps.env,
-    exec: deps.exec,
+    exec: tools.exec,
     outDir,
     now: deps.now,
+    describe: () =>
+      describeRun({ cwd: deps.cwd, env: deps.env, exec: deps.exec, used: tools.used() }),
   });
   writeReport(prepared.reportPath, report);
   io.out(prepared.options.json ? `${JSON.stringify(report, null, 2)}\n` : formatText(report));

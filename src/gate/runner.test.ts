@@ -45,7 +45,13 @@ describe("G2a runner: §3.1 order, stop on failure, --keep-going, --max-tier, --
       reason: "stopped: gate 2 failed",
     });
     expect(byId.get("laws")?.verdict).toBe("pass");
-    expect(report.counts).toEqual({ in_range: 7, ran: 3, failed: 5, not_evaluated: 0 });
+    expect(report.counts).toEqual({
+      in_range: 7,
+      ran: 3,
+      failed: 5,
+      not_evaluated: 0,
+      required_not_evaluated: 0,
+    });
     expect(report.exit_code).toBe(1);
   });
 
@@ -119,7 +125,13 @@ describe("G2a runner: §3.1 order, stop on failure, --keep-going, --max-tier, --
       verdict: "skip",
       reason: "not selected by --only coverage",
     });
-    expect(report.counts).toEqual({ in_range: 2, ran: 2, failed: 0, not_evaluated: 0 });
+    expect(report.counts).toEqual({
+      in_range: 2,
+      ran: 2,
+      failed: 0,
+      not_evaluated: 0,
+      required_not_evaluated: 0,
+    });
     expect(report.passed).toBe(true);
     expect(report.exit_code).toBe(0);
     expect((await run(layers)).only).toBeNull();

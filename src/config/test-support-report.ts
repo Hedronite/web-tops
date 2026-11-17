@@ -1,7 +1,7 @@
 import {
   endsRun,
   LAYER_IDS,
-  REQUIRED_UNTIL_PROFILES,
+  REPORT_VERSION,
   type BuiltInLayerId,
   type GateReport,
   type LayerReport,
@@ -31,8 +31,17 @@ export function buildLayer(
 ): LayerReport {
   const tier: Tier = 1;
   return needsReason(verdict)
-    ? { id, gate, tier, verdict, reason: `${verdict} in the test`, findings: [] }
-    : { id, gate, tier, verdict, findings: [] };
+    ? {
+        id,
+        gate,
+        tier,
+        required: true,
+        verdict,
+        reason: `${verdict} in the test`,
+        findings: [],
+        metrics: {},
+      }
+    : { id, gate, tier, required: true, verdict, findings: [], metrics: {} };
 }
 
 function buildLayers(
@@ -48,18 +57,16 @@ function countsOf(layers: readonly LayerReport[]): GateReport["counts"] {
   return {
     in_range: layers.length - among(["skip"]),
     ran: layers.length - among(["skip", "not-run"]),
-    failed: layers.filter((layer) => endsRun(layer.verdict, REQUIRED_UNTIL_PROFILES)).length,
+    failed: layers.filter((layer) => endsRun(layer.verdict, layer.required)).length,
     not_evaluated: among(["not-evaluated"]),
+    required_not_evaluated: layers.filter(
+      (layer) => layer.verdict === "not-evaluated" && layer.required,
+    ).length,
   };
 }
 
 function isClean(counts: GateReport["counts"]): boolean {
-  return (
-    counts.in_range > 0 &&
-    counts.failed === 0 &&
-    counts.not_evaluated === 0 &&
-    counts.ran === counts.in_range
-  );
+  return counts.in_range > 0 && counts.failed === 0 && counts.ran === counts.in_range;
 }
 
 /** A consistent report: counts and `passed` follow from the layers. */
@@ -71,12 +78,15 @@ export function buildReport(
   const layers = buildLayers(verdicts, options.extra);
   const counts = countsOf(layers);
   return {
+    report_version: REPORT_VERSION,
     protocol: PROTOCOL,
     class: "ts-library",
     enforce,
     enforced: enforce !== "advisory",
     max_tier: 1,
     only: null,
+    subject: { package: "fixture", root: "." },
+    run: { sha: null, bun: null, node: null, tools: {}, seed: null },
     counts,
     layers,
     passed: isClean(counts),
