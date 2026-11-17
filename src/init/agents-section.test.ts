@@ -16,6 +16,9 @@ function profileOf(className: string, disabled: Record<string, string> = {}): Dr
 
 const sentence = (text: string): string => /It runs (.+?)\. Running/s.exec(text)?.[1] ?? "";
 
+const LAWS_NOTE =
+  "Law IDs name the rule; while laws is disabled, these are checked in review, not by the gate.";
+
 describe("the AGENTS section, with every layer enabled", () => {
   const text = agentsSection(profileOf("web-app"), SUBJECT, ASTRO);
 
@@ -32,6 +35,11 @@ describe("the AGENTS section, with every layer enabled", () => {
         "package export checks, size limits, HTML validation, accessibility checks, " +
         "rendered checks, theme checks, and the laws",
     );
+  });
+
+  it("drops the law note, because the laws are checked by the gate", () => {
+    expect(text).not.toContain("Law IDs name the rule");
+    expect(text).toContain("the reviewer must.\n");
   });
 
   it("never writes a ratchet line or the laws command, whatever is enabled", () => {
@@ -64,6 +72,10 @@ describe("the AGENTS section, with every switchable layer disabled", () => {
 
   it("verifies only type checks, lint and tests", () => {
     expect(sentence(text)).toBe("type checks, lint, and tests with coverage");
+  });
+
+  it("says on the Standards line that law IDs are checked in review", () => {
+    expect(text).toContain(`the reviewer must. ${LAWS_NOTE}\n`);
   });
 
   it("leaves no placeholder behind", () => {

@@ -206,6 +206,8 @@ const NAME_FOR: Record<string, string> = {
   themes: "theme checks",
   laws: "the laws",
 };
+const LAWS_NOTE =
+  "Law IDs name the rule; while laws is disabled, these are checked in review, not by the gate.";
 const verifies = (text: string): string => /It runs (.+?)\. Running/s.exec(text)?.[1] ?? "";
 
 describe.each(CLASSES)("webtops init --class %s", (className) => {
@@ -304,6 +306,10 @@ describe.each(CLASSES)("webtops init --class %s", (className) => {
     for (const command of ["check", "gate", "report --format text"]) {
       expect(text).toContain(`bunx webtops ${command}`);
     }
+  });
+
+  it("says the law IDs are checked in review while laws is disabled", () => {
+    expect(read(dir, "AGENTS.md")).toContain(LAWS_NOTE);
   });
 
   it("keeps a floor line only while the config enables the layer behind it", () => {
@@ -723,6 +729,7 @@ describe("the AGENTS template init renders", () => {
       "SURVIVORS_LINE",
       "BUDGET_LINE",
       "VERIFIES",
+      "LAWS_NOTE",
     ]) {
       expect(text, name).toContain(`{${name}}`);
     }

@@ -101,6 +101,9 @@ function verifies(profile: DropIn, astroCheck: AstroCheck): string {
   return joinList([...hygiene, "tests with coverage", ...layers]);
 }
 
+const LAWS_NOTE =
+  " Law IDs name the rule; while laws is disabled, these are checked in review, not by the gate.";
+
 /** The AGENTS.md section: it names only the commands this kit has and the layers the config enables. */
 export function agentsSection(profile: DropIn, subject: Subject, astroCheck: AstroCheck): string {
   return fill(readFileSync(AGENTS_TEMPLATE, "utf8"), {
@@ -125,6 +128,7 @@ export function agentsSection(profile: DropIn, subject: Subject, astroCheck: Ast
       `- JS per page or route ≤ \`${profile.js_budget}\` (brotli, from the build output), where the class ships pages`,
     ),
     VERIFIES: verifies(profile, astroCheck),
+    LAWS_NOTE: enabled(profile, "laws") ? "" : LAWS_NOTE,
   });
 }
 
