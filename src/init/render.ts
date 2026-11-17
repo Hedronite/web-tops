@@ -89,7 +89,13 @@ const HEADER =
   "# output and laws may be off for a class that maps them: they are `enabled: false` with the milestone\n" +
   "# that adds them. A layer the class does not map is off with the class as the reason.\n";
 
-export function webTopsYaml(profile: DropIn, subject: Subject, astroCheck: boolean): string {
+/** Whether `astro check` runs for this project, and the reason it is written off when it does not. */
+export interface AstroCheck {
+  readonly mapped: boolean;
+  readonly reason: string;
+}
+
+export function webTopsYaml(profile: DropIn, subject: Subject, astroCheck: AstroCheck): string {
   const doc = {
     protocol: PROTOCOL,
     version: subject.version,
@@ -102,16 +108,9 @@ export function webTopsYaml(profile: DropIn, subject: Subject, astroCheck: boole
       hygiene: {
         eslint: { config: "eslint.config.js" },
         format: { tool: "prettier" },
-        ...(astroCheck
+        ...(astroCheck.mapped
           ? {}
-          : {
-              astro_check: {
-                enabled: false,
-                reason:
-                  profile.disabled["astro_check"] ??
-                  "not mapped for class: this project lists no astro dependency",
-              },
-            }),
+          : { astro_check: { enabled: false, reason: astroCheck.reason } }),
         stylelint: switched(profile, "stylelint"),
         audit: { fail_on: "high" },
       },

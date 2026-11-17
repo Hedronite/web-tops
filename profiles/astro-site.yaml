@@ -7,7 +7,6 @@ survivors_max: 2
 js_budget: "0 KB (50 KB with islands)"
 playwright: true
 eslint: astro
-astro_check: always
 tools:
   - "@eslint-community/eslint-plugin-eslint-comments"
   - "@eslint/js"

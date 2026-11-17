@@ -40,20 +40,10 @@ describe("drop-in profiles agree with the class table", () => {
       );
     });
 
-    it("maps astro check as WEB_TOPS.md section 9 says: always, with the project, or never", () => {
-      const expected: Record<string, string> = {
-        "astro-site": "always",
-        "ui-components": "project",
-        "web-app": "project",
-      };
-      expect(profile.astro_check).toBe(expected[table.class] ?? "never");
+    it("leaves astro check to the class table: no astro tools and no astro_check entry in the profile", () => {
       expect(profile.tools).not.toContain("astro");
       expect(profile.tools).not.toContain("@astrojs/check");
-      if (profile.astro_check === "never") {
-        expect(profile.disabled["astro_check"]).toMatch(/^not mapped for class: \S/);
-      } else {
-        expect(profile.disabled["astro_check"]).toBeUndefined();
-      }
+      expect(profile.disabled["astro_check"]).toBeUndefined();
     });
 
     it("leaves crap, mutation and laws off with a milestone, and no tier-1 gate off", () => {

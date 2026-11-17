@@ -7,7 +7,6 @@ survivors_max: 1
 js_budget: "n/a"
 playwright: true
 eslint: react
-astro_check: project
 tools:
   - "@arethetypeswrong/cli"
   - "@eslint-community/eslint-plugin-eslint-comments"

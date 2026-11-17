@@ -31,17 +31,3 @@ export function readPackageMeta(dir: string): PackageMeta {
     version: nonEmpty(field(doc, "version")) ?? "0.0.0",
   };
 }
-
-/** Whether the project's package.json lists `astro` in `dependencies` or `devDependencies` (WEB_TOPS.md section 9). */
-export function declaresAstro(dir: string): boolean {
-  let doc: unknown;
-  try {
-    doc = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
-  } catch {
-    return false;
-  }
-  return ["dependencies", "devDependencies"].some((group) => {
-    const listed = field(doc, group);
-    return typeof listed === "object" && listed !== null && Reflect.has(listed, "astro");
-  });
-}

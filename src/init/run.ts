@@ -4,8 +4,11 @@ import { serializeLock } from "../lock/format.ts";
 import { TOOL_PINS } from "../lock/pins.ts";
 import pkg from "../../package.json" with { type: "json" };
 import { mergeAgentsSection } from "./agents.ts";
-import { declaresAstro, readPackageMeta } from "./meta.ts";
+import { mapsStep, profileFor } from "../config/profiles.ts";
+import { readProject } from "../config/project.ts";
+import { readPackageMeta } from "./meta.ts";
 import { LAUNCH_CLASSES, loadProfile } from "./profile.ts";
+import type { AstroCheck } from "./render.ts";
 import { agentsSection, eslintConfig, readTemplate, webTopsYaml, workflow } from "./render.ts";
 
 export interface InitOptions {
@@ -65,11 +68,18 @@ export function runInit(options: InitOptions): InitOutcome {
 
   const { profile } = loaded;
   const subject = readPackageMeta(dir);
-  const astroCheck =
-    profile.astro_check === "always" || (profile.astro_check === "project" && declaresAstro(dir));
+  const table = profileFor(className);
+  if (table === undefined) return refuse(2, `no launch profile for class "${className}"`);
+  const mapped = mapsStep(table, "astro_check", readProject(dir));
+  const astroCheck: AstroCheck = {
+    mapped,
+    reason: table.conditionalSteps.includes("astro_check")
+      ? "not mapped for class: this project lists no astro dependency"
+      : "not mapped for class: only Astro projects run astro check",
+  };
   const lock: Record<string, string> = { webtops: pkg.version };
   const install: string[] = [];
-  for (const tool of [...profile.tools, ...(astroCheck ? ASTRO_TOOLS : [])]) {
+  for (const tool of [...profile.tools, ...(mapped ? ASTRO_TOOLS : [])]) {
     const version: unknown = Reflect.get(TOOL_PINS, tool);
     if (typeof version !== "string")
       return refuse(3, `profiles/${className}.yaml pins ${tool}, which has no exact version`);

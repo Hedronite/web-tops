@@ -7,7 +7,6 @@ survivors_max: 0
 js_budget: "n/a"
 playwright: false
 eslint: base
-astro_check: never
 tools:
   - "@arethetypeswrong/cli"
   - "@eslint-community/eslint-plugin-eslint-comments"
@@ -22,7 +21,6 @@ tools:
   - "typescript-eslint"
   - "vitest"
 disabled:
-  astro_check: "not mapped for class: only Astro projects run astro check"
   stylelint: "not mapped for class: a TypeScript library has no CSS"
   crap: "milestone M2: native CRAP lands in M2"
   mutation: "milestone M2: mutation testing lands in M2"
