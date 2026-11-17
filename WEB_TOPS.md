@@ -297,7 +297,9 @@ The report holds `protocol`, `class`, `enforce`, `enforced` (false only under `a
 `failed` counts `Refuse`, unacknowledged `Ack` and `not-run`; `not_evaluated` is counted apart
 and also fails the gate.
 Each entry in `layers` has `id` (`hygiene`, `tests`, `coverage`, `crap`, `mutation`,
-`build-output`, `laws`, or a `custom` id), `gate`, `tier`, `verdict` and `findings`. Verdicts are
+`build-output`, `laws`, or a `custom` id), `gate`, `tier`, `verdict` and `findings`. A finding has
+`rule` (a tool rule id or a law id), `message` and `verdict`, and `file` and `line` when it has a
+place. Verdicts are
 spelled as in §3.3: `pass`, `Refuse`, `Ack`, `skip`, `not-run`, `not-evaluated`. `skip` and
 `not-run` carry a `reason`. A stopped run's `not-run` reason is `stopped: gate <n> failed`. An
 `Ack` finding that is acknowledged carries `ack: { source: comment | ledger, reason }`; an
@@ -565,10 +567,11 @@ chooses which laws run and `enabled: false` turns the layer off.
   in the repo; none or both is a `Refuse`.
 - `audit.fail_on`: `low`, `moderate`, `high` or `critical`. `tests.runner`: `vitest`.
 - `laws.select`: `default` (the judged set) or `all`.
-- Under `hard`, a gate the class maps at tier 1 or below cannot be switched off, except
+- Under `hard`, a gate or step the class maps at tier 1 or below cannot be switched off, except
   `crap`, `mutation`, build output and `laws`, the layers that land after the first CLI release;
-  `check` exits 2. Under `advisory`, `exemption` is
-  required and its `until` date must be in the future.
+  `check` exits 2. Steps the class does not map (such as `astro_check` outside Astro classes)
+  stay `skip`. Under `advisory`, `exemption` is required; `until` is an ISO 8601 date
+  (`YYYY-MM-DD`), compared in UTC, and the exemption holds through that day.
 - Keys a config omits take the class profile's value (§5.2). The `crap` and `mutation` checks in
   §12 apply when that gate is enabled.
 
@@ -606,7 +609,7 @@ nothing.
 | Command | Behavior |
 |---|---|
 | `init --class <c>` | Writes the drop-in set (§4). Refuses to overwrite without `--force` |
-| `check` | Validates `web-tops.yaml` against the JSON Schema, plus semantic checks: protocol id, class has a profile, `crap.cap ≥ 1`, `ts-library` keeps `unexplained_survivors_max = 0`, `advisory` has an `exemption` whose `until` is in the future, under `ratchet` the baseline exists and is clean, under `hard` no tier-1 gate the class maps is off except `crap`, `mutation`, build output and `laws` (§9) |
+| `check` | Validates `web-tops.yaml` against the JSON Schema, plus semantic checks: protocol id, class has a profile, `crap.cap ≥ 1`, `ts-library` keeps `unexplained_survivors_max = 0`, `advisory` has an `exemption` whose `until` is in the future, under `ratchet` the baseline exists and is clean, under `hard` no gate or step the class maps at tier 1 or below is off except `crap`, `mutation`, build output and `laws` (§9) |
 | `gate` | Runs enabled layers at or below `--max-tier` (default 1). `--base`, `--keep-going`, `--json`, `--only <layer>`, `--dry-run` (refused in CI) |
 | `baseline` | Writes `.web-tops/baseline.json` after a passing run; the only writer |
 | `laws [list \| run \| explain W-NN]` | Catalog with readers; laws alone; one law explained |
