@@ -977,34 +977,34 @@ O13. Whether Lighthouse stays advisory at tier 2 or is dropped (M7).
 
 ---
 
-## 17. Repository layout (proposed)
+## 17. Repository layout
 
 The kit is written in TypeScript and is installed and started with Bun, so it gates itself with its own protocol.
 
 ```
 web-tops/
 ├── src/
-│   ├── cli/                 # webtops entry
-│   ├── gate/                # runner, tiers, verdicts
-│   ├── layers/              # hygiene, tests, coverage, crap, mutation, build output
-│   ├── complexity/          # TypeScript AST counting
-│   ├── crap/
-│   ├── budgets/             # dist/ byte reader
-│   └── report/
-├── packages/
-│   └── eslint-plugin-webtops/   # custom rules (W-23, W-28, W-31, …)
-├── laws/                    # W-NN.yaml
-├── profiles/
-├── schema/
+│   ├── cli/                 # webtops entry and one file per command
+│   ├── config/              # class table, config validation, semantic checks, report validation
+│   ├── gate/                # runner, tiers, verdicts, run info
+│   ├── init/                # webtops init: renders the drop-in set
+│   ├── layers/              # hygiene, tests, coverage
+│   ├── lock/                # tool pins, web-tops.lock, the Node range
+│   └── report/              # report writing, text and JSON rendering
+├── profiles/                # one profile per launch class: the data init renders from
+├── schema/                  # web-tops, gate-report and core (verdicts, modes) schemas
 ├── config/                  # drop-in templates, AGENTS.md.tmpl
-├── fixtures/lints/          # one deliberate violation per rule, with expect markers
-├── examples/                # one per launch class
+├── fixtures/                # config (with examples/), hygiene, init, lock, report, probe
+├── probes/                  # w22/: the W-22 proof, its own package and lock
 ├── docs/brand/
+├── .github/workflows/       # the gate job
 ├── WEB_TOPS.md
 ├── AGENTS.md · CLAUDE.md · CHANGELOG.md · README.md
 ├── web-tops.yaml · web-tops.lock · package.json · bun.lock
 └── LICENSE · LICENSE-MIT · LICENSE-APACHE
 ```
+
+Not yet in the tree: `src/complexity/` and `src/crap/` (the CRAP counter, M2), `src/budgets/` (the `dist/` byte reader, M4), `packages/eslint-plugin-webtops/`, `laws/` (one `W-NN.yaml` per law) and `fixtures/lints/` (M3).
 
 Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any release.
 

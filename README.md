@@ -11,9 +11,9 @@ TypeScript is the foundational language; HTML, CSS, Tailwind CSS and Astro compl
 
 ## Status
 
-Draft. Protocol **0.3.0** (proposed); the kit implements 0.2.1 until its code moves to 0.3.0. The package is version 0.1.0: a GitHub release, private, not published to npm.
+Draft. Protocol **0.3.0**; this tree implements it: one verdict set, the report shape, required layers and laws per class, and the protocol id checked by range. The package is version 0.1.0 (the release implements 0.2.1): a GitHub release, private, not published to npm.
 
-This repo is at milestone M1: the `webtops` CLI (`init`, `check`, `gate`, `report`, `lock`, `doctor`, `version`) runs from source on Bun and gates this repo on itself at tier 1, under `enforce: hard`. CRAP, mutation, the laws layer and the build-output layers are off in [`web-tops.yaml`](web-tops.yaml), each with the milestone that turns it on. The package is not published to npm.
+This repo has shipped milestone M1 and is releasing protocol 0.3.0: the `webtops` CLI (`init`, `check`, `gate`, `report`, `lock`, `doctor`, `version`) runs from source on Bun and gates this repo on itself at tier 1, under `enforce: hard`. CRAP, mutation, the laws layer and the build-output layers are off in [`web-tops.yaml`](web-tops.yaml), each with the milestone that turns it on. The package is not published to npm.
 
 | Milestone | Contents |
 |---|---|

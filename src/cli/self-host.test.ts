@@ -149,6 +149,15 @@ describe("R48: the 0.1.0 release", () => {
     expect(first).toMatch(/0\.3\.0/);
   });
 
+  it("says the tree implements protocol 0.3.0, and the 0.1.0 release 0.2.1", () => {
+    expect(text("README.md")).not.toContain("until its code moves");
+    expect(text("README.md")).toMatch(/this tree implements it/);
+    expect(text("AGENTS.md")).not.toContain("not yet implemented");
+    expect(text("AGENTS.md")).toMatch(
+      /This tree implements protocol 0\.3\.0 \(the 0\.1\.0 release implements 0\.2\.1\)/,
+    );
+  });
+
   it("says the same in the README status line and in AGENTS.md", () => {
     expect(text("README.md")).toMatch(/version 0\.1\.0|0\.1\.0/);
     expect(text("README.md")).not.toContain("unreleased (0.0.0)");
