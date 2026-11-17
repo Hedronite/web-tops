@@ -89,7 +89,7 @@ const HEADER =
   "# output and laws may be off for a class that maps them: they are `enabled: false` with the milestone\n" +
   "# that adds them. A layer the class does not map is off with the class as the reason.\n";
 
-export function webTopsYaml(profile: DropIn, subject: Subject): string {
+export function webTopsYaml(profile: DropIn, subject: Subject, astroCheck: boolean): string {
   const doc = {
     protocol: PROTOCOL,
     version: subject.version,
@@ -102,6 +102,16 @@ export function webTopsYaml(profile: DropIn, subject: Subject): string {
       hygiene: {
         eslint: { config: "eslint.config.js" },
         format: { tool: "prettier" },
+        ...(astroCheck
+          ? {}
+          : {
+              astro_check: {
+                enabled: false,
+                reason:
+                  profile.disabled["astro_check"] ??
+                  "not mapped for class: this project lists no astro dependency",
+              },
+            }),
         stylelint: switched(profile, "stylelint"),
         audit: { fail_on: "high" },
       },

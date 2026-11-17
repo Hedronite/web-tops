@@ -50,7 +50,7 @@ describe("AGENTS.md section", () => {
     const once = mergeAgentsSection(fixture("outside-text.txt"), BLOCK);
     if (once.kind !== "replace") throw new Error("expected a replacement");
     const twice = mergeAgentsSection(once.text, BLOCK);
-    expect(twice).toEqual({ kind: "replace", text: once.text });
+    expect(twice).toEqual({ kind: "replace", text: once.text, previous: "same" });
   });
 
   it("appends the block after a file that has no markers, leaving its bytes alone", () => {
@@ -70,6 +70,38 @@ describe("AGENTS.md section", () => {
       expect(result.kind).toBe("malformed");
     },
   );
+
+  it("says what the replaced block held: different text, the same text, or nothing", () => {
+    const kind = (existing: string): unknown => {
+      const result = mergeAgentsSection(existing, BLOCK);
+      return result.kind === "replace" ? result.previous : result.kind;
+    };
+    expect(kind(fixture("outside-text.txt"))).toBe("different");
+    expect(kind(`intro\n${BLOCK}outro`)).toBe("same");
+    expect(kind(`${BEGIN_MARKER}${END_MARKER}`)).toBe("empty");
+    expect(kind(`a\n${BEGIN_MARKER}\n${END_MARKER}\nb`)).toBe("empty");
+    expect(kind(`${BEGIN_MARKER} \t\r\n  ${END_MARKER}`)).toBe("empty");
+  });
+
+  it("fills an empty block and keeps the text around it", () => {
+    const result = mergeAgentsSection(`before\n${BEGIN_MARKER}${END_MARKER}\nafter`, BLOCK);
+    expect(result).toEqual({
+      kind: "replace",
+      text: `before\n${BLOCK.trimEnd()}\nafter`,
+      previous: "empty",
+    });
+  });
+
+  it("explains a refusal: markers inside fenced code count, so such a file cannot be inited", () => {
+    const fenced =
+      "How to use it:\n\n```md\n<!-- web-tops:begin -->\n<!-- web-tops:end -->\n```\n\n" + BLOCK;
+    const result = mergeAgentsSection(fenced, BLOCK);
+    expect(result.kind).toBe("malformed");
+    if (result.kind === "malformed") {
+      expect(result.reason).toContain("fenced");
+      expect(result.reason).toContain("2 begin");
+    }
+  });
 
   it("treats an empty file as having no markers", () => {
     expect(mergeAgentsSection("", BLOCK)).toEqual({ kind: "append", text: BLOCK });
@@ -94,6 +126,7 @@ describe("AGENTS.md section, properties", () => {
         expect(mergeAgentsSection(result.text, BLOCK)).toEqual({
           kind: "replace",
           text: result.text,
+          previous: "same",
         });
       }),
     );

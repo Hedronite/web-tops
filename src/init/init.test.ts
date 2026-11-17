@@ -5,6 +5,7 @@ import { parse } from "yaml";
 import { afterAll, describe, expect, it } from "vitest";
 import pkg from "../../package.json" with { type: "json" };
 import { PROTOCOL } from "../config/protocol.ts";
+import { checkConfigFile } from "../config/validate.ts";
 import { TOOL_PINS } from "../lock/pins.ts";
 import { parseLock } from "../lock/format.ts";
 import { runInit } from "./run.ts";
@@ -138,7 +139,7 @@ const TOOLS: Record<Class, readonly string[]> = {
     "eslint-plugin-astro",
     "@playwright/test",
   ],
-  "web-app": [...BASE_TOOLS, ...REACT_TOOLS, "@astrojs/check", "astro", "@playwright/test"],
+  "web-app": [...BASE_TOOLS, ...REACT_TOOLS, "@playwright/test"],
   "node-service": BASE_TOOLS,
 };
 const NEEDS_PLAYWRIGHT: Record<Class, boolean> = {
@@ -261,6 +262,10 @@ describe.each(CLASSES)("webtops init --class %s", (className) => {
     expect(text).toContain(`**Class:** \`${className}\``);
     expect(text).toContain("**Package:** `@example/subject`");
     expect(text).toContain("**Enforce:** `hard`");
+    expect(text).toContain(`**Protocol:** Web-TOPS ${PROTOCOL}`);
+    for (const [, version] of text.matchAll(/Web-TOPS (\d+\.\d+\.\d+)/g)) {
+      expect(version, "every protocol version in the section").toBe(PROTOCOL);
+    }
     expect(text).toContain(`Line coverage ≥ \`${String(floors.coverage)}%\``);
     expect(text).toContain(`CRAP cap ≤ \`${String(floors.crap)}\``);
     expect(text).toContain(`survivors ≤ \`${String(floors.survivors)}\``);
@@ -495,13 +500,146 @@ describe("webtops init, AGENTS.md", () => {
   });
 });
 
+describe("webtops init, astro check follows the project", () => {
+  const withAstro = (where: "dependencies" | "devDependencies" | "peerDependencies") =>
+    JSON.stringify({ name: "p", version: "1.0.0", [where]: { astro: "7.4.12" } });
+  const astroCheck = (dir: string): unknown =>
+    at(parse(read(dir, "web-tops.yaml")), "gates", "hygiene", "astro_check");
+  const locked = (dir: string): string[] => {
+    const lock = parseLock(read(dir, "web-tops.lock"));
+    return lock.ok ? Object.keys(lock.lock) : [];
+  };
+
+  it.each(["astro-site"] as const)(
+    "%s always runs it, with or without astro in package.json",
+    (className) => {
+      for (const files of [{}, { "package.json": withAstro("dependencies") }]) {
+        const { dir } = initInto(className, files);
+        expect(at(astroCheck(dir), "enabled")).not.toBe(false);
+        expect(locked(dir)).toEqual(expect.arrayContaining(["astro", "@astrojs/check"]));
+      }
+    },
+  );
+
+  it.each(["ui-components", "web-app"] as const)(
+    "%s runs it only when astro is a dependency",
+    (className) => {
+      for (const where of ["dependencies", "devDependencies"] as const) {
+        const { dir } = initInto(className, { "package.json": withAstro(where) });
+        expect(at(astroCheck(dir), "enabled"), where).not.toBe(false);
+        expect(locked(dir), where).toEqual(expect.arrayContaining(["astro", "@astrojs/check"]));
+      }
+    },
+  );
+
+  it.each(["ui-components", "web-app"] as const)(
+    "%s without astro writes it off, with a reason, and locks no astro",
+    (className) => {
+      for (const files of [
+        {},
+        { "package.json": withAstro("peerDependencies") },
+        { "package.json": "{ nope" },
+      ]) {
+        const { dir } = initInto(className, files);
+        expect(at(astroCheck(dir), "enabled")).toBe(false);
+        expect(at(astroCheck(dir), "reason")).toMatch(/^not mapped for class: \S/);
+        expect(locked(dir)).not.toContain("astro");
+        expect(locked(dir)).not.toContain("@astrojs/check");
+      }
+    },
+  );
+
+  it.each(["ts-library", "node-service"] as const)(
+    "%s never runs it, even with astro in package.json",
+    (className) => {
+      const { dir } = initInto(className, { "package.json": withAstro("dependencies") });
+      expect(at(astroCheck(dir), "enabled")).toBe(false);
+      expect(at(astroCheck(dir), "reason")).toMatch(/^not mapped for class: \S/);
+      expect(locked(dir)).not.toContain("astro");
+    },
+  );
+
+  it("an astro project passes check, with the step on or off", () => {
+    for (const className of ["ui-components", "web-app"] as const) {
+      for (const files of [{}, { "package.json": withAstro("dependencies") }]) {
+        const { dir } = initInto(className, files);
+        expect(checkConfigFile(join(dir, "web-tops.yaml")).ok).toBe(true);
+      }
+    }
+  });
+});
+
+describe("webtops init, AGENTS.md blocks that already exist", () => {
+  const BEGIN = "<!-- web-tops:begin -->";
+  const END = "<!-- web-tops:end -->";
+
+  it.each([
+    ["an empty pair", `intro\n${BEGIN}${END}\nnotes`],
+    ["an empty pair on two lines", `intro\r\n${BEGIN}\r\n${END}\r\nnotes`],
+    ["a whitespace-only pair", `${BEGIN}\n \t \n${END}`],
+  ])("fills %s without --force and keeps the text around it", (_name, existing) => {
+    const dir = tempDir();
+    put(dir, "AGENTS.md", existing);
+    const out = runInit({ className: "ts-library", dir, force: false });
+    expect(out.code, out.problems.join()).toBe(0);
+    const text = read(dir, "AGENTS.md");
+    expect(text.startsWith(existing.slice(0, existing.indexOf(BEGIN) + BEGIN.length))).toBe(true);
+    expect(text.endsWith(existing.slice(existing.indexOf(END)))).toBe(true);
+    expect(text).toContain("**Class:** `ts-library`");
+  });
+
+  it("succeeds when the block is already exactly what init writes, and leaves AGENTS.md alone", () => {
+    const { dir } = initInto("ts-library", { "package.json": '{"name":"p","version":"1.0.0"}' });
+    const before = read(dir, "AGENTS.md");
+    for (const file of [
+      "web-tops.yaml",
+      "web-tops.lock",
+      "tsconfig.strict.json",
+      "eslint.config.js",
+      "stylelint.config.js",
+      ".dependency-cruiser.cjs",
+      ".github/workflows/web-tops.yml",
+    ]) {
+      rmSync(join(dir, file));
+    }
+    const again = runInit({ className: "ts-library", dir, force: false });
+    expect(again.code, again.problems.join()).toBe(0);
+    expect(again.written).not.toContain("AGENTS.md");
+    expect(read(dir, "AGENTS.md")).toBe(before);
+    expect(snapshot(dir).has("web-tops.yaml")).toBe(true);
+  });
+
+  it("needs --force for a block that differs, and names the file", () => {
+    const dir = tempDir();
+    put(dir, "AGENTS.md", `${BEGIN}\nsomething else\n${END}\n`);
+    const out = runInit({ className: "ts-library", dir, force: false });
+    expect(out.code).toBe(4);
+    expect(out.problems.join("\n")).toContain("AGENTS.md");
+    expect(runInit({ className: "ts-library", dir, force: true }).code).toBe(0);
+  });
+
+  it("refuses markers quoted in a fenced code block and says fenced code counts", () => {
+    const dir = tempDir();
+    put(
+      dir,
+      "AGENTS.md",
+      `Usage:\n\n\`\`\`md\n${BEGIN}\n${END}\n\`\`\`\n\n${BEGIN}\nold\n${END}\n`,
+    );
+    const out = runInit({ className: "ts-library", dir, force: true });
+    expect(out.code).toBe(4);
+    expect(out.problems.join("\n")).toContain("fenced");
+    expect(snapshot(dir).size).toBe(1);
+  });
+});
+
 describe("the AGENTS template init renders", () => {
-  it("keeps its markers and its seven placeholders", () => {
+  it("keeps its markers and its eight placeholders, the protocol among them", () => {
     const text = readFileSync(join(root, "config/AGENTS.md.tmpl"), "utf8");
     expect(text.match(/<!-- web-tops:begin -->/g)?.length).toBe(1);
     expect(text.match(/<!-- web-tops:end -->/g)?.length).toBe(1);
     for (const name of [
       "CLASS",
+      "PROTOCOL",
       "PACKAGE",
       "ENFORCE",
       "COVERAGE_FLOOR",

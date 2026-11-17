@@ -7,6 +7,7 @@ survivors_max: 1
 js_budget: "n/a"
 playwright: false
 eslint: base
+astro_check: never
 tools:
   - "@eslint-community/eslint-plugin-eslint-comments"
   - "@eslint/js"
@@ -19,6 +20,7 @@ tools:
   - "typescript-eslint"
   - "vitest"
 disabled:
+  astro_check: "not mapped for class: only Astro projects run astro check"
   stylelint: "not mapped for class: a service has no CSS"
   package_exports: "not mapped for class: a service publishes no package exports"
   crap: "milestone M2: native CRAP lands in M2"

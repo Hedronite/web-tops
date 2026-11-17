@@ -10,6 +10,9 @@ export const LAUNCH_CLASSES: readonly string[] = PROFILES.map((profile) => profi
 /** Which plugin set `eslint.config.js` adds on top of the base law rules. */
 export type EslintVariant = "base" | "react" | "astro";
 
+/** When `astro check` runs: always (Astro sites), with the project (when package.json lists astro), or never. */
+export type AstroCheck = "always" | "project" | "never";
+
 /** The drop-in data for one class (the floors and mapped layers live in the class table; see the agreement test): floors, the tools its enabled layers run, and what M1 leaves off. */
 export interface DropIn {
   readonly class: string;
@@ -19,6 +22,7 @@ export interface DropIn {
   readonly js_budget: string;
   readonly playwright: boolean;
   readonly eslint: EslintVariant;
+  readonly astro_check: AstroCheck;
   readonly tools: readonly string[];
   /** Layer key to the reason it is written `enabled: false`. */
   readonly disabled: Readonly<Record<string, string>>;
@@ -35,6 +39,7 @@ const schema = {
     "js_budget",
     "playwright",
     "eslint",
+    "astro_check",
     "tools",
     "disabled",
   ],
@@ -46,6 +51,7 @@ const schema = {
     js_budget: { type: "string", minLength: 1 },
     playwright: { type: "boolean" },
     eslint: { enum: ["base", "react", "astro"] },
+    astro_check: { enum: ["always", "project", "never"] },
     tools: { type: "array", items: { type: "string", minLength: 1 }, uniqueItems: true },
     disabled: { type: "object", additionalProperties: { type: "string", minLength: 1 } },
   },

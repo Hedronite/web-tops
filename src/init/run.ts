@@ -4,7 +4,7 @@ import { serializeLock } from "../lock/format.ts";
 import { TOOL_PINS } from "../lock/pins.ts";
 import pkg from "../../package.json" with { type: "json" };
 import { mergeAgentsSection } from "./agents.ts";
-import { readPackageMeta } from "./meta.ts";
+import { declaresAstro, readPackageMeta } from "./meta.ts";
 import { LAUNCH_CLASSES, loadProfile } from "./profile.ts";
 import { agentsSection, eslintConfig, readTemplate, webTopsYaml, workflow } from "./render.ts";
 
@@ -27,6 +27,9 @@ export interface InitOutcome {
 }
 
 const DEFERRED = ["stryker.config.json"];
+
+/** What `astro check` needs, locked only where the step runs. */
+const ASTRO_TOOLS = ["@astrojs/check", "astro"];
 
 function refuse(code: 2 | 3 | 4, ...problems: string[]): InitOutcome {
   return { code, written: [], deferred: [], problems, install: [] };
@@ -62,9 +65,11 @@ export function runInit(options: InitOptions): InitOutcome {
 
   const { profile } = loaded;
   const subject = readPackageMeta(dir);
+  const astroCheck =
+    profile.astro_check === "always" || (profile.astro_check === "project" && declaresAstro(dir));
   const lock: Record<string, string> = { webtops: pkg.version };
   const install: string[] = [];
-  for (const tool of profile.tools) {
+  for (const tool of [...profile.tools, ...(astroCheck ? ASTRO_TOOLS : [])]) {
     const version: unknown = Reflect.get(TOOL_PINS, tool);
     if (typeof version !== "string")
       return refuse(3, `profiles/${className}.yaml pins ${tool}, which has no exact version`);
@@ -73,7 +78,7 @@ export function runInit(options: InitOptions): InitOutcome {
   }
 
   const planned = new Map<string, string>([
-    ["web-tops.yaml", webTopsYaml(profile, subject)],
+    ["web-tops.yaml", webTopsYaml(profile, subject, astroCheck)],
     ["web-tops.lock", serializeLock(lock)],
     ["tsconfig.strict.json", readTemplate("tsconfig.strict.json.template")],
     ["eslint.config.js", eslintConfig(profile)],
@@ -87,9 +92,11 @@ export function runInit(options: InitOptions): InitOutcome {
   const existing = exists(agentsPath) ? readFileSync(agentsPath, "utf8") : undefined;
   const merged = mergeAgentsSection(existing, agentsSection(profile, subject));
   if (merged.kind === "malformed") return refuse(4, merged.reason);
-  if (merged.kind === "replace" && merged.text !== existing)
+  if (merged.kind === "replace" && merged.previous === "different") {
     conflicts.push("AGENTS.md (the marked block differs)");
-  if (merged.kind !== "replace" || merged.text !== existing) planned.set("AGENTS.md", merged.text);
+  }
+  if (merged.kind !== "replace" || merged.previous !== "same")
+    planned.set("AGENTS.md", merged.text);
 
   if (conflicts.length > 0 && !force) {
     return refuse(
