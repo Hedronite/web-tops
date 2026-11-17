@@ -25,17 +25,9 @@ bunx webtops report --format text
 {BUDGET_LINE}
 - Other layers: see `web-tops.yaml`
 
-## Policies (non-negotiable)
+## Policies
 
-1. Write the oracle from the contract before the code.
-2. Never split a function only to lower its CRAP score.
-3. Never weaken a law, lint rule, tsconfig flag, or budget to make a change pass.
-4. Explain every accepted mutation survivor (reason, owner, optional expiry).
-5. Every suppression names its rule and a reason. No `@ts-ignore` or `@ts-nocheck`.
-6. Agent-authored code meets the same gate and the same CRAP cap as human code.
-7. Do not edit generated files; fix the generator.
-8. Prefer deleting code to adding configuration.
-9. Never edit `.web-tops/baseline.json` by hand, and never wrap old findings in suppressions to zero a count.
+The rules every change is held to are Web-TOPS §3.4, "Stated rules" ([WEB_TOPS.md](https://github.com/Hedronite/web-tops/blob/main/WEB_TOPS.md#34-stated-rules)). This section keeps no copy of them: read them there and follow them as written.
 
 ## Standards, with the check behind each
 
@@ -54,14 +46,14 @@ bunx webtops report --format text
 
 ### Data at the boundary
 
-- **Validate external data where it enters:** `response.json()`, `JSON.parse`, `FormData`, storage, messages. They return `any`, so unvalidated use fails lint. **[W-06, W-01]**
+- **Validate external data where it enters.** `response.json()`, `JSON.parse` and message `data` return `any`, so unvalidated use fails lint **[W-06, W-01]**. `FormData` and storage reads, `URLSearchParams` and `process.env` are typed `string` or `null`, which no rule checks: parse them with a schema before use. **[review, W-06]**
 - **Read env through a schema** (`astro:env` or a Zod module), never raw `process.env` / `import.meta.env` in logic. Only `PUBLIC_` values reach client code. **[W-06, W-37]**
 
 ### Async and errors
 
 - **No floating promises:** every promise is awaited, returned, or explicitly handled. **[W-11]**
 - **Bound concurrency.** `Promise.all` over input of unbounded size starts everything at once; use a limit. Don't serialize independent awaits in a loop either. **[W-12]**
-- **Caught values are `unknown`:** narrow them, and rethrow with `{ cause: error }`. **[W-13]**
+- **Caught values are `unknown`:** narrow them, and rethrow with `{ cause: error }`. **[W-13, `preserve-caught-error`]**
 - **Throw and reject only `Error` objects.** **[W-14]**
 
 ### Modules
@@ -69,10 +61,12 @@ bunx webtops report --format text
 - **Type-only imports use `import type` or inline `type`.** **[W-15, `verbatimModuleSyntax`]**
 - **Import through a package's `exports`**, never `pkg/dist/…`. No cycles, and respect the declared package boundaries. **[W-16, W-17]**
 - **Optional peers** (React, R3F) are imported only from entries that declare them. **[W-19]**
+{HOOKS_LINE}
+- **Delete dead code:** no unused exports, files or dependencies. **[review, W-48]**
 
 ### HTML, CSS, Tailwind, Astro
 
-- **Semantic HTML:** a `<button>` for actions, never a clickable `<div>`; `alt` on images; labels on form controls. **[W-22, W-21]**
+- **Semantic HTML:** a `<button>` for actions, never a clickable `<div>`; `alt` on images; a `<label>` tied to its control. Lint cannot tell whether a control has a name; axe judges that on the built page. **[W-22, W-21]**
 - **Built pages must validate** and pass axe with no serious or critical violations. **[W-20, W-21]**
 - **Write Tailwind classes as complete strings.** `` `bg-${color}-500` `` is never generated. Map values to whole class names instead. **[W-23]**
 - **Use theme tokens** (`@theme`) instead of raw hex values and arbitrary sizes. **[W-24, W-25]**
@@ -80,6 +74,7 @@ bunx webtops report --format text
 - **Use `astro:assets`** (`<Image>`, `<Picture>`) with dimensions. **[W-30]**
 - **Keep frontmatter thin.** Move logic into a `.ts` module, where it can be tested. **[W-31]**
 - **No `set:html`, `dangerouslySetInnerHTML`, or `innerHTML`** with unsanitized input. **[W-36]**
+{RENDERED_SECTION}
 
 ### Tests
 

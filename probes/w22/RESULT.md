@@ -56,6 +56,13 @@ eslint-plugin-jsx-a11y 6.10.2: 39 rules exported, 3 deprecated upstream, 36 in t
 - ESLint 10 stack, @eslint-community/eslint-comments/no-unlimited-disable: pass
 - ESLint 10 stack, @eslint-community/eslint-comments/require-description: pass
 
+Observation, not in the verdict: control-has-associated-label on inputs (jsx-a11y-x):
+- input-aria-label.tsx: quiet
+- input-bare.tsx: fires
+- input-label-for.tsx: fires
+- input-label-wrapping.tsx: fires
+- input-submit-value.tsx: fires
+
 Deprecated upstream (listed, outside the bar):
 - accessible-emoji: deprecated upstream, not in the bar; here: jsx-a11y-x not-implemented, oxlint not-implemented, control pass; no replacement upstream
 - label-has-for: deprecated upstream, not in the bar; here: jsx-a11y-x not-implemented, oxlint not-implemented, control pass; replaced upstream by label-has-associated-control (jsx-a11y-x pass, oxlint pass, control pass)

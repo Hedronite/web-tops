@@ -145,6 +145,34 @@ function cruise(dir: string): { status: number | null; output: string } {
   return { status: run.status, output: `${run.stdout}${run.stderr}` };
 }
 
+describe("the files webtops init writes: W-13", () => {
+  // preserve-caught-error is a rule of the base config every class gets, so any class shows it.
+  function lint(rethrow: string): Promise<string[]> {
+    const dir = generated("ts-library");
+    put(dir, "tsconfig.json", JSON.stringify(TSCONFIG));
+    put(
+      dir,
+      "src/load.ts",
+      `export function load(text: string): unknown {\n  try {\n    return JSON.parse(text);\n  } catch (error) {\n    ${rethrow}\n  }\n}\n`,
+    );
+    return new ESLint({ cwd: dir })
+      .lintFiles(["src/load.ts"])
+      .then((results) =>
+        results.flatMap((result) => result.messages.map((message) => message.ruleId ?? "")),
+      );
+  }
+
+  it("refuses a rethrow that drops the caught error", async () => {
+    expect(await lint('throw new Error("bad json");')).toContain("preserve-caught-error");
+  });
+
+  it("passes a rethrow that keeps it as the cause", async () => {
+    expect(await lint('throw new Error("bad json", { cause: error });')).not.toContain(
+      "preserve-caught-error",
+    );
+  });
+});
+
 describe("the files webtops init writes: dependency-cruiser", () => {
   it("loads, and passes a project that imports a package through its exports", () => {
     const dir = projectWith({

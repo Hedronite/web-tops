@@ -23,6 +23,10 @@ bun run.ts          # writes RESULT.json and RESULT.md, prints the table
   default options; "fires on bad" is a message from that rule, "quiet on clean" is none.
 - `fixtures/claims/`: the claim rows, which a candidate must pass to qualify: an unlabeled
   `<input type="text">` through each engine, and an `.astro` page through `eslint-plugin-astro`.
+- `fixtures/observations/`: inputs run through `control-has-associated-label`, recorded and not
+  in the verdict. The rule fires on a bare `<input>` and also on labeled ones (a `<label htmlFor>`
+  beside it, a wrapping `<label>`, `type="submit"` with a value), because it does not follow label
+  association; the plugin's own configs leave it off and ignore `input`. Only `aria-label` stays quiet.
 - `fixtures/stack/`: typed rules and `eslint-comments` running on ESLint 10.
 - `worker.ts` runs the ESLint engines under Node, as the protocol's R29 requires; `bun` only
   orchestrates.

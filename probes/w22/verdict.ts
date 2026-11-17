@@ -13,7 +13,7 @@ export function inBar(row: Row): boolean {
   return !row.deprecated;
 }
 
-function firedRules(obs: Observation, file: string): string[] {
+export function firedRules(obs: Observation, file: string): string[] {
   const rules = (obs.files[file] ?? []).flatMap((fire) => (fire.rule === null ? [] : [fire.rule]));
   return [...new Set(rules)].sort();
 }

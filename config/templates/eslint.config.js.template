@@ -45,7 +45,8 @@ export default defineConfig(
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-misused-promises": "error",
       "@typescript-eslint/await-thenable": "error",
-      // W-13 caught values are unknown (useUnknownInCatchVariables is in tsconfig `strict`)
+      // W-13 caught values are unknown (useUnknownInCatchVariables is in tsconfig `strict`); a rethrow
+      // keeps its cause through preserve-caught-error, which @eslint/js 10 recommends at "error"
       "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
       // W-14 only Error objects are thrown or used as rejections
       "@typescript-eslint/only-throw-error": "error",

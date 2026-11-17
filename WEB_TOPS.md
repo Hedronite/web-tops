@@ -504,10 +504,10 @@ A rule that is off everywhere is not a census item: for a required law it is `re
 | Layer | Tool | What fails | Tier |
 |---|---|---|---|
 | `.astro` type check | `astro check` | Any error | 1 |
-| HTML validity | `html-validate` on `dist/**/*.html` | Any error | 1 |
-| Accessibility | axe-core via Playwright, on every built page (`astro-site`) or the declared routes (`web-app`) | Any serious or critical violation; moderate ones are ratcheted | 1 |
+| HTML validity | `html-validate` on `dist/**/*.html`, with the presets `html-validate:standard` and `html-validate:document` | Any error | 1 |
+| Accessibility | axe-core via Playwright, on every built page (`astro-site`) or the declared routes (`web-app`), with the tags and the `target-size` rule set out below | Any serious or critical violation; moderate ones are ratcheted. An `incomplete` result is `not-evaluated` | 1 |
 | Internal links | link check on `dist/` **[verify tool]** | A broken internal link or anchor | 1 |
-| Bytes per page or route | `webtops` reads `dist/` and compresses with brotli | Over the class or page budget | 1 |
+| Bytes per page or route | `webtops` reads the page JavaScript (below) from `dist/` and compresses it with brotli | Over the class or page budget | 1 |
 | Package entry size | `size-limit` per `exports` entry | Over budget | 1 |
 | Package exports | `publint`, `@arethetypeswrong/cli` on the packed tarball | Any error | 1 |
 | Property tests | `fast-check` in Vitest | Per class: schemas, parsers, registries | 1 |
@@ -521,6 +521,33 @@ A rule that is off everywhere is not a census item: for a required law it is `re
 **Budgets are bytes, not scores.** Byte counts from `dist/` are the same on every run, so they
 can gate a merge. Lighthouse scores vary between runs and machines, so they gate nothing at
 tier 1. Rust-TOPS uses Callgrind instruction counts for the same reason.
+
+**HTML presets.** W-20 runs `html-validate:standard`, the WHATWG validity rules, plus
+`html-validate:document`, the whole-document checks (`missing-doctype`, `heading-level`,
+`no-missing-references`, `input-missing-label`, `require-sri`). The default `recommended` preset adds
+house-style rules (`no-inline-style`, `void-style`, `attr-quotes`, `no-trailing-whitespace`) that say
+nothing about validity, so it is not used. The `html-validate:a11y` preset also runs on built pages,
+and its findings are W-22's.
+
+**Page JavaScript** is what a page makes the browser run, read from `dist/` and never from a
+browser:
+
+- the body of every inline `<script>` that holds JavaScript (a `type` of `application/json`,
+  `application/ld+json` or `importmap` is data and is not counted);
+- every external `<script src>`;
+- every `<link rel="modulepreload">` target;
+- the static import closure of each of these: every module reached by `import … from`,
+  `export … from` or a bare `import "…"`, followed through `dist/` until no new file appears.
+
+Each file counts once per page. Its size is the brotli size at quality 11 with a window of 22 bits,
+the same bytes on Bun and Node. A dynamic `import()` is not in the closure: the chunk it names is a
+lazy chunk, and it counts in full toward the route whose page JavaScript holds the `import()`. A
+chunk that two routes reach counts toward both.
+
+**axe.** The run is limited to the tags `wcag2a`, `wcag2aa`, `wcag21aa` and `wcag22aa`.
+`target-size` (impact `serious`, tag `wcag22aa`) is off by default, so the run enables it by id. A
+result axe lists under `incomplete` is one it could not decide: it is `not-evaluated`, counted in the
+report, and never `pass`.
 
 Project-specific budgets, such as polygon counts and texture sizes for 3D assets, are custom
 layers (§20).
@@ -553,7 +580,8 @@ Readers:
 - **`tl`** (tool): mapped from that tool's JSON output. A `tl` reader reads the tool's
   effective configuration first (`tsc --showConfig`, `eslint --print-config`,
   `stylelint --print-config`). With the rule or flag off or below `error`, the law is `refuse`
-  when it is required (§3.3), else `not-evaluated`; never `pass`.
+  when it is required (§3.3), and the finding carries the config line that turns it off or lowers
+  it; when it is not required, the law is `not-evaluated`. It is never `pass`.
 - **`an`** (analyzer): a custom `webtops` rule or reader.
 - **`at`** (attested): judged by review; `not-evaluated` until attested.
 - **`tbd`**: not yet implemented; `not-evaluated`.
@@ -562,10 +590,11 @@ Every delegated rule is proven to fire. `fixtures/lints/` breaks each enabled ru
 with an `// expect: <rule>` marker on the line. A test fails if a marked rule stays quiet or an
 unmarked one fires. Custom ESLint rules are tested with ESLint's `RuleTester`.
 
-### 8.2 Law catalog (draft: 46 laws, W-01…W-46)
+### 8.2 Law catalog (draft: 48 laws, W-01…W-48)
 
 Severity: **R** = a break is `refuse`, **A** = a break needs an acknowledgement or is `ack-missing`. ✓ = judged in v0.1. Law IDs from the TS-TOPS sketch
-(T-NN) are noted where they map.
+(T-NN) are noted where they map. Laws added after W-46 take the next number; ids are not renumbered by
+family before the 1.0 freeze.
 
 **Types**
 
@@ -576,7 +605,7 @@ Severity: **R** = a break is `refuse`, **A** = a break needs an acknowledgement 
 | W-03 | User-defined type guards and assertion functions (`x is T`, `asserts x is T`) are derived from a schema or covered by a property test. The compiler trusts them like an `as` | A | an | |
 | W-04 | Strict tsconfig: `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch`, `verbatimModuleSyntax`, `isolatedModules`, `erasableSyntaxOnly` (T-03). `strict: true` beside a strict member set to `false` is `refuse` | R | an: reads every flag's resolved value through the `extends` chain, not `strict` alone; `tsc --showConfig` omits defaults and keeps `strict: true` beside a disabled member | ✓ |
 | W-05 | No `enum`, `namespace` or parameter properties: only erasable syntax (T-04, now mechanical) | R | tl: `erasableSyntaxOnly` | ✓ |
-| W-06 | External data is validated at the boundary: `response.json()`, `JSON.parse`, `FormData`, storage, `postMessage`, env (T-05) | R | tl: these return `any`, so W-01's `no-unsafe-*` refuses unvalidated use; an: env reads only through a schema (`astro:env` or a Zod module) | ✓ |
+| W-06 | External data is validated at the boundary: `response.json()`, `JSON.parse`, `FormData`, storage, `postMessage`, env (T-05) | R | tl: `response.json()`, `JSON.parse` and `MessageEvent.data` return `any`, so W-01's `no-unsafe-*` refuses unvalidated use. `FormData.get`, `Storage.getItem`, `URLSearchParams.get` and `process.env` are typed `string \| null` or `string \| undefined`, not `any`, so no rule sees them: `[review]`. an: env reads only through a schema (`astro:env` or a Zod module) | ✓ |
 | W-07 | Derived types (`Pick`, `Omit`, `Partial`, `z.infer`) over duplicated shapes (T-06) | A | at | |
 | W-08 | `satisfies` for literal config and route tables (T-07) | A | at | |
 | W-09 | No unnecessary type parameters; no conditional-type chains deeper than 2 (T-08) | A | tl: `no-unnecessary-type-parameters`; an | |
@@ -588,7 +617,7 @@ Severity: **R** = a break is `refuse`, **A** = a break needs an acknowledgement 
 |---|---|---|---|---|
 | W-11 | No floating or misused promises; `await` only thenables (T-11) | R | tl: `no-floating-promises`, `no-misused-promises`, `await-thenable` | ✓ |
 | W-12 | Concurrency is bounded: no `Promise.all` over input of unbounded size; independent awaits are not serialized in a loop | A | tl: `no-await-in-loop`; an | |
-| W-13 | Caught values are `unknown` and narrowed, including `.catch` callbacks; a rethrow keeps `{ cause }` (T-10) | R | tl: `useUnknownInCatchVariables` (in `strict`), `use-unknown-in-catch-callback-variable` | ✓ |
+| W-13 | Caught values are `unknown` and narrowed, including `.catch` callbacks; a rethrow keeps `{ cause }` (T-10) | R | tl: `useUnknownInCatchVariables` (in `strict`), `use-unknown-in-catch-callback-variable`; `preserve-caught-error`, a core rule that `@eslint/js` 10 recommends at `error` | ✓ |
 | W-14 | Only `Error` objects are thrown or used as rejections | R | tl: `only-throw-error`, `prefer-promise-reject-errors` | ✓ |
 
 **Modules and boundaries**
@@ -607,7 +636,9 @@ Severity: **R** = a break is `refuse`, **A** = a break needs an acknowledgement 
 |---|---|---|---|---|
 | W-20 | Built HTML is valid | R | tl: `html-validate` on `dist/` | ✓ |
 | W-21 | No serious or critical axe violations on built pages | R | tl: axe via Playwright | ✓ |
-| W-22 | Interactive elements are semantic, images have `alt`, form controls have labels | R | tl: `jsx-a11y`, `eslint-plugin-astro` a11y rules | ✓ |
+| W-22 | Interactive elements are semantic, images have `alt`, and a `<label>` is tied to its control | R | tl: `eslint-plugin-jsx-a11y-x` and `eslint-plugin-astro` a11y rules (§2; proof in `probes/w22/`); on built pages, `html-validate:a11y` and axe | ✓ |
+
+**What W-22's lint rules prove about labels.** `label-has-associated-control` checks that a `<label>` has a control. It does not check that a control has a label. `control-has-associated-label` fires on a bare `<input type="text">`, but it also fires on labeled inputs, because it does not follow label association: a `<label htmlFor>` beside the input, a wrapping `<label>` and `type="submit"` with a value all trip it (`probes/w22/`, observations). The plugin's own configs leave it off and ignore `input`, and the template does the same. Whether a form control has a name is judged on the built page, by `html-validate:document` (`input-missing-label`) and axe (W-21).
 
 **CSS and Tailwind**
 
@@ -635,7 +666,7 @@ Severity: **R** = a break is `refuse`, **A** = a break needs an acknowledgement 
 | W-32 | Oracle-first: tests derive from the contract, not the function body | A | at | |
 | W-33 | Tests are deterministic: fake timers, no live network, seeded randomness | R | an (heuristic) | |
 | W-34 | No focused or skipped tests committed | R | tl: `@vitest/eslint-plugin` (1.6) `no-focused-tests`, `no-disabled-tests` | ✓ |
-| W-35 | Every suppression names its rule and says why: `eslint-disable` with a description, `@ts-expect-error` with a description, no `@ts-ignore` or `@ts-nocheck`; unused directives fail | R | tl: `eslint-comments/require-description`, `no-unlimited-disable`; `ban-ts-comment` (`allow-with-description`); `reportUnusedDisableDirectives: "error"` | ✓ |
+| W-35 | Every suppression names its rule and says why: `eslint-disable` with a description, `@ts-expect-error` with a description, no `@ts-ignore` or `@ts-nocheck`; unused directives fail | R | tl: `eslint-comments/require-description`, `no-unlimited-disable`; `ban-ts-comment` (`allow-with-description`); `reportUnusedDisableDirectives: "error"`. The suppression census in §6.7 lists every kind that is counted and ratcheted | ✓ |
 | W-36 | No `set:html`, `dangerouslySetInnerHTML` or `innerHTML` with unsanitized input | R | an | |
 | W-37 | Only public env reaches client code (`PUBLIC_` vars, `astro:env` client fields) | R | an | |
 | W-38 | No high or critical advisories in production dependencies | R | tl: dependency audit **[verify `bun audit` output]** | ✓ |
@@ -656,7 +687,14 @@ Severity: **R** = a break is `refuse`, **A** = a break needs an acknowledgement 
 LuminosiTS's `lumin-ui` skill implements all five against its catalog and is the reference for
 the readers.
 
-**v0.1 target:** 26 of 46 laws judged. Most are delegated, because the TypeScript and web
+**React and dead code** (added in 0.3.0)
+
+| ID | Law | Sev | Reader | v0.1 |
+|---|---|---|---|---|
+| W-47 | React hooks follow the rules of hooks: called only at the top level of a component or custom hook, with complete dependency arrays | R | tl: `eslint-plugin-react-hooks` `rules-of-hooks`, `exhaustive-deps` | |
+| W-48 | No unused exports, files or dependencies | A | tbd: `knip` over all three (M3) | |
+
+**v0.1 target:** 26 of 48 laws judged. Most are delegated, because the TypeScript and web
 ecosystem already ships the checks. Class-specific laws are `skip` for other classes.
 
 ### 8.3 Law metadata
@@ -817,18 +855,14 @@ Exit codes: 0 pass; 1 gate failed; 2 config invalid or lock mismatch; 3 environm
 The template is [`config/AGENTS.md.tmpl`](config/AGENTS.md.tmpl). It merges the common-mistakes guide's §12 with the Go-TOPS
 template's shape: each rule names the check that enforces it, or `[review]`.
 
-Non-negotiable:
+The rules every change is held to are §3.4. The template cites §3.4 and keeps no copy, so there is
+one list; where an agent should be told something §3.4 does not say, the fix is a §3.4 edit through
+a `protocol-change` PR.
 
-1. Write the oracle from the contract before the code.
-2. Never split a function only to lower its CRAP score.
-3. Never weaken a law, lint rule, tsconfig flag or budget to make a change pass. Change it
-   through a `protocol-change` PR.
-4. Explain every accepted mutation survivor.
-5. Every suppression names its rule and a reason (W-35).
-6. Agent-authored code meets the same gate and the same cap as human code.
-7. Do not edit generated files; fix the generator.
-8. Prefer deleting code to adding configuration.
-9. `webtops gate` is the definition of done.
+The template's Standards list names a law for each rule, or `[review]`. It names only what the
+written config has: the W-42 to W-46 lines appear only while the `themes` or `rendered` layer is
+enabled, and the W-47 line only for the classes whose ESLint config carries the hooks rule
+(`web-app`, `ui-components`).
 
 ---
 

@@ -33,14 +33,26 @@ export function readTemplate(name: string): string {
   return readFileSync(resolve(TEMPLATES_DIR, name), "utf8");
 }
 
-const A11Y_IMPORT = 'import jsxA11y from "eslint-plugin-jsx-a11y";';
-const A11Y_CONFIG = '  { files: ["**/*.jsx", "**/*.tsx"], ...jsxA11y.flatConfigs.strict },';
+const A11Y_IMPORT = 'import jsxA11yX from "eslint-plugin-jsx-a11y-x";';
+const A11Y_CONFIG = '  { files: ["**/*.jsx", "**/*.tsx"], ...jsxA11yX.configs.strict },';
+const HOOKS_IMPORT = 'import reactHooks from "eslint-plugin-react-hooks";';
+const HOOKS_CONFIG = [
+  "  {",
+  "    // W-47 rules of hooks",
+  '    files: ["**/*.jsx", "**/*.tsx"],',
+  '    plugins: { "react-hooks": reactHooks },',
+  "    rules: {",
+  '      "react-hooks/rules-of-hooks": "error",',
+  '      "react-hooks/exhaustive-deps": "error",',
+  "    },",
+  "  },",
+].join("\n");
 
 const ESLINT_SLOTS: Record<EslintVariant, { imports: string; configs: string }> = {
   base: { imports: "", configs: "" },
   react: {
-    imports: A11Y_IMPORT,
-    configs: `  // W-22 semantic elements, alt text, labels\n${A11Y_CONFIG}`,
+    imports: `${A11Y_IMPORT}\n${HOOKS_IMPORT}`,
+    configs: `  // W-22 semantic elements, alt text, labels\n${A11Y_CONFIG}\n${HOOKS_CONFIG}`,
   },
   astro: {
     imports: `import astro from "eslint-plugin-astro";\n${A11Y_IMPORT}`,
@@ -101,6 +113,34 @@ function verifies(profile: DropIn, astroCheck: AstroCheck): string {
   return joinList([...hygiene, "tests with coverage", ...layers]);
 }
 
+const HOOKS_LINE =
+  "- **Follow the rules of hooks:** call hooks only at the top level of a component or custom hook, and list every dependency. **[W-47]**";
+
+/** The rendered-interface laws (WEB_TOPS.md section 8.2), each named only while the layer that judges it is enabled. */
+const RENDERED_LAWS: readonly (readonly [string, string, string])[] = [
+  [
+    "themes",
+    "W-42",
+    "**Contrast holds in every theme and color scheme:** 4.5:1 for text, 3:1 for large text and UI parts.",
+  ],
+  [
+    "rendered",
+    "W-43",
+    "**Honor `prefers-reduced-motion`:** with reduce set, nothing keeps animating on its own unless essential.",
+  ],
+  ["rendered", "W-44", "**Pointer targets are at least 24 × 24 CSS px.**"],
+  ["rendered", "W-45", "**Everything reached by keyboard shows a visible focus indicator.**"],
+  ["rendered", "W-46", "**Pages reflow at 320 CSS px** with no horizontal scroll."],
+];
+
+/** The Rendered interface section, or nothing when the written config enables neither layer. */
+function renderedSection(profile: DropIn): string {
+  const lines = RENDERED_LAWS.filter(([layer]) => enabled(profile, layer)).map(
+    ([, id, text]) => `- ${text} **[${id}]**`,
+  );
+  return lines.length === 0 ? "" : ["", "### Rendered interface", "", ...lines].join("\n");
+}
+
 const LAWS_NOTE =
   " Law IDs name the rule; while laws is disabled, these are checked in review, not by the gate.";
 
@@ -127,6 +167,8 @@ export function agentsSection(profile: DropIn, subject: Subject, astroCheck: Ast
       "rendered",
       `- JS per page or route ≤ \`${profile.js_budget}\` (brotli, from the build output), where the class ships pages`,
     ),
+    HOOKS_LINE: profile.eslint === "react" ? HOOKS_LINE : "",
+    RENDERED_SECTION: renderedSection(profile),
     VERIFIES: verifies(profile, astroCheck),
     LAWS_NOTE: enabled(profile, "laws") ? "" : LAWS_NOTE,
   });
