@@ -7,8 +7,17 @@ import {
   type ReportLayer,
   type Verdict,
 } from "../report/types.ts";
+import { relative } from "node:path";
 import { compareGates } from "./order.ts";
-import type { Exec, GateConfig, GateOptions, Layer, LayerResult } from "./types.ts";
+import type { Exec, GateConfig, GateOptions, Layer, LayerResult, Tier } from "./types.ts";
+
+/** What `runGate` returns: the schema's report, with the exit code the run settled on. */
+export type RanReport = Report & { readonly exit_code: 0 | 1 };
+
+interface Executed {
+  readonly layer: ReportLayer;
+  readonly artifacts: Readonly<Record<string, string>>;
+}
 
 export interface RunInput {
   readonly layers: readonly Layer[];
@@ -24,7 +33,7 @@ export interface RunInput {
 export interface PlanItem {
   readonly id: string;
   readonly gate: GateRef;
-  readonly tier: number;
+  readonly tier: Tier;
   /** Absent for an id the config enables but nothing registers. */
   readonly layer?: Layer;
   /** Present when the layer will not run, with the reason the report prints. */
@@ -32,9 +41,9 @@ export interface PlanItem {
 }
 
 /** The layers `--only` selects: the named ones and, transitively, what they require. */
-function selectedBy(only: readonly string[], layers: readonly Layer[]): ReadonlySet<string> {
+function selectedBy(only: string | undefined, layers: readonly Layer[]): ReadonlySet<string> {
   const selected = new Set<string>();
-  const pending = [...only];
+  const pending = only === undefined ? [] : [only];
   for (let id = pending.shift(); id !== undefined; id = pending.shift()) {
     if (!selected.has(id)) {
       selected.add(id);
@@ -46,7 +55,7 @@ function selectedBy(only: readonly string[], layers: readonly Layer[]): Readonly
 
 function skipReason(
   id: string,
-  tier: number,
+  tier: Tier,
   classes: readonly string[] | undefined,
   config: GateConfig,
   options: GateOptions,
@@ -62,8 +71,8 @@ function skipReason(
   if (tier > options.maxTier) {
     return `tier ${String(tier)} is above --max-tier ${String(options.maxTier)}`;
   }
-  if (options.only.length > 0 && !selected.has(id)) {
-    return `not selected by --only ${options.only.join(", ")}`;
+  if (options.only !== undefined && !selected.has(id)) {
+    return `not selected by --only ${options.only}`;
   }
   return undefined;
 }
@@ -89,9 +98,9 @@ export function planGate(
     });
   const registered = new Set(layers.map((layer) => layer.id));
   for (const [id, toggle] of Object.entries(config.toggles)) {
-    if (toggle.enabled && !registered.has(id) && options.only.length === 0) {
+    if (toggle.enabled && !registered.has(id) && options.only === undefined) {
       const skip = skipReason(id, 1, undefined, config, options, selected);
-      items.push({ id, gate: "custom", tier: 1, ...(skip === undefined ? {} : { skip }) });
+      items.push({ id, gate: 6, tier: 1, ...(skip === undefined ? {} : { skip }) });
     }
   }
   return items;
@@ -110,7 +119,7 @@ function entry(
     verdict,
     ...(reason === undefined ? {} : { reason }),
     findings: rest.findings ?? [],
-    artifacts: rest.artifacts ?? {},
+    artifacts: rest.artifacts ?? [],
     duration_ms: rest.duration_ms ?? 0,
   };
 }
@@ -133,7 +142,7 @@ async function execute(
   input: RunInput,
   base: string,
   artifacts: ReadonlyMap<string, string>,
-): Promise<ReportLayer> {
+): Promise<Executed> {
   const started = input.now();
   let result: LayerResult;
   try {
@@ -151,20 +160,26 @@ async function execute(
     );
   } catch (error: unknown) {
     const message = describeError(error);
-    return entry(item, "not-evaluated", `layer threw: ${message}`, {
-      findings: [{ rule: "layer-threw", verdict: "not-evaluated", message }],
-      duration_ms: input.now() - started,
-    });
+    return {
+      artifacts: {},
+      layer: entry(item, "not-evaluated", `layer threw: ${message}`, {
+        findings: [{ rule: "layer-threw", verdict: "not-evaluated", message }],
+        duration_ms: input.now() - started,
+      }),
+    };
   }
-  return entry(item, result.verdict, result.reason, {
-    findings: result.findings,
+  return {
     artifacts: result.artifacts,
-    duration_ms: input.now() - started,
-  });
+    layer: entry(item, result.verdict, result.reason, {
+      findings: result.findings,
+      artifacts: Object.values(result.artifacts).map((path) => relative(input.cwd, path)),
+      duration_ms: input.now() - started,
+    }),
+  };
 }
 
 /** Runs the plan and builds the report (WEB_TOPS.md sections 3.1, 3.3, 6.6, 12). */
-export async function runGate(input: RunInput): Promise<Report> {
+export async function runGate(input: RunInput): Promise<RanReport> {
   const { config, options } = input;
   const base = options.base ?? config.base ?? "origin/main";
   const artifacts = new Map<string, string>();
@@ -185,11 +200,11 @@ export async function runGate(input: RunInput): Promise<Report> {
     } else {
       const result = await execute(item, item.layer, input, base, artifacts);
       ran += 1;
-      layers.push(result);
+      layers.push(result.layer);
       for (const [name, path] of Object.entries(result.artifacts)) {
         artifacts.set(name, path);
       }
-      if (isFailing(result.verdict) && !options.keepGoing) {
+      if (isFailing(result.layer.verdict) && !options.keepGoing) {
         stoppedAt = item.gate;
       }
     }
@@ -224,7 +239,7 @@ export async function runGate(input: RunInput): Promise<Report> {
     base,
     max_tier: options.maxTier,
     keep_going: options.keepGoing,
-    only: options.only.length === 0 ? null : options.only,
+    only: options.only ?? null,
     passed,
     exit_code: passed || !enforced ? 0 : 1,
     counts,

@@ -22,7 +22,7 @@ export function formatText(report: Report): string {
     lines.push(...layerLines(layer));
   }
   lines.push("");
-  for (const problem of report.problems) {
+  for (const problem of report.problems ?? []) {
     lines.push(`problem: ${problem.message} (${problem.path})`);
   }
   const { in_range: inRange, ran, failed, not_evaluated: notEvaluated } = report.counts;

@@ -73,7 +73,7 @@ describe("G2b runner: not-run fails, a short layer count fails, not-evaluated ne
   });
 
   it("fails a run in which nothing was enabled in range: an empty run is not a pass", async () => {
-    const report = await run(fakeBuiltins([]), cfg(), opts({ only: ["nothing"] }));
+    const report = await run(fakeBuiltins([]), cfg(), opts({ only: "nothing" }));
     expect(report.counts.in_range).toBe(0);
     expect(report.problems).toEqual([{ path: "/counts/in_range", message: "no layer ran" }]);
     expect(report.exit_code).toBe(1);

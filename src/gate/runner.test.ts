@@ -68,7 +68,7 @@ describe("G2a runner: §3.1 order, stop on failure, --keep-going, --max-tier, --
     const calls: string[] = [];
     const layers = [
       ...fakeBuiltins(calls, { hygiene: "Refuse" }),
-      fakeLayer({ id: "extra", gate: "custom", calls }),
+      fakeLayer({ id: "extra", gate: 6, calls }),
     ];
     const report = await run(layers);
     expect(report.layers.find((layer) => layer.id === "extra")?.reason).toBe(
@@ -80,10 +80,7 @@ describe("G2a runner: §3.1 order, stop on failure, --keep-going, --max-tier, --
 
   it("filters by --max-tier: a tier-2 layer is skipped by default and runs at --max-tier 2", async () => {
     const calls: string[] = [];
-    const layers = [
-      ...fakeBuiltins(calls),
-      fakeLayer({ id: "nightly", gate: "custom", tier: 2, calls }),
-    ];
+    const layers = [...fakeBuiltins(calls), fakeLayer({ id: "nightly", gate: 6, tier: 2, calls })];
     const byDefault = await run(layers);
     expect(calls).not.toContain("nightly");
     expect(byDefault.layers.find((layer) => layer.id === "nightly")).toMatchObject({
@@ -111,9 +108,9 @@ describe("G2a runner: §3.1 order, stop on failure, --keep-going, --max-tier, --
       fakeLayer({ id: "coverage", gate: 3, calls, requires: ["tests"] }),
       fakeLayer({ id: "crap", gate: 4, calls }),
     ];
-    const report = await run(layers, cfg(), opts({ only: ["coverage"] }));
+    const report = await run(layers, cfg(), opts({ only: "coverage" }));
     expect(calls).toEqual(["tests", "coverage"]);
-    expect(report.only).toEqual(["coverage"]);
+    expect(report.only).toBe("coverage");
     expect(report.layers.find((layer) => layer.id === "crap")).toMatchObject({
       verdict: "skip",
       reason: "not selected by --only coverage",
@@ -149,12 +146,16 @@ describe("G2a runner: §3.1 order, stop on failure, --keep-going, --max-tier, --
         return Promise.resolve({ verdict: "pass", findings: [], artifacts: {} });
       },
     };
-    const writer = fakeLayer({ id: "tests", gate: 2, artifacts: { lcov: "/out/lcov.info" } });
-    const report = await run([reader, writer]);
-    expect(seen).toBe("/out/lcov.info");
-    expect(report.layers.find((layer) => layer.id === "tests")?.artifacts).toEqual({
-      lcov: "/out/lcov.info",
+    const writer = fakeLayer({
+      id: "tests",
+      gate: 2,
+      artifacts: { lcov: "/unused/.web-tops/out/lcov.info" },
     });
+    const report = await run([reader, writer]);
+    expect(seen).toBe("/unused/.web-tops/out/lcov.info");
+    expect(report.layers.find((layer) => layer.id === "tests")?.artifacts).toEqual([
+      ".web-tops/out/lcov.info",
+    ]);
   });
 
   it("skips a disabled layer with its reason, and a layer the class does not map", async () => {

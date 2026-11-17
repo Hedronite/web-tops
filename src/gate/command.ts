@@ -67,7 +67,7 @@ export async function gateCommand(
   const { config } = loaded;
   const layers = deps.layers(config);
   const known = new Set(layers.map((layer) => layer.id));
-  for (const id of options.only) {
+  for (const id of options.only === undefined ? [] : [options.only]) {
     if (!known.has(id)) {
       io.err(`webtops gate: unknown layer "${id}" (known: ${[...known].join(", ")})\n`);
       return 2;

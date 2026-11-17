@@ -10,7 +10,6 @@ const root = resolve(import.meta.dirname, "../..");
 
 describe("R1 stubs: a command another step builds", () => {
   it.each([
-    ["gate", "G2"],
     ["init", "G5"],
     ["report", "G6"],
     ["lock", "G6"],
@@ -34,8 +33,8 @@ describe("R1 stubs: a command another step builds", () => {
   });
 
   it("exits 1 through bun src/cli/main.ts", () => {
-    const result = spawnSync("bun", ["src/cli/main.ts", "gate"], { cwd: root, encoding: "utf8" });
+    const result = spawnSync("bun", ["src/cli/main.ts", "doctor"], { cwd: root, encoding: "utf8" });
     expect(result.status).toBe(1);
-    expect(result.stderr).toBe("gate: lands in G2\n");
+    expect(result.stderr).toBe("doctor: lands in G6\n");
   });
 });

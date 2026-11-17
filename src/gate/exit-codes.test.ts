@@ -149,10 +149,7 @@ describe("G2c cli: --dry-run under CI=true exits 4; every §12 exit code", () =>
   it("accepts --flag=value forms", async () => {
     const calls: string[] = [];
     const h = harness({
-      layers: () => [
-        ...fakeBuiltins(calls),
-        fakeLayer({ id: "nightly", gate: "custom", tier: 2, calls }),
-      ],
+      layers: () => [...fakeBuiltins(calls), fakeLayer({ id: "nightly", gate: 6, tier: 2, calls })],
     });
     expect(await h.go(["--max-tier=2", "--only=nightly", "--base=main"])).toBe(0);
     expect(calls).toEqual(["nightly"]);

@@ -104,7 +104,7 @@ describe("G2d report: written to report.path, valid against the schema, text pri
               line: 3,
             },
           ],
-          artifacts: {},
+          artifacts: [],
           duration_ms: 5,
         },
       ],

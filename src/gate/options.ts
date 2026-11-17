@@ -28,7 +28,7 @@ function split(argument: string): [string, string | undefined] {
 /** Parses `webtops gate` arguments (WEB_TOPS.md section 12). A usage error is exit 2. */
 export function parseGateArgs(argv: readonly string[]): ParsedOptions {
   let maxTier: Tier = 1;
-  const only: string[] = [];
+  let only: string | undefined;
   let base: string | undefined;
   let keepGoing = false;
   let json = false;
@@ -61,7 +61,10 @@ export function parseGateArgs(argv: readonly string[]): ParsedOptions {
         if (value === undefined || value === "") {
           return { ok: false, error: "--only takes a layer id" };
         }
-        only.push(value);
+        if (only !== undefined) {
+          return { ok: false, error: "--only is given once" };
+        }
+        only = value;
         break;
       }
       case "--base": {
@@ -83,6 +86,13 @@ export function parseGateArgs(argv: readonly string[]): ParsedOptions {
   }
   return {
     ok: true,
-    options: { maxTier, only, ...(base === undefined ? {} : { base }), keepGoing, json, dryRun },
+    options: {
+      maxTier,
+      ...(only === undefined ? {} : { only }),
+      ...(base === undefined ? {} : { base }),
+      keepGoing,
+      json,
+      dryRun,
+    },
   };
 }

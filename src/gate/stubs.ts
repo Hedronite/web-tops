@@ -45,7 +45,7 @@ export const LAWS_STUB = stubLayer("laws", "laws", 0, "M3", ["hygiene"]);
 export function customLayer(id: string, tier: Tier, command: string | undefined): Layer {
   return {
     id,
-    gate: "custom",
+    gate: 6,
     tier,
     classes: ALL_LAUNCH_CLASSES,
     requires: [],

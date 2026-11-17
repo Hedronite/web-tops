@@ -103,7 +103,7 @@ export function off(reason: string): Toggle {
 }
 
 export function opts(overrides: Partial<GateOptions> = {}): GateOptions {
-  return { maxTier: 1, only: [], keepGoing: false, json: false, dryRun: false, ...overrides };
+  return { maxTier: 1, keepGoing: false, json: false, dryRun: false, ...overrides };
 }
 
 export interface MemoryIo extends Io {
