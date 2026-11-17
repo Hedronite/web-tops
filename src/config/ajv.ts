@@ -1,9 +1,13 @@
 import Ajv2020 from "ajv/dist/2020";
 import type { ErrorObject } from "ajv";
+import core from "../../schema/core.schema.json" with { type: "json" };
 import type { Problem } from "./types.ts";
 
 /** The one validator: JSON Schema 2020-12, strict, schema defaults filled in. */
 export const ajv = new Ajv2020({ allErrors: true, strict: true, useDefaults: true });
+
+/** The shared core (verdicts, modes, failure table) is registered first: the report and config schemas `$ref` it. */
+ajv.addSchema(core);
 
 function token(text: string): string {
   return text.replaceAll("~", "~0").replaceAll("/", "~1");

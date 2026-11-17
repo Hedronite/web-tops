@@ -100,20 +100,21 @@ export function fakeBuiltins(
   calls: string[],
   verdicts: Readonly<Record<string, Verdict>> = {},
 ): Layer[] {
-  const table: readonly [string, GateRef, Tier][] = [
-    ["hygiene", 1, 1],
-    ["tests", 2, 1],
-    ["coverage", 3, 1],
-    ["crap", 4, 1],
-    ["mutation", 5, 1],
-    ["build-output", 6, 1],
-    ["laws", "laws", 0],
+  const table: readonly [string, GateRef, Tier, readonly string[]][] = [
+    ["hygiene", 1, 1, []],
+    ["tests", 2, 1, []],
+    ["coverage", 3, 1, []],
+    ["crap", 4, 1, []],
+    ["mutation", 5, 1, []],
+    ["build-output", 6, 1, []],
+    ["laws", "laws", 1, ["hygiene"]],
   ];
-  return table.map(([id, gate, tier]) =>
+  return table.map(([id, gate, tier, requires]) =>
     fakeLayer({
       id,
       gate,
       tier,
+      requires,
       calls,
       verdict: verdicts[id] ?? "pass",
       ...(verdicts[id] === undefined || verdicts[id] === "pass"

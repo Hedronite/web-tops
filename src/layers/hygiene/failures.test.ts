@@ -51,12 +51,12 @@ describe("G3c hygiene: a missing tool fails, an empty output fails, class-only t
     ["publint", "publint"],
     ["attw", "@arethetypeswrong/cli"],
   ])(
-    "%s that is not in node_modules is a tool-missing Refuse naming its package, and is never started",
+    "%s that is not in node_modules is a tool-missing fail naming its package, and is never started",
     async (tool, installed) => {
       const item = setup({ "package.json": PACKAGE }, [tool]);
       const fake = fakeExec(item.project.dir);
       const result = await runHygiene(item, fake.exec);
-      expect(result.verdict).toBe("Refuse");
+      expect(result.verdict).toBe("fail");
       const finding = result.findings.find((entry) => entry.rule === "tool-missing");
       expect(finding?.message).toBe(
         `${tool} is not installed in node_modules (package ${installed})`,
@@ -71,12 +71,12 @@ describe("G3c hygiene: a missing tool fails, an empty output fails, class-only t
     ["bun audit", "bun audit"],
     ["bun pm", "bun pm pack"],
   ])(
-    "a missing runtime (%s) is a tool-missing Refuse that says it is not on PATH",
+    "a missing runtime (%s) is a tool-missing fail that says it is not on PATH",
     async (key, name) => {
       const item = setup({ "package.json": PACKAGE });
       const fake = fakeExec(item.project.dir, { [key]: MISSING });
       const result = await runHygiene(item, fake.exec);
-      expect(result.verdict).toBe("Refuse");
+      expect(result.verdict).toBe("fail");
       const finding = result.findings.find((entry) => entry.rule === "tool-missing");
       expect(finding?.message).toBe(`${name} is not installed or not on PATH`);
     },
@@ -114,7 +114,7 @@ describe("G3c hygiene: a missing tool fails, an empty output fails, class-only t
   it("with PATH stripped and no node_modules, the real process runner reports the tool missing", async () => {
     const item = setup({ "package.json": PACKAGE });
     const result = await runHygiene(item, realExec, { env: { PATH: "" } });
-    expect(result.verdict).toBe("Refuse");
+    expect(result.verdict).toBe("fail");
     expect(result.findings[0]).toMatchObject({ rule: "tool-missing" });
     expect(result.findings[0]?.message).toContain("bun");
   });
@@ -129,10 +129,10 @@ describe("G3c hygiene: a missing tool fails, an empty output fails, class-only t
     expect(result.findings.find((finding) => finding.rule === "output-empty")?.message).toContain(
       "missing lockfile, nothing to audit",
     );
-    expect(result.verdict).toBe("Refuse");
+    expect(result.verdict).toBe("fail");
   });
 
-  it("a tool that outlives its timeout is a tool-timeout Refuse", async () => {
+  it("a tool that outlives its timeout is a tool-timeout fail", async () => {
     const item = setup({ "package.json": PACKAGE });
     const result = await runHygiene(item, fakeExec(item.project.dir, { tsc: TIMEOUT }).exec);
     expect(failures(result)).toEqual(["tool-timeout"]);
@@ -158,7 +158,7 @@ describe("G3c hygiene: a missing tool fails, an empty output fails, class-only t
     const item = setup({ "package.json": PACKAGE });
     const result = await runHygiene(item, fakeExec(item.project.dir, handlers).exec);
     expect(failures(result)).toEqual(["output-empty"]);
-    expect(result.verdict).toBe("Refuse");
+    expect(result.verdict).toBe("fail");
   });
 
   it.each([
@@ -182,7 +182,7 @@ describe("G3c hygiene: a missing tool fails, an empty output fails, class-only t
     expect(failures(result)).toEqual(["output-unparseable"]);
   });
 
-  it("a registry that cannot be reached is not-evaluated, never a pass and never a Refuse", async () => {
+  it("a registry that cannot be reached is not-evaluated, never a pass and never a fail", async () => {
     const item = setup({ "package.json": PACKAGE });
     const fake = fakeExec(item.project.dir, {
       "bun audit": () => ({ code: 1, stdout: "", stderr: recorded("audit-unreachable.stderr") }),
@@ -233,7 +233,7 @@ describe("G3c hygiene: a missing tool fails, an empty output fails, class-only t
     );
   });
 
-  it("reads the one formatter config; none or both is a Refuse, and format.tool wins", async () => {
+  it("reads the one formatter config; none or both is a fail, and format.tool wins", async () => {
     const none = setup({ "package.json": PACKAGE });
     writeFileSync(`${none.project.dir}/prettier.config.js`, "");
     const bare = prepare({ "package.json": PACKAGE });

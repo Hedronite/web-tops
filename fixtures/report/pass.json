@@ -1,0 +1,80 @@
+{
+  "protocol": "0.3.0",
+  "class": "ts-library",
+  "enforce": "hard",
+  "enforced": true,
+  "max_tier": 1,
+  "only": null,
+  "counts": {
+    "in_range": 7,
+    "ran": 7,
+    "failed": 0,
+    "not_evaluated": 0
+  },
+  "layers": [
+    {
+      "id": "hygiene",
+      "gate": 1,
+      "tier": 1,
+      "verdict": "pass",
+      "findings": []
+    },
+    {
+      "id": "tests",
+      "gate": 2,
+      "tier": 1,
+      "verdict": "pass",
+      "findings": []
+    },
+    {
+      "id": "coverage",
+      "gate": 3,
+      "tier": 1,
+      "verdict": "pass",
+      "findings": []
+    },
+    {
+      "id": "crap",
+      "gate": 4,
+      "tier": 1,
+      "verdict": "pass",
+      "findings": []
+    },
+    {
+      "id": "mutation",
+      "gate": 5,
+      "tier": 1,
+      "verdict": "pass",
+      "findings": []
+    },
+    {
+      "id": "build-output",
+      "gate": 6,
+      "tier": 1,
+      "verdict": "pass",
+      "findings": []
+    },
+    {
+      "id": "laws",
+      "gate": "laws",
+      "tier": 1,
+      "verdict": "pass",
+      "findings": [
+        {
+          "rule": "W-07",
+          "verdict": "pass",
+          "message": "acknowledged: the legacy parser keeps its loose input type",
+          "file": "src/legacy/parse.ts",
+          "line": 12,
+          "ack": {
+            "source": "comment",
+            "reason": "legacy parser, removal tracked"
+          }
+        }
+      ]
+    }
+  ],
+  "passed": true,
+  "exit_code": 0,
+  "problems": []
+}

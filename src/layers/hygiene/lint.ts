@@ -11,7 +11,7 @@ import {
   readJsonOutput,
   readResultsFile,
   records,
-  refuse,
+  failFinding,
   shapeFinding,
   str,
   tail,
@@ -39,7 +39,7 @@ function eslintFinding(
   entry: Record<string, unknown>,
   message: Record<string, unknown>,
 ): Finding {
-  return refuse(
+  return failFinding(
     str(message["ruleId"], "eslint-fatal"),
     str(message["message"], "no message"),
     place(step.ctx.cwd, entry["filePath"], message["line"]),
@@ -77,7 +77,7 @@ function stylelintFinding(
   entry: Record<string, unknown>,
   warning: Record<string, unknown>,
 ): Finding {
-  return refuse(
+  return failFinding(
     str(warning["rule"], "stylelint"),
     str(warning["text"], "no message"),
     place(step.ctx.cwd, entry["source"], warning["line"]),
@@ -129,11 +129,11 @@ function hasConfig(step: StepContext, names: readonly string[]): boolean {
 /** Both configs, or neither: the repo does not say which formatter to use. */
 function formatterFinding(bothPresent: boolean): Finding {
   return bothPresent
-    ? refuse(
+    ? failFinding(
         "formatter-ambiguous",
         "both a Prettier and a Biome config are present; set gates.hygiene.format.tool",
       )
-    : refuse(
+    : failFinding(
         "formatter-unset",
         "no Prettier or Biome config is present; set gates.hygiene.format.tool",
       );
@@ -177,7 +177,7 @@ function unformatted(result: ExecResult): Finding[] {
     const file = PRETTIER_WARN.exec(line)?.[1];
     return file === undefined || file.startsWith("Code style issues")
       ? []
-      : [refuse("format", `${file} is not formatted`, { file })];
+      : [failFinding("format", `${file} is not formatted`, { file })];
   });
 }
 
@@ -217,7 +217,7 @@ function silentCruise(result: ExecResult): Finding | undefined {
     return undefined;
   }
   const rule = result.code === 0 ? "output-empty" : "dependency-cruiser-failed";
-  return refuse(
+  return failFinding(
     rule,
     `depcruise exited ${String(result.code)} and printed no report: ${tail(result.stderr)}`,
   );
@@ -237,9 +237,13 @@ function cruiseFinding(violation: Record<string, unknown>): Finding[] {
   }
   const from = str(violation["from"], "?");
   return [
-    refuse(str(rule["name"], "dependency-cruiser"), `${from} -> ${str(violation["to"], "?")}`, {
-      file: from,
-    }),
+    failFinding(
+      str(rule["name"], "dependency-cruiser"),
+      `${from} -> ${str(violation["to"], "?")}`,
+      {
+        file: from,
+      },
+    ),
   ];
 }
 

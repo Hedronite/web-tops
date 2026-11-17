@@ -55,7 +55,7 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
     const item = real({ "src/a.ts": SOURCE, "src/a.test.ts": testFile(body) });
     const result = await runTests(item, realExec);
     expect(rulesOf(result)).toContain(rule);
-    expect(result.verdict).toBe("Refuse");
+    expect(result.verdict).toBe("fail");
   });
 
   it("a focused test fails even though Vitest exits 0 outside CI by default", async () => {
@@ -83,7 +83,7 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
     expect(result.findings).toContainEqual(
       expect.objectContaining({ rule: "suite-failed", file: "src/b.test.ts" }),
     );
-    expect(result.verdict).toBe("Refuse");
+    expect(result.verdict).toBe("fail");
   });
 
   it("test files are not in the LCOV, and a yaml exclusion with a reason is honoured", async () => {
@@ -225,7 +225,7 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
     expect(testsLayer.consumes).toEqual([]);
   });
 
-  it("a project with no node_modules is a tool-missing Refuse naming the package, and nothing is started", async () => {
+  it("a project with no node_modules is a tool-missing fail naming the package, and nothing is started", async () => {
     const calls: string[] = [];
     const exec: Exec = (tool) => {
       calls.push(tool);
@@ -299,7 +299,7 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
     // R43: results with no failing test and a non-zero exit mean Vitest failed the run itself; the gate says so.
     const passing = await runTests(item, writes(oneTest, 1));
     expect(rulesOf(passing)).toEqual(["vitest-run-failed"]);
-    expect(passing.verdict).toBe("Refuse");
+    expect(passing.verdict).toBe("fail");
   });
 
   describe("R43 a run Vitest fails itself is not a pass", () => {
@@ -331,7 +331,7 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
       });
       const result = await runTests(item, realExec);
       expect(rulesOf(result)).toEqual(["vitest-run-failed"]);
-      expect(result.verdict).toBe("Refuse");
+      expect(result.verdict).toBe("fail");
       const message = result.findings[0]?.message ?? "";
       expect(message).toContain("late rejection");
       expect(message).toContain("Unhandled");

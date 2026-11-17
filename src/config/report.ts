@@ -15,11 +15,51 @@ export const LAYER_IDS = [
   "laws",
 ] as const;
 
-/** The verdicts of section 3.3. */
-export const VERDICTS = ["pass", "Refuse", "Ack", "skip", "not-run", "not-evaluated"] as const;
+/** The verdicts of section 3.3, in the order of `schema/core.schema.json` (a test holds them equal). */
+export const VERDICTS = [
+  "pass",
+  "fail",
+  "refuse",
+  "ack-missing",
+  "skip",
+  "not-run",
+  "not-evaluated",
+  "vacuous",
+] as const;
 
 export type BuiltInLayerId = (typeof LAYER_IDS)[number];
 export type Verdict = (typeof VERDICTS)[number];
+
+interface Failure {
+  /** The verdict ends the run non-zero. */
+  readonly ends_run: boolean;
+  /** ...and does so only on an item that is `required`. */
+  readonly only_when_required: boolean;
+}
+
+/** The failure table of section 3.3 (`$defs.failure` in `schema/core.schema.json`, held equal by a test). */
+export const FAILURE: Readonly<Record<Verdict, Failure>> = {
+  pass: { ends_run: false, only_when_required: false },
+  fail: { ends_run: true, only_when_required: false },
+  refuse: { ends_run: true, only_when_required: false },
+  "ack-missing": { ends_run: true, only_when_required: false },
+  skip: { ends_run: false, only_when_required: false },
+  "not-run": { ends_run: true, only_when_required: false },
+  "not-evaluated": { ends_run: true, only_when_required: true },
+  vacuous: { ends_run: false, only_when_required: false },
+};
+
+/**
+ * Every layer and law is required until G3's class profiles carry the `required` field (SPEC-p3 G1).
+ * One constant, so G2 and G3 replace it by the profile's value in one place.
+ */
+export const REQUIRED_UNTIL_PROFILES = true;
+
+/** Whether a verdict on an item ends the run (WEB_TOPS.md section 3.3). */
+export function endsRun(verdict: Verdict, required: boolean): boolean {
+  const row = FAILURE[verdict];
+  return row.ends_run && (required || !row.only_when_required);
+}
 
 export interface Finding {
   /** A tool rule id or a law id. */
@@ -29,14 +69,14 @@ export interface Finding {
   readonly message: string;
   readonly file?: string;
   readonly line?: number;
-  /** Present on an acknowledged `Ack` finding. */
+  /** Present on an acknowledged soft-rule finding, whose verdict is `pass` (section 3.3). */
   readonly ack?: { readonly source: "comment" | "ledger"; readonly reason: string };
 }
 
 export interface LayerReport {
   /** A built-in layer id or a custom layer id. */
   readonly id: string;
-  /** The gate number of section 3.1; `laws` is tier 0 and runs last. */
+  /** The gate number of section 3.1; `laws` runs last, at the tier of the layers it reads. */
   readonly gate: 1 | 2 | 3 | 4 | 5 | 6 | "laws";
   readonly tier: Tier;
   readonly verdict: Verdict;
@@ -62,7 +102,7 @@ export interface GateReport {
     /** Layers enabled, mapped by the class, within `--max-tier` and `--only` (section 3.3). */
     readonly in_range: number;
     readonly ran: number;
-    /** `Refuse`, unacknowledged `Ack` and `not-run`; `not_evaluated` is counted apart and also fails. */
+    /** Every layer whose verdict ends the run (section 3.3); a required `not-evaluated` is in it and in `not_evaluated`. */
     readonly failed: number;
     readonly not_evaluated: number;
   };
@@ -85,10 +125,13 @@ function describe(error: ErrorObject): string | undefined {
   return id === undefined ? undefined : `layer "${id}" is missing`;
 }
 
-const FAILING: readonly Verdict[] = ["Refuse", "Ack", "not-run"];
-
 function count(report: GateReport, verdicts: readonly Verdict[]): number {
   return report.layers.filter((layer) => verdicts.includes(layer.verdict)).length;
+}
+
+/** The layers whose verdict ends the run, with every item required (`REQUIRED_UNTIL_PROFILES`). */
+function endingCount(report: GateReport): number {
+  return report.layers.filter((layer) => endsRun(layer.verdict, REQUIRED_UNTIL_PROFILES)).length;
 }
 
 function one(pointer: string, message: string): readonly Problem[] {
@@ -102,6 +145,9 @@ function duplicateLayers(report: GateReport): readonly Problem[] {
     .map((id) => ({ pointer: "/layers", message: `layer "${id}" appears more than once` }));
 }
 
+/** The verdicts that end the run, named in a message. */
+const ENDING = VERDICTS.filter((verdict) => endsRun(verdict, REQUIRED_UNTIL_PROFILES));
+
 function notEvaluatedCount(report: GateReport): readonly Problem[] {
   const claimed = report.counts.not_evaluated;
   const held = count(report, ["not-evaluated"]);
@@ -114,11 +160,11 @@ function notEvaluatedCount(report: GateReport): readonly Problem[] {
 
 function failedCount(report: GateReport): readonly Problem[] {
   const claimed = report.counts.failed;
-  const held = count(report, FAILING);
+  const held = endingCount(report);
   if (claimed === held) return [];
   return one(
     "/counts/failed",
-    `counts ${String(claimed)} failed layers (Refuse, Ack, not-run), the layers hold ${String(held)}`,
+    `counts ${String(claimed)} failed layers (${ENDING.join(", ")}), the layers hold ${String(held)}`,
   );
 }
 
@@ -132,15 +178,10 @@ function enforcedFlag(report: GateReport): readonly Problem[] {
   return one("/enforced", "enforced is false exactly when enforce is advisory");
 }
 
-/** Every layer in range ran and none failed or went unevaluated, and at least one was in range. */
+/** Every layer in range ran, none ended the run, and at least one was in range. */
 function isClean(report: GateReport): boolean {
   const { counts } = report;
-  return (
-    counts.in_range > 0 &&
-    count(report, FAILING) === 0 &&
-    count(report, ["not-evaluated"]) === 0 &&
-    counts.ran === counts.in_range
-  );
+  return counts.in_range > 0 && endingCount(report) === 0 && counts.ran === counts.in_range;
 }
 
 function whyPassedIsWrong(report: GateReport, clean: boolean): string {
@@ -172,8 +213,9 @@ function consistency(report: GateReport): readonly Problem[] {
 /**
  * Validates a gate report against `schema/gate-report.schema.json`, then checks what a schema
  * cannot: unique layers, the `failed` and `not_evaluated` counts equal to the layers that hold
- * them, and `passed` agreeing with the counts. `not-evaluated` never yields a pass, and a run
- * with no layer in range is not a pass either (section 3.4, rule 5).
+ * them (`failed` is every verdict the failure table ends the run on), and `passed` agreeing with the
+ * counts. `not-evaluated` never yields a pass, and a run with no layer in range is not a pass either
+ * (section 3.4, rule 5).
  */
 export function validateReport(report: unknown): Validated<GateReport> {
   if (!validate(report)) return { ok: false, problems: toProblems(validate.errors, describe) };

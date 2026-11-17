@@ -126,22 +126,25 @@ export async function runTool(
   return underNode(ctx, name, entry, args);
 }
 
-export function refuse(
+export function failFinding(
   rule: string,
   message: string,
   place: { file?: string; line?: number } = {},
 ): Finding {
-  return { rule, verdict: "Refuse", message, ...place };
+  return { rule, verdict: "fail", message, ...place };
 }
 
-/** A tool that could not run or was killed, as the Refuse rule R5 names. */
+/** A tool that could not run or was killed, as the tool-failure rule R5 names. */
 export function launchFailure(tool: string, result: ExecResult): Finding | undefined {
   if (result.failure === "tool-missing") {
     const said = result.stderr.trim();
-    return refuse("tool-missing", said === "" ? `${tool} is not installed or not on PATH` : said);
+    return failFinding(
+      "tool-missing",
+      said === "" ? `${tool} is not installed or not on PATH` : said,
+    );
   }
   if (result.failure === "tool-timeout") {
-    return refuse("tool-timeout", `${tool} did not finish in time and was killed`);
+    return failFinding("tool-timeout", `${tool} did not finish in time and was killed`);
   }
   return undefined;
 }
@@ -177,7 +180,10 @@ export function exitFinding(
   result: ExecResult,
   first: "stdout" | "stderr",
 ): Finding {
-  return refuse(rule, `${label} exited ${String(result.code)}: ${tail(printed(result, first))}`);
+  return failFinding(
+    rule,
+    `${label} exited ${String(result.code)}: ${tail(printed(result, first))}`,
+  );
 }
 
 /** A tool that exited non-zero without a finding to show for it still fails the step. */
@@ -192,7 +198,10 @@ export function unexplained(
     return [...findings];
   }
   return [
-    refuse(rule, `${label} exited ${String(result.code)} with ${detail}: ${tail(result.stderr)}`),
+    failFinding(
+      rule,
+      `${label} exited ${String(result.code)} with ${detail}: ${tail(result.stderr)}`,
+    ),
   ];
 }
 
@@ -218,7 +227,7 @@ export function capFindings(findings: readonly Finding[], step: string): Finding
   const extra = findings.length - MAX_FINDINGS;
   return [
     ...findings.slice(0, MAX_FINDINGS),
-    refuse(step, `and ${String(extra)} more findings, not listed`),
+    failFinding(step, `and ${String(extra)} more findings, not listed`),
   ];
 }
 
@@ -247,7 +256,7 @@ export function place(cwd: string, file: unknown, line: unknown): { file?: strin
 
 /** A tool's JSON came back in a shape the step does not know. */
 export function shapeFinding(step: StepContext, path: string, message: string): Finding {
-  return refuse("output-unparseable", message, { file: relativeTo(step.ctx.cwd, path) });
+  return failFinding("output-unparseable", message, { file: relativeTo(step.ctx.cwd, path) });
 }
 
 export interface PackageInfo {
@@ -287,13 +296,13 @@ export function readJsonOutput(
   const shown = relativeTo(step.ctx.cwd, path);
   if (isBlank(text)) {
     return {
-      finding: refuse("output-empty", `${tool} wrote no output to ${shown}`, { file: shown }),
+      finding: failFinding("output-empty", `${tool} wrote no output to ${shown}`, { file: shown }),
     };
   }
   const value = parseJson(text);
   return value === undefined
     ? {
-        finding: refuse("output-unparseable", `${tool} output in ${shown} is not JSON`, {
+        finding: failFinding("output-unparseable", `${tool} output in ${shown} is not JSON`, {
           file: shown,
         }),
       }

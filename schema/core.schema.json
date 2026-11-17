@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedronite.com/schemas/web-tops/0.3/core.schema.json",
+  "title": "Web-TOPS shared core: verdicts, enforcement modes and the failure table (WEB_TOPS.md section 3.3)",
+  "$comment": "The shared-core seam (X1). This file references no other schema; the gate report and the config schema reference it. WEB_TOPS.md section 3.3 is its prose.",
+  "$defs": {
+    "verdict": {
+      "description": "The one verdict vocabulary, for layers, laws and findings alike.",
+      "enum": [
+        "pass",
+        "fail",
+        "refuse",
+        "ack-missing",
+        "skip",
+        "not-run",
+        "not-evaluated",
+        "vacuous"
+      ]
+    },
+    "enforce": {
+      "description": "How floors and caps apply (WEB_TOPS.md section 6.7).",
+      "enum": ["hard", "ratchet", "advisory"]
+    },
+    "mode": {
+      "description": "What an enforcement mode says about the run: `enforced` is false only under `advisory`.",
+      "type": "object",
+      "required": ["enforced"],
+      "additionalProperties": false,
+      "properties": {
+        "enforced": {
+          "type": "boolean"
+        }
+      }
+    },
+    "modes": {
+      "description": "The enforcement modes as data, by name.",
+      "const": {
+        "hard": { "enforced": true },
+        "ratchet": { "enforced": true },
+        "advisory": { "enforced": false }
+      }
+    },
+    "failure_entry": {
+      "description": "Whether a verdict ends the run non-zero, and whether it does so only on a required item.",
+      "type": "object",
+      "required": ["ends_run", "only_when_required"],
+      "additionalProperties": false,
+      "properties": {
+        "ends_run": {
+          "type": "boolean"
+        },
+        "only_when_required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "failure": {
+      "description": "The failure table as data, by verdict (WEB_TOPS.md section 3.3).",
+      "const": {
+        "pass": { "ends_run": false, "only_when_required": false },
+        "fail": { "ends_run": true, "only_when_required": false },
+        "refuse": { "ends_run": true, "only_when_required": false },
+        "ack-missing": { "ends_run": true, "only_when_required": false },
+        "skip": { "ends_run": false, "only_when_required": false },
+        "not-run": { "ends_run": true, "only_when_required": false },
+        "not-evaluated": { "ends_run": true, "only_when_required": true },
+        "vacuous": { "ends_run": false, "only_when_required": false }
+      }
+    }
+  }
+}

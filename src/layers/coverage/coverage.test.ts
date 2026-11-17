@@ -72,7 +72,7 @@ describe("G4b coverage: empty LCOV fails, below floor fails under hard, ratchet 
     ["records with no instrumented lines", record("src/a.ts", 0, 0)],
   ])("%s is lcov-empty", async (_label, text) => {
     const result = await coverageLayer.run(lcovWith(text).context());
-    expect(result.verdict).toBe("Refuse");
+    expect(result.verdict).toBe("fail");
     expect(result.findings[0]?.rule).toBe("lcov-empty");
   });
 
@@ -95,7 +95,7 @@ describe("G4b coverage: empty LCOV fails, below floor fails under hard, ratchet 
 
   it("fails 84.99 % against a floor of 85 and passes exactly 85 %", async () => {
     const below = await coverageLayer.run(lcovWith(record("src/a.ts", 10000, 8499)).context());
-    expect(below.verdict).toBe("Refuse");
+    expect(below.verdict).toBe("fail");
     expect(below.findings[0]).toMatchObject({ rule: "coverage-below-floor" });
     expect(below.findings[0]?.message).toContain("84.99 %");
     const exact = await coverageLayer.run(lcovWith(record("src/a.ts", 10000, 8500)).context());
@@ -107,7 +107,7 @@ describe("G4b coverage: empty LCOV fails, below floor fails under hard, ratchet 
   it("sums the lines of every file, so one well-covered file does not hide another", async () => {
     const text = record("src/a.ts", 100, 100) + record("src/b.ts", 100, 0);
     const result = await coverageLayer.run(lcovWith(text).context());
-    expect(result.verdict).toBe("Refuse");
+    expect(result.verdict).toBe("fail");
     expect(result.findings[0]?.message).toContain("50.00 % of 200 lines in 2 files");
   });
 
@@ -119,9 +119,9 @@ describe("G4b coverage: empty LCOV fails, below floor fails under hard, ratchet 
     expect(result.reason).toBe("baseline: M2");
   });
 
-  it("under ratchet an empty LCOV is still a Refuse: no silent empties", async () => {
+  it("under ratchet an empty LCOV is still a fail: no silent empties", async () => {
     const result = await coverageLayer.run(lcovWith("").context({ enforce: "ratchet" }));
-    expect(result.verdict).toBe("Refuse");
+    expect(result.verdict).toBe("fail");
   });
 
   it("measures the LCOV the real tests layer wrote, and fails a project under the floor", async () => {
@@ -147,7 +147,7 @@ describe("G4b coverage: empty LCOV fails, below floor fails under hard, ratchet 
       ...context,
       artifacts: new Map(Object.entries(ran.artifacts)),
     });
-    expect(result.verdict).toBe("Refuse");
+    expect(result.verdict).toBe("fail");
     expect(result.findings[0]?.rule).toBe("coverage-below-floor");
   });
 });
@@ -159,9 +159,9 @@ describe("G4c coverage: every tracked in-scope file has an SF record, or the lay
     const text = record("src/a.ts", 10, 10);
     const context = lcovWith(text).context({ exec: tracked("src/a.ts", "src/b.ts") });
     const result = await coverageLayer.run(context);
-    expect(result.verdict).toBe("Refuse");
+    expect(result.verdict).toBe("fail");
     expect(result.findings).toContainEqual(
-      expect.objectContaining({ rule: RULE, verdict: "Refuse", file: "src/b.ts" }),
+      expect.objectContaining({ rule: RULE, verdict: "fail", file: "src/b.ts" }),
     );
     expect(result.findings.filter((finding) => finding.rule === RULE)).toHaveLength(1);
   });
@@ -215,12 +215,12 @@ describe("G4c coverage: every tracked in-scope file has an SF record, or the lay
     ]);
   });
 
-  it("under ratchet a missing record is a Refuse, and a complete profile stays not-evaluated baseline: M2", async () => {
+  it("under ratchet a missing record is a fail, and a complete profile stays not-evaluated baseline: M2", async () => {
     const box = lcovWith(record("src/a.ts", 10, 10));
     const missing = await coverageLayer.run(
       box.context({ enforce: "ratchet", exec: tracked("src/a.ts", "src/b.ts") }),
     );
-    expect(missing.verdict).toBe("Refuse");
+    expect(missing.verdict).toBe("fail");
     const complete = await coverageLayer.run(
       box.context({ enforce: "ratchet", exec: tracked("src/a.ts") }),
     );
@@ -259,7 +259,7 @@ describe("G4c coverage: every tracked in-scope file has an SF record, or the lay
       exec: () => Promise.resolve(answer),
     });
     const result = await coverageLayer.run(context);
-    expect(result.verdict).toBe("Refuse");
+    expect(result.verdict).toBe("fail");
     expect(result.findings.map((finding) => finding.rule)).toContain(rule);
   });
 
@@ -321,14 +321,14 @@ describe("G4e coverage: the floor is over in-scope records only (R36)", () => {
   it("counts an in-scope record that is not tracked, since the profile is what ran", async () => {
     const text = record("src/a.ts", 100, 100) + record("src/b.ts", 100, 0);
     const result = await coverageLayer.run(lcovWith(text).context());
-    expect(result.verdict).toBe("Refuse");
+    expect(result.verdict).toBe("fail");
     expect(result.findings[0]?.message).toContain("50.00 % of 200 lines in 2 files");
   });
 
   it("a profile whose records are all out of scope is empty, never a pass", async () => {
     const text = record("src/a.test.ts", 10, 10) + record("lib/x.ts", 10, 10);
     const result = await coverageLayer.run(lcovWith(text).context());
-    expect(result.verdict).toBe("Refuse");
+    expect(result.verdict).toBe("fail");
     expect(result.findings[0]?.rule).toBe("lcov-empty");
   });
 

@@ -123,8 +123,10 @@ Gates run in this order. A failing gate stops the run unless `--keep-going` is s
 | 6 | **Build output** | `astro build` or `vite build`, then on `dist/`: `html-validate`, axe via Playwright, internal link check, bytes per page or route, `size-limit` per package entry | Per class (§7) |
 | ★ | **Laws** | maps findings from gates 1 and 6 to law IDs, then runs the custom `webtops` rules (§8) | No `refuse` or `ack-missing`; `not-evaluated` never counts as a pass and fails on a required law |
 
-★ The laws layer is tier 0 but executes last. It does not run ESLint, tsc or Stylelint a second
-time: it reads the JSON those tools wrote in gate 1.
+★ The laws layer runs at the tier of the layers it reads (tier 1: gates 1 and 6) and executes
+last. It does not run ESLint, tsc or Stylelint a second time: it reads the JSON those tools wrote
+in gate 1. A gate that fails stops every later layer except this one: once hygiene has run, the
+laws layer still judges what ran (§6.5).
 
 **Tools and hand-offs.** Every tool resolves from the project's own `node_modules` (the
 installed package's `bin`), never from `PATH`. A tool not installed there is missing: its layer
@@ -143,14 +145,17 @@ still fails the run.
 
 | Tier | Purpose | Contents |
 |---|---|---|
-| **0** | Floor | Laws; config and schema validation |
-| **1** | **Merge gate** (default) | Gates 1–6 |
+| **0** | Floor | Config, schema, lock and config liveness checks |
+| **1** | **Merge gate** (default) | Gates 1–6, and the laws layer that reads them |
 | **2** | Deep / nightly | Full-repo mutation; Lighthouse CI (median of several runs); visual regression; Playwright on Chromium, WebKit and Firefox |
 | **3** | Release | `publint` and `attw` on the release tarball; changesets; provenance |
 
 ### 3.3 Verdicts
 
-One vocabulary, lower case and hyphenated, for layers, laws and findings alike:
+One vocabulary, lower case and hyphenated, for layers, laws and findings alike. This table is
+the **shared-core seam** (X1): `schema/core.schema.json` holds the same eight verdicts, the
+enforcement modes and the ends-the-run column as data, and the gate report and the config schema
+reference it. No other section defines a verdict.
 
 | Verdict | Meaning | Ends the run non-zero |
 |---|---|---|
@@ -338,7 +343,12 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
 
 Laws use the §3.3 vocabulary. `refuse` and `ack-missing` fail; `not-evaluated` fails when the law
 is `required` by the class and is counted otherwise; it is never a pass. The report names each
-law's reader.
+law's reader. A law runs at the tier of the layer it reads (§3.2). Under `ratchet`, `refuse` means
+a finding above the baseline (§6.7); under `hard`, any finding is `refuse`.
+
+A stopped run still judges the laws over what ran. The laws layer runs after a stop once hygiene
+has run and counts as ran, and `webtops gate` prints its findings as a laws mapping that names
+the layers it read from, beside the later layers that are `not-run` with `stopped: gate <n> failed`.
 
 ### 6.6 Report
 
