@@ -1,0 +1,188 @@
+{
+  "files": {
+    "src/total.ts": {
+      "language": "typescript",
+      "mutants": [
+        {
+          "id": "0",
+          "mutatorName": "BlockStatement",
+          "replacement": "{}",
+          "statusReason": "src/total.ts(1,47): error TS2355: A function whose declared type is neither 'undefined', 'void', nor 'any' must return a value.\n",
+          "status": "CompileError",
+          "static": false,
+          "coveredBy": [
+            "0"
+          ],
+          "location": {
+            "end": {
+              "column": 2,
+              "line": 7
+            },
+            "start": {
+              "column": 54,
+              "line": 1
+            }
+          }
+        },
+        {
+          "id": "1",
+          "mutatorName": "BlockStatement",
+          "replacement": "{}",
+          "status": "Survived",
+          "static": false,
+          "testsCompleted": 1,
+          "duration": 0.4116669999998521,
+          "coveredBy": [
+            "0"
+          ],
+          "location": {
+            "end": {
+              "column": 4,
+              "line": 5
+            },
+            "start": {
+              "column": 23,
+              "line": 3
+            }
+          }
+        },
+        {
+          "id": "2",
+          "mutatorName": "AssignmentOperator",
+          "replacement": "sum -= x",
+          "status": "Survived",
+          "static": false,
+          "testsCompleted": 1,
+          "duration": 0.43279199999983575,
+          "coveredBy": [
+            "0"
+          ],
+          "location": {
+            "end": {
+              "column": 13,
+              "line": 4
+            },
+            "start": {
+              "column": 5,
+              "line": 4
+            }
+          }
+        }
+      ],
+      "source": "export function total(xs: readonly number[]): number {\n  let sum = 0;\n  for (const x of xs) {\n    sum += x;\n  }\n  return sum;\n}\n"
+    }
+  },
+  "schemaVersion": "1.0",
+  "thresholds": {
+    "high": 80,
+    "low": 60,
+    "break": null
+  },
+  "testFiles": {
+    "src/total.test.ts": {
+      "tests": [
+        {
+          "id": "0",
+          "name": "runs total",
+          "location": {
+            "start": {
+              "column": 1,
+              "line": 4
+            }
+          }
+        }
+      ],
+      "source": "import { it } from \"vitest\";\nimport { total } from \"./total.ts\";\n\nit(\"runs total\", () => {\n  total([1, 2, 3]);\n});\n"
+    }
+  },
+  "projectRoot": ".",
+  "config": {
+    "testRunner": "vitest",
+    "checkers": [
+      "typescript"
+    ],
+    "tsconfigFile": "tsconfig.json",
+    "coverageAnalysis": "perTest",
+    "reporters": [
+      "json"
+    ],
+    "jsonReporter": {
+      "fileName": "recorded/mutation.json"
+    },
+    "vitest": {
+      "configFile": "vitest.config.ts",
+      "related": true,
+      "pool": "threads"
+    },
+    "concurrency": 2,
+    "cleanTempDir": true,
+    "mutate": [
+      "src/total.ts"
+    ],
+    "allowConsoleColors": true,
+    "checkerNodeArgs": [],
+    "commandRunner": {
+      "command": "npm test"
+    },
+    "clearTextReporter": {
+      "allowColor": true,
+      "allowEmojis": false,
+      "logTests": true,
+      "maxTestsToLog": 3,
+      "reportTests": true,
+      "reportMutants": true,
+      "reportScoreTable": true,
+      "skipFull": false
+    },
+    "dashboard": {
+      "baseUrl": "https://dashboard.stryker-mutator.io/api/reports",
+      "reportType": "full"
+    },
+    "dryRunOnly": false,
+    "eventReporter": {
+      "baseDir": "reports/mutation/events"
+    },
+    "ignorePatterns": [],
+    "ignoreStatic": false,
+    "incremental": false,
+    "incrementalFile": "reports/stryker-incremental.json",
+    "force": false,
+    "fileLogLevel": "off",
+    "inPlace": false,
+    "logLevel": "info",
+    "maxConcurrentTestRunners": 9007199254740991,
+    "maxTestRunnerReuse": 0,
+    "mutator": {
+      "plugins": null,
+      "excludedMutations": []
+    },
+    "plugins": [
+      "@stryker-mutator/*"
+    ],
+    "appendPlugins": [],
+    "htmlReporter": {
+      "fileName": "reports/mutation/mutation.html"
+    },
+    "disableTypeChecks": true,
+    "symlinkNodeModules": true,
+    "tempDirName": ".stryker-tmp",
+    "testRunnerNodeArgs": [],
+    "thresholds": {
+      "high": 80,
+      "low": 60,
+      "break": null
+    },
+    "timeoutFactor": 1.5,
+    "timeoutMS": 5000,
+    "dryRunTimeoutMinutes": 5,
+    "warnings": true,
+    "disableBail": false,
+    "allowEmpty": false,
+    "ignorers": [],
+    "testFiles": [],
+    "typescriptChecker": {
+      "prioritizePerformanceOverAccuracy": true,
+      "experimentalNativePreview": false
+    }
+  }
+}

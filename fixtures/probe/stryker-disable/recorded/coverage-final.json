@@ -1,0 +1,122 @@
+{
+  "src/clamp.ts": {
+    "path": "src/clamp.ts",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 3,
+          "column": 2
+        },
+        "end": {
+          "line": 3,
+          "column": null
+        }
+      },
+      "1": {
+        "start": {
+          "line": 3,
+          "column": 15
+        },
+        "end": {
+          "line": 3,
+          "column": null
+        }
+      },
+      "2": {
+        "start": {
+          "line": 4,
+          "column": 2
+        },
+        "end": {
+          "line": 4,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "clamp",
+        "decl": {
+          "start": {
+            "line": 1,
+            "column": 16
+          },
+          "end": {
+            "line": 1,
+            "column": 22
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 68
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        },
+        "line": 1
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 3,
+            "column": 2
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "type": "if",
+        "locations": [
+          {
+            "start": {
+              "line": 3,
+              "column": 2
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 3
+      }
+    },
+    "s": {
+      "0": 3,
+      "1": 1,
+      "2": 2
+    },
+    "f": {
+      "0": 3
+    },
+    "b": {
+      "0": [
+        1,
+        2
+      ]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 1,
+      "lastStatement": 3,
+      "seen": {
+        "f:1:16:1:22": 0,
+        "b:3:2:3:Infinity:undefined:undefined:undefined:undefined": 0,
+        "s:3:2:3:Infinity": 0,
+        "s:3:15:3:Infinity": 1,
+        "s:4:2:4:Infinity": 2
+      },
+      "fnNames": {}
+    }
+  }
+}
