@@ -1,5 +1,5 @@
 import { randomInt } from "node:crypto";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import type { Finding } from "../../report/types.ts";
 import type { ExecResult, Layer, LayerContext, LayerResult } from "../../gate/types.ts";
@@ -23,10 +23,38 @@ import {
 const FOCUSED = /\.only/u;
 const SKIPPED: ReadonlySet<string> = new Set(["skipped", "pending", "disabled"]);
 
-/** The kit judges the floor itself (gate 3), so a threshold in the project's config must not decide this gate. */
-const NEUTRAL_THRESHOLDS = ["lines", "functions", "branches", "statements"].map(
-  (kind) => `--coverage.thresholds.${kind}=0`,
+/** The project's Vitest config, found as Vitest finds it: `vitest.config.*` before `vite.config.*`. */
+const CONFIG_FILES = ["vitest.config", "vite.config"].flatMap((base) =>
+  ["ts", "mts", "cts", "js", "mjs", "cjs"].map((extension) => `${base}.${extension}`),
 );
+
+function projectConfig(cwd: string): string | undefined {
+  const found = CONFIG_FILES.find((name) => existsSync(join(cwd, name)));
+  return found === undefined ? undefined : join(cwd, found);
+}
+
+/**
+ * The config the gate runs Vitest with. The kit judges the floor itself (gate 3), so it loads the project's
+ * own config, whichever form it takes, and removes `test.coverage.thresholds` whole: a glob key, `100: true`,
+ * `perFile` and `autoUpdate` all fail a run too, and zeroing the global keys would not stop them (R43).
+ */
+function kitConfig(project: string | undefined): string {
+  if (project === undefined) {
+    return "export default {};\n";
+  }
+  return [
+    'import { loadConfigFromFile } from "vite";',
+    `const project = ${JSON.stringify(project)};`,
+    "export default async function config(env) {",
+    "  const loaded = await loadConfigFromFile(env, project);",
+    "  const { test = {}, ...rest } = loaded?.config ?? {};",
+    "  const { coverage = {}, ...otherTest } = test;",
+    "  const { thresholds, ...otherCoverage } = coverage;",
+    "  return { ...rest, test: { ...otherTest, coverage: otherCoverage } };",
+    "}",
+    "",
+  ].join("\n");
+}
 
 function titleOf(assertion: Record<string, unknown>): string {
   return str(assertion["fullName"], str(assertion["title"], "a test"));
@@ -123,10 +151,16 @@ function shuffleArgs(seed: number | undefined): string[] {
 }
 
 /** One `vitest run`: the gate, not the project's config, chooses what is measured and where it is written (section 6.1). */
-function vitestArgs(ctx: LayerContext, seed: number | undefined, jsonPath: string): string[] {
+function vitestArgs(
+  ctx: LayerContext,
+  seed: number | undefined,
+  jsonPath: string,
+  configPath: string,
+): string[] {
   const reports = relative(ctx.cwd, join(ctx.outDir, "tests", "coverage"));
   return [
     "run",
+    `--config=${relative(ctx.cwd, configPath)}`,
     "--coverage",
     "--coverage.provider=v8",
     `--coverage.include=${COVERAGE_INCLUDE}`,
@@ -134,7 +168,6 @@ function vitestArgs(ctx: LayerContext, seed: number | undefined, jsonPath: strin
     "--coverage.reporter=lcov",
     `--coverage.reportsDirectory=${reports}`,
     ...excludesOf(ctx.config).map((glob) => `--coverage.exclude=${glob}`),
-    ...NEUTRAL_THRESHOLDS,
     "--allowOnly=false",
     ...shuffleArgs(seed),
     // The default reporter runs beside json so that what Vitest prints on stderr names an error it fails the run for.
@@ -149,7 +182,7 @@ function emptyFinding(shown: string, result: ExecResult): Finding {
     ? refuse("output-empty", `vitest wrote no results to ${shown}`, { file: shown })
     : refuse(
         "vitest-failed",
-        `vitest exited ${String(result.code)} before writing results: ${tail(printed(result, "stderr"))}`,
+        `vitest exited ${String(result.code)} before writing results: ${head(printed(result, "stderr"), 6)}`,
       );
 }
 
@@ -249,7 +282,9 @@ async function run(ctx: LayerContext): Promise<LayerResult> {
   mkdirSync(directory, { recursive: true });
   const seed = seedFor(ctx);
   const jsonPath = join(directory, "vitest.json");
-  const result = await runTool(ctx, "vitest", vitestArgs(ctx, seed, jsonPath));
+  const configPath = join(directory, "vitest.config.mjs");
+  writeFileSync(configPath, kitConfig(projectConfig(ctx.cwd)));
+  const result = await runTool(ctx, "vitest", vitestArgs(ctx, seed, jsonPath, configPath));
   const launch = launchFailure("vitest", result);
   if (launch !== undefined) {
     return refused(launch);

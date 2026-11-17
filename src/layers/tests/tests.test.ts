@@ -181,7 +181,7 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
         "--reporter=json",
         "--coverage.exclude=**/*.d.ts",
         "--coverage.exclude=src/gen/**",
-        "--coverage.thresholds.lines=0",
+        "--config=.web-tops/out/tests/vitest.config.mjs",
       ]),
     );
   });
@@ -445,6 +445,144 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
       expect(message).toContain("expected 3 to be 4");
       expect(message).not.toContain("node_modules");
       expect(message).not.toMatch(/^\s+at /mu);
+    });
+  });
+
+  describe("R43 amended: the kit config removes the project's coverage thresholds whole", () => {
+    const B_UNTESTED = "export const half = (n: number): number => {\n  return n / 2;\n};\n";
+
+    function project(config: Record<string, string>): Project {
+      return real({
+        "src/a.ts": SOURCE,
+        "src/b.ts": B_UNTESTED,
+        "src/a.test.ts": CLEAN,
+        ...config,
+      });
+    }
+
+    it.each([
+      [
+        "glob-keyed thresholds",
+        '{ "src/b.ts": { functions: 100 }, "src/**/*.ts": { lines: 100 } }',
+      ],
+      ["the 100: true shorthand", "{ 100: true }"],
+      ["global thresholds", "{ lines: 100, functions: 100, branches: 100, statements: 100 }"],
+      ["per-file thresholds", "{ perFile: true, lines: 100 }"],
+      ["auto-updating thresholds", "{ autoUpdate: true, lines: 100 }"],
+    ])("%s do not decide gate 2 when every test passes", async (_label, thresholds) => {
+      const item = project({
+        "vitest.config.ts": `import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { coverage: { thresholds: ${thresholds} } } });\n`,
+      });
+      const result = await runTests(item, realExec);
+      expect(rulesOf(result)).toEqual([]);
+      expect(result.verdict).toBe("pass");
+    });
+
+    it("reads the function form of a config", async () => {
+      const item = project({
+        "vitest.config.ts":
+          'import { defineConfig } from "vitest/config";\nexport default defineConfig(() => ({ test: { coverage: { thresholds: { 100: true } } } }));\n',
+      });
+      expect((await runTests(item, realExec)).verdict).toBe("pass");
+    });
+
+    it("reads thresholds from vite.config.ts when there is no vitest config", async () => {
+      const item = project({
+        "vite.config.ts":
+          'import { defineConfig } from "vite";\nexport default defineConfig({ test: { coverage: { thresholds: { lines: 100 } } } });\n',
+      });
+      expect((await runTests(item, realExec)).verdict).toBe("pass");
+    });
+
+    it("prefers vitest.config over vite.config, as Vitest does", async () => {
+      const item = real({
+        "src/a.ts": SOURCE,
+        "src/a.check.ts": CLEAN,
+        "vitest.config.ts":
+          'import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { include: ["src/**/*.check.ts"] } });\n',
+        "vite.config.ts":
+          'import { defineConfig } from "vite";\nexport default defineConfig({ test: { include: ["nothing/**"] } });\n',
+      });
+      const result = await runTests(item, realExec);
+      expect(rulesOf(result)).toEqual([]);
+    });
+
+    it("keeps the rest of the project's config: its include still finds the tests", async () => {
+      const item = real({
+        "src/a.ts": SOURCE,
+        "src/a.check.ts": CLEAN,
+        "vitest.config.ts":
+          'import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { include: ["src/**/*.check.ts"], coverage: { thresholds: { lines: 100 } } } });\n',
+      });
+      const result = await runTests(item, realExec);
+      expect(rulesOf(result)).toEqual([]);
+      expect(result.verdict).toBe("pass");
+    });
+
+    it("works with no project config at all", async () => {
+      const result = await runTests(real({ "src/a.ts": SOURCE, "src/a.test.ts": CLEAN }), realExec);
+      expect(result.verdict).toBe("pass");
+    });
+
+    it("still fails an unhandled rejection under a project config with thresholds", async () => {
+      const item = real({
+        "src/a.ts": SOURCE,
+        "src/a.test.ts": testFile(
+          'it("adds", () => { expect(add(1, 2)).toBe(3); void Promise.reject(new Error("late rejection")); });',
+        ),
+        "vitest.config.ts":
+          'import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { coverage: { thresholds: { 100: true } } } });\n',
+      });
+      const result = await runTests(item, realExec);
+      expect(rulesOf(result)).toEqual(["vitest-run-failed"]);
+    });
+
+    it("a project config that does not load is a crash with no results, quoting why", async () => {
+      const item = project({
+        "vitest.config.ts": 'throw new Error("config is broken");\n',
+      });
+      const result = await runTests(item, realExec);
+      expect(rulesOf(result)).toEqual(["vitest-failed"]);
+      expect(result.findings[0]?.message).toContain("config is broken");
+    });
+
+    it("still fails a failing test and zero tests under a project config", async () => {
+      const item = real({
+        "src/a.ts": SOURCE,
+        "src/a.test.ts": testFile('it("a", () => { expect(1).toBe(2); });'),
+        "vitest.config.ts":
+          'import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { coverage: { thresholds: { 100: true } } } });\n',
+      });
+      expect(rulesOf(await runTests(item, realExec))).toEqual(["test-failed"]);
+    });
+
+    it("writes the kit config under .web-tops/out/tests/ and passes it with --config", async () => {
+      const calls: (readonly string[])[] = [];
+      const exec: Exec = (_tool, args) => {
+        calls.push(args);
+        return Promise.resolve({ code: 0, stdout: "", stderr: "" });
+      };
+      const item = real({ "vitest.config.ts": "export default {};\n" });
+      await runTests(item, exec);
+      const text = readFileSync(join(item.outDir, "tests", "vitest.config.mjs"), "utf8");
+      expect(text).toContain("loadConfigFromFile");
+      expect(text).toContain(join(item.project.dir, "vitest.config.ts"));
+      expect(calls[0]).toContain("--config=.web-tops/out/tests/vitest.config.mjs");
+      expect(calls[0]?.some((arg) => arg.startsWith("--coverage.thresholds"))).toBe(false);
+    });
+
+    it("loads vite.config only when no vitest.config exists, and none at all when neither does", async () => {
+      const exec: Exec = () => Promise.resolve({ code: 0, stdout: "", stderr: "" });
+      const only = real({ "vite.config.mts": "export default {};\n" });
+      await runTests(only, exec);
+      expect(readFileSync(join(only.outDir, "tests", "vitest.config.mjs"), "utf8")).toContain(
+        join(only.project.dir, "vite.config.mts"),
+      );
+      const none = real({});
+      await runTests(none, exec);
+      expect(readFileSync(join(none.outDir, "tests", "vitest.config.mjs"), "utf8")).not.toContain(
+        "vite.config",
+      );
     });
   });
 });
