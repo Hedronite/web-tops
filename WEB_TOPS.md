@@ -113,7 +113,7 @@ Gates run in this order. A failing gate stops the run unless `--keep-going` is s
 
 | # | Gate | Command(s) | Pass condition |
 |---|---|---|---|
-| 1 | **Hygiene** | `bun install --frozen-lockfile`; `tsc -b --noEmit` (pinned 6.0) **[verify `-b` with `--noEmit`]**; `astro check` (Astro classes); `eslint` type-aware, once, JSON output; `stylelint` on CSS and `<style>` blocks; format check; `dependency-cruiser`; `publint` and `attw` on the packed tarball (package classes); dependency audit | All clean; no high or critical advisory in production dependencies |
+| 1 | **Hygiene** | `bun install --frozen-lockfile`; `tsc -b --noEmit` (pinned 6.0) **[verify `-b` with `--noEmit`]**; `astro check` (Astro projects, §9); `eslint` type-aware, once, JSON output; `stylelint` on CSS and `<style>` blocks; format check; `dependency-cruiser`; `publint` and `attw` on the packed tarball (package classes); dependency audit | All clean; no high or critical advisory in production dependencies |
 | 2 | **Tests** | **one run**: `vitest run --coverage --sequence.shuffle` (v8 provider, `json` + `lcov` reporters) | All pass; no focused or skipped tests; zero tests is a failure |
 | 3 | **Coverage** | from the run in gate 2; **`test -s`** on the LCOV | Profile non-empty; class floor or ratchet met |
 | 4 | **CRAP** | native CRAP over the LCOV and the TypeScript AST (§6.2) | Cap or ratchet met |
@@ -563,7 +563,9 @@ chooses which laws run and `enabled: false` turns the layer off.
   `{ id, tier, command, report }` (§7; `report` optional). Its `id` is unique and is not a built-in
   layer id. To switch one off, remove it.
 - Gate 1 steps: `install`, `tsc`, `astro_check`, `eslint`, `stylelint`, `format`,
-  `dependency_cruiser`, `audit`. `layers.package_exports` runs `publint` and `attw` inside gate 1.
+  `dependency_cruiser`, `audit`. `astro_check` is mapped for `astro-site`, and for `web-app` and
+  `ui-components` when the project's `package.json` lists `astro` in `dependencies` or
+  `devDependencies`; otherwise it is `skip`. `layers.package_exports` runs `publint` and `attw` inside gate 1.
 - `format.tool` is `prettier` or `biome`. Without the key, the gate reads the one formatter config
   in the repo; none or both is a `Refuse`.
 - `audit.fail_on`: `low`, `moderate`, `high` or `critical`. `tests.runner`: `vitest`.
