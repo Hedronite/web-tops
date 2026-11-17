@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -38,6 +38,43 @@ async function sample(
     now: tickingClock(),
   });
 }
+
+describe("G2e report.path: never a file the kit must not overwrite (R37)", () => {
+  it.each([
+    "web-tops.yaml",
+    "web-tops.lock",
+    "package.json",
+    "./package.json",
+    "a/../web-tops.lock",
+    "WEB-TOPS.YAML",
+  ])("refuses %s", (name) => {
+    const project = tempProject();
+    projects.push(project);
+    const result = resolveReportPath(project.dir, name);
+    expect(result.ok).toBe(false);
+    expect(result.ok ? "" : result.message).toContain(`"${name}"`);
+  });
+
+  it.each([
+    "report.json",
+    ".web-tops/report.json",
+    "sub/package.json",
+    "package.json.bak",
+    "web-tops.yaml.json",
+  ])("accepts %s", (name) => {
+    const project = tempProject();
+    projects.push(project);
+    expect(resolveReportPath(project.dir, name).ok).toBe(true);
+  });
+
+  it("refuses a symlink that leads to one of them, whatever it is called", () => {
+    const project = tempProject();
+    projects.push(project);
+    writeFileSync(join(project.dir, "package.json"), "{}\n");
+    symlinkSync(join(project.dir, "package.json"), join(project.dir, "report.json"));
+    expect(resolveReportPath(project.dir, "report.json").ok).toBe(false);
+  });
+});
 
 describe("G2d report: written to report.path, valid against the schema, text printed", () => {
   it("writes the report as JSON to the given path, creating directories", async () => {

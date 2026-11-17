@@ -1,7 +1,7 @@
-import { mkdirSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { lstatSync, mkdirSync, rmSync } from "node:fs";
+import { join, relative } from "node:path";
 import { formatText } from "../report/text.ts";
-import { resolveReportPath, writeReport } from "../report/write.ts";
+import { realOf, resolveReportPath, writeReport } from "../report/write.ts";
 import { checkEnvironment, type Versions } from "./environment.ts";
 import { parseGateArgs } from "./options.ts";
 import { planGate, runGate } from "./runner.ts";
@@ -73,16 +73,39 @@ function unknownOnly(only: string | undefined, layers: readonly Layer[]): string
     : `unknown layer "${only}" (known: ${known.join(", ")})`;
 }
 
-/** Config 2: the report path, then `--only`, against the layers this config registers. */
-function resolveRun(
+/** The report path as git would list it: relative to the project, and again through any symlink. */
+function pathspecs(cwd: string, path: string): string[] {
+  const direct = relative(cwd, path);
+  const real = relative(realOf(cwd), realOf(path));
+  return real.startsWith("..") ? [direct] : [...new Set([direct, real])];
+}
+
+/** The pathspec git tracks, if `report.path` lands on a tracked file. Git failing means nothing to protect. */
+async function trackedPath(deps: GateDeps, path: string): Promise<string | undefined> {
+  const specs = pathspecs(deps.cwd, path);
+  const result = await deps.exec("git", ["--literal-pathspecs", "ls-files", "--", ...specs], {
+    cwd: deps.cwd,
+    env: deps.env,
+  });
+  return result.code === 0 && result.stdout.trim() !== "" ? specs[0] : undefined;
+}
+
+/** Config 2: the report path (inside the directory, not a protected or tracked file), then `--only`. */
+async function resolveRun(
   options: GateOptions,
   config: GateConfig,
   io: Io,
   deps: GateDeps,
-): Prepared | number {
+): Promise<Prepared | number> {
   const target = resolveReportPath(deps.cwd, config.reportPath);
   if (!target.ok) {
     return fail(io, 2, [`web-tops.yaml /report/path: ${target.message}`]);
+  }
+  const tracked = await trackedPath(deps, target.path);
+  if (tracked !== undefined) {
+    return fail(io, 2, [
+      `web-tops.yaml /report/path: report.path names ${tracked}, a file git tracks`,
+    ]);
   }
   const layers = deps.layers(config);
   const unknown = unknownOnly(options.only, layers);
@@ -104,8 +127,26 @@ async function prepare(options: GateOptions, io: Io, deps: GateDeps): Promise<Pr
   return resolveRun(options, loaded.config, io, deps);
 }
 
+function isSymlink(path: string): boolean {
+  try {
+    return lstatSync(path).isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+
+/** A symlinked `.web-tops` or `.web-tops/out` would send the wipe into another directory (R37): exit 3, nothing deleted. */
+function symlinkRefusal(cwd: string): string | undefined {
+  const linked = [".web-tops", ".web-tops/out"].find((name) => isSymlink(join(cwd, name)));
+  return linked === undefined ? undefined : `refusing to clear a symlinked ${linked}`;
+}
+
 /** Each real run wipes `.web-tops/out` and any stale report first, so no layer reads a file from an earlier run. */
 async function execute(prepared: Prepared, io: Io, deps: GateDeps): Promise<number> {
+  const refusal = symlinkRefusal(deps.cwd);
+  if (refusal !== undefined) {
+    return fail(io, 3, [refusal]);
+  }
   const outDir = join(deps.cwd, ".web-tops", "out");
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
