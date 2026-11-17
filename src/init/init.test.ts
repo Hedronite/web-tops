@@ -38,6 +38,7 @@ const PATH: Record<string, readonly string[]> = {
   axe: ["layers", "axe"],
   rendered: ["layers", "rendered"],
   themes: ["layers", "themes"],
+  laws: ["laws"],
 };
 
 const NO_CSS = "class";
@@ -45,23 +46,23 @@ const NO_CSS = "class";
 const DISABLED: Record<Class, Record<string, string>> = {
   "ts-library": {
     stylelint: NO_CSS, crap: "M2", mutation: "M2", size_limit: "M4", html_validate: "class",
-    axe: "class", rendered: "class", themes: "class",
+    axe: "class", rendered: "class", themes: "class", laws: "M3",
   },
   "ui-components": {
     crap: "M2", mutation: "M2", size_limit: "M4", html_validate: "M4", axe: "M4",
-    rendered: "class", themes: "M4",
+    rendered: "class", themes: "M4", laws: "M3",
   },
   "astro-site": {
     crap: "M2", mutation: "M2", package_exports: "class", size_limit: "class", html_validate: "M4",
-    axe: "M4", rendered: "M4", themes: "M4",
+    axe: "M4", rendered: "M4", themes: "M4", laws: "M3",
   },
   "web-app": {
     crap: "M2", mutation: "M2", package_exports: "class", size_limit: "class", html_validate: "M4",
-    axe: "M4", rendered: "M4", themes: "M4",
+    axe: "M4", rendered: "M4", themes: "M4", laws: "M3",
   },
   "node-service": {
     stylelint: NO_CSS, crap: "M2", mutation: "M2", package_exports: "class", size_limit: "class",
-    html_validate: "class", axe: "class", rendered: "class", themes: "class",
+    html_validate: "class", axe: "class", rendered: "class", themes: "class", laws: "M3",
   },
 };
 
@@ -161,16 +162,15 @@ describe.each(CLASSES)("webtops init --class %s", (className) => {
     }
   });
 
-  it("keeps the laws layer on and selects the default laws (hard allows no other gate off)", () => {
+  it("selects the default laws, and writes laws.select rather than the 0.2.0 laws.enable", () => {
     expect(at(config, "laws", "select")).toBe("default");
-    expect(at(config, "laws", "enabled")).not.toBe(false);
     expect(at(config, "laws", "enable")).toBeUndefined();
   });
 
-  it("switches off nothing a hard config forbids: only crap, mutation, build output or unmapped layers", () => {
+  it("switches off nothing a hard config forbids: only crap, mutation, build output, laws or unmapped layers", () => {
     const off = Object.keys(DISABLED[className]);
     for (const layer of off) {
-      expect(["stylelint", "crap", "mutation", "package_exports", "size_limit", "html_validate", "axe", "rendered", "themes"]).toContain(layer);
+      expect(["stylelint", "crap", "mutation", "package_exports", "size_limit", "html_validate", "axe", "rendered", "themes", "laws"]).toContain(layer);
     }
     for (const mappedGate of ["eslint", "audit", "format"]) {
       expect(at(config, "gates", "hygiene", mappedGate, "enabled"), mappedGate).not.toBe(false);

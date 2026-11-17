@@ -30,3 +30,4 @@ disabled:
   axe: "milestone M4: build-output layers land in M4"
   rendered: "milestone M4: rendered checks land in M4"
   themes: "milestone M4: the theme reader lands in M4"
+  laws: "milestone M3: the laws layer lands in M3"

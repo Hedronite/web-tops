@@ -29,3 +29,4 @@ disabled:
   axe: "not mapped for class: a TypeScript library has no pages"
   rendered: "not mapped for class: a TypeScript library has no pages"
   themes: "not mapped for class: a TypeScript library has no themes"
+  laws: "milestone M3: the laws layer lands in M3"

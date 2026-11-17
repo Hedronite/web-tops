@@ -80,8 +80,8 @@ function switched(profile: Profile, key: string): { enabled?: false; reason?: st
 }
 
 const HEADER =
-  "# Written by `webtops init` (WEB_TOPS.md sections 4 and 9). Under `hard`, only crap, mutation and\n" +
-  "# build output may be off for a class that maps them: they are `enabled: false` with the milestone\n" +
+  "# Written by `webtops init` (WEB_TOPS.md sections 4 and 9). Under `hard`, only crap, mutation, build\n" +
+  "# output and laws may be off for a class that maps them: they are `enabled: false` with the milestone\n" +
   "# that adds them. A layer the class does not map is off with the class as the reason.\n";
 
 export function webTopsYaml(profile: Profile, subject: Subject): string {
@@ -126,7 +126,7 @@ export function webTopsYaml(profile: Profile, subject: Subject): string {
       themes: switched(profile, "themes"),
       custom: [],
     },
-    laws: { select: "default", ack_ledger: ".web-tops/acks.yaml" },
+    laws: { select: "default", ack_ledger: ".web-tops/acks.yaml", ...switched(profile, "laws") },
     report: { path: ".web-tops/report.json" },
   };
   return HEADER + stringify(doc, { lineWidth: 0 });
