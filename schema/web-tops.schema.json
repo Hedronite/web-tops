@@ -31,7 +31,7 @@
       ]
     },
     "enforce": {
-      "enum": ["hard", "ratchet", "advisory"],
+      "$ref": "core.schema.json#/$defs/enforce",
       "default": "ratchet"
     },
     "baseline": {
@@ -253,7 +253,7 @@
           "$ref": "#/$defs/layer"
         },
         "package_exports": {
-          "$ref": "#/$defs/layer"
+          "$ref": "#/$defs/exportsLayer"
         },
         "html_validate": {
           "$ref": "#/$defs/layer"
@@ -262,10 +262,10 @@
           "$ref": "#/$defs/layer"
         },
         "rendered": {
-          "$ref": "#/$defs/layer"
+          "$ref": "#/$defs/renderedLayer"
         },
         "themes": {
-          "$ref": "#/$defs/layer"
+          "$ref": "#/$defs/themesLayer"
         },
         "custom": {
           "type": "array",
@@ -383,6 +383,64 @@
       "properties": {
         "tier": {
           "$ref": "#/$defs/tier"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "exportsLayer": {
+      "type": "object",
+      "allOf": [{ "$ref": "#/$defs/switch" }],
+      "properties": {
+        "tier": { "$ref": "#/$defs/tier" },
+        "skip_private": { "$ref": "#/$defs/reason" }
+      },
+      "unevaluatedProperties": false
+    },
+    "renderedLayer": {
+      "type": "object",
+      "allOf": [{ "$ref": "#/$defs/switch" }],
+      "properties": {
+        "tier": { "$ref": "#/$defs/tier" },
+        "routes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^/" }
+        },
+        "widths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "integer", "minimum": 320 }
+        },
+        "reduced_motion": { "type": "boolean" }
+      },
+      "unevaluatedProperties": false
+    },
+    "themesLayer": {
+      "type": "object",
+      "allOf": [{ "$ref": "#/$defs/switch" }],
+      "properties": {
+        "tier": { "$ref": "#/$defs/tier" },
+        "switch": {
+          "type": "object",
+          "required": ["mechanism", "name"],
+          "additionalProperties": false,
+          "properties": {
+            "mechanism": { "enum": ["attribute", "class", "media"] },
+            "name": { "type": "string", "minLength": 1 }
+          }
+        },
+        "schemes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "tokens": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^--" }
         }
       },
       "unevaluatedProperties": false
