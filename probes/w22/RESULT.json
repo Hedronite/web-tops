@@ -1,0 +1,1070 @@
+{
+  "result_version": 1,
+  "oracle": {
+    "name": "eslint-plugin-jsx-a11y",
+    "version": "6.10.2",
+    "installed": "6.10.2",
+    "rules": 39,
+    "deprecated": [
+      "accessible-emoji",
+      "label-has-for",
+      "no-onchange"
+    ]
+  },
+  "engines": [
+    {
+      "id": "fork",
+      "version": "0.2.0",
+      "pass": false,
+      "rows_passed": 36,
+      "rows_total": 39,
+      "pass_non_deprecated": true,
+      "rows_passed_non_deprecated": 36,
+      "rows_total_non_deprecated": 36,
+      "rows": [
+        {
+          "rule": "accessible-emoji",
+          "deprecated": true,
+          "implemented": false,
+          "fires_on_bad": false,
+          "quiet_on_clean": true,
+          "cell": "not-implemented"
+        },
+        {
+          "rule": "alt-text",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "anchor-ambiguous-text",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "anchor-has-content",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "anchor-is-valid",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "aria-activedescendant-has-tabindex",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "aria-props",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "aria-proptypes",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "aria-role",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "aria-unsupported-elements",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "autocomplete-valid",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "click-events-have-key-events",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "control-has-associated-label",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "heading-has-content",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "html-has-lang",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "iframe-has-title",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "img-redundant-alt",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "interactive-supports-focus",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "label-has-associated-control",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "label-has-for",
+          "deprecated": true,
+          "implemented": false,
+          "fires_on_bad": false,
+          "quiet_on_clean": true,
+          "cell": "not-implemented"
+        },
+        {
+          "rule": "lang",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "media-has-caption",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "mouse-events-have-key-events",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-access-key",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-aria-hidden-on-focusable",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-autofocus",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-distracting-elements",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-interactive-element-to-noninteractive-role",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-noninteractive-element-interactions",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-noninteractive-element-to-interactive-role",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-noninteractive-tabindex",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-onchange",
+          "deprecated": true,
+          "implemented": false,
+          "fires_on_bad": false,
+          "quiet_on_clean": true,
+          "cell": "not-implemented"
+        },
+        {
+          "rule": "no-redundant-roles",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-static-element-interactions",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "prefer-tag-over-role",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "role-has-required-aria-props",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "role-supports-aria-props",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "scope",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "tabindex-no-positive",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        }
+      ]
+    },
+    {
+      "id": "oxlint",
+      "version": "1.94.0",
+      "pass": false,
+      "rows_passed": 36,
+      "rows_total": 39,
+      "pass_non_deprecated": true,
+      "rows_passed_non_deprecated": 36,
+      "rows_total_non_deprecated": 36,
+      "rows": [
+        {
+          "rule": "accessible-emoji",
+          "deprecated": true,
+          "implemented": false,
+          "fires_on_bad": false,
+          "quiet_on_clean": true,
+          "cell": "not-implemented"
+        },
+        {
+          "rule": "alt-text",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "anchor-ambiguous-text",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "anchor-has-content",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "anchor-is-valid",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "aria-activedescendant-has-tabindex",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "aria-props",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "aria-proptypes",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "aria-role",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "aria-unsupported-elements",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "autocomplete-valid",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "click-events-have-key-events",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "control-has-associated-label",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "heading-has-content",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "html-has-lang",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "iframe-has-title",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "img-redundant-alt",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "interactive-supports-focus",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "label-has-associated-control",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "label-has-for",
+          "deprecated": true,
+          "implemented": false,
+          "fires_on_bad": false,
+          "quiet_on_clean": true,
+          "cell": "not-implemented"
+        },
+        {
+          "rule": "lang",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "media-has-caption",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "mouse-events-have-key-events",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-access-key",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-aria-hidden-on-focusable",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-autofocus",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-distracting-elements",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-interactive-element-to-noninteractive-role",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-noninteractive-element-interactions",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-noninteractive-element-to-interactive-role",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-noninteractive-tabindex",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-onchange",
+          "deprecated": true,
+          "implemented": false,
+          "fires_on_bad": false,
+          "quiet_on_clean": true,
+          "cell": "not-implemented"
+        },
+        {
+          "rule": "no-redundant-roles",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-static-element-interactions",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "prefer-tag-over-role",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "role-has-required-aria-props",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "role-supports-aria-props",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "scope",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "tabindex-no-positive",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        }
+      ]
+    },
+    {
+      "id": "control",
+      "version": "6.10.2",
+      "pass": true,
+      "rows_passed": 39,
+      "rows_total": 39,
+      "pass_non_deprecated": true,
+      "rows_passed_non_deprecated": 36,
+      "rows_total_non_deprecated": 36,
+      "rows": [
+        {
+          "rule": "accessible-emoji",
+          "deprecated": true,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "alt-text",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "anchor-ambiguous-text",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "anchor-has-content",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "anchor-is-valid",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "aria-activedescendant-has-tabindex",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "aria-props",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "aria-proptypes",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "aria-role",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "aria-unsupported-elements",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "autocomplete-valid",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "click-events-have-key-events",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "control-has-associated-label",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "heading-has-content",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "html-has-lang",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "iframe-has-title",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "img-redundant-alt",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "interactive-supports-focus",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "label-has-associated-control",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "label-has-for",
+          "deprecated": true,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "lang",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "media-has-caption",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "mouse-events-have-key-events",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-access-key",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-aria-hidden-on-focusable",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-autofocus",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-distracting-elements",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-interactive-element-to-noninteractive-role",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-noninteractive-element-interactions",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-noninteractive-element-to-interactive-role",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-noninteractive-tabindex",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-onchange",
+          "deprecated": true,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-redundant-roles",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "no-static-element-interactions",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "prefer-tag-over-role",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "role-has-required-aria-props",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "role-supports-aria-props",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "scope",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        },
+        {
+          "rule": "tabindex-no-positive",
+          "deprecated": false,
+          "implemented": true,
+          "fires_on_bad": true,
+          "quiet_on_clean": true,
+          "cell": "pass"
+        }
+      ]
+    }
+  ],
+  "claims": [
+    {
+      "claim": "unlabeled <input type=text>",
+      "engine": "jsx-a11y-x",
+      "fired": [
+        "control-has-associated-label"
+      ]
+    },
+    {
+      "claim": "unlabeled <input type=text>",
+      "engine": "oxlint",
+      "fired": []
+    },
+    {
+      "claim": "unlabeled <input type=text>",
+      "engine": "control",
+      "fired": [
+        "control-has-associated-label"
+      ]
+    },
+    {
+      "claim": "Astro a11y on .astro",
+      "engine": "eslint-plugin-astro, via the fork",
+      "fired": [
+        "alt-text"
+      ]
+    },
+    {
+      "claim": "Astro a11y on .astro",
+      "engine": "oxlint (lints the frontmatter script only)",
+      "fired": []
+    }
+  ],
+  "stack": {
+    "version": "10.15.0",
+    "rows": [
+      {
+        "rule": "@typescript-eslint/no-floating-promises",
+        "deprecated": false,
+        "implemented": true,
+        "fires_on_bad": true,
+        "quiet_on_clean": true,
+        "cell": "pass"
+      },
+      {
+        "rule": "@typescript-eslint/no-unnecessary-condition",
+        "deprecated": false,
+        "implemented": true,
+        "fires_on_bad": true,
+        "quiet_on_clean": true,
+        "cell": "pass"
+      },
+      {
+        "rule": "@eslint-community/eslint-comments/disable-enable-pair",
+        "deprecated": false,
+        "implemented": true,
+        "fires_on_bad": true,
+        "quiet_on_clean": true,
+        "cell": "pass"
+      },
+      {
+        "rule": "@eslint-community/eslint-comments/no-unlimited-disable",
+        "deprecated": false,
+        "implemented": true,
+        "fires_on_bad": true,
+        "quiet_on_clean": true,
+        "cell": "pass"
+      },
+      {
+        "rule": "@eslint-community/eslint-comments/require-description",
+        "deprecated": false,
+        "implemented": true,
+        "fires_on_bad": true,
+        "quiet_on_clean": true,
+        "cell": "pass"
+      }
+    ]
+  },
+  "verdict": {
+    "w22_reader": "none",
+    "w22_reader_non_deprecated": "jsx-a11y-x"
+  }
+}
