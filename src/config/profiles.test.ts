@@ -34,22 +34,18 @@ describe("R7: the class table", () => {
   );
 
   it("maps the layers section 5.2 gives each class", () => {
-    expect(profileFor("ts-library")?.layers).toEqual(["package_exports", "size_limit"]);
-    expect(profileFor("ui-components")?.layers).toEqual([
+    const layersOf = (name: string): readonly string[] | undefined => profileFor(name)?.layers;
+    expect(layersOf("ts-library")).toEqual(["package_exports", "size_limit"]);
+    expect(layersOf("ui-components")).toEqual([
       "package_exports",
       "size_limit",
       "html_validate",
       "axe",
     ]);
     for (const name of ["astro-site", "web-app"]) {
-      expect(profileFor(name)?.layers, name).toEqual([
-        "html_validate",
-        "axe",
-        "rendered",
-        "themes",
-      ]);
+      expect(layersOf(name), name).toEqual(["html_validate", "axe", "rendered", "themes"]);
     }
-    expect(profileFor("node-service")?.layers).toEqual([]);
+    expect(layersOf("node-service")).toEqual([]);
   });
 
   it("maps astro_check to astro-site always, and to web-app and ui-components with astro", () => {

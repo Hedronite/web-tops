@@ -2,10 +2,13 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Project } from "./profiles.ts";
 
+function isObject(value: unknown): value is object {
+  return typeof value === "object" && value !== null;
+}
+
 function lists(manifest: unknown, field: string, name: string): boolean {
-  const table: unknown =
-    typeof manifest === "object" && manifest !== null ? Reflect.get(manifest, field) : undefined;
-  return typeof table === "object" && table !== null && Object.hasOwn(table, name);
+  const table: unknown = isObject(manifest) ? Reflect.get(manifest, field) : undefined;
+  return isObject(table) && Object.hasOwn(table, name);
 }
 
 /**

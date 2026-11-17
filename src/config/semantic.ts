@@ -1,10 +1,10 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { mapsStep, profileFor, STEP_KEYS, type Project } from "./profiles.ts";
+import { mapsStep, profileFor, STEP_KEYS, type Project, type StepKey } from "./profiles.ts";
 import { readProject } from "./project.ts";
 import { LAYER_IDS } from "./report.ts";
-import type { Problem, WebTopsConfig } from "./types.ts";
+import type { Exemption, LayerConfig, Problem, WebTopsConfig } from "./types.ts";
 
 export interface SemanticContext {
   /** Directory that the config's relative paths (the baseline) resolve against. */
@@ -22,11 +22,20 @@ function checkClass(config: WebTopsConfig): readonly Problem[] {
   ];
 }
 
+function survivorsMax(config: WebTopsConfig): number | undefined {
+  return config.gates?.mutation?.unexplained_survivors_max;
+}
+
+function mutationOn(config: WebTopsConfig): boolean {
+  return config.gates?.mutation?.enabled !== false;
+}
+
+function allowsSurvivors(config: WebTopsConfig): boolean {
+  return (survivorsMax(config) ?? 0) !== 0;
+}
+
 function checkSurvivors(config: WebTopsConfig): readonly Problem[] {
-  const mutation = config.gates?.mutation;
-  const max = mutation?.unexplained_survivors_max;
-  if (config.class !== "ts-library" || mutation?.enabled === false) return [];
-  if (max === undefined || max === 0) return [];
+  if (config.class !== "ts-library" || !mutationOn(config) || !allowsSurvivors(config)) return [];
   return [
     {
       pointer: "/gates/mutation/unexplained_survivors_max",
@@ -40,12 +49,7 @@ function isCalendarDate(text: string): boolean {
   return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(text);
 }
 
-function checkAdvisory(config: WebTopsConfig, today: string): readonly Problem[] {
-  if (config.enforce !== "advisory") return [];
-  const { exemption } = config;
-  if (exemption === undefined) {
-    return [{ pointer: "/exemption", message: "advisory needs an exemption (until and reason)" }];
-  }
+function checkExemption(exemption: Exemption, today: string): readonly Problem[] {
   if (!isCalendarDate(exemption.until)) {
     return [{ pointer: "/exemption/until", message: `${exemption.until} is not a calendar date` }];
   }
@@ -55,33 +59,55 @@ function checkAdvisory(config: WebTopsConfig, today: string): readonly Problem[]
   return [];
 }
 
+function checkAdvisory(config: WebTopsConfig, today: string): readonly Problem[] {
+  if (config.enforce !== "advisory") return [];
+  return config.exemption === undefined
+    ? [{ pointer: "/exemption", message: "advisory needs an exemption (until and reason)" }]
+    : checkExemption(config.exemption, today);
+}
+
 /**
  * Under `hard`, a gate or step the class maps at tier 1 or below cannot be switched off, except
  * crap, mutation, build output and laws (section 9). Gates 1 to 3 are always mapped; the steps
  * and the package exports check (a gate 1 step) are mapped per class, and `astro_check` also
  * follows the project: package.json beside the config decides it for web-app and ui-components.
  */
+const HARD_GATES = ["hygiene", "tests", "coverage"] as const;
+
+function offGates(config: WebTopsConfig): string[] {
+  return HARD_GATES.filter((gate) => config.gates?.[gate]?.enabled === false).map(
+    (gate) => `/gates/${gate}`,
+  );
+}
+
+function stepOff(config: WebTopsConfig, step: StepKey): boolean {
+  return config.gates?.hygiene?.[step]?.enabled === false;
+}
+
+function offSteps(config: WebTopsConfig, project: Project): string[] {
+  const profile = profileFor(config.class);
+  if (profile === undefined) return [];
+  return STEP_KEYS.filter((step) => mapsStep(profile, step, project) && stepOff(config, step)).map(
+    (step) => `/gates/hygiene/${step}`,
+  );
+}
+
+function mapsExports(config: WebTopsConfig): boolean {
+  return profileFor(config.class)?.layers.includes("package_exports") === true;
+}
+
+function exportsSwitchedOff(exports: LayerConfig | undefined): boolean {
+  return exports?.enabled === false && (exports.tier ?? 1) <= 1;
+}
+
+function offExports(config: WebTopsConfig): string[] {
+  if (!mapsExports(config) || !exportsSwitchedOff(config.layers?.package_exports)) return [];
+  return ["/layers/package_exports"];
+}
+
 function checkHard(config: WebTopsConfig, project: Project): readonly Problem[] {
   if (config.enforce !== "hard") return [];
-  const profile = profileFor(config.class);
-  const hygiene = config.gates?.hygiene;
-  const exports = config.layers?.package_exports;
-  const switchedOff: string[] = [
-    ...(["hygiene", "tests", "coverage"] as const)
-      .filter((gate) => config.gates?.[gate]?.enabled === false)
-      .map((gate) => `/gates/${gate}`),
-    ...STEP_KEYS.filter(
-      (step) =>
-        profile !== undefined &&
-        mapsStep(profile, step, project) &&
-        hygiene?.[step]?.enabled === false,
-    ).map((step) => `/gates/hygiene/${step}`),
-    ...(profile?.layers.includes("package_exports") === true &&
-    exports?.enabled === false &&
-    (exports.tier ?? 1) <= 1
-      ? ["/layers/package_exports"]
-      : []),
-  ];
+  const switchedOff = [...offGates(config), ...offSteps(config, project), ...offExports(config)];
   return switchedOff.map((pointer) => ({
     pointer: `${pointer}/enabled`,
     message: `under hard, ${pointer.slice(1).replaceAll("/", ".")} is mapped by class ${config.class} and cannot be switched off`,
@@ -110,20 +136,27 @@ function git(cwd: string, args: readonly string[]): { ok: boolean; out: string }
   return { ok: result.status === 0, out: result.stdout };
 }
 
+function dirtiness(baseline: string, cwd: string): string | undefined {
+  const status = git(cwd, ["status", "--porcelain", "--", baseline]);
+  if (!status.ok) return `cannot check the baseline ${baseline} against HEAD`;
+  return status.out.trim() === "" ? undefined : `the baseline ${baseline} has uncommitted changes`;
+}
+
+/** What is wrong with the ratchet baseline, or undefined when it exists, is tracked and is clean. */
+function baselineFault(baseline: string, cwd: string): string | undefined {
+  if (!existsSync(resolve(cwd, baseline))) {
+    return `ratchet needs the baseline ${baseline}, and it does not exist`;
+  }
+  if (!git(cwd, ["ls-files", "--error-unmatch", "--", baseline]).ok) {
+    return `the baseline ${baseline} is not tracked by git`;
+  }
+  return dirtiness(baseline, cwd);
+}
+
 function checkBaseline(config: WebTopsConfig, cwd: string): readonly Problem[] {
   if (config.enforce !== "ratchet") return [];
-  const problem = (message: string): readonly Problem[] => [{ pointer: "/baseline", message }];
-  if (!existsSync(resolve(cwd, config.baseline))) {
-    return problem(`ratchet needs the baseline ${config.baseline}, and it does not exist`);
-  }
-  if (!git(cwd, ["ls-files", "--error-unmatch", "--", config.baseline]).ok) {
-    return problem(`the baseline ${config.baseline} is not tracked by git`);
-  }
-  const status = git(cwd, ["status", "--porcelain", "--", config.baseline]);
-  if (!status.ok) return problem(`cannot check the baseline ${config.baseline} against HEAD`);
-  return status.out.trim() === ""
-    ? []
-    : problem(`the baseline ${config.baseline} has uncommitted changes`);
+  const message = baselineFault(config.baseline, cwd);
+  return message === undefined ? [] : [{ pointer: "/baseline", message }];
 }
 
 /**

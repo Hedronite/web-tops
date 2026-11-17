@@ -19,6 +19,7 @@ All notable changes to this project are listed here. The protocol version and th
   - §4, §11: `init` writes only CI jobs whose commands exist (`gate` alone for now) and an `AGENTS.md` section that claims no check that does not run. §8.2: W-04 reads each strict member, not `strict` alone. §16: items 19 to 22.
   - Review fixes: the `tests` layer is judged from Vitest's JSON results, not its exit code, and the gate passes the coverage `exclude` too; the floor counts in-scope records only (§3.1, §6.1). A missing input is a `not-run` cause and a missing tool is `Refuse` (§3.3, §3.1). `gate` clears `.web-tops/out/` first and checks Bun's floor; CI pins an exact Node (§3.1, §11). `toolchain.runtime` names what the shipped code runs on (§9). The `package.json` beside `web-tops.yaml` decides `astro_check`; W-27 applies to Astro `web-app` and `ui-components` projects (§5.2, §9).
   - §3.1, §6.1: a run Vitest fails itself (an unhandled error), with every test passing in the JSON, is `Refuse` `vitest-run-failed`; the gate runs Vitest through a kit config that removes the project's `test.coverage.thresholds` whole, so a non-zero exit with no failing test means Vitest failed the run.
+- CI is the one `gate` job of §11 (`.github/workflows/web-tops.yml`), which runs the kit from source on itself at tier 1. It replaces the bootstrap `ci.yml`.
 - Protocol 0.1.0 → 0.2.0 (draft), from what the first adopter, LuminosiTS, proved in practice:
   - Lint pins: ESLint 9.39 and `eslint-plugin-astro` 1.7, because `eslint-plugin-jsx-a11y` 6.10 (still its latest) does not accept ESLint 10 and `eslint-plugin-astro` 3.x requires it. The move condition is in §2.
   - Node floor 22.23.4 where Astro 7 runs; `@playwright/test` 1.65 pinned; `typescript-eslint` 8.73.
@@ -29,6 +30,12 @@ All notable changes to this project are listed here. The protocol version and th
 
 ### Added
 
+- M1, the `webtops` CLI, run from source on Bun (not published to npm):
+  - `schema/web-tops.schema.json` and `schema/gate-report.schema.json`, and `src/config` with the class table (floors, CRAP caps, mapped layers and gate 1 steps), `PROTOCOL`, `loadConfig`, `validateConfig`, `runSemanticChecks` and `validateReport`.
+  - `check` validates `web-tops.yaml` against the schema, then the semantic checks of §12; it exits 2 with a JSON pointer for each problem.
+  - `gate` runs hygiene, tests and coverage and writes `.web-tops/report.json`; the CRAP, mutation, build-output and laws layers are registered stubs that report `not-run` when enabled.
+  - `init --class` for the five launch classes, `report`, `lock`, `doctor` and `version`.
+- The kit gates itself: `web-tops.yaml` (`ts-library`, `hard`; CRAP, mutation, build output and laws off with M2, M3 and M4 as reasons), `web-tops.lock` (the tool versions and the Node range, written by `lock --update`), and `.dependency-cruiser.cjs`.
 - `WEB_TOPS.md`: the Web-TOPS protocol, draft 0.1.0. It supersedes the TS-TOPS 0.1.0 sketch, renamed because the protocol covers the web stack (TypeScript, HTML, CSS, Tailwind, Astro), not only TypeScript.
 - `config/AGENTS.md.tmpl`: the `AGENTS.md` section that `webtops init` will write.
 - `AGENTS.md` and `CLAUDE.md`: standing orders for agents working on this repo.
