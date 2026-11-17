@@ -63,8 +63,10 @@ Schema (`schema/web-tops.schema.json` plus a gate-report schema), and per-class 
 ### 1.3 Name and binary
 
 - Protocol: **Web-TOPS**. Binary: **`webtops`**. Repo (proposed): `github.com/Hedronite/web-tops`.
-- Bun is the runtime and package manager: `bunx webtops gate`, or a workspace script. Node LTS is
-  supported for `node-service` adopters that need it.
+- Bun installs dependencies and starts `webtops`: `bunx webtops gate`, or a workspace script.
+  The tools the gate runs (Vitest with v8 coverage, ESLint, Stylelint, Stryker, `html-validate`,
+  dependency-cruiser, Playwright) are Node programs, so every class needs Node in the range §2
+  pins. Vitest's v8 coverage does not run on Bun.
 
 ---
 
@@ -75,7 +77,7 @@ Schema (`schema/web-tops.schema.json` plus a gate-report schema), and per-class 
 | Protocol version | **0.2.1** (draft) |
 | Package version | 0.0.0 (unreleased) |
 | TypeScript | **6.0.x** pinned (6.0.3 current). Floor 5.8 (`erasableSyntaxOnly`). See below |
-| Runtime | Bun ≥ 1.4 (primary); Node ≥ 22.23.4 where a project needs Node (Astro 7 declares it) |
+| Runtime | Bun ≥ 1.4 installs and runs `webtops`; Node `^22.23.4 \|\| ^24.15.0 \|\| >=26` runs the tools, in every class (where the pinned tools' engine ranges meet). The range is recorded in `web-tops.lock` (§10) |
 | Tool lock | `web-tops.lock`; dependency lock `bun.lock`, installed with `--frozen-lockfile` |
 | Lint | **ESLint 9.39** (held back, see below), `typescript-eslint` 8.73, `eslint-plugin-astro` **1.7**, `eslint-plugin-jsx-a11y` 6.10, `@eslint-community/eslint-plugin-eslint-comments` 4.8 |
 | Tests and coverage | Vitest 5.1, `@vitest/coverage-v8` 5.1 |
@@ -114,7 +116,7 @@ Gates run in this order. A failing gate stops the run unless `--keep-going` is s
 | # | Gate | Command(s) | Pass condition |
 |---|---|---|---|
 | 1 | **Hygiene** | `bun install --frozen-lockfile`; `tsc -b --noEmit` (pinned 6.0) **[verify `-b` with `--noEmit`]**; `astro check` (Astro projects, §9); `eslint` type-aware, once, JSON output; `stylelint` on CSS and `<style>` blocks; format check; `dependency-cruiser`; `publint` and `attw` on the packed tarball (package classes); dependency audit | All clean; no high or critical advisory in production dependencies |
-| 2 | **Tests** | **one run**: `vitest run --coverage --sequence.shuffle` (v8 provider, `json` + `lcov` reporters) | All pass; no focused or skipped tests; zero tests is a failure |
+| 2 | **Tests** | **one run**: `vitest run --coverage --sequence.shuffle --sequence.seed <n>`; the gate passes the seed, the v8 provider, the coverage `include`, the `json` + `lcov` reporters and the reports directory itself (§6.1) | All pass; no focused or skipped tests; zero tests is a failure |
 | 3 | **Coverage** | from the run in gate 2; **`test -s`** on the LCOV | Profile non-empty; class floor or ratchet met |
 | 4 | **CRAP** | native CRAP over the LCOV and the TypeScript AST (§6.2) | Cap or ratchet met |
 | 5 | **Mutation (diff)** | Stryker on lines changed against the merge base (§6.4) | Unexplained survivors ≤ max |
@@ -123,6 +125,15 @@ Gates run in this order. A failing gate stops the run unless `--keep-going` is s
 
 ★ The laws layer is tier 0 but executes last. It does not run ESLint, tsc or Stylelint a second
 time: it reads the JSON those tools wrote in gate 1.
+
+**Tools and hand-offs.** Every tool resolves from the project's own `node_modules` (the
+installed package's `bin`), never from `PATH`. A tool not installed there is missing, and its
+layer fails. Each layer declares the artifacts it produces and the ones it consumes, writes
+them under `.web-tops/out/<layer>/`, and lists them in the report's `artifacts`; gate 3 consumes
+the LCOV gate 2 produced. A layer whose input is missing because its producer failed or did not
+run is `not-run` with reason `input <artifact> missing: <layer> <verdict>`. A layer whose input
+exists is judged even when its producer failed (with `--keep-going`); the producer's failure
+still fails the run.
 
 ### 3.2 Tiers
 
@@ -176,10 +187,12 @@ bunx webtops gate
 `init` writes:
 - `web-tops.yaml`, `web-tops.lock`;
 - `tsconfig.strict.json` to extend, `eslint.config.js`, `stylelint.config.js`,
-  `.dependency-cruiser.cjs`, `stryker.config.json`;
-- the class CI workflow;
+  `.dependency-cruiser.cjs`, and `stryker.config.json` once the mutation layer ships;
+- the class CI workflow, with the jobs whose commands exist (§11);
 - the Web-TOPS section of `AGENTS.md`. If `AGENTS.md` exists, `init` replaces only the text
-  between `<!-- web-tops:begin -->` and `<!-- web-tops:end -->`.
+  between `<!-- web-tops:begin -->` and `<!-- web-tops:end -->`. The section names only the
+  commands this kit version has and the layers the written config enables; it claims no check
+  that does not run.
 
 `init` writes `enabled: false` for layers the class does not map. It never writes a baseline;
 only `webtops baseline` does (§6.7). It refuses to overwrite without `--force`.
@@ -237,6 +250,13 @@ Coverage counts `.ts` and `.tsx` modules. `.astro` components are judged by `ast
   type output, config files. Anything
   else is excluded only by an explicit, reasoned entry in `web-tops.yaml` (`gates.coverage.exclude`, §9).
 - An empty or missing profile fails.
+- The gate, not the project's Vitest config, chooses what is measured. It passes
+  `--coverage.include` (the class source globs; `src/**/*.{ts,tsx}` for the launch classes),
+  `--coverage.reporter=json --coverage.reporter=lcov` and
+  `--coverage.reportsDirectory=.web-tops/out/coverage`. Every tracked file the include selects,
+  less the exclusions, has an `SF:` record in the LCOV; a missing record fails the coverage layer,
+  because a file no test imports would otherwise leave the denominator. The floor comes from the
+  class profile, or the baseline under `ratchet`, never from `thresholds` in the Vitest config.
 
 ### 6.2 CRAP
 
@@ -305,6 +325,8 @@ spelled as in §3.3: `pass`, `Refuse`, `Ack`, `skip`, `not-run`, `not-evaluated`
 `Ack` finding that is acknowledged carries `ack: { source: comment | ledger, reason }`; an
 unacknowledged one fails. The report may carry more fields (run timing, artifact paths, the exit
 code); `schema/gate-report.schema.json` lists every field, and the fields above are required.
+The `tests` layer also carries `seed`, the shuffle seed the gate passed, so a shuffled failure
+can be rerun.
 
 ### 6.7 Enforcement modes
 
@@ -405,7 +427,7 @@ Severity: **R** = Refuse, **A** = Ack. ✓ = judged in v0.1. Law IDs from the TS
 | W-01 | No `any`, explicit or implicit, and no unchecked flow of an `any` value (T-01) | R | tl: `no-explicit-any`, `no-unsafe-assignment`, `-member-access`, `-call`, `-return`, `-argument`; `noImplicitAny` | ✓ |
 | W-02 | No type assertions (`as`, `<T>x`) and no non-null `!`; `as const` is allowed (T-02) | R | tl: `consistent-type-assertions` (`assertionStyle: "never"`), `no-non-null-assertion` | ✓ |
 | W-03 | User-defined type guards and assertion functions (`x is T`, `asserts x is T`) are derived from a schema or covered by a property test. The compiler trusts them like an `as` | A | an | |
-| W-04 | Strict tsconfig: `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch`, `verbatimModuleSyntax`, `isolatedModules`, `erasableSyntaxOnly` (T-03) | R | an: reads `tsc --showConfig` | ✓ |
+| W-04 | Strict tsconfig: `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch`, `verbatimModuleSyntax`, `isolatedModules`, `erasableSyntaxOnly` (T-03). `strict: true` beside a strict member set to `false` is a Refuse | R | an: reads every flag's resolved value through the `extends` chain, not `strict` alone; `tsc --showConfig` omits defaults and keeps `strict: true` beside a disabled member | ✓ |
 | W-05 | No `enum`, `namespace` or parameter properties: only erasable syntax (T-04, now mechanical) | R | tl: `erasableSyntaxOnly` | ✓ |
 | W-06 | External data is validated at the boundary: `response.json()`, `JSON.parse`, `FormData`, storage, `postMessage`, env (T-05) | R | tl: these return `any`, so W-01's `no-unsafe-*` refuses unvalidated use; an: env reads only through a schema (`astro:env` or a Zod module) | ✓ |
 | W-07 | Derived types (`Pick`, `Omit`, `Partial`, `z.infer`) over duplicated shapes (T-06) | A | at | |
@@ -585,7 +607,8 @@ chooses which laws run and `enabled: false` turns the layer off.
 `web-tops.lock` pins the tools listed in §2 and `webtops` itself, by exact version. `bun.lock`
 pins the dependency graph and provides integrity hashes. `webtops lock --verify` compares
 installed versions with the lock (W-41). `webtops lock --update` is a reviewed change, never an
-automatic one.
+automatic one. The lock also records the Node range from §2 as `node`; `lock --verify` exits 2
+and `doctor` exits 3 when the running Node is outside it.
 
 ---
 
@@ -595,13 +618,15 @@ The drop-in workflow `.github/workflows/web-tops.yml`:
 
 | Job | Content |
 |---|---|
-| `gate` | `bun install --frozen-lockfile`; Playwright browsers for the classes that need them; `bunx webtops gate --max-tier 1`. It fails if fewer layers ran than are in range (§3.3) |
+| `gate` | `actions/setup-node` with a Node in the lock's range; Bun; `bun install --frozen-lockfile`; Playwright browsers for the classes that need them; `bunx webtops gate --max-tier 1`. It fails if fewer layers ran than are in range (§3.3) |
 | `nightly` | `bunx webtops gate --max-tier 2` on a schedule |
 | `release-verify` | Tier 3, on release |
 | `law-diff` | Fails a PR that weakens or removes a law, rule, tsconfig flag or budget without the `protocol-change` label |
 
 CI rules: checkout with `fetch-depth: 0`; actions pinned by commit SHA; minimal `permissions:`;
-`--dry-run` refused; empty reports fail. The gate is one job running one command. The drop-in
+`--dry-run` refused; empty reports fail. `init` writes a job only when its command exists:
+until `nightly`, `release-verify` and `law-diff` have commands, it writes the `gate` job alone.
+The gate is one job running one command. The drop-in
 does not repeat the tools as separate job steps, because steps that bypass `webtops` judge
 nothing.
 
@@ -618,7 +643,7 @@ nothing.
 | `laws [list \| run \| explain W-NN]` | Catalog with readers; laws alone; one law explained |
 | `report [--format text \| json]` | Renders the last report |
 | `lock [--verify \| --update]` | Tool pins |
-| `doctor` | Environment: Bun and Node versions, TypeScript pin, Playwright browsers |
+| `doctor` | Environment: Bun version, Node inside the lock's range (exit 3 outside it), TypeScript pin, Playwright browsers |
 | `survivors [list \| explain \| expire]` | Mutation ledger |
 | `version` | Protocol, package and pinned tool versions |
 
@@ -692,6 +717,10 @@ agent contract.
 16. **A stopped run:** layers after a failed gate without `--keep-going` report `not-run` with the reason, and the report counts the layers in range and the layers that ran (§3.3, §6.6).
 17. **Verdict precedence and range:** config off, then class, then no command; `--only` narrows the range (§3.3).
 18. **Report fields** are listed in §6.6; `advisory` takes `exemption`; `laws.enable` is renamed `laws.select` (§9).
+19. **Runtime:** Node runs the tools in every class, in the range §2 pins; the lock records it (§1.3, §2, §10, §11, §12). This supersedes items 3 and 4 below: Bun installs and starts `webtops`; Vitest runs on Node.
+20. **Tool resolution and hand-offs:** tools come from `node_modules`, never `PATH`; layers declare the artifacts they produce and consume (§3.1).
+21. **Coverage scope:** the gate passes the include, reporters, reports directory and seed; every in-scope file has an LCOV record (§3.1, §6.1, §6.6).
+22. **What `init` claims:** only commands that exist and layers the config enables; the CI drop-in has the `gate` job alone until the other jobs' commands exist (§4, §11).
 
 **Resolved for 0.2.0:**
 
