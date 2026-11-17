@@ -79,7 +79,8 @@ Schema (`schema/web-tops.schema.json` plus a gate-report schema), and per-class 
 | TypeScript | **6.0.x** pinned (6.0.3 current); the gate runs the pin, and `erasableSyntaxOnly` needs 5.8 or later. See below |
 | Runtime | Bun ≥ 1.4 installs and runs `webtops`; Node `^22.23.4 \|\| ^24.15.0 \|\| >=26` runs the tools, in every class (where the pinned tools' engine ranges meet). The range is recorded in `web-tops.lock` (§10) and in `engines` of the kit's `package.json`, beside Bun |
 | Tool lock | `web-tops.lock`; dependency lock `bun.lock`, installed with `--frozen-lockfile` |
-| Lint | **ESLint 9.39** (held back, see below), `typescript-eslint` 8.73, `eslint-plugin-astro` **1.7**, `eslint-plugin-jsx-a11y` 6.10, `@eslint-community/eslint-plugin-eslint-comments` 4.8 |
+| Lint | `eslint` **10.15**, `@eslint/js` 10.0, `typescript-eslint` 8.73, `eslint-plugin-astro` **3.2**, `eslint-plugin-jsx-a11y-x` 0.2, `@eslint-community/eslint-plugin-eslint-comments` 4.8 |
+| Law readers | Beyond the lint row: `@vitest/eslint-plugin` 1.6 (W-34), `fast-check` 4.10 (property tests, §7); the secrets scanner (W-39) and the internal link checker (§7) are chosen in M3 |
 | Tests and coverage | Vitest 5.1, `@vitest/coverage-v8` 5.1 |
 | Mutation | StrykerJS 10.1 (`@stryker-mutator/core`, `vitest-runner`, `typescript-checker`) |
 | Astro, Tailwind, validation | Astro 7.4, `@astrojs/check` 0.9, Tailwind CSS 4.3, Zod 4.6 |
@@ -93,14 +94,17 @@ declares `^5.0.0 || ^6.0.0`. The laws layer depends on type-aware lint, so the g
 checker is the pinned 6.0.x. A TypeScript 7 `tsc --noEmit` leg may be added as advisory for
 speed (§16, open). The pin moves when both peers accept 7.
 
-**Why ESLint 9 and not 10.** ESLint 10.15 is npm `latest`, and 0.1.0 pinned it beside
-`eslint-plugin-jsx-a11y` 6.10 and `eslint-plugin-astro` 3.2. That set cannot install:
-`jsx-a11y` 6.10.2, still its latest, declares `eslint ^3 || … || ^9`, and `eslint-plugin-astro`
-3.x requires `eslint >=10`. LuminosiTS hit this and runs ESLint 9.39 with `jsx-a11y` 6.10; on
-ESLint 9, `eslint-plugin-astro` 1.7 (`eslint >=8.57`) is the newest that fits. W-22 depends on
-`jsx-a11y`, so the lint pin holds at 9.39. It moves to 10 when `jsx-a11y` accepts 10, or when
-its fork `eslint-plugin-jsx-a11y-x` (0.2.0, `eslint ^9 || ^10`, an optional peer of
-`eslint-plugin-astro` 3.2) reaches 1.0 and an adopter proves it on W-22's fixtures.
+**Why ESLint 10.** ESLint 10.15 is npm `latest`. 0.1.0 pinned it beside `eslint-plugin-jsx-a11y` 6.10
+and `eslint-plugin-astro` 3.2, and that set cannot install: `jsx-a11y` 6.10.2, still its latest,
+declares `eslint ^3 || … || ^9`, and `eslint-plugin-astro` 3.x requires `eslint >=10`. W-22's reader
+is therefore `eslint-plugin-jsx-a11y-x` 0.2 (`eslint ^9 || ^10`, an optional peer of
+`eslint-plugin-astro` 3.2), the fork of `jsx-a11y`. `probes/w22/` is the proof: through the fork
+on ESLint 10, every `jsx-a11y` 6.10.2 rule that upstream has not deprecated fires on its bad fixture
+and stays quiet on its clean one, and both claim rows pass (an unlabeled `<input type="text">`, and
+the Astro a11y rules on an `.astro` fixture). `typescript-eslint` 8.73 and `eslint-plugin-eslint-comments` 4.8 accept ESLint 10, and
+`@eslint/js` 10 adds three recommended rules (`no-unassigned-vars`, `no-useless-assignment`,
+`preserve-caught-error`), at `error`. `eslint-plugin-jsx-a11y` is not pinned: it does not run on
+ESLint 10.
 
 Protocol and package versions are separate planes. A protocol change bumps the protocol version
 and the schema together.

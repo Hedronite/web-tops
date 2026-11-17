@@ -14,6 +14,7 @@ import { ESLint } from "eslint";
 import ts from "typescript";
 import { afterEach, describe, expect, it } from "vitest";
 import pkg from "../../package.json" with { type: "json" };
+import { TOOL_PINS } from "../lock/pins.ts";
 
 const root = resolve(import.meta.dirname, "../..");
 
@@ -29,7 +30,8 @@ function readJson(path: string): unknown {
 describe("G0a: pins exactly as WEB_TOPS.md section 2", () => {
   const pinned: readonly (readonly [string, RegExp])[] = [
     ["typescript", /^6\.0\.3$/],
-    ["eslint", /^9\.39\.\d+$/],
+    ["eslint", /^10\.15\.\d+$/],
+    ["@eslint/js", /^10\.0\.\d+$/],
     ["typescript-eslint", /^8\.73\.\d+$/],
     ["vitest", /^5\.1\.\d+$/],
     ["@vitest/coverage-v8", /^5\.1\.\d+$/],
@@ -423,5 +425,34 @@ describe("G0d: probes/** and fixtures/probe/** are reserved in every tool scope"
     const text = readFileSync(join(root, "vitest.config.ts"), "utf8");
     expect(text).toMatch(/exclude: \[[^\]]*"probes\/\*\*"[^\]]*"fixtures\/probe\/\*\*"/);
     expect(text).toContain('include: ["src/**/*.test.ts"]');
+  });
+});
+
+describe("G7: section 2 names the lint pins the kit and the lock carry", () => {
+  const section2 = readFileSync(join(root, "WEB_TOPS.md"), "utf8");
+  const row = section2.split("\n").find((line) => line.startsWith("| Lint |")) ?? "";
+  const lint = [
+    "eslint",
+    "@eslint/js",
+    "typescript-eslint",
+    "eslint-plugin-astro",
+    "eslint-plugin-jsx-a11y-x",
+    "@eslint-community/eslint-plugin-eslint-comments",
+  ] as const;
+  const minor = (version: string): string => version.split(".").slice(0, 2).join(".");
+
+  it.each(lint)("the Lint row gives %s at the minor of its pin", (name) => {
+    const pin: string = TOOL_PINS[name];
+    expect(row).toMatch(
+      new RegExp(`\`${name}\` \\*{0,2}${minor(pin).replace(".", "\\.")}\\*{0,2}[ ,|]`),
+    );
+  });
+
+  it("the kit installs the ESLint the pins table names, and no ESLint 9 is left in section 2", () => {
+    expect(get(pkg.devDependencies, "eslint")).toBe(TOOL_PINS.eslint);
+    expect(get(pkg.devDependencies, "@eslint/js")).toBe(TOOL_PINS["@eslint/js"]);
+    expect(section2.slice(section2.indexOf("## 2. Pins"), section2.indexOf("## 3."))).not.toMatch(
+      /ESLint 9|9\.39/,
+    );
   });
 });

@@ -44,7 +44,7 @@ bun src/cli/main.ts gate           # tier 1: hygiene, tests, coverage
 | Risk | Native CRAP, one cap per class, ratcheted for adopters |
 | What ships | `html-validate` and axe on built pages; JS and CSS bytes per page or route |
 
-TypeScript is pinned to 6.0.x because `typescript-eslint` and `@astrojs/check` do not yet accept TypeScript 7, and ESLint to 9.39 because `eslint-plugin-jsx-a11y` does not yet accept ESLint 10. See [§2](WEB_TOPS.md#2-pins).
+TypeScript is pinned to 6.0.x because `typescript-eslint` and `@astrojs/check` do not yet accept TypeScript 7, and ESLint to 10.15 with `eslint-plugin-jsx-a11y-x`, the fork of `eslint-plugin-jsx-a11y` that accepts it. See [§2](WEB_TOPS.md#2-pins).
 
 ## What is here
 
