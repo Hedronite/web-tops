@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { BEGIN_MARKER, END_MARKER, mergeAgentsSection } from "./agents";
+import { BEGIN_MARKER, END_MARKER, mergeAgentsSection } from "./agents.ts";
 
 const BLOCK = `${BEGIN_MARKER}\nnew generated text\n${END_MARKER}\n`;
 
@@ -72,5 +73,41 @@ describe("AGENTS.md section", () => {
 
   it("treats an empty file as having no markers", () => {
     expect(mergeAgentsSection("", BLOCK)).toEqual({ kind: "append", text: BLOCK });
+  });
+});
+
+describe("AGENTS.md section, properties", () => {
+  // Text that cannot contain either marker, so the markers in the file are exactly the ones placed.
+  const plain = fc.string().filter((text) => !text.includes("<!--") && !text.includes("-->"));
+
+  it("keeps every byte outside the markers, whatever surrounds them", () => {
+    fc.assert(
+      fc.property(plain, plain, plain, (before, inside, after) => {
+        const existing = `${before}${BEGIN_MARKER}${inside}${END_MARKER}${after}`;
+        const result = mergeAgentsSection(existing, BLOCK);
+        expect(result.kind).toBe("replace");
+        if (result.kind !== "replace") return;
+        expect(result.text.startsWith(`${before}${BEGIN_MARKER}`)).toBe(true);
+        expect(result.text.endsWith(`${END_MARKER}${after}`)).toBe(true);
+        expect(count(result.text, BEGIN_MARKER)).toBe(1);
+        expect(count(result.text, END_MARKER)).toBe(1);
+        expect(mergeAgentsSection(result.text, BLOCK)).toEqual({
+          kind: "replace",
+          text: result.text,
+        });
+      }),
+    );
+  });
+
+  it("appends after any file with no markers and keeps that file as the prefix", () => {
+    fc.assert(
+      fc.property(plain, (existing) => {
+        const result = mergeAgentsSection(existing, BLOCK);
+        expect(result.kind).toBe("append");
+        if (result.kind !== "append") return;
+        expect(result.text.startsWith(existing)).toBe(true);
+        expect(result.text.endsWith(BLOCK)).toBe(true);
+      }),
+    );
   });
 });

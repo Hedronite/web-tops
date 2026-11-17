@@ -1,6 +1,6 @@
-import { LAUNCH_CLASSES } from "../init/profile";
-import { runInit } from "../init/run";
-import type { Io } from "./main";
+import { LAUNCH_CLASSES } from "../init/profile.ts";
+import { runInit } from "../init/run.ts";
+import type { Io } from "./io.ts";
 
 const USAGE = "usage: webtops init --class <class> [--force]\n";
 
@@ -30,7 +30,7 @@ function parseArgs(argv: readonly string[]): Args | string {
   return { className, force };
 }
 
-function initCommand(argv: readonly string[], io: Io, cwd: string): number {
+function initCommand(argv: readonly string[], io: Io): number {
   const args = parseArgs(argv);
   if (typeof args === "string") {
     io.err(`webtops init: ${args}\n${USAGE}`);
@@ -40,7 +40,7 @@ function initCommand(argv: readonly string[], io: Io, cwd: string): number {
     io.err(`${USAGE}classes: ${LAUNCH_CLASSES.join(", ")}\n`);
     return 2;
   }
-  const outcome = runInit({ className: args.className, dir: cwd, force: args.force });
+  const outcome = runInit({ className: args.className, dir: io.cwd, force: args.force });
   if (outcome.code !== 0) {
     for (const problem of outcome.problems) io.err(`webtops init: ${problem}\n`);
     return outcome.code;
@@ -52,6 +52,6 @@ function initCommand(argv: readonly string[], io: Io, cwd: string): number {
 }
 
 /** `webtops init --class <c> [--force]` (WEB_TOPS.md section 4): writes the drop-in set into the working directory. */
-export function runInitCli(argv: readonly string[], io: Io, cwd: string = process.cwd()): Promise<number> {
-  return Promise.resolve(initCommand(argv, io, cwd));
+export function runInitCli(argv: readonly string[], io: Io): Promise<number> {
+  return Promise.resolve(initCommand(argv, io));
 }

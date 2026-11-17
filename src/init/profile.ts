@@ -2,15 +2,16 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import Ajv from "ajv";
 import { parse } from "yaml";
+import { PROFILES } from "../config/profiles.ts";
 
-/** The five classes that have a launch profile (WEB_TOPS.md section 5.1). */
-export const LAUNCH_CLASSES = ["ts-library", "ui-components", "astro-site", "web-app", "node-service"] as const;
+/** The classes that have a launch profile: the rows of the one class table (src/config/profiles.ts). */
+export const LAUNCH_CLASSES: readonly string[] = PROFILES.map((profile) => profile.class);
 
 /** Which plugin set `eslint.config.js` adds on top of the base law rules. */
 export type EslintVariant = "base" | "react" | "astro";
 
-/** The drop-in data for one class: floors, the tools its enabled layers run, and what M1 leaves off. */
-export interface Profile {
+/** The drop-in data for one class (the floors and mapped layers live in the class table; see the agreement test): floors, the tools its enabled layers run, and what M1 leaves off. */
+export interface DropIn {
   readonly class: string;
   readonly coverage_floor: number;
   readonly crap_cap: number;
@@ -27,8 +28,15 @@ const schema = {
   type: "object",
   additionalProperties: false,
   required: [
-    "class", "coverage_floor", "crap_cap", "survivors_max", "js_budget", "playwright", "eslint",
-    "tools", "disabled",
+    "class",
+    "coverage_floor",
+    "crap_cap",
+    "survivors_max",
+    "js_budget",
+    "playwright",
+    "eslint",
+    "tools",
+    "disabled",
   ],
   properties: {
     class: { type: "string", minLength: 1 },
@@ -43,27 +51,32 @@ const schema = {
   },
 } as const;
 
-const validate = new Ajv().compile<Profile>(schema);
+const validate = new Ajv().compile<DropIn>(schema);
 
 export const PROFILES_DIR = resolve(import.meta.dirname, "../../profiles");
 
 export type ProfileLoad =
-  | { readonly ok: true; readonly profile: Profile }
-  | { readonly ok: false; readonly error: string };
+  { readonly ok: true; readonly profile: DropIn } | { readonly ok: false; readonly error: string };
 
 /** Loads `profiles/<className>.yaml`; only a launch class has one. */
 export function loadProfile(className: string): ProfileLoad {
-  if (!LAUNCH_CLASSES.some((name) => name === className)) {
+  if (!LAUNCH_CLASSES.includes(className)) {
     return { ok: false, error: `no launch profile for class "${className}"` };
   }
   let doc: unknown;
   try {
     doc = parse(readFileSync(resolve(PROFILES_DIR, `${className}.yaml`), "utf8"));
   } catch (error) {
-    return { ok: false, error: `profiles/${className}.yaml is unreadable: ${error instanceof Error ? error.message : "?"}` };
+    return {
+      ok: false,
+      error: `profiles/${className}.yaml is unreadable: ${error instanceof Error ? error.message : "?"}`,
+    };
   }
   if (!validate(doc)) {
-    return { ok: false, error: `profiles/${className}.yaml is invalid: ${JSON.stringify(validate.errors)}` };
+    return {
+      ok: false,
+      error: `profiles/${className}.yaml is invalid: ${JSON.stringify(validate.errors)}`,
+    };
   }
   if (doc.class !== className) {
     return { ok: false, error: `profiles/${className}.yaml declares class "${doc.class}"` };

@@ -32,7 +32,10 @@ export function mergeAgentsSection(existing: string | undefined, rendered: strin
       reason: `AGENTS.md has ${String(begins)} begin and ${String(ends)} end markers, or they are out of order`,
     };
   }
-  const inner = rendered.slice(rendered.indexOf(BEGIN_MARKER) + BEGIN_MARKER.length, rendered.indexOf(END_MARKER));
+  const inner = rendered.slice(
+    rendered.indexOf(BEGIN_MARKER) + BEGIN_MARKER.length,
+    rendered.indexOf(END_MARKER),
+  );
   return {
     kind: "replace",
     text: existing.slice(0, start + BEGIN_MARKER.length) + inner + existing.slice(stop),

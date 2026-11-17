@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import pkg from "../../package.json" with { type: "json" };
-import { parseLock, serializeLock } from "./format";
-import { TOOL_PINS } from "./pins";
+import { parseLock, serializeLock } from "./format.ts";
+import { TOOL_PINS } from "./pins.ts";
 
 const fixture = (name: string): string =>
   readFileSync(resolve(import.meta.dirname, "../../fixtures/lock", name), "utf8");
@@ -57,7 +57,9 @@ describe("web-tops.lock format", () => {
   });
 
   it("serializes the same map to the same bytes whatever the key order", () => {
-    expect(serializeLock({ b: "1.0.0", a: "2.0.0" })).toBe(serializeLock({ a: "2.0.0", b: "1.0.0" }));
+    expect(serializeLock({ b: "1.0.0", a: "2.0.0" })).toBe(
+      serializeLock({ a: "2.0.0", b: "1.0.0" }),
+    );
   });
 });
 
@@ -77,7 +79,13 @@ describe("tool pins", () => {
   });
 
   it("cover the section 2 tools the M1 gates run", () => {
-    for (const tool of ["typescript", "eslint", "typescript-eslint", "vitest", "@vitest/coverage-v8"]) {
+    for (const tool of [
+      "typescript",
+      "eslint",
+      "typescript-eslint",
+      "vitest",
+      "@vitest/coverage-v8",
+    ]) {
       expect(TOOL_PINS, tool).toHaveProperty(tool);
     }
   });

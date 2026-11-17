@@ -1,12 +1,12 @@
 import { lstatSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { serializeLock } from "../lock/format";
-import { TOOL_PINS } from "../lock/pins";
+import { serializeLock } from "../lock/format.ts";
+import { TOOL_PINS } from "../lock/pins.ts";
 import pkg from "../../package.json" with { type: "json" };
-import { mergeAgentsSection } from "./agents";
-import { readPackageMeta } from "./meta";
-import { LAUNCH_CLASSES, loadProfile } from "./profile";
-import { agentsSection, eslintConfig, readTemplate, webTopsYaml, workflow } from "./render";
+import { mergeAgentsSection } from "./agents.ts";
+import { readPackageMeta } from "./meta.ts";
+import { LAUNCH_CLASSES, loadProfile } from "./profile.ts";
+import { agentsSection, eslintConfig, readTemplate, webTopsYaml, workflow } from "./render.ts";
 
 export interface InitOptions {
   readonly className: string | undefined;
@@ -56,7 +56,8 @@ export function runInit(options: InitOptions): InitOutcome {
     return refuse(2, `no class given; the launch classes are ${LAUNCH_CLASSES.join(", ")}`);
   }
   const loaded = loadProfile(className);
-  if (!loaded.ok) return refuse(2, `${loaded.error}; the launch classes are ${LAUNCH_CLASSES.join(", ")}`);
+  if (!loaded.ok)
+    return refuse(2, `${loaded.error}; the launch classes are ${LAUNCH_CLASSES.join(", ")}`);
   if (!isDirectory(dir)) return refuse(3, `${dir} is not a directory`);
 
   const { profile } = loaded;
@@ -65,7 +66,8 @@ export function runInit(options: InitOptions): InitOutcome {
   const install: string[] = [];
   for (const tool of profile.tools) {
     const version: unknown = Reflect.get(TOOL_PINS, tool);
-    if (typeof version !== "string") return refuse(3, `profiles/${className}.yaml pins ${tool}, which has no exact version`);
+    if (typeof version !== "string")
+      return refuse(3, `profiles/${className}.yaml pins ${tool}, which has no exact version`);
     lock[tool] = version;
     install.push(`${tool}@${version}`);
   }
@@ -85,11 +87,15 @@ export function runInit(options: InitOptions): InitOutcome {
   const existing = exists(agentsPath) ? readFileSync(agentsPath, "utf8") : undefined;
   const merged = mergeAgentsSection(existing, agentsSection(profile, subject));
   if (merged.kind === "malformed") return refuse(4, merged.reason);
-  if (merged.kind === "replace" && merged.text !== existing) conflicts.push("AGENTS.md (the marked block differs)");
+  if (merged.kind === "replace" && merged.text !== existing)
+    conflicts.push("AGENTS.md (the marked block differs)");
   if (merged.kind !== "replace" || merged.text !== existing) planned.set("AGENTS.md", merged.text);
 
   if (conflicts.length > 0 && !force) {
-    return refuse(4, ...conflicts.map((path) => `${path} already exists; rerun with --force to overwrite`));
+    return refuse(
+      4,
+      ...conflicts.map((path) => `${path} already exists; rerun with --force to overwrite`),
+    );
   }
   try {
     for (const [path, text] of planned) {
@@ -98,7 +104,16 @@ export function runInit(options: InitOptions): InitOutcome {
       writeFileSync(target, text);
     }
   } catch (error) {
-    return refuse(3, `could not write: ${error instanceof Error ? error.message : "unknown error"}`);
+    return refuse(
+      3,
+      `could not write: ${error instanceof Error ? error.message : "unknown error"}`,
+    );
   }
-  return { code: 0, written: [...planned.keys()].sort(), deferred: DEFERRED, problems: [], install };
+  return {
+    code: 0,
+    written: [...planned.keys()].sort(),
+    deferred: DEFERRED,
+    problems: [],
+    install,
+  };
 }

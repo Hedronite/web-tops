@@ -4,8 +4,7 @@ import { parse, stringify } from "yaml";
 export type Lock = Readonly<Record<string, string>>;
 
 export type LockParse =
-  | { readonly ok: true; readonly lock: Lock }
-  | { readonly ok: false; readonly error: string };
+  { readonly ok: true; readonly lock: Lock } | { readonly ok: false; readonly error: string };
 
 const EXACT = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 
@@ -38,7 +37,9 @@ export function parseLock(text: string): LockParse {
 
 /** Writes a lock file: header comment, keys sorted, one final newline, same bytes for the same map. */
 export function serializeLock(lock: Lock): string {
-  const sorted = Object.fromEntries(Object.entries(lock).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+  const sorted = Object.fromEntries(
+    Object.entries(lock).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+  );
   return HEADER + stringify(sorted, { defaultStringType: "PLAIN", lineWidth: 0 });
 }
 

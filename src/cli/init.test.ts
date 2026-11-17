@@ -1,28 +1,29 @@
 import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { runInitCli } from "./init";
-import { madeDirs, snapshot, tempDir } from "../init/test-helpers";
+import { runInitCli } from "./init.ts";
+import { madeDirs, snapshot, tempDir } from "../init/test-support.ts";
 
 afterAll(() => {
   for (const dir of madeDirs()) rmSync(dir, { recursive: true, force: true });
 });
 
-async function cli(argv: readonly string[], cwd: string): Promise<{ code: number; out: string; err: string }> {
+async function cli(
+  argv: readonly string[],
+  cwd: string,
+): Promise<{ code: number; out: string; err: string }> {
   let out = "";
   let err = "";
-  const code = await runInitCli(
-    argv,
-    {
-      out: (text) => {
-        out += text;
-      },
-      err: (text) => {
-        err += text;
-      },
+  const code = await runInitCli(argv, {
+    out: (text) => {
+      out += text;
+    },
+    err: (text) => {
+      err += text;
     },
     cwd,
-  );
+    env: {},
+  });
   return { code, out, err };
 }
 

@@ -4,11 +4,11 @@ import ts from "typescript";
 import { parse } from "yaml";
 import { afterAll, describe, expect, it } from "vitest";
 import pkg from "../../package.json" with { type: "json" };
-import { PROTOCOL } from "../config/protocol";
-import { TOOL_PINS } from "../lock/pins";
-import { parseLock } from "../lock/format";
-import { runInit } from "./run";
-import { at, madeDirs, put, snapshot, tempDir } from "./test-helpers";
+import { PROTOCOL } from "../config/protocol.ts";
+import { TOOL_PINS } from "../lock/pins.ts";
+import { parseLock } from "../lock/format.ts";
+import { runInit } from "./run.ts";
+import { at, madeDirs, put, snapshot, tempDir } from "./test-support.ts";
 
 const root = resolve(import.meta.dirname, "../..");
 const CLASSES = ["ts-library", "ui-components", "astro-site", "web-app", "node-service"] as const;
@@ -45,24 +45,59 @@ const NO_CSS = "class";
 /** Layers a class leaves off in M1: "class" = the class does not map it; Mn = built in milestone n. */
 const DISABLED: Record<Class, Record<string, string>> = {
   "ts-library": {
-    stylelint: NO_CSS, crap: "M2", mutation: "M2", size_limit: "M4", html_validate: "class",
-    axe: "class", rendered: "class", themes: "class", laws: "M3",
+    stylelint: NO_CSS,
+    crap: "M2",
+    mutation: "M2",
+    size_limit: "M4",
+    html_validate: "class",
+    axe: "class",
+    rendered: "class",
+    themes: "class",
+    laws: "M3",
   },
   "ui-components": {
-    crap: "M2", mutation: "M2", size_limit: "M4", html_validate: "M4", axe: "M4",
-    rendered: "class", themes: "M4", laws: "M3",
+    crap: "M2",
+    mutation: "M2",
+    size_limit: "M4",
+    html_validate: "M4",
+    axe: "M4",
+    rendered: "class",
+    themes: "class",
+    laws: "M3",
   },
   "astro-site": {
-    crap: "M2", mutation: "M2", package_exports: "class", size_limit: "class", html_validate: "M4",
-    axe: "M4", rendered: "M4", themes: "M4", laws: "M3",
+    crap: "M2",
+    mutation: "M2",
+    package_exports: "class",
+    size_limit: "class",
+    html_validate: "M4",
+    axe: "M4",
+    rendered: "M4",
+    themes: "M4",
+    laws: "M3",
   },
   "web-app": {
-    crap: "M2", mutation: "M2", package_exports: "class", size_limit: "class", html_validate: "M4",
-    axe: "M4", rendered: "M4", themes: "M4", laws: "M3",
+    crap: "M2",
+    mutation: "M2",
+    package_exports: "class",
+    size_limit: "class",
+    html_validate: "M4",
+    axe: "M4",
+    rendered: "M4",
+    themes: "M4",
+    laws: "M3",
   },
   "node-service": {
-    stylelint: NO_CSS, crap: "M2", mutation: "M2", package_exports: "class", size_limit: "class",
-    html_validate: "class", axe: "class", rendered: "class", themes: "class", laws: "M3",
+    stylelint: NO_CSS,
+    crap: "M2",
+    mutation: "M2",
+    package_exports: "class",
+    size_limit: "class",
+    html_validate: "class",
+    axe: "class",
+    rendered: "class",
+    themes: "class",
+    laws: "M3",
   },
 };
 
@@ -78,9 +113,17 @@ const FILES = [
 ];
 
 const BASE_TOOLS = [
-  "@eslint-community/eslint-plugin-eslint-comments", "@eslint/js", "@vitest/coverage-v8",
-  "@vitest/eslint-plugin", "dependency-cruiser", "eslint", "prettier", "typescript",
-  "typescript-eslint", "vitest", "webtops",
+  "@eslint-community/eslint-plugin-eslint-comments",
+  "@eslint/js",
+  "@vitest/coverage-v8",
+  "@vitest/eslint-plugin",
+  "dependency-cruiser",
+  "eslint",
+  "prettier",
+  "typescript",
+  "typescript-eslint",
+  "vitest",
+  "webtops",
 ];
 const PACKAGE_TOOLS = ["@arethetypeswrong/cli", "publint"];
 const REACT_TOOLS = ["eslint-plugin-jsx-a11y", "stylelint"];
@@ -88,16 +131,28 @@ const TOOLS: Record<Class, readonly string[]> = {
   "ts-library": [...BASE_TOOLS, ...PACKAGE_TOOLS],
   "ui-components": [...BASE_TOOLS, ...PACKAGE_TOOLS, ...REACT_TOOLS, "@playwright/test"],
   "astro-site": [
-    ...BASE_TOOLS, ...REACT_TOOLS, "@astrojs/check", "astro", "eslint-plugin-astro", "@playwright/test",
+    ...BASE_TOOLS,
+    ...REACT_TOOLS,
+    "@astrojs/check",
+    "astro",
+    "eslint-plugin-astro",
+    "@playwright/test",
   ],
-  "web-app": [...BASE_TOOLS, ...REACT_TOOLS, "@playwright/test"],
+  "web-app": [...BASE_TOOLS, ...REACT_TOOLS, "@astrojs/check", "astro", "@playwright/test"],
   "node-service": BASE_TOOLS,
 };
 const NEEDS_PLAYWRIGHT: Record<Class, boolean> = {
-  "ts-library": false, "ui-components": true, "astro-site": true, "web-app": true, "node-service": false,
+  "ts-library": false,
+  "ui-components": true,
+  "astro-site": true,
+  "web-app": true,
+  "node-service": false,
 };
 
-function initInto(className: string, files: Record<string, string> = {}): { dir: string; out: ReturnType<typeof runInit> } {
+function initInto(
+  className: string,
+  files: Record<string, string> = {},
+): { dir: string; out: ReturnType<typeof runInit> } {
   const dir = tempDir();
   for (const [name, text] of Object.entries(files)) put(dir, name, text);
   return { dir, out: runInit({ className, dir, force: false }) };
@@ -117,7 +172,11 @@ function syntaxErrors(source: string, fileName: string): number {
 }
 
 const lawRules = (source: string): ReadonlySet<string> =>
-  new Set([...source.matchAll(/"((?:@[\w-]+\/)?[\w-]+(?:\/[\w-]+)?)":\s*\[?\s*"error"/g)].map((m) => m[1] ?? ""));
+  new Set(
+    [...source.matchAll(/"((?:@[\w-]+\/)?[\w-]+(?:\/[\w-]+)?)":\s*\[?\s*"error"/g)].map(
+      (m) => m[1] ?? "",
+    ),
+  );
 
 describe.each(CLASSES)("webtops init --class %s", (className) => {
   const { dir, out } = initInto(className, {
@@ -170,7 +229,18 @@ describe.each(CLASSES)("webtops init --class %s", (className) => {
   it("switches off nothing a hard config forbids: only crap, mutation, build output, laws or unmapped layers", () => {
     const off = Object.keys(DISABLED[className]);
     for (const layer of off) {
-      expect(["stylelint", "crap", "mutation", "package_exports", "size_limit", "html_validate", "axe", "rendered", "themes", "laws"]).toContain(layer);
+      expect([
+        "stylelint",
+        "crap",
+        "mutation",
+        "package_exports",
+        "size_limit",
+        "html_validate",
+        "axe",
+        "rendered",
+        "themes",
+        "laws",
+      ]).toContain(layer);
     }
     for (const mappedGate of ["eslint", "audit", "format"]) {
       expect(at(config, "gates", "hygiene", mappedGate, "enabled"), mappedGate).not.toBe(false);
@@ -199,8 +269,14 @@ describe.each(CLASSES)("webtops init --class %s", (className) => {
   it("carries every W-04 flag in tsconfig.strict.json", () => {
     const tsconfig: unknown = JSON.parse(read(dir, "tsconfig.strict.json"));
     for (const flag of [
-      "strict", "noUncheckedIndexedAccess", "exactOptionalPropertyTypes", "noImplicitOverride",
-      "noFallthroughCasesInSwitch", "verbatimModuleSyntax", "isolatedModules", "erasableSyntaxOnly",
+      "strict",
+      "noUncheckedIndexedAccess",
+      "exactOptionalPropertyTypes",
+      "noImplicitOverride",
+      "noFallthroughCasesInSwitch",
+      "verbatimModuleSyntax",
+      "isolatedModules",
+      "erasableSyntaxOnly",
     ]) {
       expect(at(tsconfig, "compilerOptions", flag), flag).toBe(true);
     }
@@ -209,7 +285,8 @@ describe.each(CLASSES)("webtops init --class %s", (className) => {
   it("writes an eslint.config.js that parses, with the astro and a11y plugins only where mapped", () => {
     const source = read(dir, "eslint.config.js");
     expect(syntaxErrors(source, "eslint.config.js")).toBe(0);
-    const a11y = className === "ui-components" || className === "web-app" || className === "astro-site";
+    const a11y =
+      className === "ui-components" || className === "web-app" || className === "astro-site";
     expect(source.includes("eslint-plugin-jsx-a11y")).toBe(a11y);
     expect(source.includes("eslint-plugin-astro")).toBe(className === "astro-site");
     expect(source).toContain("strictTypeChecked");
@@ -242,7 +319,9 @@ describe.each(CLASSES)("webtops init --class %s", (className) => {
     expect(at(workflow, "permissions")).toEqual({ contents: "read" });
     const jobs = at(workflow, "jobs");
     expect(Object.keys(typeof jobs === "object" && jobs !== null ? jobs : {})).toEqual([
-      "gate", "nightly", "release-verify",
+      "gate",
+      "nightly",
+      "release-verify",
     ]);
     const text = read(dir, ".github/workflows/web-tops.yml");
     for (const [, ref] of text.matchAll(/uses:\s*(\S+)/g)) {
@@ -254,7 +333,9 @@ describe.each(CLASSES)("webtops init --class %s", (className) => {
     expect(text).toContain("bunx webtops gate --max-tier 3");
     expect(text).toContain("bun install --frozen-lockfile");
     for (const line of text.split("\n").filter((l) => /^\s*-?\s*run:/.test(l))) {
-      expect(line, "a run step beside the gate").not.toMatch(/\b(eslint|tsc|vitest|stylelint|prettier|depcruise|publint|attw)\b/);
+      expect(line, "a run step beside the gate").not.toMatch(
+        /\b(eslint|tsc|vitest|stylelint|prettier|depcruise|publint|attw)\b/,
+      );
     }
     expect(text.includes("playwright install")).toBe(NEEDS_PLAYWRIGHT[className]);
   });
@@ -263,7 +344,9 @@ describe.each(CLASSES)("webtops init --class %s", (className) => {
 describe("webtops init, the gate's own rule set", () => {
   it("ts-library's eslint config enables the same law rules as the kit's own config", () => {
     const { dir } = initInto("ts-library");
-    expect(lawRules(read(dir, "eslint.config.js"))).toEqual(lawRules(readFileSync(join(root, "eslint.config.js"), "utf8")));
+    expect(lawRules(read(dir, "eslint.config.js"))).toEqual(
+      lawRules(readFileSync(join(root, "eslint.config.js"), "utf8")),
+    );
   });
 
   it("every class's eslint config sets every mapped law rule to error", () => {
@@ -271,7 +354,8 @@ describe("webtops init, the gate's own rule set", () => {
     expect(kit.size).toBeGreaterThanOrEqual(15);
     for (const className of CLASSES) {
       const { dir } = initInto(className);
-      for (const rule of kit) expect(lawRules(read(dir, "eslint.config.js")), `${className} ${rule}`).toContain(rule);
+      for (const rule of kit)
+        expect(lawRules(read(dir, "eslint.config.js")), `${className} ${rule}`).toContain(rule);
     }
   });
 });
@@ -346,7 +430,11 @@ describe("webtops init, refusals", () => {
   });
 
   it("exits 3 when the directory cannot be written", () => {
-    const out = runInit({ className: "ts-library", dir: join(tempDir(), "missing", "deeper"), force: false });
+    const out = runInit({
+      className: "ts-library",
+      dir: join(tempDir(), "missing", "deeper"),
+      force: false,
+    });
     expect(out.code).toBe(3);
   });
 });
@@ -368,7 +456,8 @@ describe("webtops init, baseline", () => {
 });
 
 describe("webtops init, AGENTS.md", () => {
-  const outside = "# Mine\n\nKeep me.\n\n<!-- web-tops:begin -->\nold\n<!-- web-tops:end -->\n\nAlso me";
+  const outside =
+    "# Mine\n\nKeep me.\n\n<!-- web-tops:begin -->\nold\n<!-- web-tops:end -->\n\nAlso me";
 
   it("replaces only the marked block of an existing file when forced, keeping the rest exactly", () => {
     const { dir } = initInto("ts-library", { "AGENTS.md": outside });
@@ -411,7 +500,15 @@ describe("the AGENTS template init renders", () => {
     const text = readFileSync(join(root, "config/AGENTS.md.tmpl"), "utf8");
     expect(text.match(/<!-- web-tops:begin -->/g)?.length).toBe(1);
     expect(text.match(/<!-- web-tops:end -->/g)?.length).toBe(1);
-    for (const name of ["CLASS", "PACKAGE", "ENFORCE", "COVERAGE_FLOOR", "CRAP_CAP", "SURVIVORS_MAX", "JS_BUDGET"]) {
+    for (const name of [
+      "CLASS",
+      "PACKAGE",
+      "ENFORCE",
+      "COVERAGE_FLOOR",
+      "CRAP_CAP",
+      "SURVIVORS_MAX",
+      "JS_BUDGET",
+    ]) {
       expect(text, name).toContain(`{${name}}`);
     }
   });

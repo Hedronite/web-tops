@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { stringify } from "yaml";
-import { PROTOCOL } from "../config/protocol";
-import { TOOL_PINS } from "../lock/pins";
-import type { EslintVariant, Profile } from "./profile";
+import { PROTOCOL } from "../config/protocol.ts";
+import { TOOL_PINS } from "../lock/pins.ts";
+import type { EslintVariant, DropIn } from "./profile.ts";
 
 export const TEMPLATES_DIR = resolve(import.meta.dirname, "../../config/templates");
 export const AGENTS_TEMPLATE = resolve(import.meta.dirname, "../../config/AGENTS.md.tmpl");
@@ -38,7 +38,10 @@ const A11Y_CONFIG = '  { files: ["**/*.jsx", "**/*.tsx"], ...jsxA11y.flatConfigs
 
 const ESLINT_SLOTS: Record<EslintVariant, { imports: string; configs: string }> = {
   base: { imports: "", configs: "" },
-  react: { imports: A11Y_IMPORT, configs: `  // W-22 semantic elements, alt text, labels\n${A11Y_CONFIG}` },
+  react: {
+    imports: A11Y_IMPORT,
+    configs: `  // W-22 semantic elements, alt text, labels\n${A11Y_CONFIG}`,
+  },
   astro: {
     imports: `import astro from "eslint-plugin-astro";\n${A11Y_IMPORT}`,
     configs:
@@ -47,7 +50,7 @@ const ESLINT_SLOTS: Record<EslintVariant, { imports: string; configs: string }> 
   },
 };
 
-export function eslintConfig(profile: Profile): string {
+export function eslintConfig(profile: DropIn): string {
   const slots = ESLINT_SLOTS[profile.eslint];
   return fill(readTemplate("eslint.config.js.template"), {
     PLUGIN_IMPORTS: slots.imports,
@@ -55,12 +58,14 @@ export function eslintConfig(profile: Profile): string {
   });
 }
 
-export function workflow(profile: Profile): string {
-  const step = profile.playwright ? "      - run: bunx playwright install --with-deps chromium" : "";
+export function workflow(profile: DropIn): string {
+  const step = profile.playwright
+    ? "      - run: bunx playwright install --with-deps chromium"
+    : "";
   return fill(readTemplate("workflow.yml.template"), { PLAYWRIGHT_STEP: step });
 }
 
-export function agentsSection(profile: Profile, subject: Subject): string {
+export function agentsSection(profile: DropIn, subject: Subject): string {
   return fill(readFileSync(AGENTS_TEMPLATE, "utf8"), {
     CLASS: profile.class,
     PACKAGE: subject.name,
@@ -74,7 +79,7 @@ export function agentsSection(profile: Profile, subject: Subject): string {
 }
 
 /** A layer or gate the profile switches off: `enabled: false` with its reason, else nothing to add. */
-function switched(profile: Profile, key: string): { enabled?: false; reason?: string } {
+function switched(profile: DropIn, key: string): { enabled?: false; reason?: string } {
   const reason = profile.disabled[key];
   return reason === undefined ? {} : { enabled: false, reason };
 }
@@ -84,7 +89,7 @@ const HEADER =
   "# output and laws may be off for a class that maps them: they are `enabled: false` with the milestone\n" +
   "# that adds them. A layer the class does not map is off with the class as the reason.\n";
 
-export function webTopsYaml(profile: Profile, subject: Subject): string {
+export function webTopsYaml(profile: DropIn, subject: Subject): string {
   const doc = {
     protocol: PROTOCOL,
     version: subject.version,

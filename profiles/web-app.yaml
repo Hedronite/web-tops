@@ -8,11 +8,13 @@ js_budget: "170 KB per route"
 playwright: true
 eslint: react
 tools:
+  - "@astrojs/check"
   - "@eslint-community/eslint-plugin-eslint-comments"
   - "@eslint/js"
   - "@playwright/test"
   - "@vitest/coverage-v8"
   - "@vitest/eslint-plugin"
+  - "astro"
   - "dependency-cruiser"
   - "eslint"
   - "eslint-plugin-jsx-a11y"

@@ -30,5 +30,5 @@ disabled:
   html_validate: "milestone M4: build-output layers land in M4"
   axe: "milestone M4: build-output layers land in M4"
   rendered: "not mapped for class: components are judged on fixture pages, not routes"
-  themes: "milestone M4: the theme reader lands in M4"
+  themes: "not mapped for class: components declare no themes of their own"
   laws: "milestone M3: the laws layer lands in M3"
