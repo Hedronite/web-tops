@@ -560,7 +560,8 @@ chooses which laws run and `enabled: false` turns the layer off.
 
 - `enabled` and `reason` apply to each gate (`gates.hygiene`), each step inside a gate
   (`gates.hygiene.stylelint`) and each named entry under `layers`. A `layers.custom` item is
-  `{ id, tier, command }`; to switch one off, remove it.
+  `{ id, tier, command, report }` (§7; `report` optional). Its `id` is unique and is not a built-in
+  layer id. To switch one off, remove it.
 - Gate 1 steps: `install`, `tsc`, `astro_check`, `eslint`, `stylelint`, `format`,
   `dependency_cruiser`, `audit`. `layers.package_exports` runs `publint` and `attw` inside gate 1.
 - `format.tool` is `prettier` or `biome`. Without the key, the gate reads the one formatter config
