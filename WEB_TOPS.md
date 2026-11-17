@@ -158,9 +158,9 @@ One vocabulary, lower case and hyphenated, for layers, laws and findings alike:
 | `fail` | A threshold missed: a coverage floor, a CRAP cap, a survivor count, a byte budget, a failing test, a tool error | **yes** |
 | `refuse` | A hard law or rule broken | **yes** |
 | `ack-missing` | A soft rule broken with no recorded acknowledgement (`// webtops-ack W-NN: reason` or the ledger). An acknowledged one is `pass` with `ack` | **yes** |
-| `skip` | The class does not require the item, or config sets `enabled: false` with a `reason` (§9) | no; printed with the reason |
+| `skip` | The class does not map the item, or config sets `enabled: false` with a `reason` (§9) | no; printed with the reason |
 | `not-run` | Enabled but no command is mapped, the run stopped before it, or its input is missing (§3.1); the reason says which | **yes** |
-| `not-evaluated` | The reader or tool could not judge, or the tool's own rule or flag is off or below `error` (§8.1) | **yes** when the item is `required`; otherwise counted and printed |
+| `not-evaluated` | The reader or tool could not judge for a reason outside the project, or a law that is not required has its tool rule or flag off or below `error` (§8.1) | **yes** when the item is `required`; otherwise counted and printed |
 | `vacuous` | Evaluated over nothing, such as an empty mutation diff | no; printed, and never a pass for any law |
 
 **Required.** Every in-range layer is required. A law is required when §8.2 marks it judged (✓)
@@ -172,8 +172,9 @@ config line that disabled it, not `not-evaluated`.
 a failure: a missed threshold, a failing test, a missing tool (§3.1), a crash, a run with no
 results file (§6.1), empty output where output is required, or a layer that throws.
 `not-evaluated` is only for a judgment that cannot be made for a reason outside the project: an
-unreachable network service such as an audit registry, a law with no reader yet, or a law judged
-only by attestation.
+unreachable network service such as an audit registry, a law with no reader yet, a law judged
+only by attestation, or a law that is not required whose tool rule or flag is off or below
+`error`.
 
 **Which verdict, and what counts.** A layer gets `skip` when `web-tops.yaml` sets
 `enabled: false` (the reason is the config's), or when its class profile does not map it (the
@@ -456,8 +457,8 @@ Readers:
 
 - **`tl`** (tool): mapped from that tool's JSON output. A `tl` reader reads the tool's
   effective configuration first (`tsc --showConfig`, `eslint --print-config`,
-  `stylelint --print-config`). If the rule or flag is off, or below `error`, the law is
-  `not-evaluated`, not `pass`.
+  `stylelint --print-config`). With the rule or flag off or below `error`, the law is `refuse`
+  when it is required (§3.3), else `not-evaluated`; never `pass`.
 - **`an`** (analyzer): a custom `webtops` rule or reader.
 - **`at`** (attested): judged by review; `not-evaluated` until attested.
 - **`tbd`**: not yet implemented; `not-evaluated`.
@@ -765,7 +766,7 @@ agent contract.
 **Proposed for 0.3.0:**
 
 23. **One verdict vocabulary:** `pass`, `fail`, `refuse`, `ack-missing`, `skip`, `not-run`, `not-evaluated`, `vacuous`, with one table of which end the run (§3.3, §6.4, §6.5).
-24. **Required items:** each class profile lists its required layers and laws; `not-evaluated` fails only on a required item, so the laws catalog can grow without the gate never passing (§3.3).
+24. **Required items:** required by default (every in-range layer, every judged law the class maps); a profile may mark a layer or law optional, with a reason; `not-evaluated` fails only on a required item, so the laws catalog can grow without the gate never passing (§3.3).
 25. **The report is the baseline's source:** `report_version`, `subject`, run context and per-layer `metrics` (§6.6).
 26. **Protocol id by range:** `check` accepts the protocol range the installed `webtops` supports; the schema matches the minor, not one patch (§12, §18).
 27. **Migration:** 0.3.0 takes effect with the slice that moves the code, schemas and fixtures to it; until that slice lands, the kit implements 0.2.1. From then on `check` refuses a 0.2.x config with exit 2, and `init --force` or a one-line `protocol:` edit migrates it.

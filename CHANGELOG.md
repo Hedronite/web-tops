@@ -7,7 +7,7 @@ All notable changes to this project are listed here. The protocol version and th
 ### Changed
 
 - Protocol 0.2.1 → 0.3.0 (draft, proposed), the report shape the M2 baseline reads:
-  - §3.3, §6.4, §6.5: one lower-case verdict vocabulary with `fail`, `refuse`, `ack-missing` and `vacuous`, and one table of which verdicts end the run. `not-evaluated` fails on a `required` item and is counted otherwise.
+  - §3.3, §6.4, §6.5: one lower-case verdict vocabulary with `fail`, `refuse`, `ack-missing` and `vacuous`, and one table of which verdicts end the run. `not-evaluated` fails on a `required` item (required by default; a profile may mark an item optional, with a reason) and is counted otherwise. A rule or flag that is off is `refuse` on a required law, else `not-evaluated`.
   - §6.6: `report_version`, `subject`, run context (SHA, runtimes, tool versions, seed), `required` per item and per-layer `metrics` shaped for `webtops baseline`.
   - §12, §18: `check` validates the protocol id by the supported range; the schema matches the minor.
   - §3.3: every in-range layer is required, and judged laws the class maps; the line between `fail` and `not-evaluated`; which verdicts count as run. §6.6: how `failed` and the not-evaluated counts overlap.
