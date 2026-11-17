@@ -163,16 +163,26 @@ One vocabulary, lower case and hyphenated, for layers, laws and findings alike:
 | `not-evaluated` | The reader or tool could not judge, or the tool's own rule or flag is off or below `error` (§8.1) | **yes** when the item is `required`; otherwise counted and printed |
 | `vacuous` | Evaluated over nothing, such as an empty mutation diff | no; printed, and never a pass for any law |
 
-Each class profile lists its `required` layers and laws. A required law whose tool rule is off or
-below `error` is `refuse`, with the config line that disabled it, not `not-evaluated`.
+**Required.** Every in-range layer is required. A law is required when §8.2 marks it judged (✓)
+and the class maps it (§5.2). A class profile may mark a layer or law optional, with a reason; no
+launch profile does. A required law whose tool rule is off or below `error` is `refuse`, with the
+config line that disabled it, not `not-evaluated`.
+
+**`fail` or `not-evaluated`.** `fail` is for a tool that ran, or should have, and reports or causes
+a failure: a missed threshold, a failing test, a missing tool (§3.1), a crash, a run with no
+results file (§6.1), empty output where output is required, or a layer that throws.
+`not-evaluated` is only for a judgment that cannot be made for a reason outside the project: an
+unreachable network service such as an audit registry, a law with no reader yet, or a law judged
+only by attestation.
 
 **Which verdict, and what counts.** A layer gets `skip` when `web-tops.yaml` sets
 `enabled: false` (the reason is the config's), or when its class profile does not map it (the
 reason names the class). Otherwise a layer with no command, or with a missing input (§3.1), is
 `not-run`. A layer is **in range**
 when it is enabled, mapped by the class, at or below `--max-tier`, and named by `--only` when
-`--only` is given. `skip` layers are never in range. The run fails when fewer layers ran than are
-in range.
+`--only` is given. `skip` layers are never in range. A layer has **run** when its verdict is `pass`,
+`fail`, `refuse`, `ack-missing`, `not-evaluated` or `vacuous`; `not-run` and `skip` have not. The
+run fails when fewer layers ran than are in range.
 
 ### 3.4 Stated rules
 
@@ -365,8 +375,9 @@ From 0.3.0 the report is the source the baseline is projected from, so it carrie
   per rule per file `{rule, file, count}` for findings; per page `{route, bytes}` for build
   output. A layer that has no metrics yet carries an empty object.
 
-`counts` gains `required_not_evaluated`; `failed` counts every verdict §3.3 marks as ending the
-run.
+`counts` gains `required_not_evaluated`. `failed` counts every verdict §3.3 marks as ending the
+run, a required `not-evaluated` included; `not_evaluated` counts every `not-evaluated`, and
+`required_not_evaluated` the required ones, so a required one is counted in all three.
 
 ### 6.7 Enforcement modes
 
@@ -721,7 +732,7 @@ Non-negotiable:
 | Enabled layer with no command | `skip` | `not-run` fails | `not-run` fails |
 | Enforcement | Absolute | `hard` / `ratchet` / `advisory` | Same |
 | Complexity discount | not specified | Error guards | Nullish handling (`??`, `?.`) |
-| Enums | Ack (T-04) | n/a | Refuse, mechanically, via `erasableSyntaxOnly` (W-05) |
+| Enums | Ack (T-04) | n/a | `refuse`, mechanically, via `erasableSyntaxOnly` (W-05) |
 | T-09 / T-12 | Two laws | n/a | One law (W-15) |
 | Runtime validation | Refuse on "detectable patterns" | n/a | Falls out of `no-unsafe-*` plus env-through-schema (W-06) |
 | Mutation engine | open | pluggable | StrykerJS |
@@ -757,6 +768,7 @@ agent contract.
 24. **Required items:** each class profile lists its required layers and laws; `not-evaluated` fails only on a required item, so the laws catalog can grow without the gate never passing (§3.3).
 25. **The report is the baseline's source:** `report_version`, `subject`, run context and per-layer `metrics` (§6.6).
 26. **Protocol id by range:** `check` accepts the protocol range the installed `webtops` supports; the schema matches the minor, not one patch (§12, §18).
+27. **Migration:** 0.3.0 takes effect with the slice that moves the code, schemas and fixtures to it; until that slice lands, the kit implements 0.2.1. From then on `check` refuses a 0.2.x config with exit 2, and `init --force` or a one-line `protocol:` edit migrates it.
 
 **Resolved for 0.2.1:**
 

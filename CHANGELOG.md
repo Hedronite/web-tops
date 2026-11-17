@@ -10,7 +10,8 @@ All notable changes to this project are listed here. The protocol version and th
   - §3.3, §6.4, §6.5: one lower-case verdict vocabulary with `fail`, `refuse`, `ack-missing` and `vacuous`, and one table of which verdicts end the run. `not-evaluated` fails on a `required` item and is counted otherwise.
   - §6.6: `report_version`, `subject`, run context (SHA, runtimes, tool versions, seed), `required` per item and per-layer `metrics` shaped for `webtops baseline`.
   - §12, §18: `check` validates the protocol id by the supported range; the schema matches the minor.
-  - §16: items 23 to 26 proposed.
+  - §3.3: every in-range layer is required, and judged laws the class maps; the line between `fail` and `not-evaluated`; which verdicts count as run. §6.6: how `failed` and the not-evaluated counts overlap.
+  - §16: items 23 to 27 proposed. 0.3.0 takes effect with the code slice; a 0.2.x config then needs a one-line `protocol:` edit or `init --force`.
 - Protocol 0.2.0 → 0.2.1 (draft), the keys the configuration schema needs before the CLI can be written:
   - §9: every gate and layer, and `laws`, takes `enabled` and `reason`; `enabled: false` needs a reason, printed with `skip`. `gates.coverage.exclude` holds the reasoned coverage exclusions §6.1 already required.
   - §3.3: `not-run` also covers layers a stopped run never reached. §6.6: the report counts the layers in range and the layers that ran.
