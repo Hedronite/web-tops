@@ -1,0 +1,72 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import Ajv from "ajv";
+import { parse } from "yaml";
+
+/** The five classes that have a launch profile (WEB_TOPS.md section 5.1). */
+export const LAUNCH_CLASSES = ["ts-library", "ui-components", "astro-site", "web-app", "node-service"] as const;
+
+/** Which plugin set `eslint.config.js` adds on top of the base law rules. */
+export type EslintVariant = "base" | "react" | "astro";
+
+/** The drop-in data for one class: floors, the tools its enabled layers run, and what M1 leaves off. */
+export interface Profile {
+  readonly class: string;
+  readonly coverage_floor: number;
+  readonly crap_cap: number;
+  readonly survivors_max: number;
+  readonly js_budget: string;
+  readonly playwright: boolean;
+  readonly eslint: EslintVariant;
+  readonly tools: readonly string[];
+  /** Layer key to the reason it is written `enabled: false`. */
+  readonly disabled: Readonly<Record<string, string>>;
+}
+
+const schema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "class", "coverage_floor", "crap_cap", "survivors_max", "js_budget", "playwright", "eslint",
+    "tools", "disabled",
+  ],
+  properties: {
+    class: { type: "string", minLength: 1 },
+    coverage_floor: { type: "number", minimum: 0, maximum: 100 },
+    crap_cap: { type: "number", minimum: 1 },
+    survivors_max: { type: "integer", minimum: 0 },
+    js_budget: { type: "string", minLength: 1 },
+    playwright: { type: "boolean" },
+    eslint: { enum: ["base", "react", "astro"] },
+    tools: { type: "array", items: { type: "string", minLength: 1 }, uniqueItems: true },
+    disabled: { type: "object", additionalProperties: { type: "string", minLength: 1 } },
+  },
+} as const;
+
+const validate = new Ajv().compile<Profile>(schema);
+
+export const PROFILES_DIR = resolve(import.meta.dirname, "../../profiles");
+
+export type ProfileLoad =
+  | { readonly ok: true; readonly profile: Profile }
+  | { readonly ok: false; readonly error: string };
+
+/** Loads `profiles/<className>.yaml`; only a launch class has one. */
+export function loadProfile(className: string): ProfileLoad {
+  if (!LAUNCH_CLASSES.some((name) => name === className)) {
+    return { ok: false, error: `no launch profile for class "${className}"` };
+  }
+  let doc: unknown;
+  try {
+    doc = parse(readFileSync(resolve(PROFILES_DIR, `${className}.yaml`), "utf8"));
+  } catch (error) {
+    return { ok: false, error: `profiles/${className}.yaml is unreadable: ${error instanceof Error ? error.message : "?"}` };
+  }
+  if (!validate(doc)) {
+    return { ok: false, error: `profiles/${className}.yaml is invalid: ${JSON.stringify(validate.errors)}` };
+  }
+  if (doc.class !== className) {
+    return { ok: false, error: `profiles/${className}.yaml declares class "${doc.class}"` };
+  }
+  return { ok: true, profile: doc };
+}

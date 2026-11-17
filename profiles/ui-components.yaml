@@ -1,0 +1,33 @@
+# Drop-in profile for class ui-components: the data `webtops init` renders from (WEB_TOPS.md sections 4, 5.2, 7).
+# A layer listed under `disabled` is written `enabled: false` with that reason; every other layer stays on.
+class: ui-components
+coverage_floor: 80
+crap_cap: 5
+survivors_max: 1
+js_budget: "n/a"
+playwright: true
+eslint: react
+tools:
+  - "@arethetypeswrong/cli"
+  - "@eslint-community/eslint-plugin-eslint-comments"
+  - "@eslint/js"
+  - "@playwright/test"
+  - "@vitest/coverage-v8"
+  - "@vitest/eslint-plugin"
+  - "dependency-cruiser"
+  - "eslint"
+  - "eslint-plugin-jsx-a11y"
+  - "prettier"
+  - "publint"
+  - "stylelint"
+  - "typescript"
+  - "typescript-eslint"
+  - "vitest"
+disabled:
+  crap: "milestone M2: native CRAP lands in M2"
+  mutation: "milestone M2: mutation testing lands in M2"
+  size_limit: "milestone M4: build-output layers land in M4"
+  html_validate: "milestone M4: build-output layers land in M4"
+  axe: "milestone M4: build-output layers land in M4"
+  rendered: "not mapped for class: components are judged on fixture pages, not routes"
+  themes: "milestone M4: the theme reader lands in M4"

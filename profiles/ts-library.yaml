@@ -1,0 +1,31 @@
+# Drop-in profile for class ts-library: the data `webtops init` renders from (WEB_TOPS.md sections 4, 5.2, 7).
+# A layer listed under `disabled` is written `enabled: false` with that reason; every other layer stays on.
+class: ts-library
+coverage_floor: 85
+crap_cap: 4
+survivors_max: 0
+js_budget: "n/a"
+playwright: false
+eslint: base
+tools:
+  - "@arethetypeswrong/cli"
+  - "@eslint-community/eslint-plugin-eslint-comments"
+  - "@eslint/js"
+  - "@vitest/coverage-v8"
+  - "@vitest/eslint-plugin"
+  - "dependency-cruiser"
+  - "eslint"
+  - "prettier"
+  - "publint"
+  - "typescript"
+  - "typescript-eslint"
+  - "vitest"
+disabled:
+  stylelint: "not mapped for class: a TypeScript library has no CSS"
+  crap: "milestone M2: native CRAP lands in M2"
+  mutation: "milestone M2: mutation testing lands in M2"
+  size_limit: "milestone M4: build-output layers land in M4"
+  html_validate: "not mapped for class: a TypeScript library has no HTML output"
+  axe: "not mapped for class: a TypeScript library has no pages"
+  rendered: "not mapped for class: a TypeScript library has no pages"
+  themes: "not mapped for class: a TypeScript library has no themes"
