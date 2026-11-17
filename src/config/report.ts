@@ -92,49 +92,82 @@ function count(report: GateReport, verdicts: readonly Verdict[]): number {
   return report.layers.filter((layer) => verdicts.includes(layer.verdict)).length;
 }
 
-function consistency(report: GateReport): readonly Problem[] {
-  const problems: Problem[] = [];
-  const add = (pointer: string, message: string): void => {
-    problems.push({ pointer, message });
-  };
+function one(pointer: string, message: string): readonly Problem[] {
+  return [{ pointer, message }];
+}
+
+function duplicateLayers(report: GateReport): readonly Problem[] {
   const ids = report.layers.map((layer) => layer.id);
-  for (const id of new Set(ids)) {
-    if (ids.indexOf(id) !== ids.lastIndexOf(id)) {
-      add("/layers", `layer "${id}" appears more than once`);
-    }
-  }
+  return [...new Set(ids)]
+    .filter((id) => ids.indexOf(id) !== ids.lastIndexOf(id))
+    .map((id) => ({ pointer: "/layers", message: `layer "${id}" appears more than once` }));
+}
+
+function notEvaluatedCount(report: GateReport): readonly Problem[] {
+  const claimed = report.counts.not_evaluated;
+  const held = count(report, ["not-evaluated"]);
+  if (claimed === held) return [];
+  return one(
+    "/counts/not_evaluated",
+    `counts ${String(claimed)} not-evaluated layers, the layers hold ${String(held)}`,
+  );
+}
+
+function failedCount(report: GateReport): readonly Problem[] {
+  const claimed = report.counts.failed;
+  const held = count(report, FAILING);
+  if (claimed === held) return [];
+  return one(
+    "/counts/failed",
+    `counts ${String(claimed)} failed layers (Refuse, Ack, not-run), the layers hold ${String(held)}`,
+  );
+}
+
+function ranCount(report: GateReport): readonly Problem[] {
+  if (report.counts.ran <= report.counts.in_range) return [];
+  return one("/counts/ran", "more layers ran than are in range");
+}
+
+function enforcedFlag(report: GateReport): readonly Problem[] {
+  if (report.enforced === (report.enforce !== "advisory")) return [];
+  return one("/enforced", "enforced is false exactly when enforce is advisory");
+}
+
+/** Every layer in range ran and none failed or went unevaluated, and at least one was in range. */
+function isClean(report: GateReport): boolean {
   const { counts } = report;
-  const notEvaluated = count(report, ["not-evaluated"]);
-  if (counts.not_evaluated !== notEvaluated) {
-    add(
-      "/counts/not_evaluated",
-      `counts ${String(counts.not_evaluated)} not-evaluated layers, the layers hold ${String(notEvaluated)}`,
-    );
-  }
-  const failed = count(report, FAILING);
-  if (counts.failed !== failed) {
-    add(
-      "/counts/failed",
-      `counts ${String(counts.failed)} failed layers (Refuse, Ack, not-run), the layers hold ${String(failed)}`,
-    );
-  }
-  if (counts.ran > counts.in_range) add("/counts/ran", "more layers ran than are in range");
-  if (report.enforced !== (report.enforce !== "advisory")) {
-    add("/enforced", "enforced is false exactly when enforce is advisory");
-  }
-  const empty = counts.in_range === 0;
-  const clean = !empty && failed === 0 && notEvaluated === 0 && counts.ran === counts.in_range;
-  if (report.enforced && report.passed !== undefined && report.passed !== clean) {
-    add(
-      "/passed",
-      clean
-        ? "no layer failed and every layer in range ran, so the run passed"
-        : empty
-          ? "no layer was in range, so the run did not pass: an empty run is not a pass"
-          : "a layer failed or was not evaluated, or fewer layers ran than are in range, so the run did not pass",
-    );
-  }
-  return problems;
+  return (
+    counts.in_range > 0 &&
+    count(report, FAILING) === 0 &&
+    count(report, ["not-evaluated"]) === 0 &&
+    counts.ran === counts.in_range
+  );
+}
+
+function whyPassedIsWrong(report: GateReport, clean: boolean): string {
+  if (clean) return "no layer failed and every layer in range ran, so the run passed";
+  return report.counts.in_range === 0
+    ? "no layer was in range, so the run did not pass: an empty run is not a pass"
+    : "a layer failed or was not evaluated, or fewer layers ran than are in range, so the run did not pass";
+}
+
+function passedFlag(report: GateReport): readonly Problem[] {
+  const clean = isClean(report);
+  if (!report.enforced || report.passed === undefined || report.passed === clean) return [];
+  return one("/passed", whyPassedIsWrong(report, clean));
+}
+
+const CHECKS: readonly ((report: GateReport) => readonly Problem[])[] = [
+  duplicateLayers,
+  notEvaluatedCount,
+  failedCount,
+  ranCount,
+  enforcedFlag,
+  passedFlag,
+];
+
+function consistency(report: GateReport): readonly Problem[] {
+  return CHECKS.flatMap((check) => check(report));
 }
 
 /**

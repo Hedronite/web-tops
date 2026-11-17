@@ -7,7 +7,7 @@ import tseslint from "typescript-eslint";
 // Every rule below is the reader behind a judged law (WEB_TOPS.md section 8.2) and stays at
 // "error". Presets are repeated here so the mapping survives a preset change.
 export default defineConfig(
-  { ignores: ["node_modules/", "coverage/", "dist/"] },
+  { ignores: ["node_modules/", "coverage/", "dist/", ".web-tops/"] },
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
   {
@@ -54,11 +54,14 @@ export default defineConfig(
       ],
       "@eslint-community/eslint-comments/require-description": "error",
       "@eslint-community/eslint-comments/no-unlimited-disable": "error",
+      // The ts-library CRAP cap (WEB_TOPS.md section 5.2) is 4 until the native CRAP gate lands in
+      // M2; a function over 4 is split by responsibility, never exempted.
+      complexity: ["error", 4],
     },
   },
   {
     // W-34 no focused or skipped tests committed
-    files: ["**/*.test.ts"],
+    files: ["**/*.test.ts", "**/*.test.tsx"],
     plugins: { vitest },
     rules: {
       "vitest/no-focused-tests": "error",
@@ -67,7 +70,7 @@ export default defineConfig(
   },
   {
     // The config files are plain JavaScript outside tsconfig: no type-aware rules there.
-    files: ["**/*.js", "**/*.cjs"],
+    files: ["**/*.js", "**/*.cjs", "**/*.mjs"],
     extends: [tseslint.configs.disableTypeChecked],
   },
   {

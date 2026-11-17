@@ -1,8 +1,10 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { ESLint } from "eslint";
-import { describe, expect, it } from "vitest";
+import ts from "typescript";
+import { afterEach, describe, expect, it } from "vitest";
 import pkg from "../../package.json" with { type: "json" };
 
 const root = resolve(import.meta.dirname, "../..");
@@ -82,31 +84,94 @@ describe("G0a: pins exactly as WEB_TOPS.md section 2", () => {
     }
     expect(pkg.files).toEqual(expect.arrayContaining(["src", "schema", "!src/**/*.test.ts"]));
   });
+});
 
-  it("tsc --showConfig shows every W-04 flag as true", () => {
-    const tsc = join(root, "node_modules", "typescript", "bin", "tsc");
-    const result = spawnSync(
-      process.execPath,
-      [tsc, "--showConfig", "-p", join(root, "tsconfig.json")],
-      {
-        encoding: "utf8",
-      },
-    );
-    expect(result.status).toBe(0);
-    const parsed: unknown = JSON.parse(result.stdout);
-    const options = get(parsed, "compilerOptions");
-    for (const flag of [
-      "strict",
-      "noUncheckedIndexedAccess",
-      "exactOptionalPropertyTypes",
-      "noImplicitOverride",
-      "noFallthroughCasesInSwitch",
-      "verbatimModuleSyntax",
-      "isolatedModules",
-      "erasableSyntaxOnly",
-    ]) {
-      expect(get(options, flag), flag).toBe(true);
+// W-04 (WEB_TOPS.md section 8.2) reads every strict flag's resolved value through the `extends`
+// chain. `tsc --showConfig` keeps `strict: true` beside a disabled member, so `strict` alone is not
+// enough: each member is read, and an unset member of the strict family follows `strict`.
+const W04_FLAGS: readonly string[] = [
+  "strict",
+  "noUncheckedIndexedAccess",
+  "exactOptionalPropertyTypes",
+  "noImplicitOverride",
+  "noFallthroughCasesInSwitch",
+  "verbatimModuleSyntax",
+  "isolatedModules",
+  "erasableSyntaxOnly",
+];
+
+const STRICT_FAMILY: readonly string[] = [
+  "alwaysStrict",
+  "noImplicitAny",
+  "noImplicitThis",
+  "strictBindCallApply",
+  "strictBuiltinIteratorReturn",
+  "strictFunctionTypes",
+  "strictNullChecks",
+  "strictPropertyInitialization",
+  "useUnknownInCatchVariables",
+];
+
+function resolvedFlag(options: ts.CompilerOptions, flag: string): unknown {
+  const own: unknown = Reflect.get(options, flag);
+  return own ?? (STRICT_FAMILY.includes(flag) ? options.strict : undefined);
+}
+
+/** The W-04 flags and strict-family members that do not resolve to true. */
+function flagsNotTrue(tsconfig: string): string[] {
+  const read = ts.readConfigFile(tsconfig, (file) => ts.sys.readFile(file));
+  const { options } = ts.parseJsonConfigFileContent(read.config, ts.sys, dirname(tsconfig));
+  return [...W04_FLAGS, ...STRICT_FAMILY].filter((flag) => resolvedFlag(options, flag) !== true);
+}
+
+describe("W-04: every strict member resolves to true", () => {
+  const made: string[] = [];
+  const allOn = Object.fromEntries(W04_FLAGS.map((flag) => [flag, true]));
+
+  afterEach(() => {
+    for (const dir of made.splice(0)) rmSync(dir, { recursive: true, force: true });
+  });
+
+  function tsconfigs(files: Readonly<Record<string, unknown>>): string {
+    const dir = mkdtempSync(join(tmpdir(), "wt-tsconfig-"));
+    made.push(dir);
+    for (const [name, compilerOptions] of Object.entries(files)) {
+      const extending = name === "tsconfig.json" && "base.json" in files;
+      const body = { ...(extending ? { extends: "./base.json" } : {}), compilerOptions };
+      writeFileSync(join(dir, name), JSON.stringify(body));
     }
+    return join(dir, "tsconfig.json");
+  }
+
+  it("holds for the kit's tsconfig.json", () => {
+    expect(flagsNotTrue(join(root, "tsconfig.json"))).toEqual([]);
+  });
+
+  it("accepts a config that sets every flag and leaves the strict family to strict", () => {
+    expect(flagsNotTrue(tsconfigs({ "tsconfig.json": allOn }))).toEqual([]);
+  });
+
+  it.each(STRICT_FAMILY)("fails strict: true beside %s: false", (member) => {
+    const config = tsconfigs({ "tsconfig.json": { ...allOn, [member]: false } });
+    expect(flagsNotTrue(config)).toEqual([member]);
+  });
+
+  it.each(W04_FLAGS.slice(1))("fails %s set to false", (flag) => {
+    const config = tsconfigs({ "tsconfig.json": { ...allOn, [flag]: false } });
+    expect(flagsNotTrue(config)).toEqual([flag]);
+  });
+
+  it.each(W04_FLAGS)("fails %s left out", (flag) => {
+    const rest = Object.fromEntries(Object.entries(allOn).filter(([key]) => key !== flag));
+    expect(flagsNotTrue(tsconfigs({ "tsconfig.json": rest }))).toContain(flag);
+  });
+
+  it("reads a member switched off in an extended config", () => {
+    const config = tsconfigs({
+      "base.json": { ...allOn, strictNullChecks: false },
+      "tsconfig.json": { strict: true },
+    });
+    expect(flagsNotTrue(config)).toEqual(["strictNullChecks"]);
   });
 });
 

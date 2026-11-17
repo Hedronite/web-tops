@@ -25,12 +25,27 @@ function pointerOf(error: ErrorObject): string {
   return typeof name === "string" ? `${error.instancePath}/${token(name)}` : error.instancePath;
 }
 
+function allowedOf(error: ErrorObject): unknown {
+  return error.keyword === "const" ? param(error, "allowedValue") : param(error, "allowedValues");
+}
+
 function messageOf(error: ErrorObject): string {
   if (error.keyword === "contains") return "a required item is missing";
   const base = error.message ?? `fails ${error.keyword}`;
-  const allowed =
-    error.keyword === "const" ? param(error, "allowedValue") : param(error, "allowedValues");
+  const allowed = allowedOf(error);
   return allowed === undefined ? base : `${base}: ${JSON.stringify(allowed)}`;
+}
+
+/** The noise from `if`, and from the items a `contains` tried, says nothing a reader can use. */
+function isNoise(error: ErrorObject): boolean {
+  return error.keyword === "if" || error.schemaPath.includes("/contains/");
+}
+
+function toProblem(
+  error: ErrorObject,
+  describe: (error: ErrorObject) => string | undefined,
+): Problem {
+  return { pointer: pointerOf(error), message: describe(error) ?? messageOf(error) };
 }
 
 /**
@@ -42,9 +57,8 @@ export function toProblems(
   describe: (error: ErrorObject) => string | undefined = () => undefined,
 ): readonly Problem[] {
   const seen = new Map<string, Problem>();
-  for (const error of errors ?? []) {
-    if (error.keyword === "if" || error.schemaPath.includes("/contains/")) continue;
-    const problem = { pointer: pointerOf(error), message: describe(error) ?? messageOf(error) };
+  for (const error of (errors ?? []).filter((candidate) => !isNoise(candidate))) {
+    const problem = toProblem(error, describe);
     seen.set(`${problem.pointer}\u0000${problem.message}`, problem);
   }
   return [...seen.values()];
