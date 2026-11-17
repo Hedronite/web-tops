@@ -1,6 +1,6 @@
 # Web-TOPS: Web Testing and Optimization Protocol Suite
 
-**Spec status:** Draft 0.2.0 · **Date:** 2026-11-16 · **Owner:** Hedronite
+**Spec status:** Draft 0.2.1 · **Date:** 2026-11-16 · **Owner:** Hedronite
 **Supersedes:** the TS-TOPS 0.1.0 sketch (renamed: the protocol covers the web stack, not only TypeScript)
 **Modeled on:** [Rust-TOPS](https://github.com/Hedronite/rust-tops) and [Go-TOPS](https://github.com/Hedronite/go-tops) 0.3.0
 
@@ -11,7 +11,8 @@
 > layer. Values labeled **proposed** are defaults to tune on real code. **[verify]** marks a tool
 > behavior or flag not yet confirmed at pin time. Versions in §2 are npm `latest` as read on
 > 2026-11-16, except where §2 says why a pin holds back. 0.2.0 folds in what the first adopter,
-> LuminosiTS, proved in practice (§20).
+> LuminosiTS, proved in practice (§20). 0.2.1 adds what the M1 configuration schema needed:
+> `enabled` and `reason` on every gate and layer, a coverage exclusion key, and run counts in the report.
 
 ---
 
@@ -71,7 +72,7 @@ Schema (`schema/web-tops.schema.json` plus a gate-report schema), and per-class 
 
 | Item | Value |
 |---|---|
-| Protocol version | **0.2.0** (draft) |
+| Protocol version | **0.2.1** (draft) |
 | Package version | 0.0.0 (unreleased) |
 | TypeScript | **6.0.x** pinned (6.0.3 current). Floor 5.8 (`erasableSyntaxOnly`). See below |
 | Runtime | Bun ≥ 1.4 (primary); Node ≥ 22.23.4 where a project needs Node (Astro 7 declares it) |
@@ -139,8 +140,8 @@ time: it reads the JSON those tools wrote in gate 1.
 | `pass` | Evaluated and satisfied | none |
 | `Refuse` | Hard rule violated | **Fails the gate** |
 | `Ack` | Soft rule; needs a recorded acknowledgement (`// webtops-ack W-NN: reason` or the ledger) | Fails if unacknowledged |
-| `skip` | The class does not require the layer, or config sets `enabled: false` | Printed with the reason |
-| `not-run` | The layer is enabled but has no command mapped | **Fails the gate** |
+| `skip` | The class does not require the layer, or config sets `enabled: false` with a `reason` (§9) | Printed with the reason |
+| `not-run` | The layer is enabled but has no command mapped, or the run stopped on an earlier failure before reaching it; the report gives which | **Fails the gate** |
 | `not-evaluated` | The reader or tool could not judge, or its config is off | Reported; **never a pass** |
 
 ### 3.4 Stated rules
@@ -226,7 +227,7 @@ Coverage counts `.ts` and `.tsx` modules. `.astro` components are judged by `ast
 - From the single Vitest run in gate 2 (v8 provider), LCOV plus JSON. Workspace packages merge
   into one profile.
 - Excluded by default: `*.d.ts`, generated code, `.astro/` type output, config files. Anything
-  else is excluded only by an explicit, reasoned entry in `web-tops.yaml`.
+  else is excluded only by an explicit, reasoned entry in `web-tops.yaml` (`gates.coverage.exclude`, §9).
 - An empty or missing profile fails.
 
 ### 6.2 CRAP
@@ -280,7 +281,8 @@ names each law's reader.
 
 `webtops gate` always writes `.web-tops/report.json` and prints text. The schema is
 `schema/gate-report.schema.json`. Every layer is present; `skip` carries a reason; `not-run`
-fails; `not_evaluated` is counted on its own.
+fails; `not_evaluated` is counted on its own. The report counts the layers enabled in range and
+the layers that ran; fewer ran than enabled fails the gate (§11).
 
 ### 6.7 Enforcement modes
 
@@ -476,7 +478,7 @@ rule names it maps, `rationale` and `fix`, as in Go-TOPS §8.3.
 ## 9. Configuration: `web-tops.yaml`
 
 ```yaml
-protocol: "0.2.0"
+protocol: "0.2.1"
 version: "0.1.0"
 package: "@hedronite/lts-core"      # or the site name
 class: ts-library
@@ -490,13 +492,15 @@ toolchain:
 gates:
   hygiene:
     eslint: { config: eslint.config.js }
-    stylelint: { enabled: false }   # no raw CSS in this package
+    stylelint: { enabled: false, reason: "no raw CSS in this package" }
     audit: { fail_on: high }
   tests:
     runner: vitest
     shuffle: true
   coverage:
     lines_floor: 85
+    exclude:
+      - { glob: "src/generated/**", reason: "written by the schema compiler" }
   crap:
     cap: 4
     scope: diff
@@ -511,10 +515,10 @@ gates:
 layers:
   size_limit: { tier: 1 }
   package_exports: { tier: 1 }
-  html_validate: { enabled: false }
-  axe: { enabled: false }
-  rendered: { enabled: false }      # web-app, astro-site: routes, widths, reduced motion (W-43 to W-46)
-  themes: { enabled: false }        # token source and theme list for W-42
+  html_validate: { enabled: false, reason: "ts-library: no HTML output" }
+  axe: { enabled: false, reason: "ts-library: no pages" }
+  rendered: { enabled: false, reason: "ts-library: no pages" }   # web-app, astro-site: routes, widths, reduced motion (W-43 to W-46)
+  themes: { enabled: false, reason: "ts-library: no themes" }    # token source and theme list for W-42
   custom: []
 
 laws:
@@ -524,6 +528,11 @@ laws:
 report:
   path: .web-tops/report.json
 ```
+
+**Switching a layer off.** Every entry under `gates` and `layers`, and `laws` itself, takes
+`enabled` (default `true`) and `reason`. `enabled: false` requires a non-empty `reason`, and the
+report prints it with the `skip` verdict (§3.3). A comment is not a reason. Under `laws`, `enable`
+chooses which laws run and `enabled: false` turns the layer off.
 
 ---
 
@@ -633,6 +642,11 @@ agent contract.
 
 ## 16. Decisions
 
+**Resolved for 0.2.1:**
+
+15. **Switching a layer off:** `enabled` and `reason` on every gate and layer and on `laws`; `enabled: false` needs a reason (§9).
+16. **A stopped run:** layers after a failed gate without `--keep-going` report `not-run` with the reason, and the report counts enabled and run layers (§3.3, §6.6).
+
 **Resolved for 0.2.0:**
 
 11. **Lint pin:** ESLint 9.39 with `eslint-plugin-astro` 1.7 until `jsx-a11y` (or its fork, at 1.0) supports ESLint 10 (§2).
@@ -703,12 +717,12 @@ Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any rele
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hedronite.com/schemas/web-tops/0.2.0/web-tops.schema.json",
+  "$id": "https://hedronite.com/schemas/web-tops/0.2.1/web-tops.schema.json",
   "type": "object",
   "required": ["protocol", "version", "package", "class"],
   "additionalProperties": false,
   "properties": {
-    "protocol": { "const": "0.2.0" },
+    "protocol": { "const": "0.2.1" },
     "version":  { "type": "string", "minLength": 1 },
     "package":  { "type": "string", "minLength": 1 },
     "class":    { "enum": ["ts-library", "ui-components", "astro-site", "web-app",
@@ -740,7 +754,8 @@ Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any rele
 }
 ```
 
-(Abbreviated; the full schema covers every key in §9.)
+(Abbreviated; the full schema covers every key in §9. Every gate and layer object, and `laws`,
+also takes `enabled` and `reason`, and `enabled: false` requires `reason`.)
 
 ---
 

@@ -6,6 +6,10 @@ All notable changes to this project are listed here. The protocol version and th
 
 ### Changed
 
+- Protocol 0.2.0 → 0.2.1 (draft), the keys the configuration schema needs before the CLI can be written:
+  - §9: every gate and layer, and `laws`, takes `enabled` and `reason`; `enabled: false` needs a reason, printed with `skip`. `gates.coverage.exclude` holds the reasoned coverage exclusions §6.1 already required.
+  - §3.3: `not-run` also covers layers a stopped run never reached. §6.6: the report counts the layers enabled in range and the layers that ran.
+  - §16: two items resolved (15, 16); §18 sketch at 0.2.1.
 - Protocol 0.1.0 → 0.2.0 (draft), from what the first adopter, LuminosiTS, proved in practice:
   - Lint pins: ESLint 9.39 and `eslint-plugin-astro` 1.7, because `eslint-plugin-jsx-a11y` 6.10 (still its latest) does not accept ESLint 10 and `eslint-plugin-astro` 3.x requires it. The move condition is in §2.
   - Node floor 22.23.4 where Astro 7 runs; `@playwright/test` 1.65 pinned; `typescript-eslint` 8.73.
