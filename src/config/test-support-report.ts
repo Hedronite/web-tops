@@ -46,6 +46,10 @@ export function buildReport(
     only: null,
     counts,
     layers,
-    passed: counts.failed === 0 && counts.not_evaluated === 0 && counts.ran === counts.in_range,
+    passed:
+      counts.in_range > 0 &&
+      counts.failed === 0 &&
+      counts.not_evaluated === 0 &&
+      counts.ran === counts.in_range,
   };
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { LAYER_IDS, VERDICTS, validateReport, type GateReport } from "./report.ts";
-import { edit, get } from "./test-support.ts";
+import { containing, edit, get } from "./test-support.ts";
 import { buildLayer, buildReport } from "./test-support-report.ts";
 
 function pointers(report: unknown): string[] {
@@ -151,12 +151,26 @@ describe("a finding has rule, message and verdict, and file and line when it has
     expect(pointers(withFinding(edit(finding, [key])))).toEqual([`/layers/0/findings/0/${key}`]);
   });
 
-  it("refuses path (the place is file and line), a line below 1 and a skip verdict", () => {
+  it("refuses path (the place is file and line), a line below 1 and a verdict outside section 3.3", () => {
     const finding = { rule: "r", message: "m", verdict: "Refuse" };
     expect(pointers(withFinding({ ...finding, path: "a.ts" }))).toEqual(["/layers/0/findings/0/path"]);
     expect(pointers(withFinding({ ...finding, line: 0 }))).toEqual(["/layers/0/findings/0/line"]);
     expect(pointers(withFinding({ ...finding, file: "" }))).toEqual(["/layers/0/findings/0/file"]);
-    expect(pointers(withFinding({ ...finding, verdict: "skip" }))).toEqual(["/layers/0/findings/0/verdict"]);
+    expect(pointers(withFinding({ ...finding, verdict: "Maybe" }))).toEqual(["/layers/0/findings/0/verdict"]);
+  });
+
+  it.each(VERDICTS)("takes %s as a finding verdict", (verdict) => {
+    expect(pointers(withFinding({ rule: "r", message: "m", verdict }))).toEqual([]);
+  });
+
+  it("a skip finding records an unmapped or switched-off step, and the layer stays pass", () => {
+    const skipped = { rule: "stylelint", verdict: "skip", message: "ts-library: no CSS" };
+    const report = edit(buildReport(), ["layers", "0", "findings"], [skipped]);
+    expect(pointers(report)).toEqual([]);
+    expect(validateReport(report)).toMatchObject({ ok: true, value: { passed: true } });
+    expect(pointers(edit(report, ["layers", "0", "findings", "0", "message"]))).toEqual([
+      "/layers/0/findings/0/message",
+    ]);
   });
 
   it("an acknowledged Ack finding carries source and reason", () => {
@@ -196,6 +210,28 @@ describe("what a schema cannot say: counts, enforcement and the verdict", () => 
     expect(report.counts).toMatchObject({ in_range: 5, ran: 5 });
     expect(report.passed).toBe(true);
     expect(pointers(report)).toEqual([]);
+  });
+
+  it("a run with no layer in range is not a pass, and the report says so", () => {
+    const allSkipped = buildReport({
+      hygiene: "skip",
+      tests: "skip",
+      coverage: "skip",
+      crap: "skip",
+      mutation: "skip",
+      "build-output": "skip",
+      laws: "skip",
+    });
+    expect(allSkipped.counts).toEqual({ in_range: 0, ran: 0, failed: 0, not_evaluated: 0 });
+    expect(allSkipped.passed).toBe(false);
+    expect(pointers(allSkipped)).toEqual([]);
+    const claimed = validateReport(edit(allSkipped, ["passed"], true));
+    expect(claimed).toEqual({
+      ok: false,
+      problems: [{ pointer: "/passed", message: containing("no layer was in range") }],
+    });
+    expect(pointers(edit(allSkipped, ["passed"]))).toEqual([]);
+    expect(pointers(buildReport({ tests: "skip" }))).toEqual([]);
   });
 
   it("a run that passed claims passed true, and any failure claims passed false", () => {

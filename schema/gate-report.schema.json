@@ -256,7 +256,7 @@
           "minLength": 1
         },
         "verdict": {
-          "enum": ["pass", "Refuse", "Ack", "not-run", "not-evaluated"]
+          "enum": ["pass", "Refuse", "Ack", "skip", "not-run", "not-evaluated"]
         },
         "message": {
           "type": "string"

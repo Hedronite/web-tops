@@ -25,7 +25,8 @@ export type Verdict = (typeof VERDICTS)[number];
 export interface Finding {
   /** A tool rule id or a law id. */
   readonly rule: string;
-  readonly verdict: Exclude<Verdict, "skip">;
+  /** A `skip` finding records a step the class does not map, or one switched off; its reason is the message. */
+  readonly verdict: Verdict;
   readonly message: string;
   readonly file?: string;
   readonly line?: number;
@@ -119,13 +120,16 @@ function consistency(report: GateReport): readonly Problem[] {
   if (report.enforced !== (report.enforce !== "advisory")) {
     add("/enforced", "enforced is false exactly when enforce is advisory");
   }
-  const clean = failed === 0 && notEvaluated === 0 && counts.ran === counts.in_range;
+  const empty = counts.in_range === 0;
+  const clean = !empty && failed === 0 && notEvaluated === 0 && counts.ran === counts.in_range;
   if (report.enforced && report.passed !== undefined && report.passed !== clean) {
     add(
       "/passed",
       clean
         ? "no layer failed and every layer in range ran, so the run passed"
-        : "a layer failed or was not evaluated, or fewer layers ran than are in range, so the run did not pass",
+        : empty
+          ? "no layer was in range, so the run did not pass: an empty run is not a pass"
+          : "a layer failed or was not evaluated, or fewer layers ran than are in range, so the run did not pass",
     );
   }
   return problems;
@@ -134,7 +138,8 @@ function consistency(report: GateReport): readonly Problem[] {
 /**
  * Validates a gate report against `schema/gate-report.schema.json`, then checks what a schema
  * cannot: unique layers, the `failed` and `not_evaluated` counts equal to the layers that hold
- * them, and `passed` agreeing with the counts. `not-evaluated` never yields a pass.
+ * them, and `passed` agreeing with the counts. `not-evaluated` never yields a pass, and a run
+ * with no layer in range is not a pass either (section 3.4, rule 5).
  */
 export function validateReport(report: unknown): Validated<GateReport> {
   if (!validate(report)) return { ok: false, problems: toProblems(validate.errors, describe) };
