@@ -1024,35 +1024,45 @@
   ],
   "claims": [
     {
-      "claim": "unlabeled <input type=text>",
-      "engine": "jsx-a11y-x",
+      "claim": "unlabeled <input type=text> fires",
+      "candidate": "jsx-a11y-x",
+      "via": "ESLint 10 with the fork",
       "fired": [
         "control-has-associated-label"
-      ]
+      ],
+      "pass": true
     },
     {
-      "claim": "unlabeled <input type=text>",
-      "engine": "oxlint",
-      "fired": []
+      "claim": "unlabeled <input type=text> fires",
+      "candidate": "oxlint",
+      "via": "oxlint",
+      "fired": [],
+      "pass": false
     },
     {
-      "claim": "unlabeled <input type=text>",
-      "engine": "control",
+      "claim": "unlabeled <input type=text> fires",
+      "candidate": "control",
+      "via": "ESLint 9.39 with jsx-a11y 6.10.2",
       "fired": [
         "control-has-associated-label"
-      ]
+      ],
+      "pass": true
     },
     {
-      "claim": "Astro a11y on .astro",
-      "engine": "eslint-plugin-astro, via the fork",
+      "claim": "Astro a11y fires on .astro",
+      "candidate": "jsx-a11y-x",
+      "via": "eslint-plugin-astro on ESLint 10, via the fork",
       "fired": [
         "alt-text"
-      ]
+      ],
+      "pass": true
     },
     {
-      "claim": "Astro a11y on .astro",
-      "engine": "oxlint (lints the frontmatter script only)",
-      "fired": []
+      "claim": "Astro a11y fires on .astro",
+      "candidate": "oxlint",
+      "via": "frontmatter script only",
+      "fired": [],
+      "pass": false
     }
   ],
   "stack": {
@@ -1100,8 +1110,40 @@
       }
     ]
   },
+  "self_check": [
+    {
+      "plant": "a bar row fails on the fork",
+      "expected": "none",
+      "got": "none",
+      "ok": true
+    },
+    {
+      "plant": "the unlabeled-input claim fails on the fork",
+      "expected": "none",
+      "got": "none",
+      "ok": true
+    },
+    {
+      "plant": "the Astro claim fails on the fork",
+      "expected": "none",
+      "got": "none",
+      "ok": true
+    },
+    {
+      "plant": "a bar row fails on the fork and both oxlint claims pass",
+      "expected": "oxlint",
+      "got": "oxlint",
+      "ok": true
+    },
+    {
+      "plant": "a bar row fails on the fork and oxlint's Astro claim fails",
+      "expected": "none",
+      "got": "none",
+      "ok": true
+    }
+  ],
   "verdict": {
-    "bar": "the rules not deprecated upstream",
+    "bar": "every rule not deprecated upstream, and both claim rows",
     "w22_reader": "jsx-a11y-x"
   }
 }

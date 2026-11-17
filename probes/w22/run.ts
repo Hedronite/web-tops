@@ -7,8 +7,10 @@ import { join } from "node:path";
 import { allPass, fixturePair, judgeRule } from "./judge.ts";
 import { observeOxlint } from "./oxlint.ts";
 import { installedVersion, ROOT } from "./support.ts";
+import { plants } from "./plants.ts";
 import { renderTable, type EngineRows } from "./table.ts";
-import type { Cell, DeprecatedNote, Observation, Row } from "./types.ts";
+import type { Cell, Claim, DeprecatedNote, Observation, Row, Seen } from "./types.ts";
+import { claimsOf, inBar, readerOf } from "./verdict.ts";
 
 const ORACLE = { name: "eslint-plugin-jsx-a11y", version: "6.10.2" };
 const STACK = [
@@ -49,10 +51,6 @@ function engineRows(
 ): EngineRows {
   const rows = rules.map((rule) => judgeRule(obs, rule, dep.has(rule)));
   return { id: obs.engine, label, version: obs.version, rows };
-}
-
-function inBar(row: Row): boolean {
-  return !row.deprecated;
 }
 
 function summary(engine: EngineRows) {
@@ -98,41 +96,48 @@ function noteLine(note: DeprecatedNote): string {
   return `- ${note.rule}: deprecated upstream, not in the bar; here: ${show(note.cells)}; ${next}`;
 }
 
-function reader(candidates: readonly EngineRows[], keep: (row: Row) => boolean): string {
-  const winner = candidates.find((engine) => allPass(engine.rows.filter(keep)));
-  return winner === undefined ? "none" : winner.label;
-}
-
-function firedRules(obs: Observation, file: string): string[] {
-  const rules = (obs.files[file] ?? []).flatMap((fire) => (fire.rule === null ? [] : [fire.rule]));
-  return [...new Set(rules)].sort();
-}
-
-function claims(fork: Observation, ox: Observation, control: Observation, astro: Observation) {
-  const input = "fixtures/claims/unlabeled-input.tsx";
-  const page = "fixtures/claims/astro-claim.astro";
-  return [
-    { claim: "unlabeled <input type=text>", engine: "jsx-a11y-x", fired: firedRules(fork, input) },
-    { claim: "unlabeled <input type=text>", engine: "oxlint", fired: firedRules(ox, input) },
-    { claim: "unlabeled <input type=text>", engine: "control", fired: firedRules(control, input) },
-    {
-      claim: "Astro a11y on .astro",
-      engine: "eslint-plugin-astro, via the fork",
-      fired: firedRules(astro, page),
-    },
-    {
-      claim: "Astro a11y on .astro",
-      engine: "oxlint (lints the frontmatter script only)",
-      fired: firedRules(ox, page),
-    },
-  ];
-}
-
 function stackRows(obs: Observation): Row[] {
   return STACK.map((id) => {
     const base = id.slice(id.lastIndexOf("/") + 1);
     const pair = { bad: `fixtures/stack/${base}.bad.ts`, clean: `fixtures/stack/${base}.clean.ts` };
     return judgeRule(obs, id, false, pair);
+  });
+}
+
+function claimLine(c: Claim): string {
+  const fired = c.fired.join(", ") || "nothing fired";
+  return `- claim, ${c.claim}, ${c.candidate} (${c.via}): ${fired}, ${c.pass ? "pass" : "FAIL"}`;
+}
+
+interface Checked {
+  readonly plant: string;
+  readonly expected: string;
+  readonly got: string;
+  readonly ok: boolean;
+}
+
+function plantLine(p: Checked): string {
+  return `- ${p.plant}: verdict ${p.got}, expected ${p.expected}, ${p.ok ? "ok" : "FAIL"}`;
+}
+
+function judgeAll(seen: Seen, rules: readonly string[], dep: ReadonlySet<string>) {
+  const fork = engineRows("jsx-a11y-x", seen.fork, rules, dep);
+  const ox = engineRows("oxlint", seen.ox, rules, dep);
+  const control = engineRows("control", seen.control, rules, dep);
+  const claims = claimsOf(seen);
+  return { engines: [fork, ox, control], claims, reader: readerOf([fork, ox], claims) };
+}
+
+/** Each plant must yield its expected verdict, and a different one from the real run (unless none). */
+function selfCheck(seen: Seen, rules: readonly string[], dep: ReadonlySet<string>, real: string) {
+  return plants(seen).map((p) => {
+    const got = judgeAll(p.seen, rules, dep).reader;
+    return {
+      plant: p.plant,
+      expected: p.expected,
+      got,
+      ok: got === p.expected && (real === "none" || got !== real),
+    };
   });
 }
 
@@ -142,12 +147,13 @@ function render(result: Result, table: string): string {
   const o = result.oracle;
   const bar = `${o.rules} rules exported, ${o.deprecated.length} deprecated upstream, ${o.rules - o.deprecated.length} in the bar`;
   const lines = ["# W-22 proof result", "", `${o.name} ${o.installed}: ${bar}.`, "", table, ""];
-  for (const c of result.claims)
-    lines.push(`- claim, ${c.claim}, ${c.engine}: ${c.fired.join(", ") || "nothing fired"}`);
+  for (const c of result.claims) lines.push(claimLine(c));
   lines.push("");
   for (const row of result.stack.rows) lines.push(`- ESLint 10 stack, ${row.rule}: ${row.cell}`);
   lines.push("", "Deprecated upstream (listed, outside the bar):");
   lines.push(...result.deprecated.map(noteLine));
+  lines.push("", "Self-check (a planted failure must change the verdict):");
+  lines.push(...result.self_check.map(plantLine));
   lines.push("", `W-22 reader: ${result.verdict.w22_reader}`);
   return `${lines.join("\n")}\n`;
 }
@@ -157,17 +163,21 @@ function build() {
   const rules = [...control.implemented];
   const dep = new Set(control.deprecated);
   checkFixtures(rules);
-  const fork = worker("rules", "fork");
-  const ox = observeOxlint();
-  const forkRows = engineRows("jsx-a11y-x", fork, rules, dep);
-  const oxRows = engineRows("oxlint", ox, rules, dep);
-  const controlRows = engineRows("control", control, rules, dep);
-  if (!allPass(controlRows.rows)) {
+  const seen = {
+    fork: worker("rules", "fork"),
+    ox: observeOxlint(),
+    control,
+    astro: worker("astro"),
+  };
+  const judged = judgeAll(seen, rules, dep);
+  const controlRows = judged.engines[2];
+  if (controlRows === undefined || !allPass(controlRows.rows)) {
     throw new Error("the 9.39 control does not pass every rule row: a fixture is wrong");
   }
-  const engines = [forkRows, oxRows, controlRows];
-  const stack = worker("stack");
-  const astro = worker("astro");
+  const checks = selfCheck(seen, rules, dep, judged.reader);
+  if (!checks.every((check) => check.ok)) {
+    throw new Error(`self-check failed:\n${checks.map(plantLine).join("\n")}`);
+  }
   const result = {
     result_version: 1,
     oracle: {
@@ -176,16 +186,17 @@ function build() {
       rules: rules.length,
       deprecated: [...dep].sort(),
     },
-    engines: engines.map(summary),
-    deprecated: deprecatedNotes(engines, control),
-    claims: claims(fork, ox, control, astro),
-    stack: { version: installedVersion("eslint"), rows: stackRows(stack) },
+    engines: judged.engines.map(summary),
+    deprecated: deprecatedNotes(judged.engines, control),
+    claims: judged.claims,
+    stack: { version: installedVersion("eslint"), rows: stackRows(worker("stack")) },
+    self_check: checks,
     verdict: {
-      bar: "the rules not deprecated upstream",
-      w22_reader: reader([forkRows, oxRows], inBar),
+      bar: "every rule not deprecated upstream, and both claim rows",
+      w22_reader: judged.reader,
     },
   };
-  return { result, table: renderTable(engines, rules) };
+  return { result, table: renderTable(judged.engines, rules) };
 }
 
 const { result, table } = build();

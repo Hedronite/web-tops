@@ -34,3 +34,27 @@ export interface DeprecatedNote {
   readonly cells: Readonly<Record<string, Cell>>;
   readonly replacement_cells: Readonly<Record<string, Readonly<Record<string, Cell>>>>;
 }
+
+/** What the engines saw: the four observations the verdict is computed from. */
+export interface Seen {
+  readonly fork: Observation;
+  readonly ox: Observation;
+  readonly control: Observation;
+  readonly astro: Observation;
+}
+
+/** A claim row: recorded per candidate, and a candidate qualifies only if both of its pass. */
+export interface Claim {
+  readonly claim: string;
+  readonly candidate: string;
+  readonly via: string;
+  readonly fired: readonly string[];
+  readonly pass: boolean;
+}
+
+/** A deliberate failure, and the verdict it must produce. */
+export interface Plant {
+  readonly plant: string;
+  readonly seen: Seen;
+  readonly expected: string;
+}

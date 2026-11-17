@@ -44,11 +44,11 @@ eslint-plugin-jsx-a11y 6.10.2: 39 rules exported, 3 deprecated upstream, 36 in t
 | scope |  | fires | quiet | ok | fires | quiet | ok | fires | quiet | ok |
 | tabindex-no-positive |  | fires | quiet | ok | fires | quiet | ok | fires | quiet | ok |
 
-- claim, unlabeled <input type=text>, jsx-a11y-x: control-has-associated-label
-- claim, unlabeled <input type=text>, oxlint: nothing fired
-- claim, unlabeled <input type=text>, control: control-has-associated-label
-- claim, Astro a11y on .astro, eslint-plugin-astro, via the fork: alt-text
-- claim, Astro a11y on .astro, oxlint (lints the frontmatter script only): nothing fired
+- claim, unlabeled <input type=text> fires, jsx-a11y-x (ESLint 10 with the fork): control-has-associated-label, pass
+- claim, unlabeled <input type=text> fires, oxlint (oxlint): nothing fired, FAIL
+- claim, unlabeled <input type=text> fires, control (ESLint 9.39 with jsx-a11y 6.10.2): control-has-associated-label, pass
+- claim, Astro a11y fires on .astro, jsx-a11y-x (eslint-plugin-astro on ESLint 10, via the fork): alt-text, pass
+- claim, Astro a11y fires on .astro, oxlint (frontmatter script only): nothing fired, FAIL
 
 - ESLint 10 stack, @typescript-eslint/no-floating-promises: pass
 - ESLint 10 stack, @typescript-eslint/no-unnecessary-condition: pass
@@ -60,5 +60,12 @@ Deprecated upstream (listed, outside the bar):
 - accessible-emoji: deprecated upstream, not in the bar; here: jsx-a11y-x not-implemented, oxlint not-implemented, control pass; no replacement upstream
 - label-has-for: deprecated upstream, not in the bar; here: jsx-a11y-x not-implemented, oxlint not-implemented, control pass; replaced upstream by label-has-associated-control (jsx-a11y-x pass, oxlint pass, control pass)
 - no-onchange: deprecated upstream, not in the bar; here: jsx-a11y-x not-implemented, oxlint not-implemented, control pass; no replacement upstream
+
+Self-check (a planted failure must change the verdict):
+- a bar row fails on the fork: verdict none, expected none, ok
+- the unlabeled-input claim fails on the fork: verdict none, expected none, ok
+- the Astro claim fails on the fork: verdict none, expected none, ok
+- a bar row fails on the fork and both oxlint claims pass: verdict oxlint, expected oxlint, ok
+- a bar row fails on the fork and oxlint's Astro claim fails: verdict none, expected none, ok
 
 W-22 reader: jsx-a11y-x
