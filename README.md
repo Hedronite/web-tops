@@ -11,7 +11,7 @@ TypeScript is the foundational language; HTML, CSS, Tailwind CSS and Astro compl
 
 ## Status
 
-Draft. Protocol **0.2.1**. The package is unreleased (0.0.0).
+Draft. Protocol **0.3.0** (proposed); the kit implements 0.2.1 until its code moves to 0.3.0. The package is unreleased (0.0.0).
 
 This repo is at milestone M1: the `webtops` CLI (`init`, `check`, `gate`, `report`, `lock`, `doctor`, `version`) runs from source on Bun and gates this repo on itself at tier 1, under `enforce: hard`. CRAP, mutation, the laws layer and the build-output layers are off in [`web-tops.yaml`](web-tops.yaml), each with the milestone that turns it on. The package is not published.
 
@@ -50,7 +50,7 @@ TypeScript is pinned to 6.0.x because `typescript-eslint` and `@astrojs/check` d
 
 | Path | What it is |
 |---|---|
-| [`WEB_TOPS.md`](WEB_TOPS.md) | The protocol, draft 0.2.1 |
+| [`WEB_TOPS.md`](WEB_TOPS.md) | The protocol, draft 0.3.0 (proposed) |
 | [`schema/`](schema) | `web-tops.schema.json` and `gate-report.schema.json` |
 | [`src/`](src) | The `webtops` CLI (`src/cli`), the config module and class table (`src/config`), the gate runner (`src/gate`) and its layers (`src/layers`), `init` (`src/init`), the lock format (`src/lock`) and the report writer (`src/report`) |
 | [`web-tops.yaml`](web-tops.yaml) | This repo's own config: class `ts-library`, `enforce: hard` |
