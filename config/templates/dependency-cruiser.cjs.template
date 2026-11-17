@@ -1,0 +1,37 @@
+// Written by `webtops init` (WEB_TOPS.md sections 3.1 and 8.2). W-16: no import cycles.
+// W-17: no deep imports into another package's internals; imports go through `exports`.
+/** @type {import("dependency-cruiser").IConfiguration} */
+module.exports = {
+  forbidden: [
+    {
+      name: "no-circular",
+      comment: "W-16: no import cycles.",
+      severity: "error",
+      from: {},
+      to: { circular: true },
+    },
+    {
+      name: "no-deep-dist-imports",
+      comment: "W-17: import through a package's exports, never pkg/dist/....",
+      severity: "error",
+      from: {},
+      to: { path: "node_modules/(@[^/]+/)?[^/]+/dist/" },
+    },
+    {
+      name: "no-unresolvable",
+      comment: "An import that cannot be resolved is a broken import.",
+      severity: "error",
+      from: {},
+      to: { couldNotResolve: true },
+    },
+  ],
+  options: {
+    doNotFollow: { path: "node_modules" },
+    tsPreCompilationDeps: true,
+    tsConfig: { fileName: "tsconfig.json" },
+    enhancedResolveOptions: {
+      exportsFields: ["exports"],
+      conditionNames: ["import", "require", "node", "default", "types"],
+    },
+  },
+};
