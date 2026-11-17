@@ -1,4 +1,11 @@
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -31,6 +38,19 @@ export function put(dir: string, relative: string, text: string): void {
   const target = join(dir, relative);
   mkdirSync(dirname(target), { recursive: true });
   writeFileSync(target, text);
+}
+
+/**
+ * An environment whose PATH holds only fake programs that print the given text for `--version`, so
+ * a test controls which Node and Bun a command finds. A program left out is not on the PATH.
+ */
+export function fakeHost(versions: Readonly<Record<string, string>>): Record<string, string> {
+  const bin = tempDir();
+  for (const [name, text] of Object.entries(versions)) {
+    put(bin, name, `#!/bin/sh\necho "${text}"\n`);
+    chmodSync(join(bin, name), 0o755);
+  }
+  return { PATH: bin };
 }
 
 /** Every file under dir as relative path to contents, sorted by path. */
