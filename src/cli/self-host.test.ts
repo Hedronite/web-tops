@@ -66,6 +66,23 @@ describe("G7a: the kit's own web-tops.yaml", () => {
   });
 });
 
+describe("G7d: AGENTS.md says where the repo stands", () => {
+  const state = (): string => {
+    const text = readFileSync(join(root, "AGENTS.md"), "utf8");
+    return text.slice(text.indexOf("## State"), text.indexOf("## Do this"));
+  };
+
+  it("records M1 and how to run the gate, and no longer says there is no code", () => {
+    expect(state()).toContain("Milestone M1");
+    expect(state()).toContain("bun src/cli/main.ts");
+    expect(state()).not.toMatch(/no code|does not exist|no CLI/);
+  });
+
+  it("names the commands that have not landed, and only those", () => {
+    for (const command of ["baseline", "survivors", "laws"]) expect(state()).toContain(command);
+  });
+});
+
 describe("G7b: CI is the one gate job", () => {
   const workflow = (): unknown => yamlOf(".github/workflows/web-tops.yml");
   const steps = (): unknown[] => {
