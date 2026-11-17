@@ -34,7 +34,8 @@ export const JUDGED_LAWS: readonly string[] = [
   "W-41",
 ];
 
-const LAW_COUNT = 46;
+/** W-01 to W-48 (WEB_TOPS.md section 8.2). */
+export const LAW_COUNT = 48;
 const ALL_LAWS = Array.from(
   { length: LAW_COUNT },
   (_, index) => `W-${String(index + 1).padStart(2, "0")}`,

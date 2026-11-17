@@ -456,3 +456,16 @@ describe("G7: section 2 names the lint pins the kit and the lock carry", () => {
     );
   });
 });
+
+describe("R55: section 2 lists the readers W-47 and W-48 name", () => {
+  const section2 = readFileSync(join(root, "WEB_TOPS.md"), "utf8");
+  const row = section2.split("\n").find((line) => line.startsWith("| Law readers |")) ?? "";
+
+  it.each(["eslint-plugin-react-hooks", "knip"] as const)(
+    "the Law readers row gives %s at its pin",
+    (name) => {
+      const [major, minor] = TOOL_PINS[name].split(".");
+      expect(row).toContain(`\`${name}\` ${String(major)}.${String(minor)}`);
+    },
+  );
+});

@@ -123,35 +123,65 @@ describe("G7: the lint config holds every function to complexity 4", () => {
   });
 });
 
-describe("R48: the 0.1.0 release", () => {
+describe("R57: the 0.2.0 release", () => {
   const text = (name: string): string => readFileSync(join(root, name), "utf8");
 
-  it("is version 0.1.0 in package.json, web-tops.yaml and web-tops.lock, and stays private", () => {
-    expect(pkg.version).toBe("0.1.0");
-    expect(get(yamlOf("web-tops.yaml"), "version")).toBe("0.1.0");
-    expect(get(yamlOf("web-tops.lock"), "webtops")).toBe("0.1.0");
+  it("is version 0.2.0 in package.json, web-tops.yaml and web-tops.lock, and stays private", () => {
+    expect(pkg.version).toBe("0.2.0");
+    expect(get(yamlOf("web-tops.yaml"), "version")).toBe("0.2.0");
+    expect(get(yamlOf("web-tops.lock"), "webtops")).toBe("0.2.0");
     expect(get(pkg, "private")).toBe(true);
+    expect(text("WEB_TOPS.md")).toContain("| Package version | 0.2.0 (");
   });
 
   it("dates the changelog entry, with an empty Unreleased above it and the protocol line first", () => {
     const changelog = text("CHANGELOG.md");
     const unreleased = changelog.indexOf("## [Unreleased]");
-    const release = changelog.indexOf("## [0.1.0] - 2026-11-17");
+    const release = changelog.indexOf("## [0.2.0] - 2026-11-17");
     expect(unreleased).toBeGreaterThan(-1);
     expect(release).toBeGreaterThan(unreleased);
-    expect(changelog.slice(unreleased, release).trim()).toBe("## [Unreleased]");
+    const between = changelog.slice(unreleased + "## [Unreleased]".length, release);
+    expect(between.trim()).toBe("");
+    const first = changelog
+      .slice(release)
+      .split("\n")
+      .find((line, i) => i > 0 && line.trim() !== "");
+    expect(first).toMatch(/implements protocol 0\.3\.0/);
+  });
+
+  it("leaves the 0.1.0 entry as history: dated, and implementing protocol 0.2.1", () => {
+    const changelog = text("CHANGELOG.md");
+    const release = changelog.indexOf("## [0.1.0] - 2026-11-17");
+    expect(release).toBeGreaterThan(changelog.indexOf("## [0.2.0]"));
     const first = changelog
       .slice(release)
       .split("\n")
       .find((line, i) => i > 0 && line.trim() !== "");
     expect(first).toMatch(/implements protocol 0\.2\.1/);
-    expect(first).toMatch(/0\.3\.0/);
   });
 
-  it("says the same in the README status line and in AGENTS.md", () => {
-    expect(text("README.md")).toMatch(/version 0\.1\.0|0\.1\.0/);
+  it("says in the README and AGENTS.md that 0.2.0 implements protocol 0.3.0 and 0.1.0 implemented 0.2.1", () => {
+    expect(text("README.md")).toMatch(/this tree implements it/);
+    expect(text("README.md")).toMatch(/version 0\.2\.0 \(the 0\.1\.0 release implements 0\.2\.1\)/);
     expect(text("README.md")).not.toContain("unreleased (0.0.0)");
-    expect(text("AGENTS.md")).toContain("0.1.0");
+    expect(text("AGENTS.md")).toMatch(
+      /Version 0\.2\.0 implements protocol 0\.3\.0 \(the 0\.1\.0 release implements 0\.2\.1\)/,
+    );
+    expect(text("AGENTS.md")).not.toContain("not yet implemented");
+  });
+
+  it("lists in the README the milestones of section 19, in its order", () => {
+    const ids = (pattern: RegExp, from: string): (string | undefined)[] =>
+      from
+        .split("\n")
+        .map((line) => pattern.exec(line)?.[1])
+        .filter((id) => id !== undefined);
+    const spec = text("WEB_TOPS.md");
+    const roadmap = spec.slice(spec.indexOf("## 19."), spec.indexOf("## 20."));
+    const status = text("README.md");
+    expect(ids(/^\| \*\*(M\d|P3)\*\*/, status.slice(status.indexOf("| Milestone |")))).toEqual(
+      ids(/^\| \*\*(M\d|P3)\*\*/, roadmap),
+    );
   });
 });
 

@@ -75,12 +75,12 @@ Schema (`schema/web-tops.schema.json` plus a gate-report schema), and per-class 
 | Item | Value |
 |---|---|
 | Protocol version | **0.3.0** (draft, proposed) |
-| Package version | 0.1.0 (private; a GitHub release, not published to npm) |
+| Package version | 0.2.0 (private; a GitHub release, not published to npm) |
 | TypeScript | **6.0.x** pinned (6.0.3 current); the gate runs the pin, and `erasableSyntaxOnly` needs 5.8 or later. See below |
 | Runtime | Bun ≥ 1.4 installs and runs `webtops`; Node `^22.23.4 \|\| ^24.15.0 \|\| >=26` runs the tools, in every class (where the pinned tools' engine ranges meet). The range is recorded in `web-tops.lock` (§10) and in `engines` of the kit's `package.json`, beside Bun |
 | Tool lock | `web-tops.lock`; dependency lock `bun.lock`, installed with `--frozen-lockfile` |
 | Lint | `eslint` **10.15**, `@eslint/js` 10.0, `typescript-eslint` 8.73, `eslint-plugin-astro` **3.2**, `eslint-plugin-jsx-a11y-x` 0.2, `@eslint-community/eslint-plugin-eslint-comments` 4.8 |
-| Law readers | Beyond the lint row: `@vitest/eslint-plugin` 1.6 (W-34), `fast-check` 4.10 (property tests, §7); the secrets scanner (W-39) and the internal link checker (§7) are chosen in M3 |
+| Law readers | Beyond the lint row: `@vitest/eslint-plugin` 1.6 (W-34), `fast-check` 4.10 (property tests, §7), `eslint-plugin-react-hooks` 7.1 (W-47), `knip` 6.45 (W-48, chosen in M3); the secrets scanner (W-39) and the internal link checker (§7) are chosen in M3 |
 | Tests and coverage | Vitest 5.1, `@vitest/coverage-v8` 5.1 |
 | Mutation | StrykerJS 10.1 (`@stryker-mutator/core`, `vitest-runner`, `typescript-checker`) |
 | Astro, Tailwind, validation | Astro 7.4, `@astrojs/check` 0.9, Tailwind CSS 4.3, Zod 4.6 |
@@ -269,7 +269,7 @@ have different budgets.
 | `size-limit` per entry | required | required | no | no | no |
 | HTML validity, axe, links | no | on fixture pages | required | required | no |
 | JS per page or route (brotli) | n/a | n/a | 0 KB unless the page has islands; ≤ 50 KB with | ≤ 170 KB per route | n/a |
-| Extra laws | W-18 | W-18, W-22, W-37; W-27 when Astro | W-20–W-31, W-37, W-42–W-46 | W-20–W-29, W-37, W-42–W-46; W-27 when Astro | W-06 strict |
+| Extra laws | W-18 | W-18, W-22, W-37, W-47; W-27 when Astro | W-20–W-31, W-37, W-42–W-46, W-47 | W-20–W-29, W-37, W-42–W-46, W-47; W-27 when Astro | W-06 strict |
 | Required layers | hygiene, tests, coverage, crap, mutation, build-output, laws | hygiene, tests, coverage, crap, mutation, build-output, laws | hygiene, tests, coverage, crap, mutation, build-output, laws | hygiene, tests, coverage, crap, mutation, build-output, laws | hygiene, tests, coverage, crap, mutation, laws |
 
 There is one CRAP cap per class, the same for every author; there is no per-author cap. The cap
@@ -281,7 +281,7 @@ the caps stay proposed until set from measurement in M2.5.
 and `laws`, and build output only where the class maps a build-output layer. It requires the judged
 laws it maps (§8.2, the tick column): the laws no class gates, plus its "Extra laws" row, with
 W-27 only when the project depends on Astro. `W-06 strict` for `node-service` is a reading of W-06,
-which every class maps. A law a class maps but that has no reader yet (W-37, W-42 to W-46) is
+which every class maps, as it does W-48 (unused exports, files and dependencies). A law a class maps but that has no reader yet (W-37, W-42 to W-48) is
 required when it is judged. Under `hard`, `check` refuses a coverage floor below, and a CRAP cap or
 `unexplained_survivors_max` above, the class's value in this table (§9, §12).
 
@@ -977,34 +977,34 @@ O13. Whether Lighthouse stays advisory at tier 2 or is dropped (M7).
 
 ---
 
-## 17. Repository layout (proposed)
+## 17. Repository layout
 
 The kit is written in TypeScript and is installed and started with Bun, so it gates itself with its own protocol.
 
 ```
 web-tops/
 ├── src/
-│   ├── cli/                 # webtops entry
-│   ├── gate/                # runner, tiers, verdicts
-│   ├── layers/              # hygiene, tests, coverage, crap, mutation, build output
-│   ├── complexity/          # TypeScript AST counting
-│   ├── crap/
-│   ├── budgets/             # dist/ byte reader
-│   └── report/
-├── packages/
-│   └── eslint-plugin-webtops/   # custom rules (W-23, W-28, W-31, …)
-├── laws/                    # W-NN.yaml
-├── profiles/
-├── schema/
+│   ├── cli/                 # webtops entry and one file per command
+│   ├── config/              # class table, config validation, semantic checks, report validation
+│   ├── gate/                # runner, tiers, verdicts, run info
+│   ├── init/                # webtops init: renders the drop-in set
+│   ├── layers/              # hygiene, tests, coverage
+│   ├── lock/                # tool pins, web-tops.lock, the Node range
+│   └── report/              # report writing, text and JSON rendering
+├── profiles/                # one profile per launch class: the data init renders from
+├── schema/                  # web-tops, gate-report and core (verdicts, modes) schemas
 ├── config/                  # drop-in templates, AGENTS.md.tmpl
-├── fixtures/lints/          # one deliberate violation per rule, with expect markers
-├── examples/                # one per launch class
+├── fixtures/                # config (with examples/), hygiene, init, lock, report, probe
+├── probes/                  # w22/: the W-22 proof, its own package and lock
 ├── docs/brand/
+├── .github/workflows/       # the gate job
 ├── WEB_TOPS.md
 ├── AGENTS.md · CLAUDE.md · CHANGELOG.md · README.md
 ├── web-tops.yaml · web-tops.lock · package.json · bun.lock
 └── LICENSE · LICENSE-MIT · LICENSE-APACHE
 ```
+
+Not yet in the tree: `src/complexity/` and `src/crap/` (the CRAP counter, M2), `src/budgets/` (the `dist/` byte reader, M4), `packages/eslint-plugin-webtops/`, `laws/` (one `W-NN.yaml` per law) and `fixtures/lints/` (M3).
 
 Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any release.
 
