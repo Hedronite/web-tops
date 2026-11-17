@@ -152,7 +152,13 @@ describe("G2c hand-offs: produces, consumes and a missing input (R29 N5)", () =>
       verdict: "not-run",
       reason: "input results missing: tests fail",
     });
-    expect(report.counts).toEqual({ in_range: 2, ran: 1, failed: 2, not_evaluated: 0 });
+    expect(report.counts).toEqual({
+      in_range: 2,
+      ran: 1,
+      failed: 2,
+      not_evaluated: 0,
+      required_not_evaluated: 0,
+    });
     expect(report.exit_code).toBe(1);
   });
 

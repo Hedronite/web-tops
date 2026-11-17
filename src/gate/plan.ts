@@ -6,6 +6,8 @@ export interface PlanItem {
   readonly id: string;
   readonly gate: GateRef;
   readonly tier: Tier;
+  /** Whether the class profile requires the layer (section 3.3). */
+  readonly required: boolean;
   /** Absent for an id the config enables but nothing registers. */
   readonly layer?: Layer;
   /** Present when the layer will not run, with the reason the report prints. */
@@ -93,6 +95,10 @@ function skipReason(subject: Subject, scope: Scope): string | undefined {
   return undefined;
 }
 
+function isRequired(config: GateConfig, id: string): boolean {
+  return !config.optionalLayers.includes(id);
+}
+
 function itemFor(layer: Layer, scope: Scope): PlanItem {
   const skip = skipReason(layer, scope);
   const requiredBy = scope.selected.get(layer.id);
@@ -100,6 +106,7 @@ function itemFor(layer: Layer, scope: Scope): PlanItem {
     id: layer.id,
     gate: layer.gate,
     tier: layer.tier,
+    required: isRequired(scope.config, layer.id),
     layer,
     ...(skip === undefined ? {} : { skip }),
     ...(requiredBy === undefined ? {} : { requiredBy }),
@@ -116,7 +123,13 @@ function unregistered(layers: readonly Layer[], scope: Scope): PlanItem[] {
     .filter(([id, toggle]) => toggle.enabled && !known.has(id))
     .map(([id]) => {
       const skip = skipReason({ id, tier: 1 }, scope);
-      return { id, gate: 6, tier: 1, ...(skip === undefined ? {} : { skip }) };
+      return {
+        id,
+        gate: 6,
+        tier: 1,
+        required: isRequired(scope.config, id),
+        ...(skip === undefined ? {} : { skip }),
+      };
     });
 }
 

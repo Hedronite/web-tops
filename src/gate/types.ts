@@ -1,5 +1,5 @@
 import type { ClassName } from "../config/profiles.ts";
-import type { Enforce, Finding, GateRef, Verdict } from "../report/types.ts";
+import type { Enforce, Finding, GateRef, Metrics, Verdict } from "../report/types.ts";
 
 export type Tier = 0 | 1 | 2 | 3;
 
@@ -45,6 +45,17 @@ export interface LayerResult {
   readonly artifacts: Readonly<Record<string, string>>;
   /** The shuffle seed the tests layer passed, so a shuffled failure can be rerun (WEB_TOPS.md section 6.6). */
   readonly seed?: number;
+  /** Shaped for `webtops baseline` (section 6.6); omitted when the layer has none. */
+  readonly metrics?: Metrics;
+}
+
+/** What the runner records about the run beside the layers: the root, the SHA, the runtimes and the tool versions. */
+export interface RunDescription {
+  readonly root: string;
+  readonly sha: string | null;
+  readonly bun: string | null;
+  readonly node: string | null;
+  readonly tools: Readonly<Record<string, string>>;
 }
 
 export interface LayerContext {
@@ -155,6 +166,8 @@ export interface GateConfig {
   /** Enable switches by layer id; an id with no entry is enabled (section 9). */
   readonly toggles: Readonly<Record<string, Toggle>>;
   readonly custom: readonly CustomLayer[];
+  /** Built-in layers the class profile does not require (section 3.3); every other layer is required. */
+  readonly optionalLayers: readonly string[];
   readonly hygiene: HygieneSettings;
   readonly tests: TestsSettings;
   readonly coverage: CoverageSettings;

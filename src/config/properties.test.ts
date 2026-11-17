@@ -6,7 +6,7 @@ import { stringify } from "yaml";
 import { afterAll, describe, expect, it } from "vitest";
 import { CLASSES } from "./profiles.ts";
 import { PROTOCOL } from "./protocol.ts";
-import { endsRun, REQUIRED_UNTIL_PROFILES, VERDICTS, validateReport } from "./report.ts";
+import { endsRun, VERDICTS, validateReport } from "./report.ts";
 import { runSemanticChecks } from "./semantic.ts";
 import { at, edit, get, objectLike, objectPaths } from "./test-support.ts";
 import { buildReport } from "./test-support-report.ts";
@@ -343,9 +343,7 @@ describe("validateReport", () => {
     fc.assert(
       fc.property(generated, (report) => {
         const claimsPass = validateReport(edit(report, ["passed"], true)).ok;
-        const clean = !report.layers.some((entry) =>
-          endsRun(entry.verdict, REQUIRED_UNTIL_PROFILES),
-        );
+        const clean = !report.layers.some((entry) => endsRun(entry.verdict, entry.required));
         if (report.enforced && !clean) expect(claimsPass).toBe(false);
       }),
     );

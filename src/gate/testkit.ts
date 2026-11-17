@@ -133,6 +133,7 @@ export function cfg(overrides: Partial<GateConfig> = {}): GateConfig {
     reportPath: ".web-tops/report.json",
     toggles: {},
     custom: [],
+    optionalLayers: [],
     hygiene: { steps: {}, auditFailOn: "high" },
     tests: { shuffle: true },
     coverage: { linesFloor: 85, exclude: [] },

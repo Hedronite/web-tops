@@ -3,7 +3,7 @@ import { join, relative, sep } from "node:path";
 import {
   endsRun,
   hasRun,
-  REQUIRED_UNTIL_PROFILES,
+  REPORT_VERSION,
   type Counts,
   type GateRef,
   type Problem,
@@ -20,6 +20,7 @@ import type {
   Layer,
   LayerContext,
   LayerResult,
+  RunDescription,
 } from "./types.ts";
 
 export { planGate, type PlanItem } from "./plan.ts";
@@ -41,7 +42,11 @@ export interface RunInput {
   readonly exec: Exec;
   readonly outDir: string;
   readonly now: () => number;
+  /** Reads the SHA, the runtimes and the tool versions once the layers have run; without it none is known. */
+  readonly describe?: () => Promise<RunDescription>;
 }
+
+const UNKNOWN: RunDescription = { root: ".", sha: null, bun: null, node: null, tools: {} };
 
 /** What the run knows so far: the entries in order, the artifacts that exist, and where it stopped. */
 interface RunState {
@@ -64,24 +69,28 @@ function reasonOf(reason: string | undefined, requiredBy: string | undefined): {
   };
 }
 
-/** Whether a verdict ends the run: the failure table of WEB_TOPS.md section 3.3, every item required until G3. */
-function ends(verdict: Verdict): boolean {
-  return endsRun(verdict, REQUIRED_UNTIL_PROFILES);
+/** Whether a layer's verdict ends the run: the failure table of WEB_TOPS.md section 3.3, by whether the layer is required. */
+function ends(layer: ReportLayer): boolean {
+  return endsRun(layer.verdict, layer.required);
 }
 
 function entry(
   item: PlanItem,
   verdict: Verdict,
   reason: string | undefined,
-  rest: Partial<Pick<ReportLayer, "findings" | "artifacts" | "duration_ms" | "seed">> = {},
+  rest: Partial<
+    Pick<ReportLayer, "findings" | "artifacts" | "duration_ms" | "seed" | "metrics">
+  > = {},
 ): ReportLayer {
   return {
     id: item.id,
     gate: item.gate,
     tier: item.tier,
+    required: item.required,
     verdict,
     ...reasonOf(reason, item.requiredBy),
     findings: [],
+    metrics: {},
     artifacts: [],
     duration_ms: 0,
     ...rest,
@@ -152,6 +161,7 @@ async function execute(
       artifacts: kept,
       layer: entry(item, result.verdict, result.reason, {
         findings: result.findings,
+        ...(result.metrics === undefined ? {} : { metrics: result.metrics }),
         artifacts: Object.values(kept).map((path) => relative(input.cwd, path)),
         duration_ms: input.now() - started,
         ...(result.seed === undefined ? {} : { seed: result.seed }),
@@ -228,7 +238,7 @@ function record(state: RunState, item: PlanItem, done: Executed, keepGoing: bool
     state.ran += 1;
   }
   state.produced.set(done.layer.id, done.artifacts);
-  if (ends(done.layer.verdict) && !keepGoing) {
+  if (ends(done.layer) && !keepGoing) {
     state.stoppedAt = item.gate;
   }
 }
@@ -252,8 +262,11 @@ function countsOf(state: RunState): Counts {
   return {
     in_range: state.inRange,
     ran: state.ran,
-    failed: state.layers.filter((layer) => ends(layer.verdict)).length,
+    failed: state.layers.filter(ends).length,
     not_evaluated: state.layers.filter((layer) => layer.verdict === "not-evaluated").length,
+    required_not_evaluated: state.layers.filter(
+      (layer) => layer.verdict === "not-evaluated" && layer.required,
+    ).length,
   };
 }
 
@@ -274,21 +287,40 @@ function problemsOf(state: RunState): Problem[] {
 
 function passedOf(state: RunState, problems: readonly Problem[]): boolean {
   const clean = problems.length === 0 && state.ran === state.inRange;
-  return clean && !state.layers.some((layer) => ends(layer.verdict));
+  return clean && !state.layers.some(ends);
 }
 
 function exitCodeOf(passed: boolean, enforced: boolean): 0 | 1 {
   return passed || !enforced ? 0 : 1;
 }
 
-function reportOf(input: RunInput, base: string, state: RunState): RanReport {
+/** The seed the tests layer passed, if it ran. */
+function seedOf(state: RunState): number | null {
+  return state.layers.find((layer) => layer.id === "tests")?.seed ?? null;
+}
+
+function reportOf(
+  input: RunInput,
+  base: string,
+  state: RunState,
+  described: RunDescription,
+): RanReport {
   const { config, options } = input;
   const problems = problemsOf(state);
   const passed = passedOf(state, problems);
   const enforced = config.enforce !== "advisory";
   return {
+    report_version: REPORT_VERSION,
     protocol: config.protocol,
     package: config.package,
+    subject: { package: config.package, root: described.root },
+    run: {
+      sha: described.sha,
+      bun: described.bun,
+      node: described.node,
+      tools: described.tools,
+      seed: seedOf(state),
+    },
     class: config.class,
     enforce: config.enforce,
     enforced,
@@ -302,6 +334,10 @@ function reportOf(input: RunInput, base: string, state: RunState): RanReport {
     problems,
     layers: state.layers,
   };
+}
+
+function describeOf(input: RunInput): Promise<RunDescription> {
+  return input.describe === undefined ? Promise.resolve(UNKNOWN) : input.describe();
 }
 
 /** Runs the plan and builds the report (WEB_TOPS.md sections 3.1, 3.3, 6.6, 12). */
@@ -319,5 +355,5 @@ export async function runGate(input: RunInput): Promise<RanReport> {
   for (const item of planGate(input.layers, input.config, input.options)) {
     await step(item, input, base, state);
   }
-  return reportOf(input, base, state);
+  return reportOf(input, base, state, await describeOf(input));
 }

@@ -385,21 +385,33 @@ spelled as in §3.3: `pass`, `fail`, `refuse`, `ack-missing`, `skip`, `not-run`,
 acknowledged soft-rule finding is `pass` and carries `ack: { source: comment | ledger, reason }`;
 an unacknowledged one is `ack-missing`. The report may carry more fields (run timing, artifact paths, the exit
 code); `schema/gate-report.schema.json` lists every field, and the fields above are required.
-The `tests` layer also carries `seed`, the shuffle seed the gate passed, so a shuffled failure
-can be rerun.
+The `tests` layer also carries `seed`, the shuffle seed the gate passed, and `run.seed` repeats it.
+To replay a shuffled failure, rerun the suite with that seed: `vitest run --sequence.shuffle
+--sequence.seed <run.seed>` gives the same order.
 
 From 0.3.0 the report is the source the baseline is projected from, so it carries:
 
-- `report_version`, the report format's own version, separate from `protocol`; a protocol
-  patch that leaves the report alone does not change it;
-- `subject`, the package or workspace root the run judged;
-- `run`: git SHA, `bun` and `node` versions, the version of every tool that ran, and the
-  shuffle seed;
-- on each layer and law, `required` (from the class profile) and the §3.3 verdict;
+- `report_version`, the report format's own semver, separate from `protocol`; it starts at
+  `1.0.0` and changes only when the report's shape does, so a protocol patch that leaves the
+  report alone does not change it;
+- `subject`, the package and the root the run judged: `{package, root}`, the root being the
+  project's directory relative to the git top level (`.` at the top level);
+- `run`: git SHA, `bun` and `node` versions, the version of every tool that ran, read from its
+  package in `node_modules`, and the shuffle seed. A value that could not be read (not a git
+  repository, no `bun` on `PATH`) is `null` and changes no verdict, and `tools` lists only the
+  tools whose version was read;
+- on each layer, `required` (from the class profile, §5.2) and the §3.3 verdict; a law finding
+  carries `required` too;
 - on each layer, `metrics` shaped for `webtops baseline`: per function `{file, name, line,
   complexity, coverage, crap}` for CRAP; per file `{file, lines_found, lines_hit}` for coverage;
   per rule per file `{rule, file, count}` for findings; per page `{route, bytes}` for build
-  output. A layer that has no metrics yet carries an empty object.
+  output. A layer that has no metrics yet carries an empty object, never absent, and a layer carries only
+  the metrics of its own kind: `crap` on the CRAP layer, `coverage` on coverage, `findings` on
+  hygiene and laws, `pages` on build output.
+
+`.web-tops/baseline.json` is a projection of this report and takes no other input: CRAP per
+function, coverage per package, finding counts per rule per file and bytes per page, with the
+report's `report_version` and `subject` (`fixtures/report/shape/` holds an example of each).
 
 `counts` gains `required_not_evaluated`. `failed` counts every verdict §3.3 marks as ending the
 run, a required `not-evaluated` included; `not_evaluated` counts every `not-evaluated`, and
