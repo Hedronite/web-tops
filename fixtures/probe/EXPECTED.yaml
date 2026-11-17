@@ -117,15 +117,19 @@ cases:
       note: The scope is the changed lines plus the functions a changed test covers, so sum is mutated. Scoped to changed source lines alone the layer would be vacuous and the weaker test would pass.
 
   - id: rule-off-override
-    cheat: A per-file ESLint override that sets a rule to off for a directory.
+    cheat: A per-file ESLint override that sets a rule to off for a directory. The config registers the plugin and the parser, so the rule resolves.
     section: "6.7"
     inputs:
       - eslint.config.js
       - src/legacy/loose.ts
       - src/strict.ts
+      - recorded/effective-rule-levels.json
     facts:
       rule: "@typescript-eslint/no-explicit-any"
       override_files: "src/legacy/**"
+      effective_levels:
+        src/legacy/loose.ts: off
+        src/strict.ts: error
       tracked_files_off: [src/legacy/loose.ts]
       tracked_files_on: [src/strict.ts]
     outcome:
@@ -134,7 +138,7 @@ cases:
       ratchet:
         baseline_count: 0
         verdict: fail
-      note: No directive comment appears in any file. The census reads the effective setting per tracked file.
+      note: No directive comment appears in any file. The census reads the effective setting per tracked file, recorded here from ESLint's calculateConfigForFile.
 
   - id: stryker-disable
     cheat: A Stryker disable comment that silences the mutants of one line.
@@ -179,3 +183,207 @@ cases:
         mutation: fail
       survivors: 2
       note: Coverage cannot see a missing assertion. Mutation survival does.
+
+  - id: census-eslint-disable
+    cheat: "ESLint directive comments: a block disable, a next-line disable and a line disable."
+    section: "6.7"
+    inputs:
+      - src/log.ts
+    facts:
+      directive_lines: [1, 7, 9]
+    outcome:
+      census:
+        eslint-disable: 3
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Each directive is counted, whatever its form.
+
+  - id: census-ts-expect-error
+    cheat: A @ts-expect-error directive.
+    section: "6.7"
+    inputs:
+      - src/wire.ts
+    facts:
+      directive_lines: [1]
+    outcome:
+      census:
+        ts-expect-error: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Counted as its own kind.
+
+  - id: census-ts-ignore
+    cheat: A @ts-ignore directive.
+    section: "6.7"
+    inputs:
+      - src/wire.ts
+    facts:
+      directive_lines: [1]
+    outcome:
+      census:
+        ts-ignore: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Counted as its own kind, apart from @ts-expect-error.
+
+  - id: census-ts-nocheck
+    cheat: A @ts-nocheck directive that switches a whole file off.
+    section: "6.7"
+    inputs:
+      - src/wire.ts
+    facts:
+      directive_lines: [1]
+    outcome:
+      census:
+        ts-nocheck: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Counted as its own kind.
+
+  - id: census-stylelint-disable
+    cheat: A stylelint-disable-next-line comment.
+    section: "6.7"
+    inputs:
+      - src/style.css
+    facts:
+      directive_lines: [1]
+    outcome:
+      census:
+        stylelint-disable: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Counted in a CSS file.
+
+  - id: census-istanbul-ignore
+    cheat: An istanbul ignore hint over an untested throw.
+    section: "6.7"
+    inputs:
+      - src/guard.ts
+    facts:
+      directive_lines: [2]
+    outcome:
+      census:
+        istanbul-ignore: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: A coverage hint, counted apart from the v8 and c8 hints.
+
+  - id: census-c8-ignore
+    cheat: A c8 ignore hint over an untested throw.
+    section: "6.7"
+    inputs:
+      - src/guard.ts
+    facts:
+      directive_lines: [2]
+    outcome:
+      census:
+        c8-ignore: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: A coverage hint, counted apart from the v8 and istanbul hints.
+
+  - id: census-html-validate-disable
+    cheat: An html-validate disable directive in a page.
+    section: "6.7"
+    inputs:
+      - src/page.html
+    facts:
+      directive_lines: [5]
+    outcome:
+      census:
+        html-validate-disable: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Counted in an HTML file.
+
+  - id: census-biome-ignore
+    cheat: A biome-ignore comment.
+    section: "6.7"
+    inputs:
+      - src/loose.ts
+    facts:
+      directive_lines: [1]
+    outcome:
+      census:
+        biome-ignore: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Counted as its own kind.
+
+  - id: census-axe-disable-rules
+    cheat: An axe run that disables two rules.
+    section: "6.7"
+    inputs:
+      - src/a11y.test.ts
+    facts:
+      rules: [color-contrast, region]
+    outcome:
+      census:
+        axe-disable-rules: 2
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Each rule in disableRules is counted.
+
+  - id: census-axe-exclude
+    cheat: An axe run that excludes two selectors.
+    section: "6.7"
+    inputs:
+      - src/a11y.test.ts
+    facts:
+      selectors: [.legacy-banner, "#ad"]
+    outcome:
+      census:
+        axe-exclude: 2
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Each selector in exclude is counted.
+
+  - id: census-eslint-ignores
+    cheat: An ESLint ignores entry that leaves two tracked files out.
+    section: "6.7"
+    inputs:
+      - eslint.config.js
+      - src/ok.ts
+      - src/legacy/a.ts
+      - src/legacy/b.ts
+      - recorded/ignored-files.json
+    facts:
+      ignored: [src/legacy/a.ts, src/legacy/b.ts]
+      linted: [src/ok.ts]
+    outcome:
+      census:
+        eslint-ignores: 2
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: The census counts each tracked file in scope that the recorded isPathIgnored says is ignored.
+
+  - id: census-tsconfig-exclude
+    cheat: A tsconfig exclude that leaves a tracked file out of the program.
+    section: "6.7"
+    inputs:
+      - tsconfig.json
+      - src/ok.ts
+      - src/generated/g.ts
+      - recorded/program-files.txt
+    facts:
+      program_files: [src/ok.ts]
+      excluded: [src/generated/g.ts]
+    outcome:
+      census:
+        tsconfig-exclude: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: The census counts each tracked file in scope that the recorded tsc --listFilesOnly omits.
