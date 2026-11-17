@@ -66,8 +66,16 @@ export default defineConfig(
     },
   },
   {
-    // The config file itself is plain JavaScript outside tsconfig: no type-aware rules there.
-    files: ["**/*.js"],
+    // The config files are plain JavaScript outside tsconfig: no type-aware rules there.
+    files: ["**/*.js", "**/*.cjs"],
     extends: [tseslint.configs.disableTypeChecked],
+  },
+  {
+    // CommonJS config files, such as .dependency-cruiser.cjs.
+    files: ["**/*.cjs"],
+    languageOptions: {
+      sourceType: "commonjs",
+      globals: { module: "readonly", require: "readonly" },
+    },
   },
 );

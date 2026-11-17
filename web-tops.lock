@@ -1,0 +1,15 @@
+# DRAFT, M1 G7. The tools of WEB_TOPS.md section 2 that this repo installs, by exact version, and
+# webtops itself (section 10). The format and its writer belong to `lock` (R12, G5 and G6); once
+# `lock --update` lands, regenerate this file with it.
+"@arethetypeswrong/cli": "0.18.5"
+"@eslint-community/eslint-plugin-eslint-comments": "4.8.1"
+"@vitest/coverage-v8": "5.1.0"
+"@vitest/eslint-plugin": "1.6.28"
+dependency-cruiser: "18.8.0"
+eslint: "9.39.5"
+prettier: "3.10.1"
+publint: "0.3.25"
+typescript: "6.0.3"
+typescript-eslint: "8.73.0"
+vitest: "5.1.0"
+webtops: "0.0.0"

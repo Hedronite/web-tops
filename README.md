@@ -13,18 +13,26 @@ TypeScript is the foundational language; HTML, CSS, Tailwind CSS and Astro compl
 
 Draft. Protocol **0.2.1**. The package is unreleased (0.0.0).
 
-This repo is at milestone M0: the spec. `webtops` does not exist yet, and nothing here is ready to copy into CI.
+This repo is at milestone M1: the `webtops` CLI (`init`, `check`, `gate`, `report`, `lock`, `doctor`, `version`) runs from source on Bun and gates this repo on itself at tier 1, under `enforce: hard`. CRAP, mutation, the laws layer and the build-output layers are off in [`web-tops.yaml`](web-tops.yaml), each with the milestone that turns it on. The package is not published.
 
 | Milestone | Contents |
 |---|---|
-| **M0** spec | `WEB_TOPS.md`, schemas, profiles for five launch classes, the AGENTS template |
-| M1 CLI | `init`, `check`, `gate`: hygiene, tests, coverage, `report.json`; Web-TOPS gates itself |
+| M0 spec | `WEB_TOPS.md`, schemas, profiles for five launch classes, the AGENTS template |
+| **M1** CLI | `init`, `check`, `gate`: hygiene, tests, coverage, `report.json`; Web-TOPS gates itself |
 | M2 | Native CRAP, Stryker adapter, survivor ledger, baseline and ratchet |
 | M3 | Laws v0.1: 26 of 46 judged; lint fixtures; `eslint-plugin-webtops` |
 | M4 | Build-output layers: HTML validity, axe, links, byte budgets; rendered checks and theme contrast |
 | M5–M6 | First adopter, protocol 1.0 |
 
 The full roadmap is in [`WEB_TOPS.md` §19](WEB_TOPS.md#19-roadmap).
+
+## Run it
+
+```bash
+bun install --frozen-lockfile
+bun src/cli/main.ts check          # web-tops.yaml: schema, then the semantic checks
+bun src/cli/main.ts gate           # tier 1: hygiene, tests, coverage
+```
 
 ## What it checks
 
@@ -43,6 +51,9 @@ TypeScript is pinned to 6.0.x because `typescript-eslint` and `@astrojs/check` d
 | Path | What it is |
 |---|---|
 | [`WEB_TOPS.md`](WEB_TOPS.md) | The protocol, draft 0.2.1 |
+| [`schema/`](schema) | `web-tops.schema.json` and `gate-report.schema.json` |
+| [`src/`](src) | The `webtops` CLI (`src/cli`), the config module and class table (`src/config`), the gate runner (`src/gate`), `init` (`src/init`), the lock format (`src/lock`) and the report writer (`src/report`) |
+| [`web-tops.yaml`](web-tops.yaml) | This repo's own config: class `ts-library`, `enforce: hard` |
 | [`config/AGENTS.md.tmpl`](config/AGENTS.md.tmpl) | The `AGENTS.md` section that `webtops init` will write into an adopting repo |
 | [`AGENTS.md`](AGENTS.md) | Standing orders for agents working on this repo ([`CLAUDE.md`](CLAUDE.md) imports it) |
 

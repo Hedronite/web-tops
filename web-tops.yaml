@@ -1,0 +1,65 @@
+# The kit gates itself: class ts-library, enforce hard (WEB_TOPS.md section 6.7). The layers that
+# land after M1 are off, each with the milestone that turns it on.
+protocol: "0.2.1"
+version: "0.0.0"
+package: web-tops
+class: ts-library
+enforce: hard
+baseline: .web-tops/baseline.json
+
+toolchain:
+  typescript: "6.0.3"
+  runtime: bun
+
+gates:
+  hygiene:
+    eslint: { config: eslint.config.js }
+    format: { tool: prettier }
+    astro_check: { enabled: false, reason: "ts-library: no .astro files" }
+    stylelint: { enabled: false, reason: "ts-library: no CSS" }
+    audit: { fail_on: high }
+  tests:
+    runner: vitest
+    shuffle: true
+  coverage:
+    lines_floor: 85
+    exclude:
+      - { glob: "src/**/test-support*.ts", reason: "test helpers: no production code" }
+  crap:
+    enabled: false
+    reason: "M2: native CRAP lands in milestone M2"
+  mutation:
+    enabled: false
+    reason: "M2: StrykerJS mutation on the diff lands in milestone M2"
+
+layers:
+  size_limit:
+    {
+      enabled: false,
+      reason: "M4: size-limit per entry lands with the build-output layers in milestone M4",
+    }
+  package_exports: { tier: 1 }
+  html_validate:
+    {
+      enabled: false,
+      reason: "M4: ts-library has no HTML output; build-output layers land in milestone M4",
+    }
+  axe:
+    {
+      enabled: false,
+      reason: "M4: ts-library has no pages; build-output layers land in milestone M4",
+    }
+  rendered:
+    { enabled: false, reason: "M4: ts-library has no pages; rendered checks land in milestone M4" }
+  themes:
+    {
+      enabled: false,
+      reason: "M4: ts-library has no themes; the theme reader lands in milestone M4",
+    }
+
+laws:
+  enabled: false
+  reason: "M3: the laws layer lands in milestone M3"
+
+report:
+  path: .web-tops/report.json
