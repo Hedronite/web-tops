@@ -1,4 +1,4 @@
-import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { cfg, tempProject, type TempProject } from "../../gate/testkit.ts";
 import type {
@@ -40,9 +40,27 @@ function isolatedModules(dir: string): void {
   );
 }
 
+/** What the tools cache under node_modules; a project must write its own, never the kit's. */
+const CACHE_ENTRIES = new Set([".vitest-cache", ".vite", ".vite-temp"]);
+
+/**
+ * A hoisted install: a node_modules of its own that links every package of the kit's, but none of the
+ * caches. Vitest keeps its module cache in <workspace root>/node_modules/.vitest-cache and clears it when
+ * the lockfile hash differs, so a project that shared the kit's directory would clear the cache that the
+ * outer run reads.
+ */
+function linkedModules(dir: string): void {
+  const kit = join(REPO_ROOT, "node_modules");
+  const modules = join(dir, "node_modules");
+  mkdirSync(modules);
+  for (const entry of readdirSync(kit).filter((name) => !CACHE_ENTRIES.has(name))) {
+    symlinkSync(join(kit, entry), join(modules, entry));
+  }
+}
+
 function installModules(dir: string, install: Install): void {
   if (install === "linked") {
-    symlinkSync(join(REPO_ROOT, "node_modules"), join(dir, "node_modules"));
+    linkedModules(dir);
   } else if (install === "isolated") {
     isolatedModules(dir);
   }
