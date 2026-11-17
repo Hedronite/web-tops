@@ -609,7 +609,7 @@ nothing.
 | Command | Behavior |
 |---|---|
 | `init --class <c>` | Writes the drop-in set (§4). Refuses to overwrite without `--force` |
-| `check` | Validates `web-tops.yaml` against the JSON Schema, plus semantic checks: protocol id, class has a profile, `crap.cap ≥ 1`, `ts-library` keeps `unexplained_survivors_max = 0`, `advisory` has an `exemption` whose `until` is in the future, under `ratchet` the baseline exists and is clean, under `hard` no gate or step the class maps at tier 1 or below is off except `crap`, `mutation`, build output and `laws` (§9) |
+| `check` | Validates `web-tops.yaml` against the JSON Schema, plus semantic checks: protocol id, class has a profile, `crap.cap ≥ 1`, `ts-library` keeps `unexplained_survivors_max = 0`, `advisory` has an `exemption` whose `until` has not passed (UTC, through that day; §9), under `ratchet` the baseline exists and is clean, under `hard` no gate or step the class maps at tier 1 or below is off except `crap`, `mutation`, build output and `laws` (§9) |
 | `gate` | Runs enabled layers at or below `--max-tier` (default 1). `--base`, `--keep-going`, `--json`, `--only <layer>`, `--dry-run` (refused in CI) |
 | `baseline` | Writes `.web-tops/baseline.json` after a passing run; the only writer |
 | `laws [list \| run \| explain W-NN]` | Catalog with readers; laws alone; one law explained |
