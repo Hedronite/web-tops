@@ -1,0 +1,1 @@
+[{"source":"/project/a.css","deprecations":[],"invalidOptionWarnings":[],"parseErrors":[],"errored":true,"warnings":[{"line":1,"column":12,"endLine":1,"endColumn":15,"rule":"color-named","severity":"error","text":"Disallowed named color \"red\" (color-named)"}]}]

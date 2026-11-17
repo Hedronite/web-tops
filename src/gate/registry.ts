@@ -1,10 +1,10 @@
+import { hygieneLayer } from "../layers/hygiene/index.ts";
 import { compareGates } from "./order.ts";
 import {
   BUILD_OUTPUT_STUB,
   COVERAGE_STUB,
   CRAP_STUB,
   customLayer,
-  HYGIENE_STUB,
   LAWS_STUB,
   MUTATION_STUB,
   TESTS_STUB,
@@ -15,7 +15,7 @@ import type { GateConfig, Layer } from "./types.ts";
 export function buildRegistry(config: GateConfig): Layer[] {
   const custom = config.custom.map((entry) => customLayer(entry.id, entry.tier, entry.command));
   return [
-    HYGIENE_STUB,
+    hygieneLayer,
     TESTS_STUB,
     COVERAGE_STUB,
     CRAP_STUB,

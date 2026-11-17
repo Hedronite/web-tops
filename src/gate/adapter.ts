@@ -1,7 +1,16 @@
-import { profileFor } from "../config/profiles.ts";
-import type { LayerKey } from "../config/profiles.ts";
+import { mapsStep, profileFor } from "../config/profiles.ts";
+import type { LayerKey, Profile, Project } from "../config/profiles.ts";
 import type { Switch, WebTopsConfig } from "../config/types.ts";
-import type { GateConfig, Toggle } from "./types.ts";
+import {
+  HYGIENE_STEPS,
+  type AuditLevel,
+  type GateConfig,
+  type HygieneSettings,
+  type HygieneStep,
+  type Toggle,
+} from "./types.ts";
+
+type HygieneConfig = NonNullable<NonNullable<WebTopsConfig["gates"]>["hygiene"]>;
 
 /** A switch the config turned off, with its reason; an absent or enabled switch needs no entry. */
 function off(entry: Switch | undefined): Toggle | undefined {
@@ -48,6 +57,87 @@ function buildOutput(config: WebTopsConfig): Toggle | undefined {
     : allOff(config, keys);
 }
 
+/** Why a step is not mapped: a conditional one (astro_check) says what would map it. */
+function unmapped(className: string, step: HygieneStep, conditional: boolean): string {
+  return conditional
+    ? `class ${className} maps ${step} only when package.json lists astro`
+    : `class ${className} does not map ${step}`;
+}
+
+function isConditional(profile: Profile | undefined, step: HygieneStep): boolean {
+  return profile?.conditionalSteps.some((name) => name === step) ?? false;
+}
+
+/** The class and the project map the step; `package_exports` is a layer key, the others are steps. */
+function isMapped(profile: Profile | undefined, step: HygieneStep, project: Project): boolean {
+  if (profile === undefined) {
+    return false;
+  }
+  return step === "package_exports"
+    ? profile.layers.includes("package_exports")
+    : mapsStep(profile, step, project);
+}
+
+function stepSwitch(
+  config: WebTopsConfig,
+  hygiene: HygieneConfig | undefined,
+  step: HygieneStep,
+): Switch | undefined {
+  return step === "package_exports" ? config.layers?.package_exports : hygiene?.[step];
+}
+
+/** Off when the class and project do not map the step (`mapsStep`) or the config switches it off. */
+function stepToggle(
+  config: WebTopsConfig,
+  hygiene: HygieneConfig | undefined,
+  step: HygieneStep,
+  project: Project,
+): Toggle | undefined {
+  const profile = profileFor(config.class);
+  if (isMapped(profile, step, project)) {
+    return off(stepSwitch(config, hygiene, step));
+  }
+  return { enabled: false, reason: unmapped(config.class, step, isConditional(profile, step)) };
+}
+
+function stepsOf(
+  config: WebTopsConfig,
+  hygiene: HygieneConfig | undefined,
+  project: Project,
+): Partial<Record<HygieneStep, Toggle>> {
+  return Object.fromEntries(
+    HYGIENE_STEPS.flatMap((step) => {
+      const toggle = stepToggle(config, hygiene, step, project);
+      return toggle === undefined ? [] : [[step, toggle]];
+    }),
+  );
+}
+
+function eslintConfigOf(hygiene: HygieneConfig | undefined): string | undefined {
+  return hygiene?.eslint?.config;
+}
+
+function formatToolOf(hygiene: HygieneConfig | undefined): "prettier" | "biome" | undefined {
+  return hygiene?.format?.tool;
+}
+
+function auditLevelOf(hygiene: HygieneConfig | undefined): AuditLevel {
+  return hygiene?.audit?.fail_on ?? "high";
+}
+
+/** Gate 1 settings from `gates.hygiene` and `layers.package_exports`, resolved against the class and the project. */
+function hygieneSettings(config: WebTopsConfig, project: Project): HygieneSettings {
+  const hygiene = config.gates?.hygiene;
+  const eslintConfig = eslintConfigOf(hygiene);
+  const formatTool = formatToolOf(hygiene);
+  return {
+    steps: stepsOf(config, hygiene, project),
+    ...(eslintConfig === undefined ? {} : { eslintConfig }),
+    ...(formatTool === undefined ? {} : { formatTool }),
+    auditFailOn: auditLevelOf(hygiene),
+  };
+}
+
 function togglesOf(config: WebTopsConfig): Record<string, Toggle> {
   const entries: readonly [string, Toggle | undefined][] = [
     ...GATE_SWITCHES.map((id): [string, Toggle | undefined] => [id, off(config.gates?.[id])]),
@@ -68,7 +158,7 @@ function customOf(config: WebTopsConfig): GateConfig["custom"] {
 }
 
 /** Narrows a validated `web-tops.yaml` to what the runner needs (the class profile and the switches). */
-export function toGateConfig(config: WebTopsConfig): GateConfig {
+export function toGateConfig(config: WebTopsConfig, project: Project): GateConfig {
   const base = baseOf(config);
   return {
     protocol: config.protocol,
@@ -79,5 +169,6 @@ export function toGateConfig(config: WebTopsConfig): GateConfig {
     reportPath: config.report.path,
     toggles: togglesOf(config),
     custom: customOf(config),
+    hygiene: hygieneSettings(config, project),
   };
 }
