@@ -128,7 +128,8 @@ time: it reads the JSON those tools wrote in gate 1.
 
 **Tools and hand-offs.** Every tool resolves from the project's own `node_modules` (the
 installed package's `bin`), never from `PATH`. A tool not installed there is missing, and its
-layer fails. Each layer declares the artifacts it produces and the ones it consumes, writes
+layer fails. The runtimes are the exception: `bun` (install, audit) and `node` come from `PATH`,
+and their versions are checked against the lock (§10). Each layer declares the artifacts it produces and the ones it consumes, writes
 them under `.web-tops/out/<layer>/`, and lists them in the report's `artifacts`; gate 3 consumes
 the LCOV gate 2 produced. A layer whose input is missing because its producer failed or did not
 run is `not-run` with reason `input <artifact> missing: <layer> <verdict>`. A layer whose input
@@ -253,7 +254,7 @@ Coverage counts `.ts` and `.tsx` modules. `.astro` components are judged by `ast
 - The gate, not the project's Vitest config, chooses what is measured. It passes
   `--coverage.include` (the class source globs; `src/**/*.{ts,tsx}` for the launch classes),
   `--coverage.reporter=json --coverage.reporter=lcov` and
-  `--coverage.reportsDirectory=.web-tops/out/coverage`. Every tracked file the include selects,
+  `--coverage.reportsDirectory=.web-tops/out/tests/coverage` (the `tests` layer produces the LCOV, §3.1). Every tracked file the include selects,
   less the exclusions, has an `SF:` record in the LCOV; a missing record fails the coverage layer,
   because a file no test imports would otherwise leave the denominator. The floor comes from the
   class profile, or the baseline under `ratchet`, never from `thresholds` in the Vitest config.
