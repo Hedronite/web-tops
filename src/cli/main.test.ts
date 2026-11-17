@@ -1,7 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import pkg from "../../package.json" with { type: "json" };
 import { fixturesDir } from "../config/test-support.ts";
 import { runCheckCli } from "./check.ts";
 import { runDoctorCli } from "./doctor.ts";
@@ -13,9 +12,11 @@ import { run } from "./main.ts";
 import { runReportCli } from "./report.ts";
 import { runVersionCli } from "./version.ts";
 
+// Dispatch only. What a command prints belongs to the test of its own module.
+
 const root = resolve(import.meta.dirname, "../..");
 
-function capture(cwd = root): { io: Io; out: () => string; err: () => string } {
+function capture(cwd = fixturesDir): { io: Io; out: () => string; err: () => string } {
   let out = "";
   let err = "";
   const io: Io = {
@@ -42,14 +43,17 @@ function spawnCli(...args: string[]): { status: number | null; stdout: string; s
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 
-describe("webtops version", () => {
-  it("prints the protocol and the package version, and exits 0", async () => {
-    const { code, out, err } = await exec(["version"]);
-    expect(code).toBe(0);
-    expect(out).toBe(`protocol 0.2.1\npackage ${pkg.version}\n`);
-    expect(err).toBe("");
-  });
-});
+type Command = (argv: readonly string[], io: Io) => Promise<number>;
+
+const commands: readonly (readonly [string, Command, readonly string[]])[] = [
+  ["check", runCheckCli, ["--json"]],
+  ["doctor", runDoctorCli, []],
+  ["gate", runGateCli, []],
+  ["init", runInitCli, []],
+  ["lock", runLockCli, []],
+  ["report", runReportCli, []],
+  ["version", runVersionCli, []],
+];
 
 describe("webtops with an unknown command", () => {
   it.each(["frobnicate", "constructor", "__proto__", "toString", "Version"])(
@@ -75,32 +79,30 @@ describe("webtops with an unknown command", () => {
   });
 });
 
-describe("R1 stubs: a command another step builds", () => {
-  it.each([
-    ["gate", "G2"],
-    ["init", "G5"],
-    ["report", "G6"],
-    ["lock", "G6"],
-    ["doctor", "G6"],
-  ])("%s prints that it lands in %s, to stderr, and exits 1", async (name, step) => {
-    const { code, out, err } = await exec([name, "--anything"]);
-    expect(code).toBe(1);
-    expect(out).toBe("");
-    expect(err).toBe(`${name}: lands in ${step}\n`);
+describe("each command routes to its module", () => {
+  it.each(commands)(
+    "%s gives what its module gives for the same arguments",
+    async (name, command, argv) => {
+      const routed = capture();
+      const direct = capture();
+      const routedCode = await run([name, ...argv], routed.io);
+      const directCode = await command(argv, direct.io);
+      expect(routedCode).toBe(directCode);
+      expect(routed.out()).toBe(direct.out());
+      expect(routed.err()).toBe(direct.err());
+    },
+  );
+
+  it("hands a command the arguments after its name, and the io it was given", async () => {
+    const { io, err } = capture();
+    expect(await run(["check", "--json"], io)).toBe(2);
+    expect(err()).toContain("usage: webtops check [path]");
   });
 });
 
 describe("R15: every command module exports run<Name>Cli returning a Promise<number>", () => {
-  it.each([
-    ["runCheckCli", runCheckCli],
-    ["runDoctorCli", runDoctorCli],
-    ["runGateCli", runGateCli],
-    ["runInitCli", runInitCli],
-    ["runLockCli", runLockCli],
-    ["runReportCli", runReportCli],
-    ["runVersionCli", runVersionCli],
-  ])("%s", async (_name, command) => {
-    const result = command([], capture(fixturesDir).io);
+  it.each(commands)("%s", async (_name, command, argv) => {
+    const result = command(argv, capture().io);
     expect(result).toBeInstanceOf(Promise);
     expect(typeof (await result)).toBe("number");
   });
@@ -111,12 +113,6 @@ describe("R15: every command module exports run<Name>Cli returning a Promise<num
     const promised = run(["version"], io);
     expect(promised).toBeInstanceOf(Promise);
     expect(await promised).toBe(0);
-  });
-
-  it("run hands a command the arguments after its name, and the io it was given", async () => {
-    const { io, err } = capture();
-    expect(await run(["check", "--json"], io)).toBe(2);
-    expect(err()).toContain("usage: webtops check [path]");
   });
 });
 
@@ -139,23 +135,10 @@ describe("stdio", () => {
 });
 
 describe("bun src/cli/main.ts", () => {
-  it("version exits 0 and prints the protocol", () => {
-    const { status, stdout } = spawnCli("version");
-    expect(status).toBe(0);
-    expect(stdout).toContain("protocol 0.2.1");
-    expect(stdout).toContain(`package ${pkg.version}`);
-  });
-
   it("an unknown command exits 2", () => {
     const { status, stderr } = spawnCli("frobnicate");
     expect(status).toBe(2);
     expect(stderr).toContain("frobnicate");
-  });
-
-  it("a stub exits 1", () => {
-    const { status, stderr } = spawnCli("gate");
-    expect(status).toBe(1);
-    expect(stderr).toBe("gate: lands in G2\n");
   });
 
   it("check exits 0 on a valid config and 2 on an invalid one, with the pointer", () => {
