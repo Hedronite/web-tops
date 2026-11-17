@@ -108,7 +108,7 @@ function jsxRun(engine: string, plugin: Named, pkg: string, lint: (n: string[]) 
     implemented: names,
     deprecated: deprecatedIn(plugin),
     replacedBy: replacementsIn(plugin),
-    patterns: ["fixtures/rules", "fixtures/claims/unlabeled-input.tsx"],
+    patterns: ["fixtures/rules", "fixtures/claims/unlabeled-input.tsx", "fixtures/observations"],
     lint: lint(names),
   };
 }

@@ -21,6 +21,7 @@ export const TOOL_PINS = {
   eslint: "10.15.0",
   "eslint-plugin-astro": "3.2.1",
   "eslint-plugin-jsx-a11y-x": "0.2.0",
+  "eslint-plugin-react-hooks": "7.1.1",
   "html-validate": "11.21.1",
   prettier: "3.10.1",
   publint: "0.3.25",

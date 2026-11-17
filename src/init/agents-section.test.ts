@@ -102,3 +102,89 @@ describe("the AGENTS section, with one layer enabled", () => {
     expect(text).toContain("CRAP cap ≤ `4`");
   });
 });
+
+describe("the AGENTS section cites the stated rules and keeps no copy", () => {
+  const text = agentsSection(profileOf("web-app"), SUBJECT, ASTRO);
+
+  it("has a Policies section that points at section 3.4 and lists nothing", () => {
+    const policies = text.slice(text.indexOf("## Policies"), text.indexOf("## Standards"));
+    expect(policies).toContain("Web-TOPS §3.4");
+    expect(policies).toContain("blob/main/WEB_TOPS.md#34-stated-rules");
+    expect(policies).not.toMatch(/^\d+\. /m);
+  });
+
+  it("corrects the boundary, error and label lines", () => {
+    expect(text).toContain("`response.json()`, `JSON.parse` and message `data` return `any`");
+    expect(text).toContain(
+      "`FormData` and storage reads, `URLSearchParams` and `process.env` are typed",
+    );
+    expect(text).toContain("**[W-13, `preserve-caught-error`]**");
+    expect(text).toContain("a `<label>` tied to its control");
+    expect(text).toContain("axe judges that on the built page");
+  });
+
+  it("names dead code as a review item, because nothing checks it until M3", () => {
+    expect(text).toContain("**[review, W-48]**");
+  });
+
+  it("leaves no doubled blank line, whichever sections are present", () => {
+    for (const disabled of [{}, { rendered: "off", themes: "off" }]) {
+      expect(agentsSection(profileOf("web-app", disabled), SUBJECT, ASTRO)).not.toContain("\n\n\n");
+    }
+  });
+});
+
+describe("the AGENTS section names the hooks law only where the config lints hooks", () => {
+  it.each([
+    ["web-app", true],
+    ["ui-components", true],
+    ["astro-site", false],
+    ["ts-library", false],
+    ["node-service", false],
+  ])("%s: the W-47 line is present: %s", (className, present) => {
+    const text = agentsSection(profileOf(className), SUBJECT, ASTRO);
+    expect(text.includes("**[W-47]**")).toBe(present);
+  });
+});
+
+describe("the AGENTS section names W-42 to W-46 only for the layers the config enables", () => {
+  const off = { rendered: "off", themes: "off" };
+  it("names none while both layers are written off, as every M1 profile does", () => {
+    const text = agentsSection(profileOf("web-app", off), SUBJECT, ASTRO);
+    expect(text).not.toContain("### Rendered interface");
+    expect(text).not.toMatch(/W-4[2-6]/);
+    for (const className of [
+      "web-app",
+      "astro-site",
+      "ui-components",
+      "ts-library",
+      "node-service",
+    ]) {
+      const loaded = loadProfile(className);
+      if (!loaded.ok) throw new Error(loaded.error);
+      expect(agentsSection(loaded.profile, SUBJECT, ASTRO), className).not.toMatch(/W-4[2-6]/);
+    }
+  });
+
+  it("names W-43 to W-46 when rendered is enabled and themes is not", () => {
+    const { themes } = off;
+    const text = agentsSection(profileOf("web-app", { themes }), SUBJECT, ASTRO);
+    expect(text).toContain("### Rendered interface");
+    for (const id of ["W-43", "W-44", "W-45", "W-46"]) expect(text, id).toContain(`**[${id}]**`);
+    expect(text).not.toContain("W-42");
+  });
+
+  it("names W-42 alone when themes is enabled and rendered is not", () => {
+    const { rendered } = off;
+    const text = agentsSection(profileOf("web-app", { rendered }), SUBJECT, ASTRO);
+    expect(text).toContain("**[W-42]**");
+    expect(text).not.toMatch(/W-4[3-6]/);
+  });
+
+  it("puts the section between the HTML standards and the tests, one blank line each side", () => {
+    const text = agentsSection(profileOf("web-app"), SUBJECT, ASTRO);
+    expect(text).toMatch(
+      /\*\*\[W-36\]\*\*\n\n### Rendered interface\n\n- [^]*\*\*\[W-46\]\*\*\n\n### Tests/,
+    );
+  });
+});

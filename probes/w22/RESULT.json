@@ -1065,6 +1065,32 @@
       "pass": false
     }
   ],
+  "observations": {
+    "rule": "control-has-associated-label",
+    "engine": "jsx-a11y-x",
+    "rows": [
+      {
+        "fixture": "input-aria-label.tsx",
+        "fires": false
+      },
+      {
+        "fixture": "input-bare.tsx",
+        "fires": true
+      },
+      {
+        "fixture": "input-label-for.tsx",
+        "fires": true
+      },
+      {
+        "fixture": "input-label-wrapping.tsx",
+        "fires": true
+      },
+      {
+        "fixture": "input-submit-value.tsx",
+        "fires": true
+      }
+    ]
+  },
   "stack": {
     "version": "10.15.0",
     "rows": [

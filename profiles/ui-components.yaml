@@ -17,6 +17,7 @@ tools:
   - "dependency-cruiser"
   - "eslint"
   - "eslint-plugin-jsx-a11y-x"
+  - "eslint-plugin-react-hooks"
   - "prettier"
   - "publint"
   - "stylelint"

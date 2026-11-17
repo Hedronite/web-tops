@@ -10,7 +10,7 @@ import { installedVersion, ROOT } from "./support.ts";
 import { plants } from "./plants.ts";
 import { renderTable, type EngineRows } from "./table.ts";
 import type { Cell, Claim, DeprecatedNote, Observation, Row, Seen } from "./types.ts";
-import { claimsOf, inBar, readerOf } from "./verdict.ts";
+import { claimsOf, firedRules, inBar, readerOf } from "./verdict.ts";
 
 const ORACLE = { name: "eslint-plugin-jsx-a11y", version: "6.10.2" };
 const STACK = [
@@ -141,6 +141,27 @@ function selfCheck(seen: Seen, rules: readonly string[], dep: ReadonlySet<string
   });
 }
 
+const LABEL_RULE = "control-has-associated-label";
+
+/**
+ * Not part of the verdict: where the fork's `control-has-associated-label` fires on inputs. The
+ * rule is off in the plugin's own configs and ignores `input` there, because it does not follow
+ * label association: it fires on labeled inputs too.
+ */
+function observations(fork: Observation) {
+  const fixtures = Object.keys(fork.files)
+    .filter((file) => file.startsWith("fixtures/observations/"))
+    .sort();
+  return {
+    rule: LABEL_RULE,
+    engine: "jsx-a11y-x",
+    rows: fixtures.map((file) => ({
+      fixture: file.slice("fixtures/observations/".length),
+      fires: firedRules(fork, file).includes(LABEL_RULE),
+    })),
+  };
+}
+
 type Result = ReturnType<typeof build>["result"];
 
 function render(result: Result, table: string): string {
@@ -150,6 +171,9 @@ function render(result: Result, table: string): string {
   for (const c of result.claims) lines.push(claimLine(c));
   lines.push("");
   for (const row of result.stack.rows) lines.push(`- ESLint 10 stack, ${row.rule}: ${row.cell}`);
+  const watched = result.observations;
+  lines.push("", `Observation, not in the verdict: ${watched.rule} on inputs (${watched.engine}):`);
+  lines.push(...watched.rows.map((r) => `- ${r.fixture}: ${r.fires ? "fires" : "quiet"}`));
   lines.push("", "Deprecated upstream (listed, outside the bar):");
   lines.push(...result.deprecated.map(noteLine));
   lines.push("", "Self-check (a planted failure must change the verdict):");
@@ -189,6 +213,7 @@ function build() {
     engines: judged.engines.map(summary),
     deprecated: deprecatedNotes(judged.engines, control),
     claims: judged.claims,
+    observations: observations(seen.fork),
     stack: { version: installedVersion("eslint"), rows: stackRows(worker("stack")) },
     self_check: checks,
     verdict: {

@@ -128,9 +128,16 @@ const BASE_TOOLS = [
 ];
 const PACKAGE_TOOLS = ["@arethetypeswrong/cli", "publint"];
 const REACT_TOOLS = ["eslint-plugin-jsx-a11y-x", "stylelint"];
+const HOOKS_TOOLS = ["eslint-plugin-react-hooks"];
 const TOOLS: Record<Class, readonly string[]> = {
   "ts-library": [...BASE_TOOLS, ...PACKAGE_TOOLS],
-  "ui-components": [...BASE_TOOLS, ...PACKAGE_TOOLS, ...REACT_TOOLS, "@playwright/test"],
+  "ui-components": [
+    ...BASE_TOOLS,
+    ...PACKAGE_TOOLS,
+    ...REACT_TOOLS,
+    ...HOOKS_TOOLS,
+    "@playwright/test",
+  ],
   "astro-site": [
     ...BASE_TOOLS,
     ...REACT_TOOLS,
@@ -139,7 +146,7 @@ const TOOLS: Record<Class, readonly string[]> = {
     "eslint-plugin-astro",
     "@playwright/test",
   ],
-  "web-app": [...BASE_TOOLS, ...REACT_TOOLS, "@playwright/test"],
+  "web-app": [...BASE_TOOLS, ...REACT_TOOLS, ...HOOKS_TOOLS, "@playwright/test"],
   "node-service": BASE_TOOLS,
 };
 const NEEDS_PLAYWRIGHT: Record<Class, boolean> = {
@@ -349,7 +356,11 @@ describe.each(CLASSES)("webtops init --class %s", (className) => {
     expect(syntaxErrors(source, "eslint.config.js")).toBe(0);
     const a11y =
       className === "ui-components" || className === "web-app" || className === "astro-site";
-    expect(source.includes("eslint-plugin-jsx-a11y")).toBe(a11y);
+    expect(source.includes("eslint-plugin-jsx-a11y-x")).toBe(a11y);
+    expect(source.includes("eslint-plugin-react-hooks")).toBe(
+      className === "ui-components" || className === "web-app",
+    );
+    expect(source).toContain("js.configs.recommended");
     expect(source.includes("eslint-plugin-astro")).toBe(className === "astro-site");
     expect(source).toContain("strictTypeChecked");
     expect(source).toContain('reportUnusedDisableDirectives: "error"');
