@@ -11,8 +11,6 @@ const root = resolve(import.meta.dirname, "../..");
 describe("R1 stubs: a command another step builds", () => {
   it.each([
     ["report", "G6"],
-    ["lock", "G6"],
-    ["doctor", "G6"],
   ])("%s prints that it lands in %s, to stderr, and exits 1", async (name, step) => {
     let out = "";
     let err = "";
