@@ -33,7 +33,7 @@ interface HarnessOptions {
   readonly layers: (config: GateConfig) => Layer[];
   readonly config: LoadedConfig;
   readonly env: Record<string, string | undefined>;
-  readonly versions: { bun?: string; node: string };
+  readonly versions: { bun?: string; node?: string };
 }
 
 function harness(options: Partial<HarnessOptions> = {}): Harness {
@@ -41,7 +41,7 @@ function harness(options: Partial<HarnessOptions> = {}): Harness {
     layers: () => fakeBuiltins([]),
     config: { ok: true, config: cfg() },
     env: {},
-    versions: { bun: "1.4.4", node: "24.0.0" },
+    versions: { bun: "1.4.4" },
     ...options,
   };
   const project = tempProject();
@@ -102,14 +102,26 @@ describe("G2c cli: --dry-run under CI=true exits 4; every §12 exit code", () =>
     expect(h.io.stderr()).toContain(text);
   });
 
-  it.each([
-    [{ bun: "1.3.9", node: "24.0.0" }, "Bun 1.3.9 is below 1.4.0"],
-    [{ node: "22.23.3" }, "Node 22.23.3 is below 22.23.4"],
-  ])("exits 3 when the runtime is below the pin: %j", async (versions, text) => {
-    const h = harness({ versions });
+  it("exits 3 when Bun is below the floor, before any layer runs", async () => {
+    const h = harness({ versions: { bun: "1.3.9" } });
     expect(await h.go([])).toBe(3);
-    expect(h.io.stderr()).toContain(text);
+    expect(h.io.stderr()).toContain("Bun 1.3.9 is below 1.4.0");
     expect(existsSync(h.reportPath)).toBe(false);
+  });
+
+  it.each([{ bun: "1.4.0" }, { bun: "1.4.4" }, { bun: "2.0.0" }, {}])(
+    "runs when Bun is at or above the floor, or the gate is not under Bun: %j",
+    async (versions) => {
+      const h = harness({ versions });
+      expect(await h.go([])).toBe(0);
+    },
+  );
+
+  it("does not check the Node range: the lock and doctor do (R36)", async () => {
+    const h = harness({ versions: { bun: "1.4.4", node: "18.0.0" } });
+    expect(await h.go([])).toBe(0);
+    const only = harness({ versions: { node: "16.0.0" } });
+    expect(await only.go([])).toBe(0);
   });
 
   it.each(["true", "TRUE", "1", "yes"])(

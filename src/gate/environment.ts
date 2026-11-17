@@ -1,11 +1,10 @@
 export interface Versions {
+  /** Absent when the gate does not run under Bun. */
   readonly bun?: string;
-  readonly node: string;
 }
 
-/** Section 2: Bun 1.4 is the runtime; Node 22.23.4 is the floor where a project runs on Node. */
+/** Section 2: Bun 1.4 is the runtime. The Node range is checked by the lock and `doctor`, not by `gate` (R36). */
 const BUN_FLOOR = "1.4.0";
-const NODE_FLOOR = "22.23.4";
 
 function parts(version: string): number[] {
   return version.split(".").map((part) => Number.parseInt(part, 10) || 0);
@@ -25,8 +24,6 @@ function isBelow(version: string, floor: string): boolean {
 
 /** Environment errors found before any layer runs (exit 3, WEB_TOPS.md section 12). */
 export function checkEnvironment(versions: Versions): string[] {
-  if (versions.bun !== undefined) {
-    return isBelow(versions.bun, BUN_FLOOR) ? [`Bun ${versions.bun} is below ${BUN_FLOOR}`] : [];
-  }
-  return isBelow(versions.node, NODE_FLOOR) ? [`Node ${versions.node} is below ${NODE_FLOOR}`] : [];
+  const bun = versions.bun;
+  return bun !== undefined && isBelow(bun, BUN_FLOOR) ? [`Bun ${bun} is below ${BUN_FLOOR}`] : [];
 }

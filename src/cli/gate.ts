@@ -13,10 +13,7 @@ export function runGateCli(argv: readonly string[], io: Io): Promise<number> {
     cwd: io.cwd,
     env: io.env,
     exec: realExec,
-    versions: {
-      node: process.versions.node,
-      ...(bunVersion === undefined ? {} : { bun: bunVersion }),
-    },
+    versions: bunVersion === undefined ? {} : { bun: bunVersion },
     loadConfig: loadGateConfig,
     layers: buildRegistry,
     now: Date.now,
