@@ -1,0 +1,8 @@
+protocol: "0.2.1"
+version: "0.1.0"
+package: pkg
+class: ts-library
+enforce: advisory
+exemption:
+  expires: "2099-12-31"
+  reason: "key from the first draft"

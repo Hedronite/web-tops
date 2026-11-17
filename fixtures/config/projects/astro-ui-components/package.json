@@ -1,0 +1,7 @@
+{
+  "name": "probe",
+  "version": "0.0.0",
+  "devDependencies": {
+    "astro": "7.4.0"
+  }
+}
