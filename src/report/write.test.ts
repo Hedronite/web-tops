@@ -112,7 +112,7 @@ describe("G2d report: written to report.path, valid against the schema, text pri
       now: tickingClock(),
     });
     const text = formatText(report);
-    expect(text).toContain("webtops gate  ts-library  hard  protocol 0.2.1");
+    expect(text).toContain("webtops gate  ts-library  hard  protocol 0.3.0");
     expect(text).toMatch(/hygiene\s+tier 1\s+pass/);
     expect(text).toMatch(/tests\s+tier 1\s+Refuse\s+fake Refuse/);
     expect(text).toMatch(/coverage\s+tier 1\s+not-run\s+stopped: gate 2 failed/);
@@ -158,7 +158,7 @@ describe("G2d report: written to report.path, valid against the schema, text pri
 
 function parseReportFixture(): Report {
   return {
-    protocol: "0.2.1",
+    protocol: "0.3.0",
     package: "p",
     class: "ts-library",
     enforce: "hard",

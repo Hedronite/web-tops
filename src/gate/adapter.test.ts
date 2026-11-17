@@ -11,7 +11,7 @@ function adapt(yaml: string, dependsOnAstro = false): GateConfig {
   return toGateConfig(parsed.value, { dependsOnAstro });
 }
 
-const HEAD = 'protocol: "0.2.1"\nversion: "0.1.0"\npackage: pkg\n';
+const HEAD = 'protocol: "0.3.0"\nversion: "0.1.0"\npackage: pkg\n';
 
 describe("toGateConfig: the validated web-tops.yaml as the runner sees it", () => {
   it("carries the class, enforce mode, report path and mutation base", () => {
@@ -19,7 +19,7 @@ describe("toGateConfig: the validated web-tops.yaml as the runner sees it", () =
       `${HEAD}class: ts-library\nenforce: hard\ngates:\n  mutation: { base: develop }\nreport: { path: out/r.json }\n`,
     );
     expect(config).toMatchObject({
-      protocol: "0.2.1",
+      protocol: "0.3.0",
       package: "pkg",
       class: "ts-library",
       enforce: "hard",

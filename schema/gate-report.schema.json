@@ -1,13 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hedronite.com/schemas/web-tops/0.2.1/gate-report.schema.json",
+  "$id": "https://hedronite.com/schemas/web-tops/0.3/gate-report.schema.json",
   "title": "gate report (.web-tops/report.json)",
   "type": "object",
   "required": ["protocol", "class", "enforce", "enforced", "max_tier", "only", "counts", "layers"],
   "additionalProperties": false,
   "properties": {
     "protocol": {
-      "const": "0.2.1"
+      "type": "string",
+      "pattern": "^0\\.3\\.[0-9]+$"
     },
     "class": {
       "enum": [

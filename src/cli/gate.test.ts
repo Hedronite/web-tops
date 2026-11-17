@@ -16,7 +16,7 @@ afterEach(() => {
   }
 });
 
-const HEAD = 'protocol: "0.2.1"\nversion: "0.1.0"\npackage: pkg\nclass: ts-library\n';
+const HEAD = 'protocol: "0.3.0"\nversion: "0.1.0"\npackage: pkg\nclass: ts-library\n';
 const HARD = `${HEAD}enforce: hard\n`;
 const ADVISORY = `${HEAD}enforce: advisory\nexemption: { until: "2099-12-31", reason: "the gate runs on a bare project" }\n`;
 

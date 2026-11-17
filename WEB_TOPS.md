@@ -62,7 +62,7 @@ Schema (`schema/web-tops.schema.json` plus a gate-report schema), and per-class 
 
 ### 1.3 Name and binary
 
-- Protocol: **Web-TOPS**. Binary: **`webtops`**. Repo (proposed): `github.com/Hedronite/web-tops`.
+- Protocol: **Web-TOPS**. Binary: **`webtops`**. Repo: `github.com/Hedronite/web-tops`.
 - Bun installs dependencies and starts `webtops`: `bunx webtops gate`, or a workspace script.
   The tools the gate runs (Vitest with v8 coverage, ESLint, Stylelint, Stryker, `html-validate`,
   dependency-cruiser, Playwright) are Node programs, so every class needs Node in the range §2
@@ -75,8 +75,8 @@ Schema (`schema/web-tops.schema.json` plus a gate-report schema), and per-class 
 | Item | Value |
 |---|---|
 | Protocol version | **0.3.0** (draft, proposed) |
-| Package version | 0.0.0 (unreleased) |
-| TypeScript | **6.0.x** pinned (6.0.3 current). Floor 5.8 (`erasableSyntaxOnly`). See below |
+| Package version | 0.1.0 (private; a GitHub release, not published to npm) |
+| TypeScript | **6.0.x** pinned (6.0.3 current); the gate runs the pin, and `erasableSyntaxOnly` needs 5.8 or later. See below |
 | Runtime | Bun ≥ 1.4 installs and runs `webtops`; Node `^22.23.4 \|\| ^24.15.0 \|\| >=26` runs the tools, in every class (where the pinned tools' engine ranges meet). The range is recorded in `web-tops.lock` (§10) |
 | Tool lock | `web-tops.lock`; dependency lock `bun.lock`, installed with `--frozen-lockfile` |
 | Lint | **ESLint 9.39** (held back, see below), `typescript-eslint` 8.73, `eslint-plugin-astro` **1.7**, `eslint-plugin-jsx-a11y` 6.10, `@eslint-community/eslint-plugin-eslint-comments` 4.8 |
@@ -88,7 +88,7 @@ Schema (`schema/web-tops.schema.json` plus a gate-report schema), and per-class 
 | Format | Prettier 3.10 or Biome 2.6, one per repo |
 
 **Why TypeScript 6.0 and not 7.0.** `typescript` 7.0.2 (the native compiler) is npm `latest`.
-But `typescript-eslint` 8.72 declares `typescript >=4.8.4 <6.1.0`, and `@astrojs/check` 0.9
+But `typescript-eslint` 8.73 declares `typescript >=4.8.4 <6.1.0`, and `@astrojs/check` 0.9
 declares `^5.0.0 || ^6.0.0`. The laws layer depends on type-aware lint, so the gate's type
 checker is the pinned 6.0.x. A TypeScript 7 `tsc --noEmit` leg may be added as advisory for
 speed (§16, open). The pin moves when both peers accept 7.

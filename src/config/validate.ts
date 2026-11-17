@@ -1,12 +1,24 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { parseDocument } from "yaml";
+import type { ErrorObject } from "ajv";
 import { ajv, fail, toProblems } from "./ajv.ts";
+import { PROTOCOL_RANGE } from "./protocol.ts";
 import { runSemanticChecks, type SemanticContext } from "./semantic.ts";
 import schema from "../../schema/web-tops.schema.json" with { type: "json" };
 import type { Validated, WebTopsConfig } from "./types.ts";
 
 const validate = ajv.compile<WebTopsConfig>(schema);
+
+/** A protocol id the schema's pattern refuses is outside the range this webtops supports (section 12). */
+function protocolMessage(doc: unknown): (error: ErrorObject) => string | undefined {
+  const id: unknown =
+    typeof doc === "object" && doc !== null ? Reflect.get(doc, "protocol") : undefined;
+  return (error) =>
+    error.instancePath === "/protocol" && error.keyword === "pattern"
+      ? `protocol ${JSON.stringify(id)} is outside the range this webtops supports (${PROTOCOL_RANGE})`
+      : undefined;
+}
 
 /**
  * Validates a parsed document against `schema/web-tops.schema.json`. Schema defaults (enforce,
@@ -14,7 +26,7 @@ const validate = ajv.compile<WebTopsConfig>(schema);
  */
 export function validateConfig(doc: unknown): Validated<WebTopsConfig> {
   if (validate(doc)) return { ok: true, value: doc };
-  return { ok: false, problems: toProblems(validate.errors) };
+  return { ok: false, problems: toProblems(validate.errors, protocolMessage(doc)) };
 }
 
 /**

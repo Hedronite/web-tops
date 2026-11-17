@@ -16,6 +16,7 @@ import pkg from "../../package.json" with { type: "json" };
 import { profileFor } from "../config/profiles.ts";
 import { at, get, keys, matching } from "../config/test-support.ts";
 import { checkConfigFile, parseYaml } from "../config/validate.ts";
+import { PROTOCOL, inProtocolRange } from "../config/protocol.ts";
 import { NODE_RANGE, TOOL_PINS } from "../lock/pins.ts";
 import { runDoctorCli } from "./doctor.ts";
 import type { Io } from "./io.ts";
@@ -28,6 +29,14 @@ function yamlOf(name: string): unknown {
   expect(parsed.ok, name).toBe(true);
   return parsed.ok ? parsed.value : undefined;
 }
+
+describe("G0c: the kit speaks protocol 0.3.0", () => {
+  it("says 0.3.0 in web-tops.yaml, the id PROTOCOL holds, inside the supported range", () => {
+    expect(PROTOCOL).toBe("0.3.0");
+    expect(get(yamlOf("web-tops.yaml"), "protocol")).toBe("0.3.0");
+    expect(inProtocolRange(get(yamlOf("web-tops.yaml"), "protocol"))).toBe(true);
+  });
+});
 
 describe("G7a: the kit's own web-tops.yaml", () => {
   it("passes check as class ts-library under enforce hard", () => {
@@ -156,6 +165,14 @@ describe("G7b: CI is the one gate job", () => {
   it("replaces ci.yml", () => {
     expect(existsSync(join(root, ".github/workflows/ci.yml"))).toBe(false);
     expect(existsSync(join(root, ".github/workflows/web-tops.yml"))).toBe(true);
+  });
+
+  it("runs on every pull request, whatever its base branch, so one into protocol/0.3.0 is gated", () => {
+    const on = get(workflow(), "on");
+    expect(keys(on)).toContain("pull_request");
+    expect(get(get(on, "pull_request"), "branches")).toBeUndefined();
+    expect(get(get(on, "pull_request"), "branches-ignore")).toBeUndefined();
+    expect(at(on, ["push", "branches"])).toEqual(["main"]);
   });
 
   it("has one job, named gate, on ubuntu-latest", () => {
@@ -287,7 +304,7 @@ describe("G7: .dependency-cruiser.cjs", () => {
           allowImportingTsExtensions: true,
           noEmit: true,
         },
-        include: ["src"],
+        include: ["src", "lib", "probes", "fixtures/probe"],
       }),
     );
     symlinkSync(join(root, "node_modules"), join(dir, "node_modules"));
@@ -298,8 +315,8 @@ describe("G7: .dependency-cruiser.cjs", () => {
     return dir;
   }
 
-  function cruise(cwd: string): { status: number | null; out: string } {
-    const result = spawnSync(depcruise, ["src", "--config", config], { cwd, encoding: "utf8" });
+  function cruise(cwd: string, target = "src"): { status: number | null; out: string } {
+    const result = spawnSync(depcruise, [target, "--config", config], { cwd, encoding: "utf8" });
     return { status: result.status, out: result.stdout + result.stderr };
   }
 
@@ -356,6 +373,31 @@ describe("G7: .dependency-cruiser.cjs", () => {
     },
     30_000,
   );
+
+  describe("G0d: probes/** and fixtures/probe/** are reserved", () => {
+    const circular = (dir: string): Readonly<Record<string, string>> => ({
+      [`${dir}/a.ts`]: 'import { b } from "./b.ts";\nexport const a = b;\n',
+      [`${dir}/b.ts`]: 'import { a } from "./a.ts";\nexport const b = a;\n',
+    });
+
+    const ok = { "src/ok.ts": "export const ok = 1;\n" };
+
+    it("the same planted cycle is refused outside the reserved paths", () => {
+      const { status, out } = cruise(project({ ...circular("lib"), ...ok }), "lib");
+      expect(out).toContain("no-circular");
+      expect(status).not.toBe(0);
+    }, 30_000);
+
+    it.each(["probes", "probes/w22", "fixtures/probe"])(
+      "passes a planted cycle in %s",
+      (dir) => {
+        const { status, out } = cruise(project({ ...circular(dir), ...ok }), dir);
+        expect(out).not.toContain("no-circular");
+        expect(status).toBe(0);
+      },
+      30_000,
+    );
+  });
 
   it("refuses production code that imports a devDependency", () => {
     const dir = project(
