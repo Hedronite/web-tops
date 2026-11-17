@@ -1,6 +1,10 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { cfg, off, opts, tickingClock } from "../../gate/testkit.ts";
+import { runGate } from "../../gate/runner.ts";
+import { HYGIENE_STEPS } from "../../gate/types.ts";
+import { hygieneLayer } from "./index.ts";
 import {
   fakeExec,
   prepare,
@@ -43,6 +47,47 @@ function skipped(result: Awaited<ReturnType<typeof runHygiene>>): string[] {
 }
 
 describe("G3a hygiene: each tool runs once per gate; ESLint JSON kept on disk", () => {
+  it("runs tsc as tsc -b --noEmit and bun audit as audit --prod --json, with nothing else", async () => {
+    const item = setup({ "package.json": PACKAGE });
+    const fake = fakeExec(item.project.dir);
+    await runHygiene(item, fake.exec);
+    expect(fake.calls.find((call) => call.tool === "tsc")?.args).toEqual(["-b", "--noEmit"]);
+    const audit = fake.calls.find((call) => toolKey(call.tool, call.args) === "bun audit");
+    expect(audit?.args).toEqual(["audit", "--prod", "--json"]);
+    const install = fake.calls.find((call) => toolKey(call.tool, call.args) === "bun install");
+    expect(install?.args).toEqual(["install", "--frozen-lockfile"]);
+  });
+
+  it("declares eslint-json, and the report lists it, so the laws layer can name its input", async () => {
+    expect(hygieneLayer.produces).toEqual(
+      expect.arrayContaining([
+        "eslint-json",
+        "audit-json",
+        "stylelint-json",
+        "dependency-cruiser-json",
+      ]),
+    );
+    const item = setup({ "package.json": PACKAGE });
+    const fake = fakeExec(item.project.dir);
+    const steps = Object.fromEntries(
+      HYGIENE_STEPS.filter((step) => step !== "eslint").map((step) => [
+        step,
+        off("not under test"),
+      ]),
+    );
+    const report = await runGate({
+      layers: [hygieneLayer],
+      config: cfg({ hygiene: { auditFailOn: "high", steps } }),
+      options: opts(),
+      cwd: item.project.dir,
+      env: { PATH: "/usr/bin" },
+      exec: fake.exec,
+      outDir: item.outDir,
+      now: tickingClock(),
+    });
+    expect(report.layers[0]?.artifacts).toEqual([".web-tops/out/hygiene/eslint.json"]);
+  });
+
   it("runs each ts-library tool exactly once, in gate order, and no Astro or CSS tool", async () => {
     const item = setup({ "package.json": PACKAGE });
     const fake = fakeExec(item.project.dir);
