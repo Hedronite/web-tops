@@ -4,13 +4,17 @@ import type { Switch, WebTopsConfig } from "../config/types.ts";
 import {
   HYGIENE_STEPS,
   type AuditLevel,
+  type CoverageSettings,
   type GateConfig,
   type HygieneSettings,
   type HygieneStep,
+  type TestsSettings,
   type Toggle,
 } from "./types.ts";
 
-type HygieneConfig = NonNullable<NonNullable<WebTopsConfig["gates"]>["hygiene"]>;
+type Gates = NonNullable<WebTopsConfig["gates"]>;
+type HygieneConfig = NonNullable<Gates["hygiene"]>;
+type CoverageConfig = NonNullable<Gates["coverage"]>;
 
 /** A switch the config turned off, with its reason; an absent or enabled switch needs no entry. */
 function off(entry: Switch | undefined): Toggle | undefined {
@@ -138,6 +142,24 @@ function hygieneSettings(config: WebTopsConfig, project: Project): HygieneSettin
   };
 }
 
+/** Gate 3's floor is the config's, else the class profile's (WEB_TOPS.md section 5.2); `check` has already refused a class with no profile. */
+function floorFor(config: WebTopsConfig, coverage: CoverageConfig | undefined): number {
+  const profile = profileFor(config.class);
+  if (profile === undefined) {
+    throw new Error(`class ${config.class} has no launch profile`);
+  }
+  return coverage?.lines_floor ?? profile.linesFloor;
+}
+
+function coverageSettings(config: WebTopsConfig): CoverageSettings {
+  const coverage = config.gates?.coverage;
+  return { linesFloor: floorFor(config, coverage), exclude: coverage?.exclude ?? [] };
+}
+
+function testsSettings(config: WebTopsConfig): TestsSettings {
+  return { shuffle: config.gates?.tests?.shuffle ?? true };
+}
+
 function togglesOf(config: WebTopsConfig): Record<string, Toggle> {
   const entries: readonly [string, Toggle | undefined][] = [
     ...GATE_SWITCHES.map((id): [string, Toggle | undefined] => [id, off(config.gates?.[id])]),
@@ -170,5 +192,7 @@ export function toGateConfig(config: WebTopsConfig, project: Project): GateConfi
     toggles: togglesOf(config),
     custom: customOf(config),
     hygiene: hygieneSettings(config, project),
+    tests: testsSettings(config),
+    coverage: coverageSettings(config),
   };
 }

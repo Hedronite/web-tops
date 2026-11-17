@@ -130,4 +130,24 @@ describe("toGateConfig: the validated web-tops.yaml as the runner sees it", () =
       reason: "class ts-library does not map astro_check",
     });
   });
+
+  it("takes the coverage floor from the config, else from the class profile", () => {
+    expect(adapt(`${HEAD}class: ts-library\n`).coverage).toEqual({ linesFloor: 85, exclude: [] });
+    expect(adapt(`${HEAD}class: astro-site\n`).coverage.linesFloor).toBe(70);
+    expect(adapt(`${HEAD}class: node-service\n`).coverage.linesFloor).toBe(80);
+    const config = adapt(
+      `${HEAD}class: ts-library\ngates:\n  coverage:\n    lines_floor: 90\n    exclude:\n      - { glob: "src/generated/**", reason: "written by the schema compiler" }\n`,
+    );
+    expect(config.coverage).toEqual({
+      linesFloor: 90,
+      exclude: [{ glob: "src/generated/**", reason: "written by the schema compiler" }],
+    });
+  });
+
+  it("shuffles the tests unless gates.tests.shuffle says otherwise", () => {
+    expect(adapt(`${HEAD}class: ts-library\n`).tests).toEqual({ shuffle: true });
+    expect(adapt(`${HEAD}class: ts-library\ngates:\n  tests: { shuffle: false }\n`).tests).toEqual({
+      shuffle: false,
+    });
+  });
 });

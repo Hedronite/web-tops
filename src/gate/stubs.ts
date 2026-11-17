@@ -32,11 +32,6 @@ export function stubLayer(
   };
 }
 
-/** Gates 1 to 3 stay stubs until G3 and G4 replace them. */
-export const HYGIENE_STUB = stubLayer("hygiene", 1, 1, "M1 G3");
-export const TESTS_STUB = stubLayer("tests", 2, 1, "M1 G4");
-export const COVERAGE_STUB = stubLayer("coverage", 3, 1, "M1 G4", ["tests"]);
-
 /** Gates 4 to 6 and the laws layer: later milestones (WEB_TOPS.md section 19). */
 export const CRAP_STUB = stubLayer("crap", 4, 1, "M2");
 export const MUTATION_STUB = stubLayer("mutation", 5, 1, "M2");
