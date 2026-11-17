@@ -7,13 +7,17 @@ export function fixture(name: string): string {
   return resolve(fixturesDir, name);
 }
 
+function isObject(value: unknown): value is object {
+  return typeof value === "object" && value !== null;
+}
+
 /** One property of an unknown value, or undefined. */
 export function get(value: unknown, key: string): unknown {
-  return typeof value === "object" && value !== null ? Reflect.get(value, key) : undefined;
+  return isObject(value) ? Reflect.get(value, key) : undefined;
 }
 
 function plain(value: unknown): object | undefined {
-  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : undefined;
+  return isObject(value) && !Array.isArray(value) ? value : undefined;
 }
 
 /** Dotted paths of every key under plain objects; arrays are leaves. */
@@ -43,7 +47,13 @@ export function at(value: unknown, path: readonly string[]): unknown {
 
 /** The own keys of an object or array, or none. */
 export function keys(value: unknown): string[] {
-  return typeof value === "object" && value !== null ? Object.keys(value) : [];
+  return isObject(value) ? Object.keys(value) : [];
+}
+
+function assign(parent: unknown, key: string | undefined, replacement: [] | [unknown]): void {
+  if (!isObject(parent) || key === undefined) return;
+  if (replacement.length === 0) Reflect.deleteProperty(parent, key);
+  else Reflect.set(parent, key, replacement[0]);
 }
 
 /** A deep copy of `value` with one property replaced, or removed when `replacement` is omitted. */
@@ -53,12 +63,7 @@ export function edit(
   ...replacement: [] | [unknown]
 ): unknown {
   const copy: unknown = JSON.parse(JSON.stringify(value));
-  const parent = at(copy, path.slice(0, -1));
-  const key = path.at(-1);
-  if (typeof parent === "object" && parent !== null && key !== undefined) {
-    if (replacement.length === 0) Reflect.deleteProperty(parent, key);
-    else Reflect.set(parent, key, replacement[0]);
-  }
+  assign(at(copy, path.slice(0, -1)), path.at(-1), replacement);
   return copy;
 }
 

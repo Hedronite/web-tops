@@ -9,15 +9,17 @@ The protocol text is [`WEB_TOPS.md`](WEB_TOPS.md). This file is the harness for 
 
 ## State
 
-Milestone M0: the spec. There is no code, no `package.json`, no CLI and no CI yet. `webtops` does not exist. Do not document, run or claim a command that has not landed.
+Milestone M1: the `webtops` CLI exists and gates this repo on itself. It runs from source on Bun, not from npm: `bun src/cli/main.ts <command>` for `check`, `gate`, `init`, `report`, `lock`, `doctor` and `version`. CI is the one `gate` job (`.github/workflows/web-tops.yml`). [`web-tops.yaml`](web-tops.yaml) sets class `ts-library` under `enforce: hard`, with CRAP, mutation, build output and laws off until M2, M3 and M4.
 
-Once code lands, the kit is TypeScript on Bun and gates itself `hard` with its own protocol (§17).
+Before you finish, from a clean tree: `bun install --frozen-lockfile`, `bun run format:check`, `bun run typecheck`, `bun run lint`, `bun run test`, then `bun src/cli/main.ts gate`. Do not document, run or claim a command that has not landed: `baseline` and `survivors` are M2, `laws` is M3.
+
+The kit is TypeScript on Bun and gates itself `hard` with its own protocol (§17).
 
 ## Do this
 
-1. Read the section of `WEB_TOPS.md` you are changing, and the schema once it exists. Fix the schema first, then the prose (§3.4).
+1. Read the section of `WEB_TOPS.md` you are changing, and the schema in `schema/`. Fix the schema first, then the prose (§3.4).
 2. A change to `laws/`, `schema/`, `profiles/`, a threshold, a budget, a lint rule or tsconfig flag in the drop-ins, or normative text in `WEB_TOPS.md` is a protocol change. It carries the `protocol-change` label and a `CHANGELOG.md` entry, and bumps the protocol version together with the schema.
-3. Once code lands: write the oracle from the contract first, then the smallest shape that satisfies it, then run the gate.
+3. Write the oracle from the contract first, then the smallest shape that satisfies it, then run the gate.
 
 ## Git
 
