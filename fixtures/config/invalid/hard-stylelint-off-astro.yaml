@@ -1,0 +1,8 @@
+protocol: "0.2.1"
+version: "0.1.0"
+package: site
+class: astro-site
+enforce: hard
+gates:
+  hygiene:
+    stylelint: { enabled: false, reason: "no CSS yet" }

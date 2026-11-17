@@ -1,0 +1,8 @@
+protocol: "0.2.1"
+version: "0.1.0"
+package: site
+class: web-app
+enforce: advisory
+exemption:
+  until: "2099-12-31"
+  reason: "migrating the legacy lint config"

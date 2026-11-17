@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { ESLint } from "eslint";
 import { describe, expect, it } from "vitest";
@@ -23,6 +23,8 @@ describe("G0a: pins exactly as WEB_TOPS.md section 2", () => {
     ["typescript-eslint", /^8\.73\.\d+$/],
     ["vitest", /^5\.1\.\d+$/],
     ["@vitest/coverage-v8", /^5\.1\.\d+$/],
+    ["prettier", /^3\.10\.\d+$/],
+    ["fast-check", /^\d+\.\d+\.\d+$/],
   ];
 
   it.each(pinned)("package.json pins %s to %s", (name, pattern) => {
@@ -38,7 +40,15 @@ describe("G0a: pins exactly as WEB_TOPS.md section 2", () => {
   });
 
   it("the installed versions equal the pins", () => {
-    for (const name of ["typescript", "eslint", "typescript-eslint", "vitest", "@vitest/coverage-v8"]) {
+    for (const name of [
+      "typescript",
+      "eslint",
+      "typescript-eslint",
+      "vitest",
+      "@vitest/coverage-v8",
+      "prettier",
+      "fast-check",
+    ]) {
       const installed = get(readJson(join(root, "node_modules", name, "package.json")), "version");
       expect(installed, name).toBe(get(pkg.devDependencies, name));
     }
@@ -48,16 +58,40 @@ describe("G0a: pins exactly as WEB_TOPS.md section 2", () => {
     expect(Object.keys(pkg.dependencies).sort()).toEqual(["ajv", "yaml"]);
   });
 
-  it("package.json is ESM with install, typecheck, lint and test scripts", () => {
+  it("package.json is ESM with install, typecheck, lint, test and format:check scripts", () => {
     expect(pkg.type).toBe("module");
-    expect(Object.keys(pkg.scripts)).toEqual(expect.arrayContaining(["typecheck", "lint", "test"]));
+    expect(Object.keys(pkg.scripts)).toEqual(
+      expect.arrayContaining(["typecheck", "lint", "test", "format:check"]),
+    );
+  });
+
+  it("R9: exports, types, bin and files point at files the kit ships", () => {
+    const dot = get(pkg.exports, ".");
+    for (const target of [
+      pkg.main,
+      pkg.types,
+      get(dot, "types"),
+      get(dot, "default"),
+      get(pkg.exports, "./schema/web-tops.schema.json"),
+      get(pkg.exports, "./schema/gate-report.schema.json"),
+      get(pkg.exports, "./package.json"),
+      pkg.bin.webtops,
+    ]) {
+      expect(typeof target).toBe("string");
+      expect(existsSync(join(root, String(target))), String(target)).toBe(true);
+    }
+    expect(pkg.files).toEqual(expect.arrayContaining(["src", "schema", "!src/**/*.test.ts"]));
   });
 
   it("tsc --showConfig shows every W-04 flag as true", () => {
     const tsc = join(root, "node_modules", "typescript", "bin", "tsc");
-    const result = spawnSync(process.execPath, [tsc, "--showConfig", "-p", join(root, "tsconfig.json")], {
-      encoding: "utf8",
-    });
+    const result = spawnSync(
+      process.execPath,
+      [tsc, "--showConfig", "-p", join(root, "tsconfig.json")],
+      {
+        encoding: "utf8",
+      },
+    );
     expect(result.status).toBe(0);
     const parsed: unknown = JSON.parse(result.stdout);
     const options = get(parsed, "compilerOptions");
@@ -88,7 +122,10 @@ const lawRules: readonly (readonly [string, readonly string[]])[] = [
       "@typescript-eslint/no-unsafe-argument",
     ],
   ],
-  ["W-02", ["@typescript-eslint/consistent-type-assertions", "@typescript-eslint/no-non-null-assertion"]],
+  [
+    "W-02",
+    ["@typescript-eslint/consistent-type-assertions", "@typescript-eslint/no-non-null-assertion"],
+  ],
   ["W-10", ["@typescript-eslint/switch-exhaustiveness-check"]],
   [
     "W-11",
@@ -99,7 +136,10 @@ const lawRules: readonly (readonly [string, readonly string[]])[] = [
     ],
   ],
   ["W-13", ["@typescript-eslint/use-unknown-in-catch-callback-variable"]],
-  ["W-14", ["@typescript-eslint/only-throw-error", "@typescript-eslint/prefer-promise-reject-errors"]],
+  [
+    "W-14",
+    ["@typescript-eslint/only-throw-error", "@typescript-eslint/prefer-promise-reject-errors"],
+  ],
   ["W-15", ["@typescript-eslint/consistent-type-imports"]],
   [
     "W-35",
@@ -123,6 +163,22 @@ async function printConfig(file: string): Promise<unknown> {
   const config: unknown = await eslint.calculateConfigForFile(join(root, file));
   return config;
 }
+
+describe("R9: the published sources import their neighbours with the .ts extension", () => {
+  it("every relative import in a non-test source names a .ts or .json file", () => {
+    const sources = readdirSync(join(root, "src"), { recursive: true, encoding: "utf8" }).filter(
+      (name) =>
+        name.endsWith(".ts") && !name.endsWith(".test.ts") && !name.includes("test-support"),
+    );
+    expect(sources.length).toBeGreaterThan(10);
+    for (const name of sources) {
+      const text = readFileSync(join(root, "src", name), "utf8");
+      for (const match of text.matchAll(/(?:from|import) "(\.{1,2}\/[^"]+)"/g)) {
+        expect(match[1], `${name}: ${String(match[1])}`).toMatch(/\.(ts|json)$/);
+      }
+    }
+  });
+});
 
 describe("G0b: lint enables the rule behind every judged ts-library law, at error", () => {
   it.each(lawRules)("%s", async (_law, ids) => {

@@ -1,0 +1,9 @@
+protocol: "0.2.1"
+version: "0.1.0"
+package: pkg
+class: ts-library
+enforce: hard
+gates:
+  hygiene:
+    astro_check: { enabled: false, reason: "ts-library: no .astro files" }
+    stylelint: { enabled: false, reason: "ts-library: no CSS" }

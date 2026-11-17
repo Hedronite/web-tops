@@ -1,36 +1,41 @@
 #!/usr/bin/env bun
-import pkg from "../../package.json" with { type: "json" };
+import { runCheckCli } from "./check.ts";
+import { runDoctorCli } from "./doctor.ts";
+import { runGateCli } from "./gate.ts";
+import { runInitCli } from "./init.ts";
+import { stdio, type Io } from "./io.ts";
+import { runLockCli } from "./lock.ts";
+import { runReportCli } from "./report.ts";
+import { runVersionCli } from "./version.ts";
 
-export const PROTOCOL = "0.2.0";
+export type { Io } from "./io.ts";
 
-const USAGE = "usage: webtops <command>\ncommands: version\n";
+type Command = (argv: readonly string[], io: Io) => Promise<number>;
 
-export interface Io {
-  readonly out: (text: string) => void;
-  readonly err: (text: string) => void;
-}
+const COMMANDS: ReadonlyMap<string, Command> = new Map<string, Command>([
+  ["check", runCheckCli],
+  ["doctor", runDoctorCli],
+  ["gate", runGateCli],
+  ["init", runInitCli],
+  ["lock", runLockCli],
+  ["report", runReportCli],
+  ["version", runVersionCli],
+]);
 
-/** Runs one `webtops` invocation and returns its exit code (WEB_TOPS.md section 12). */
-export function run(argv: readonly string[], io: Io): number {
-  const [command] = argv;
-  if (command === "version") {
-    io.out(`protocol ${PROTOCOL}\npackage ${pkg.version}\n`);
-    return 0;
-  }
-  io.err(command === undefined ? USAGE : `webtops: unknown command "${command}"\n${USAGE}`);
+const USAGE = `usage: webtops <command>\ncommands: ${[...COMMANDS.keys()].join(", ")}\n`;
+
+/**
+ * Runs one `webtops` invocation and returns its exit code (WEB_TOPS.md section 12), at once for
+ * a usage error or as a promise for a command. This is the only place commands are registered.
+ */
+export function run(argv: readonly string[], io: Io): number | Promise<number> {
+  const [name, ...rest] = argv;
+  const command = name === undefined ? undefined : COMMANDS.get(name);
+  if (command !== undefined) return command(rest, io);
+  io.err(name === undefined ? USAGE : `webtops: unknown command "${name}"\n${USAGE}`);
   return 2;
 }
 
-/** The process streams, for the entry point below. */
-export const stdio: Io = {
-  out: (text) => {
-    process.stdout.write(text);
-  },
-  err: (text) => {
-    process.stderr.write(text);
-  },
-};
-
 if (import.meta.main) {
-  process.exitCode = run(process.argv.slice(2), stdio);
+  process.exitCode = await run(process.argv.slice(2), stdio);
 }

@@ -1,0 +1,9 @@
+protocol: "0.2.1"
+version: "0.1.0"
+package: pkg
+class: ts-library
+enforce: hard
+layers:
+  custom:
+    - { id: extra, tier: 1, command: "true" }
+    - { id: extra, tier: 2, command: "true" }

@@ -30,3 +30,6 @@ result-*
 .DS_Store
 *.swp
 /tmp
+
+# Per-run gate output; baseline.json stays tracked
+/.web-tops/out/
