@@ -27,7 +27,7 @@ describe("G2b runner: not-run fails, a short layer count fails, not-evaluated ne
         fakeLayer({ id: "tests", gate: 2, verdict, reason: "because" }),
       ];
       const report = await run(layers, cfg(), opts({ keepGoing: true }));
-      const passes = verdict === "pass" || verdict === "skip";
+      const passes = verdict === "pass";
       expect(report.exit_code).toBe(passes ? 0 : 1);
       expect(report.passed).toBe(passes);
     },
@@ -105,20 +105,10 @@ describe("G2b runner: not-run fails, a short layer count fails, not-evaluated ne
     expect(report.layers.find((layer) => layer.id === "tests")?.verdict).toBe("Refuse");
   });
 
-  it("turns a skip with no reason into not-evaluated: a skip must say why", async () => {
-    const report = await run([fakeLayer({ id: "hygiene", verdict: "skip" })]);
-    expect(report.layers[0]).toMatchObject({
-      verdict: "not-evaluated",
-      reason: "layer returned skip without a reason",
-    });
-    expect(report.exit_code).toBe(1);
-  });
-
-  it("counts a layer as ran only when it returns an evaluated verdict; a layer that skips itself leaves the range", async () => {
+  it("counts a layer as ran only when it returns an evaluated verdict: a not-run result is not ran", async () => {
     const layers = [
       fakeLayer({ id: "hygiene", gate: 1 }),
       fakeLayer({ id: "tests", gate: 2, verdict: "not-run", reason: "no command" }),
-      fakeLayer({ id: "coverage", gate: 3, verdict: "skip", reason: "not needed" }),
       fakeLayer({ id: "crap", gate: 4, verdict: "Ack" }),
       fakeLayer({ id: "mutation", gate: 5, verdict: "not-evaluated", reason: "no judge" }),
     ];
@@ -128,6 +118,21 @@ describe("G2b runner: not-run fails, a short layer count fails, not-evaluated ne
       { path: "/counts/ran", message: "ran 3 of 4 layers in range" },
     ]);
     expect(report.passed).toBe(false);
+  });
+
+  it("does not let an in-range layer leave the range by returning skip: it becomes not-evaluated and fails", async () => {
+    const layers = [
+      fakeLayer({ id: "hygiene", gate: 1 }),
+      fakeLayer({ id: "tests", gate: 2, verdict: "skip", reason: "nothing to do here" }),
+    ];
+    const report = await run(layers);
+    expect(report.counts).toEqual({ in_range: 2, ran: 2, failed: 0, not_evaluated: 1 });
+    expect(report.layers.find((layer) => layer.id === "tests")).toMatchObject({
+      verdict: "not-evaluated",
+      reason: "skip returned by an in-range layer",
+    });
+    expect(report.passed).toBe(false);
+    expect(report.exit_code).toBe(1);
   });
 
   it("shows ran 0 for a run in which every layer is a stub or never reached", async () => {

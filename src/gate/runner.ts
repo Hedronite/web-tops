@@ -157,10 +157,14 @@ function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** A layer must say why it skipped; a bare `skip` would hide a missing reader. */
+/**
+ * The range is fixed before the run, from the config and the class (WEB_TOPS.md section 3.3). A layer that is
+ * in range cannot leave it by returning `skip`: that result is `not-evaluated` and fails. A layer reports
+ * the steps it skips as `skip` findings with its own verdict `pass`.
+ */
 function checked(result: LayerResult): LayerResult {
-  if (result.verdict === "skip" && (result.reason === undefined || result.reason === "")) {
-    return { ...result, verdict: "not-evaluated", reason: "layer returned skip without a reason" };
+  if (result.verdict === "skip") {
+    return { ...result, verdict: "not-evaluated", reason: "skip returned by an in-range layer" };
   }
   return result;
 }
@@ -232,9 +236,6 @@ export async function runGate(input: RunInput): Promise<RanReport> {
       const result = await execute(item, item.layer, input, base, artifacts);
       if (EVALUATED.has(result.layer.verdict)) {
         ran += 1;
-      } else if (result.layer.verdict === "skip") {
-        // A layer that says it does not apply (with a reason) leaves the range, as a configured skip does.
-        inRange -= 1;
       }
       layers.push(result.layer);
       for (const [name, path] of Object.entries(result.artifacts)) {
