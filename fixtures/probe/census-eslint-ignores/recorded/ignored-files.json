@@ -1,0 +1,5 @@
+{
+  "src/legacy/a.ts": true,
+  "src/legacy/b.ts": true,
+  "src/ok.ts": false
+}
