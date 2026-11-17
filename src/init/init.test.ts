@@ -355,11 +355,11 @@ describe.each(CLASSES)("webtops init --class %s", (className) => {
     expect(source).toContain('reportUnusedDisableDirectives: "error"');
   });
 
-  it("writes a dependency-cruiser config that parses and forbids cycles and deep dist imports", () => {
+  it("writes a dependency-cruiser config that parses and forbids cycles and unresolvable imports", () => {
     const source = read(dir, ".dependency-cruiser.cjs");
     expect(syntaxErrors(source, ".dependency-cruiser.cjs")).toBe(0);
     expect(source).toContain("no-circular");
-    expect(source).toContain("no-deep-dist-imports");
+    expect(source).toContain("no-unresolvable");
   });
 
   it("writes a stylelint config that parses", () => {
