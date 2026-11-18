@@ -4,6 +4,22 @@ All notable changes to this project are listed here. The protocol version and th
 
 ## [Unreleased]
 
+The risk engine of milestone M2. The `webtops` CLI measures CRAP and mutation survival natively, holds a baseline under `ratchet`, and gates this repo on itself with both at `hard`. The protocol stays 0.3.0; `report_version` is 2.2.0.
+
+- StrykerJS is pinned exactly at the §2 versions, and the M2 source paths are in every tool scope. (G0)
+- Findings have one shape (`tool`, `rule`, `law`, `fingerprint`), with `fp1` fingerprints that survive unrelated edits. Counts per rule per file derive from them. (G1)
+- Coverage computes statement `cov(f)` per function, reports per-package numbers and coverage hints, and tells a Vitest setup file apart from an unimported file. (G2)
+- The §6.3 complexity counter on the TypeScript AST, with §6.7 function keys and golden fixtures. (G3)
+- The CRAP layer scores each function from its complexity and statement coverage, judges the functions a diff changes (or all, with `--all`), and the kit holds itself to cap 4. (G4)
+- The CRAP cap per class is recorded from measurement over the kit and a real adopter: all five classes keep their cap, with the evidence in §5.2. (G5)
+- The diff engine: changed ranges and functions against the merge base. A shallow clone is `fail`, an empty diff is `vacuous`, and a test-only diff maps to the functions its tests cover. (G6)
+- The mutation layer runs StrykerJS on the diff's functions (or all of them, with `--all`) on the gate's own Vitest config, keys each survivor, and is `not-evaluated` past its time budget. (G7)
+- The survivor key has six fields, and the survivor ledger `.web-tops/survivors.yaml` explains a survivor with a reason, an owner and an expiry; `webtops survivors` checks the ledger and counts the unexplained survivors of the last report. (G8)
+- `webtops baseline` is the only writer of `.web-tops/baseline.json`, projected from the last report: CRAP per function, coverage per package, finding counts per rule per file, suppression counts by census kind and page bytes. Under `ratchet`, a rise in any count is refused, and deleting the file is not a reset. A first baseline takes legacy debt from a run that failed only on what a baseline holds, and the report says `crap_scope` (`report_version` 2.2.0). (G9)
+- `webtops lock --update` adds the pinned tools that are installed. (PR 32)
+- The survivor ledger keeps the leading whitespace of a key. (PR 42)
+- The kit's own gate runs CRAP and mutation at `hard` in the one `gate` job on both operating systems; the Stryker config keeps the checker's own type-check setting so that fixtures are read as they are; the kit's tests have a 30 s timeout for real-tool runs. (G10)
+
 ## [0.2.0] - 2026-11-17
 
 The `webtops` CLI in this release implements protocol 0.3.0. The verdicts, the report schema, the lint stack and the configuration changed since 0.1.0, which implemented protocol 0.2.1. Protocol 0.3.0 is the truth pass: the text, the schemas and the fixtures agree, and the kit gates itself on them.
