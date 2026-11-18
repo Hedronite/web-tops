@@ -7,6 +7,7 @@ import { PROFILES } from "../config/profiles.ts";
 import { checkConfigFile, validateConfig } from "../config/validate.ts";
 import { runInit } from "./run.ts";
 import { madeDirs, put, tempDir } from "./test-support.ts";
+import { REAL_TOOL_TIMEOUT } from "../gate/test-support-timeouts.ts";
 
 const root = resolve(import.meta.dirname, "../..");
 const CLASSES = PROFILES.map((profile) => profile.class);
@@ -50,19 +51,24 @@ describe("init then check", () => {
       expect(check.status, check.stderr).toBe(0);
       expect(check.stdout).toContain(`class ${className}`);
     },
+    REAL_TOOL_TIMEOUT,
   );
 
-  it("check fails on an init config once a gate hard forbids switching off is switched off", () => {
-    const dir = tempDir();
-    runInit({ className: "ts-library", dir, force: false });
-    const text = readFileSync(join(dir, "web-tops.yaml"), "utf8");
-    put(
-      dir,
-      "web-tops.yaml",
-      text.replace("  tests:\n", '  tests:\n    enabled: false\n    reason: "planted"\n'),
-    );
-    const check = webtops(dir, "check");
-    expect(check.status).toBe(2);
-    expect(check.stderr).toContain("/gates/tests");
-  });
+  it(
+    "check fails on an init config once a gate hard forbids switching off is switched off",
+    () => {
+      const dir = tempDir();
+      runInit({ className: "ts-library", dir, force: false });
+      const text = readFileSync(join(dir, "web-tops.yaml"), "utf8");
+      put(
+        dir,
+        "web-tops.yaml",
+        text.replace("  tests:\n", '  tests:\n    enabled: false\n    reason: "planted"\n'),
+      );
+      const check = webtops(dir, "check");
+      expect(check.status).toBe(2);
+      expect(check.stderr).toContain("/gates/tests");
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 });

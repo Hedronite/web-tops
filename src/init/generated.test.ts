@@ -6,6 +6,7 @@ import * as prettier from "prettier";
 import { afterAll, describe, expect, it } from "vitest";
 import { runInit } from "./run.ts";
 import { put } from "./test-support.ts";
+import { REAL_TOOL_TIMEOUT } from "../gate/test-support-timeouts.ts";
 
 // What init writes has to pass the tools it configures. These run the real Prettier, ESLint and
 // dependency-cruiser on the generated files; a file that only parses is not enough.
@@ -61,9 +62,13 @@ async function unformatted(dir: string, width: number): Promise<string[]> {
 }
 
 describe.each(CLASSES)("the files webtops init --class %s writes: Prettier", (className) => {
-  it.each(WIDTHS)("formats every generated file as Prettier does at width %i", async (width) => {
-    expect(await unformatted(generated(className), width)).toEqual([]);
-  });
+  it.each(WIDTHS)(
+    "formats every generated file as Prettier does at width %i",
+    async (width) => {
+      expect(await unformatted(generated(className), width)).toEqual([]);
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 });
 
 /** Lints the generated `file` from `dir` as if it sat in `under`, the directory whose ESLint config applies. */
@@ -91,11 +96,16 @@ describe("the files webtops init writes: ESLint", () => {
     async (file) => {
       expect(await lintMessages(eslint, baseDir, baseDir, file)).toEqual([]);
     },
+    REAL_TOOL_TIMEOUT,
   );
 
-  it("ignores .astro/, which astro check writes, so a type file there is not linted", async () => {
-    expect(await eslint.isPathIgnored(join(baseDir, ".astro", "types.d.ts"))).toBe(true);
-  });
+  it(
+    "ignores .astro/, which astro check writes, so a type file there is not linted",
+    async () => {
+      expect(await eslint.isPathIgnored(join(baseDir, ".astro", "types.d.ts"))).toBe(true);
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 
   it.each(CLASSES)("%s's eslint.config.js ignores .astro/ and the usual output", (className) => {
     const text = readFileSync(join(generated(className), "eslint.config.js"), "utf8");
@@ -105,17 +115,25 @@ describe("the files webtops init writes: ESLint", () => {
     }
   });
 
-  it.each(CLASSES)("lints the %s CommonJS and Stylelint config files clean", async (className) => {
-    const dir = generated(className);
-    expect(await lintMessages(eslint, baseDir, dir, ".dependency-cruiser.cjs")).toEqual([]);
-    expect(await lintMessages(eslint, baseDir, dir, "stylelint.config.js")).toEqual([]);
-  });
+  it.each(CLASSES)(
+    "lints the %s CommonJS and Stylelint config files clean",
+    async (className) => {
+      const dir = generated(className);
+      expect(await lintMessages(eslint, baseDir, dir, ".dependency-cruiser.cjs")).toEqual([]);
+      expect(await lintMessages(eslint, baseDir, dir, "stylelint.config.js")).toEqual([]);
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 
-  it("lints node-service's eslint.config.js clean under itself", async () => {
-    const dir = generated("node-service");
-    const own = new ESLint({ cwd: dir });
-    expect(await lintMessages(own, dir, dir, "eslint.config.js")).toEqual([]);
-  });
+  it(
+    "lints node-service's eslint.config.js clean under itself",
+    async () => {
+      const dir = generated("node-service");
+      const own = new ESLint({ cwd: dir });
+      expect(await lintMessages(own, dir, dir, "eslint.config.js")).toEqual([]);
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 });
 
 const DEPCRUISE = join(root, "node_modules", ".bin", "depcruise");
@@ -162,45 +180,65 @@ describe("the files webtops init writes: W-13", () => {
       );
   }
 
-  it("refuses a rethrow that drops the caught error", async () => {
-    expect(await lint('throw new Error("bad json");')).toContain("preserve-caught-error");
-  });
+  it(
+    "refuses a rethrow that drops the caught error",
+    async () => {
+      expect(await lint('throw new Error("bad json");')).toContain("preserve-caught-error");
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 
-  it("passes a rethrow that keeps it as the cause", async () => {
-    expect(await lint('throw new Error("bad json", { cause: error });')).not.toContain(
-      "preserve-caught-error",
-    );
-  });
+  it(
+    "passes a rethrow that keeps it as the cause",
+    async () => {
+      expect(await lint('throw new Error("bad json", { cause: error });')).not.toContain(
+        "preserve-caught-error",
+      );
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 });
 
 describe("the files webtops init writes: dependency-cruiser", () => {
-  it("loads, and passes a project that imports a package through its exports", () => {
-    const dir = projectWith({
-      "a.ts":
-        'import { parse } from "yaml";\nimport { b } from "./b.ts";\nexport const a = [parse, b];\n',
-      "b.ts": "export const b = 1;\n",
-    });
-    const { status, output } = cruise(dir);
-    expect(output).toContain("no dependency violations");
-    expect(status).toBe(0);
-  });
+  it(
+    "loads, and passes a project that imports a package through its exports",
+    () => {
+      const dir = projectWith({
+        "a.ts":
+          'import { parse } from "yaml";\nimport { b } from "./b.ts";\nexport const a = [parse, b];\n',
+        "b.ts": "export const b = 1;\n",
+      });
+      const { status, output } = cruise(dir);
+      expect(output).toContain("no dependency violations");
+      expect(status).toBe(0);
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 
-  it("fails a planted import cycle at no-circular", () => {
-    const dir = projectWith({
-      "a.ts": 'import { b } from "./b.ts";\nexport const a = b;\n',
-      "b.ts": 'import { a } from "./a.ts";\nexport const b = a;\n',
-    });
-    const { status, output } = cruise(dir);
-    expect(status).not.toBe(0);
-    expect(output).toContain("no-circular");
-  });
+  it(
+    "fails a planted import cycle at no-circular",
+    () => {
+      const dir = projectWith({
+        "a.ts": 'import { b } from "./b.ts";\nexport const a = b;\n',
+        "b.ts": 'import { a } from "./a.ts";\nexport const b = a;\n',
+      });
+      const { status, output } = cruise(dir);
+      expect(status).not.toBe(0);
+      expect(output).toContain("no-circular");
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 
-  it("fails a planted import into a package's dist at no-unresolvable", () => {
-    const dir = projectWith({ "a.ts": 'import "yaml/dist/index.js";\nexport const a = 1;\n' });
-    const { status, output } = cruise(dir);
-    expect(status).not.toBe(0);
-    expect(output).toContain("no-unresolvable");
-  });
+  it(
+    "fails a planted import into a package's dist at no-unresolvable",
+    () => {
+      const dir = projectWith({ "a.ts": 'import "yaml/dist/index.js";\nexport const a = 1;\n' });
+      const { status, output } = cruise(dir);
+      expect(status).not.toBe(0);
+      expect(output).toContain("no-unresolvable");
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 
   it("carries no rule that matches resolved dist paths, which flags every normal import", () => {
     const text = readFileSync(join(generated("ts-library"), ".dependency-cruiser.cjs"), "utf8");

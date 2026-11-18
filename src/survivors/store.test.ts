@@ -218,6 +218,67 @@ describe("recordEntry", () => {
     expect(names(dir)).toEqual(["survivors.yaml"]);
   });
 
+  it.each([
+    ["a space before a line break", " \n"],
+    ["a break after trailing spaces", "x  \ny"],
+    ["a blank line with spaces in the middle", "a\n  \nb"],
+    ["text that ends in a space and a break", "end \n"],
+    ["only a line break", "\n"],
+    ["a tab before a line break", "a\t\nb"],
+    ["a carriage return and a line feed", "a \r\nb"],
+    ["leading spaces", "  x"],
+  ])("writes %s so it reads back as written", (_name, text) => {
+    const dir = tempDir();
+    const written = entry(
+      { ...CLAMP_KEY, original: text, replacement: text },
+      { reason: `why${text}` },
+    );
+    expect(recordEntry(dir, PATH, written).ok).toBe(true);
+    const read = readLedger(dir, PATH);
+    expect(read.ok && read.entries).toEqual([written]);
+  });
+
+  it("round-trips the counterexample fast-check found (seed -287296159): original a, replacement a space and a break, reason a", () => {
+    const dir = tempDir();
+    const written = entry({ ...CLAMP_KEY, original: "a", replacement: " \n" }, { reason: "a" });
+    expect(recordEntry(dir, PATH, written).ok).toBe(true);
+    const read = readLedger(dir, PATH);
+    expect(read.ok && read.entries).toEqual([written]);
+  });
+
+  it.each([
+    ["a first line of only a space", " \nwhy"],
+    ["a space before a break in the middle", "line one \nline two"],
+    ["a blank line of spaces between two", "a\n  \nb"],
+    ["a break at the end", "why\n"],
+  ])("keeps a reason or an owner with %s as written, quoted or not", (_name, text) => {
+    const dir = tempDir();
+    const written = entry(CLAMP_KEY, { reason: text, owner: text });
+    expect(recordEntry(dir, PATH, written).ok).toBe(true);
+    const read = readLedger(dir, PATH);
+    expect(read.ok && read.entries).toEqual([written]);
+  });
+
+  it("writes the original and the replacement as double-quoted scalars, always", () => {
+    const dir = tempDir();
+    recordEntry(dir, PATH, entry({ ...CLAMP_KEY, original: "n < low", replacement: "n <= low" }));
+    const written = text(dir);
+    expect(written).toContain('original: "n < low"');
+    expect(written).toContain('replacement: "n <= low"');
+    expect(written).toContain("reason: boundary is equivalent here");
+  });
+
+  it("writes an entry into a ledger that already holds others in the same way", () => {
+    const dir = tempDir();
+    recordEntry(dir, PATH, entry(SUM_KEY));
+    recordEntry(dir, PATH, entry({ ...CLAMP_KEY, original: "a \nb" }));
+    const read = readLedger(dir, PATH);
+    expect(read.ok && read.entries.map((found) => found.key.original)).toEqual([
+      "a \nb",
+      "sum += x",
+    ]);
+  });
+
   it("round-trips any text a mutant can hold: quotes, colons, hashes, braces, newlines, wide characters", () => {
     const piece = fc.constantFrom(..."ab 1<>=!&|:#-[]{},\"'\\\n\té\u{1f600}".split(""));
     const some = fc.array(piece, { minLength: 1, maxLength: 24 }).map((chars) => chars.join(""));
