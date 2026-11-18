@@ -31,7 +31,3 @@ jobs:
           bun-version: 1.4.4
       - run: bun install --frozen-lockfile
       - run: bun src/cli/main.ts gate --max-tier 1
-      # Diagnostic: what Stryker said about each mutant, and which test killed it (removed again once read).
-      - if: always()
-        run: |
-          bun -e 'const r = await Bun.file(".web-tops/out/mutation/mutation.json").json(); const names = {}; for (const f of Object.values(r.testFiles ?? {})) for (const t of f.tests) names[t.id] = t.name; for (const [file, v] of Object.entries(r.files)) for (const m of v.mutants) console.log(file, m.location.start.line, m.mutatorName, m.status, "killedBy=" + JSON.stringify((m.killedBy ?? []).map((id) => names[id] ?? id)), "reason=" + (m.statusReason ?? "").slice(0, 200), "covered=" + (m.coveredBy ?? []).length)'
