@@ -18,12 +18,11 @@ function runReal(config: GateConfig) {
 }
 
 const LATER = [
-  ["mutation", "M2"],
   ["build-output", "M4"],
   ["laws", "M3"],
 ] as const;
 
-describe("G2e stubs: mutation, build-output and laws report not-run when enabled", () => {
+describe("G2e stubs: build-output and laws report not-run when enabled", () => {
   it("registers the seven built-in layers in gate order", () => {
     expect(buildRegistry(cfg()).map((layer) => layer.id)).toEqual([...BUILTIN_IDS]);
   });
@@ -45,6 +44,7 @@ describe("G2e stubs: mutation, build-output and laws report not-run when enabled
             tests: off("t"),
             coverage: off("t"),
             crap: off("t"),
+            mutation: off("t"),
           },
         }),
       );

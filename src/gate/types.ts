@@ -83,6 +83,8 @@ export interface LayerContext {
   readonly all?: boolean;
   /** The diff of this run, for a layer judged on what changed; without one a diff-scoped layer judges everything. */
   readonly diff?: DiffProvider;
+  /** The `survivorKey` strings the survivor ledger explains; empty until the ledger is read (G8). */
+  readonly explained?: ReadonlySet<string>;
 }
 
 /** An input a layer reads: the artifact's name and the layer that produces it (R29 N5, WEB_TOPS.md section 3.1). */
@@ -176,6 +178,16 @@ export interface CrapSettings {
   readonly nullishDiscount: boolean;
 }
 
+/** Gate 5 settings from `gates.mutation`, with the class's values filled in by the adapter (WEB_TOPS.md sections 5.2 and 6.4). */
+export interface MutationSettings {
+  /** `gates.mutation.scope`: the diff's functions, or every source file. */
+  readonly scope: "diff" | "all";
+  /** `gates.mutation.unexplained_survivors_max`, else the class profile's. */
+  readonly maxSurvivors: number;
+  /** `gates.mutation.time_budget_minutes`, else the profile's: a run that passes it is `not-evaluated`. */
+  readonly timeBudgetMinutes: number;
+}
+
 /** What the runner needs from a validated `web-tops.yaml`; a layer's own settings join it in G3 and G4. */
 export interface GateConfig {
   readonly protocol: string;
@@ -195,6 +207,7 @@ export interface GateConfig {
   readonly tests: TestsSettings;
   readonly coverage: CoverageSettings;
   readonly crap: CrapSettings;
+  readonly mutation: MutationSettings;
 }
 
 export interface GateOptions {

@@ -315,6 +315,7 @@ function artifactsOf(directory: string): Record<string, string> {
   return {
     "vitest-json": join(directory, "vitest.json"),
     "setup-files": join(directory, "setup-files.json"),
+    "vitest-config": join(directory, "vitest.config.mjs"),
     lcov: join(coverage, "lcov.info"),
     "coverage-json": join(coverage, "coverage-final.json"),
   };
@@ -362,7 +363,7 @@ export const testsLayer: Layer = {
   tier: 1,
   classes: ["ts-library", "ui-components", "astro-site", "web-app", "node-service"],
   requires: [],
-  produces: ["vitest-json", "lcov", "coverage-json", "setup-files"],
+  produces: ["vitest-json", "lcov", "coverage-json", "setup-files", "vitest-config"],
   consumes: [],
   run,
 };

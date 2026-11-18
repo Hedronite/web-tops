@@ -140,6 +140,7 @@ export function cfg(overrides: Partial<GateConfig> = {}): GateConfig {
     tests: { shuffle: true },
     coverage: { linesFloor: 85, exclude: [] },
     crap: { cap: 4, scope: "diff", nullishDiscount: true },
+    mutation: { scope: "diff", maxSurvivors: 0, timeBudgetMinutes: 30 },
     ...overrides,
   };
 }

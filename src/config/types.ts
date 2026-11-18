@@ -88,6 +88,7 @@ export interface Gates {
     readonly scope?: "diff" | "all";
     readonly base?: string;
     readonly unexplained_survivors_max?: number;
+    readonly time_budget_minutes?: number;
     readonly ledger?: string;
   };
 }
