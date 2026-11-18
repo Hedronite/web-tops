@@ -254,7 +254,7 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
   );
 
   it("declares what it produces, and consumes nothing", () => {
-    expect(testsLayer.produces).toEqual(["vitest-json", "lcov", "coverage-json"]);
+    expect(testsLayer.produces).toEqual(["vitest-json", "lcov", "coverage-json", "setup-files"]);
     expect(testsLayer.consumes).toEqual([]);
   });
 
@@ -740,4 +740,60 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
       );
     });
   });
+});
+
+describe("G2c the tests layer names the project's Vitest setup files for gate 3 (G4-4)", () => {
+  const CONFIG = (setup: string): string => `export default { test: { setupFiles: ${setup} } };\n`;
+
+  async function setupFilesOf(files: Record<string, string>): Promise<unknown> {
+    const item = real({ "src/a.ts": SOURCE, "src/a.test.ts": CLEAN, ...files });
+    const result = await runTests(item, realExec);
+    const path = result.artifacts["setup-files"];
+    expect(path).toBe(join(item.outDir, "tests", "setup-files.json"));
+    const value: unknown = JSON.parse(readFileSync(path ?? "", "utf8"));
+    return value;
+  }
+
+  it("declares the artifact it produces", () => {
+    expect(testsLayer.produces).toContain("setup-files");
+  });
+
+  it(
+    "lists a setup file as a path relative to the project",
+    async () => {
+      const found = await setupFilesOf({
+        "vitest.config.ts": CONFIG('["./src/setup.ts"]'),
+        "src/setup.ts": "export {};\n",
+      });
+      expect(found).toEqual(["src/setup.ts"]);
+    },
+    REAL_TOOL_TIMEOUT,
+  );
+
+  it(
+    "takes a single string and a list, and keeps the order",
+    async () => {
+      const one = await setupFilesOf({
+        "vitest.config.ts": CONFIG('"./src/one.ts"'),
+        "src/one.ts": "export {};\n",
+      });
+      expect(one).toEqual(["src/one.ts"]);
+      const two = await setupFilesOf({
+        "vitest.config.ts": CONFIG('["./src/two.ts", "./src/deep/three.ts"]'),
+        "src/two.ts": "export {};\n",
+        "src/deep/three.ts": "export {};\n",
+      });
+      expect(two).toEqual(["src/two.ts", "src/deep/three.ts"]);
+    },
+    REAL_TOOL_TIMEOUT,
+  );
+
+  it(
+    "is an empty list for a project with no setup file, and for one with no Vitest config",
+    async () => {
+      expect(await setupFilesOf({ "vitest.config.ts": "export default {};\n" })).toEqual([]);
+      expect(await setupFilesOf({})).toEqual([]);
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 });
