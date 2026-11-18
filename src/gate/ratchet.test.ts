@@ -196,8 +196,21 @@ describe("G9b: a run above its baseline is refused, layer by layer", () => {
     }
   });
 
-  it("fails the hygiene layer when the baseline cannot be read under ratchet", async () => {
-    const report = await run(project(undefined), layersWith(crapRows(3)));
+  it("holds nothing when there is no baseline yet: the bootstrap state, in which the layers judge as hard does", async () => {
+    const report = await run(project(undefined), layersWith(crapRows(99)));
+    expect(layer(report, "crap").findings.map((item) => item.rule)).not.toContain(
+      "ratchet-crap-up",
+    );
+    expect(layer(report, "hygiene").findings.map((item) => item.rule)).not.toContain(
+      "baseline-unreadable",
+    );
+  });
+
+  it("fails the hygiene layer when the baseline is there and cannot be read", async () => {
+    const dir = project(undefined);
+    mkdirSync(join(dir, ".web-tops"));
+    writeFileSync(join(dir, BASELINE), "{}\n");
+    const report = await run(dir, layersWith(crapRows(3)));
     expect(layer(report, "hygiene").findings.map((item) => item.rule)).toContain(
       "baseline-unreadable",
     );

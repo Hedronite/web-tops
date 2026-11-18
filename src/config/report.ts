@@ -28,7 +28,7 @@ export const VERDICTS = [
 ] as const;
 
 /** The report format's own version (WEB_TOPS.md section 6.6): it changes only when the report's shape does. */
-export const REPORT_VERSION = "2.1.0";
+export const REPORT_VERSION = "2.2.0";
 
 export type BuiltInLayerId = (typeof LAYER_IDS)[number];
 
@@ -215,6 +215,8 @@ export interface GateReport {
   readonly base?: string | null;
   readonly keep_going?: boolean;
   readonly passed?: boolean;
+  /** Whether the CRAP layer judged every function or only the ones the diff changed (section 6.6). */
+  readonly crap_scope?: "all" | "diff";
   readonly exit_code?: 0 | 1 | 2 | 3 | 4;
   readonly problems?: readonly { readonly path: string; readonly message: string }[];
 }

@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DiffScope, ScopeResult } from "../../diff/index.ts";
+import { writeBaselineFile } from "../../baseline/test-support.ts";
 import { cfg } from "../../gate/testkit.ts";
 import type {
   DiffNeeds,
@@ -343,20 +344,23 @@ describe("G7a what cannot be judged fails, and says why", () => {
     ).rejects.toThrow("vitest-config input was not handed over");
   });
 
-  it("is not-evaluated under ratchet until the baseline lands, and still fails over the maximum", async () => {
+  it("under ratchet passes a clean run, and still fails over the maximum, with or without a baseline: survivors are judged against the ledger only", async () => {
     const dir = project("stryker-disable", ["src/clamp.ts"]);
     const clean = await mutationLayer.run(
       contextFor(dir, fakeExec(["src/clamp.ts"], recorded("stryker-disable")).exec, {
         enforce: "ratchet",
       }),
     );
-    expect(clean.verdict).toBe("not-evaluated");
-    expect(clean.reason).toBe("baseline: M2");
-    const over = project(NO_COVERAGE, PRICE);
-    const failing = await mutationLayer.run(
-      contextFor(over, fakeExec(PRICE, recorded(NO_COVERAGE)).exec, { enforce: "ratchet" }),
-    );
-    expect(failing.verdict).toBe("fail");
+    expect(clean.verdict).toBe("pass");
+    for (const held of [false, true]) {
+      const over = project(NO_COVERAGE, PRICE);
+      const context = contextFor(over, fakeExec(PRICE, recorded(NO_COVERAGE)).exec, {
+        enforce: "ratchet",
+        config: { ...mutationConfig(), ...(held ? { baselinePath: "baseline.json" } : {}) },
+      });
+      if (held) writeBaselineFile(context.cwd);
+      expect((await mutationLayer.run(context)).verdict).toBe("fail");
+    }
   });
 });
 

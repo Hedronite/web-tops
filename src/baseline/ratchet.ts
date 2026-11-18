@@ -9,7 +9,7 @@ import {
 import { completeFindings, type RawFinding } from "../report/findings.ts";
 import { ratchetBreaches } from "./compare.ts";
 import { projectBaseline } from "./project.ts";
-import { readBaseline } from "./read.ts";
+import { readBaseline, type ReadResult } from "./read.ts";
 import type { Breach } from "./types.ts";
 
 type Reader = (file: string) => string | undefined;
@@ -80,6 +80,11 @@ function judged(layer: LayerReport, breaches: readonly Breach[], read: Reader): 
   return mine.length === 0 ? layer : withFindings(layer, mine, "refuse", read);
 }
 
+/** No baseline yet is the bootstrap state, in which nothing is held; one that cannot be read fails the run. */
+function unavailable(input: RatchetInput, base: Extract<ReadResult, { ok: false }>): LayerReport[] {
+  return base.missing === true ? [...input.layers] : unreadable(input, base.reason);
+}
+
 /**
  * Under `ratchet`, what the run has above its baseline becomes `refuse` findings on the layers they belong to
  * (WEB_TOPS.md section 6.7), and those layers end the run. Other modes read no baseline.
@@ -87,7 +92,7 @@ function judged(layer: LayerReport, breaches: readonly Breach[], read: Reader): 
 export function applyRatchet(input: RatchetInput): LayerReport[] {
   if (input.enforce !== "ratchet" || input.baselinePath === undefined) return [...input.layers];
   const base = readBaseline(input.cwd, input.baselinePath);
-  if (!base.ok) return unreadable(input, base.reason);
+  if (!base.ok) return unavailable(input, base);
   const current = projectBaseline({ ...input.report, layers: input.layers });
   const breaches = ratchetBreaches(base.baseline, current, input.cap);
   return input.layers.map((layer) => judged(layer, breaches, input.read));

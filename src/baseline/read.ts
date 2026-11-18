@@ -5,7 +5,7 @@ import type { Baseline } from "./types.ts";
 
 export type ReadResult =
   | { readonly ok: true; readonly baseline: Baseline }
-  | { readonly ok: false; readonly reason: string };
+  | { readonly ok: false; readonly reason: string; readonly missing?: true };
 
 /** Parses and validates the text of a baseline; `shown` names it in the reason. */
 export function parseBaseline(text: string, shown: string): ReadResult {
@@ -23,11 +23,24 @@ export function parseBaseline(text: string, shown: string): ReadResult {
   return { ok: false, reason: `${shown} is not a valid baseline: ${where.join("; ")}` };
 }
 
-/** Reads the baseline at `path` (relative to `cwd`); a file that is missing is a reason, not an empty baseline. */
+function isMissing(error: unknown): boolean {
+  return typeof error === "object" && error !== null && Reflect.get(error, "code") === "ENOENT";
+}
+
+/**
+ * Reads the baseline at `path` (relative to `cwd`). A file that is not there is `missing`: the state a project is in
+ * before its first baseline (WEB_TOPS.md section 6.7), which is not the same as a file that cannot be read or is invalid.
+ */
 export function readBaseline(cwd: string, path: string): ReadResult {
   try {
     return parseBaseline(readFileSync(resolve(cwd, path), "utf8"), path);
-  } catch {
-    return { ok: false, reason: `${path} cannot be read: the baseline is missing` };
+  } catch (error) {
+    const reason = `${path} cannot be read`;
+    return isMissing(error)
+      ? { ok: false, reason: `${reason}: the baseline is missing`, missing: true }
+      : { ok: false, reason };
   }
 }
+
+/** The state before a project's first baseline: the file is not there (not a file that is there and unreadable). */
+export const isMissingBaseline = (read: ReadResult): boolean => !read.ok && read.missing === true;

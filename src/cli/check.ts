@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { configHistoryProblems } from "../baseline/config-history.ts";
 import { checkConfigFile } from "../config/validate.ts";
@@ -46,6 +47,14 @@ async function checked(full: string): Promise<Checked> {
   return problems.length === 0 ? { ok: true, config: result.value } : { ok: false, problems };
 }
 
+/** Under `ratchet` with no baseline yet: how to take the first one (WEB_TOPS.md section 6.7). */
+function bootstrapNote(config: WebTopsConfig, dir: string): string {
+  const bare = config.enforce === "ratchet" && !existsSync(resolve(dir, config.baseline));
+  return bare
+    ? "; no baseline yet: run webtops gate --all --keep-going, then webtops baseline"
+    : "";
+}
+
 async function check(argv: readonly string[], io: Io): Promise<number> {
   const path = pathFrom(argv);
   if (path === undefined) {
@@ -63,7 +72,8 @@ async function check(argv: readonly string[], io: Io): Promise<number> {
     io.err(ledger);
     return 2;
   }
-  io.out(`${path}: ok (class ${result.config.class}, enforce ${result.config.enforce})\n`);
+  const note = bootstrapNote(result.config, dirname(file));
+  io.out(`${path}: ok (class ${result.config.class}, enforce ${result.config.enforce}${note})\n`);
   return 0;
 }
 

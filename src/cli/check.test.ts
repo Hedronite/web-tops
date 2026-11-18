@@ -68,7 +68,6 @@ const invalid: readonly (readonly [string, string])[] = [
   ["format-tool-bad", "/gates/hygiene/format/tool"],
   ["hygiene-step-unknown", "/gates/hygiene/lint"],
   ["step-disabled-no-reason", "/gates/hygiene/stylelint/reason"],
-  ["ratchet-no-baseline", "/baseline"],
   ["disabled-no-reason", "/layers/axe/reason"],
   ["disabled-blank-reason", "/layers/axe/reason"],
   ["gate-disabled-no-reason", "/gates/crap/reason"],

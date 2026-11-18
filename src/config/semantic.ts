@@ -143,11 +143,13 @@ function dirtiness(baseline: string, cwd: string): string | undefined {
   return status.out.trim() === "" ? undefined : `the baseline ${baseline} has uncommitted changes`;
 }
 
-/** What is wrong with the ratchet baseline, or undefined when it exists, is tracked and is clean. */
+/**
+ * What is wrong with the ratchet baseline, or undefined when it is tracked and clean. One that is not there is the
+ * state before the first baseline (WEB_TOPS.md section 6.7), which `check` allows and names; whether it was
+ * deleted from a repository that had one is the history check's to say, against the merge base.
+ */
 function baselineFault(baseline: string, cwd: string): string | undefined {
-  if (!existsSync(resolve(cwd, baseline))) {
-    return `ratchet needs the baseline ${baseline}, and it does not exist`;
-  }
+  if (!existsSync(resolve(cwd, baseline))) return undefined;
   if (!git(cwd, ["ls-files", "--error-unmatch", "--", baseline]).ok) {
     return `the baseline ${baseline} is not tracked by git`;
   }

@@ -477,7 +477,9 @@ To replay a shuffled failure, rerun the suite with that seed: `vitest run --sequ
 From 0.3.0 the report is the source the baseline is projected from, so it carries:
 
 - `report_version`, the report format's own semver, separate from `protocol`; it was `1.0.0`
-  for the shape above, `2.0.0` once findings had one shape, and is `2.1.0` since a mutation survivor carries an optional `survivor` object. It changes only when the report's shape does, so a protocol patch that leaves the report alone does not change it;
+  for the shape above, `2.0.0` once findings had one shape, `2.1.0` once a mutation survivor carried an optional `survivor` object, and is `2.2.0` since the report says `crap_scope`. It changes only when the report's shape does, so a protocol patch that leaves the report alone does not change it;
+- `crap_scope`, `all` or `diff`: whether the CRAP layer judged every function, under `--all` or
+  `gates.crap.scope: all`, or only the ones the diff changed;
 - `subject`, the package and the root the run judged: `{package, root}`, the root being the
   project's directory relative to the git top level (`.` at the top level);
 - `run`: git SHA, `bun` and `node` versions, the version of every tool that ran, read from its
@@ -498,6 +500,7 @@ From 0.3.0 the report is the source the baseline is projected from, so it carrie
 function, coverage per package, finding counts per rule per file with the `fp1` of each counted
 finding, suppression counts by census kind (§6.7) and bytes per page, with the report's
 `report_version` and `subject` (`fixtures/report/shape/` holds an example of each).
+The baseline holds every function, so it is projected from a run whose `crap_scope` is `all`.
 `schema/baseline.schema.json` defines it, and it is written in one canonical form: sorted keys,
 two-space indent, a trailing newline, so a regeneration with no change is no diff. The coverage
 layer reports each coverage hint as a `coverage-hint/<kind>` finding (`v8`, `istanbul` or `c8`) with
@@ -523,11 +526,24 @@ Baseline rules:
 
 - `.web-tops/baseline.json` holds CRAP per function, coverage per package, finding counts per
   rule per file, bytes per page or route, and suppression counts by census kind (below).
-- Only `webtops baseline` writes it, from the last report, after a passing run made at `HEAD` on a
-  clean tree (the gate's own `.web-tops/` output aside). It refuses a config that runs `hard`,
-  whose gate reads no baseline, and a result that is looser than the baseline already there. The
-  file is tracked and clean against `HEAD`. Under `ratchet` a missing baseline fails, and deleting
-  it is not a reset.
+- Only `webtops baseline` writes it, from the last report, made at `HEAD` on a clean tree (the
+  gate's own `.web-tops/` output aside). It refuses a config that runs `hard`, whose gate reads no
+  baseline, a result that is looser than the baseline already there, and a report whose
+  `crap_scope` is `diff`: the CRAP and coverage in it come from `gate --all` (with `--keep-going`, so that every layer runs), so that it holds
+  every function and a legacy function over the cap is held at its CRAP, not judged new.
+- Once a baseline exists, only a passing report replaces it. With none yet, the first baseline may
+  come from a report that did not pass, if its only failures are what a baseline holds: a function
+  over the CRAP cap, coverage under the floor, counted findings, a census count or unexplained
+  survivors. A crashed or unrun layer, failing or missing tests, a tool that could not run, or a
+  run that did not finish is refused. `check` allows `ratchet` with no baseline only in that
+  state, and names `webtops gate --all --keep-going` and
+  `webtops baseline`; deleting a baseline the merge base
+  had is not that state, and fails. The file is tracked and clean against `HEAD`.
+- Under `ratchet` with a baseline, the coverage, CRAP and mutation layers report what they
+  measured without their absolute floor or cap, and the ratchet decides: coverage below its
+  baseline, a new function over the cap, a function above its baseline CRAP. With no baseline yet
+  they judge as under `hard`. Mutation stays diff-scoped: a survivor in a function that was never
+  mutated is judged against the ledger only, and a legacy survivor outside the diff is not counted.
 - Across a change the baseline may only tighten. `check` under `ratchet` compares it with
   the merge base's copy: a higher finding count, a function with worse CRAP, lower coverage, a census count
   that rose or a new function above the class cap fails, so regenerating the baseline cannot

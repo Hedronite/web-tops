@@ -4,11 +4,12 @@ import { validateReport, type GateReport } from "../config/report.ts";
 import { runGit } from "../diff/git.ts";
 import { realExec } from "../gate/exec.ts";
 import type { Exec } from "../gate/types.ts";
+import { bootstrapProblem, scopeProblem } from "./bootstrap.ts";
 import { canonicalJson } from "./canonical.ts";
 import { capFor } from "./cap.ts";
 import { ratchetBreaches } from "./compare.ts";
 import { projectBaseline } from "./project.ts";
-import { readBaseline } from "./read.ts";
+import { isMissingBaseline, readBaseline } from "./read.ts";
 import type { Baseline } from "./types.ts";
 
 export interface WriteOptions {
@@ -97,11 +98,30 @@ function looserProblem(
   cap: number,
 ): string | undefined {
   const existing = readBaseline(cwd, baselinePath);
-  if (!existing.ok) return existing.reason.includes("missing") ? undefined : existing.reason;
+  if (!existing.ok) return isMissingBaseline(existing) ? undefined : existing.reason;
   const breaches = ratchetBreaches(existing.baseline, projected, cap);
   return breaches.length === 0
     ? undefined
     : `the new baseline would be looser than ${baselinePath}: ${breaches.map((breach) => breach.message).join("; ")}`;
+}
+
+/** Why a report that did not pass cannot be written: once a baseline exists only a passing report can; before, its failures must be what a baseline holds. */
+function passProblem(options: WriteOptions, report: GateReport): string | undefined {
+  if (report.passed === true) return undefined;
+  if (!isMissingBaseline(readBaseline(options.cwd, options.baselinePath))) {
+    return "the last run did not pass, and once a baseline exists only a passing report can replace it";
+  }
+  const problem = bootstrapProblem(report);
+  return problem === undefined
+    ? undefined
+    : `the last run did not pass, and what failed is not something a first baseline holds: ${problem}`;
+}
+
+/** What is wrong with the report itself: it did not pass and holds more than a first baseline may, it judged only the diff, or its class has no profile. */
+function reportProblem(options: WriteOptions, report: GateReport): string | undefined {
+  const profile =
+    capFor(report.class) === undefined ? `class ${report.class} has no launch profile` : undefined;
+  return passProblem(options, report) ?? scopeProblem(report) ?? profile;
 }
 
 async function refusalFor(
@@ -109,12 +129,17 @@ async function refusalFor(
   exec: Exec,
   report: GateReport,
 ): Promise<string | undefined> {
-  if (report.passed !== true) return "the last run did not pass, so it is not a baseline to keep";
-  const cap = capFor(report.class);
-  if (cap === undefined) return `class ${report.class} has no launch profile`;
+  const problem = reportProblem(options, report);
+  if (problem !== undefined) return problem;
   const tree = await treeProblem(exec, options.cwd, report, options.baselinePath);
   if (tree !== undefined) return tree;
-  return looserProblem(options.cwd, options.baselinePath, projectBaseline(report), cap);
+  // the class has a profile: reportProblem refused one that has not
+  return looserProblem(
+    options.cwd,
+    options.baselinePath,
+    projectBaseline(report),
+    capFor(report.class) ?? 0,
+  );
 }
 
 function store(options: WriteOptions, baseline: Baseline): WriteResult {

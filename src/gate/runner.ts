@@ -446,6 +446,7 @@ function reportOf(
     keep_going: options.keepGoing,
     only: options.only ?? null,
     passed,
+    crap_scope: config.crap.scope === "all" || options.all ? "all" : "diff",
     exit_code: exitCodeOf(passed, enforced),
     counts: countsOf(state),
     problems,

@@ -21,6 +21,7 @@ describe("G9: the protocol text states the baseline the code writes", () => {
     ["holds the suppression counts by census kind", "census kind"],
     ["counts a coverage hint, as the coverage layer reports it", "`coverage-hint/<kind>`"],
     ["is written in one canonical form", "canonical"],
+    ["is projected from an all-functions run", "`crap_scope` is `all`"],
   ])("section 6.6 %s", (_what, phrase) => {
     expect(report).toContain(phrase);
   });
@@ -36,6 +37,28 @@ describe("G9: the protocol text states the baseline the code writes", () => {
     ["a rise in a census kind fails, and a moved directive keeps its entry", "keeps its entry"],
     ["coverage is compared exactly", "exactly"],
     ["counts only findings whose verdict ends the run", "whose verdict ends the run"],
+    [
+      "takes the first baseline from a report that failed only on what a baseline holds",
+      "only failures are what a baseline holds",
+    ],
+    ["refuses a crashed layer or failing tests for a first baseline", "failing or missing tests"],
+    [
+      "once a baseline exists only a passing report replaces it",
+      "only a passing report replaces it",
+    ],
+    [
+      "allows ratchet without a baseline only in that state, and names the way out",
+      "`webtops gate --all --keep-going` and",
+    ],
+    ["refuses a diff-scoped report", "`crap_scope` is `diff`"],
+    [
+      "has the layers report measured results under a held ratchet",
+      "without their absolute floor or cap",
+    ],
+    [
+      "judges mutation survivors outside the diff against the ledger only",
+      "judged against the ledger only",
+    ],
     ["turns what is above the baseline into refuse findings", "`ratchet-crap-up`"],
     ["asks for the baseline's history at the start of gate", "start of `gate`"],
   ])("section 6.7 %s", (_what, phrase) => {

@@ -33,6 +33,7 @@ function project(enforce = "ratchet"): string {
     enforced: false,
     passed: true,
     exit_code: 0,
+    crap_scope: "all",
     run: { ...runOf(base), sha: git(dir, "rev-parse", "HEAD") },
   };
   write(dir, { ".web-tops/report.json": JSON.stringify(report) });

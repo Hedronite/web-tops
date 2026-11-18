@@ -239,8 +239,8 @@ describe("under hard, a mapped gate or step cannot be switched off", () => {
       exemption: { until: "2099-12-31", reason: "x" },
     } as const;
     expect(pointers({ ...hard, ...patch, ...advisory })).toEqual([]);
-    const ratchet = pointers({ ...hard, ...patch, enforce: "ratchet" });
-    expect(ratchet).toEqual(["/baseline"]);
+    // ratchet has no baseline in this directory: the state before the first one, which is not a problem
+    expect(pointers({ ...hard, ...patch, enforce: "ratchet" })).toEqual([]);
   });
 });
 
@@ -265,7 +265,7 @@ describe("custom layer ids are unique and not built in", () => {
   });
 });
 
-describe("under ratchet the baseline exists and is clean", () => {
+describe("under ratchet the baseline, when there is one, is tracked and clean", () => {
   const ratchet: WebTopsConfig = { ...hard, enforce: "ratchet" };
   const file = ".web-tops/baseline.json";
 
@@ -276,9 +276,8 @@ describe("under ratchet the baseline exists and is clean", () => {
     return dir;
   }
 
-  it("refuses a missing baseline", () => {
-    const problems = runSemanticChecks(ratchet, { cwd: repo() });
-    expect(problems).toEqual([{ pointer: "/baseline", message: containing("does not exist") }]);
+  it("allows a missing baseline: the state before the first one, which check names and the history check watches", () => {
+    expect(runSemanticChecks(ratchet, { cwd: repo() })).toEqual([]);
   });
 
   it("refuses an untracked baseline", () => {

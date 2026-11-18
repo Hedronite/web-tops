@@ -31,6 +31,7 @@ function passing(sha: string, patch: Record<string, unknown> = {}): string {
     enforced: false,
     passed: true,
     exit_code: 0,
+    crap_scope: "all",
     run,
     ...patch,
   };
@@ -93,9 +94,64 @@ describe("G9a: webtops baseline is the only writer, from a passing report on a c
     expect(existsSync(join(dir, BASELINE))).toBe(false);
   });
 
-  it("refuses a report whose run did not pass", async () => {
+  it("takes a first baseline from a run that did not pass if it failed only on what a baseline holds (G9-2)", async () => {
     const { dir } = repoWithReport({ passed: false, exit_code: 1 });
-    expect(JSON.stringify(await run(dir))).toMatch(/did not pass/);
+    expect(await run(dir)).toMatchObject({ ok: true });
+  });
+
+  it("refuses a run that did not pass on a layer a baseline does not hold, such as the tests", async () => {
+    const layers = objectOf(source)["layers"];
+    const list = Array.isArray(layers) ? layers : [];
+    const broken = list.map((layer: unknown) =>
+      objectOf(layer)["id"] === "tests"
+        ? {
+            ...objectOf(layer),
+            verdict: "fail",
+            findings: [
+              {
+                tool: "vitest",
+                rule: "test-failed",
+                law: null,
+                verdict: "fail",
+                message: "x",
+                file: "src/a.test.ts",
+                line: 1,
+                fingerprint: "fp1:0123456789abcdef",
+              },
+            ],
+          }
+        : layer,
+    );
+    const { dir } = repoWithReport({
+      passed: false,
+      exit_code: 1,
+      layers: broken,
+      counts: { in_range: 7, ran: 7, failed: 2, not_evaluated: 0, required_not_evaluated: 0 },
+    });
+    expect(JSON.stringify(await run(dir))).toContain(
+      "what failed is not something a first baseline holds: tests is fail (test-failed)",
+    );
+  });
+
+  it("once a baseline exists, accepts only a passing report (G9-2)", async () => {
+    const { dir } = repoWithReport();
+    expect((await run(dir)).ok).toBe(true);
+    commit(dir, "the first baseline");
+    write(dir, {
+      [REPORT]: passing(git(dir, "rev-parse", "HEAD"), { passed: false, exit_code: 1 }),
+    });
+    expect(JSON.stringify(await run(dir))).toContain(
+      "once a baseline exists only a passing report can replace it",
+    );
+  });
+
+  it("refuses a report whose CRAP judged only the diff, naming --all (G9-3)", async () => {
+    for (const scope of ["diff", undefined]) {
+      const { dir } = repoWithReport({ crap_scope: scope });
+      const text = JSON.stringify(await run(dir));
+      expect(text).toContain("--all");
+      expect(existsSync(join(dir, BASELINE))).toBe(false);
+    }
   });
 
   it("refuses a report made for another commit", async () => {

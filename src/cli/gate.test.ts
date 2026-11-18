@@ -96,11 +96,11 @@ describe("webtops gate, through runGateCli and G1's config", () => {
     expect(existsSync(join(dir, ".web-tops", "report.json"))).toBe(false);
   });
 
-  it("exits 2 for a semantic failure: ratchet needs a baseline that M1 cannot write", async () => {
-    const dir = project(`${HEAD}enforce: ratchet\n`);
+  it("exits 2 for a semantic failure: advisory needs an exemption", async () => {
+    const dir = project(`${HEAD}enforce: advisory\n`);
     const result = await run(dir, []);
     expect(result.code).toBe(2);
-    expect(result.err).toContain("/baseline");
+    expect(result.err).toContain("/exemption");
   });
 
   it("exits 2 when there is no web-tops.yaml", async () => {
