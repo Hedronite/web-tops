@@ -17,7 +17,6 @@ import {
   relativeTo,
   runTool,
 } from "../hygiene/tooling.ts";
-import { RATCHET_REASON } from "../ratchet.ts";
 import { strykerConfig } from "./config.ts";
 import { readMutation } from "./read.ts";
 import type { MutationRead, SurvivorRow } from "./read.ts";
@@ -172,11 +171,7 @@ function summary(ctx: LayerContext, read: MutationRead, open: readonly SurvivorR
   };
 }
 
-function outcome(
-  ctx: LayerContext,
-  read: MutationRead,
-  failedAny: boolean,
-): Pick<LayerResult, "verdict" | "reason"> {
+function outcome(read: MutationRead, failedAny: boolean): Pick<LayerResult, "verdict" | "reason"> {
   if (failedAny) {
     return { verdict: "fail" };
   }
@@ -186,9 +181,7 @@ function outcome(
       reason: "no mutant was judged: every one was excluded, or none was made",
     };
   }
-  return ctx.enforce === "ratchet"
-    ? { verdict: "not-evaluated", reason: RATCHET_REASON }
-    : { verdict: "pass" };
+  return { verdict: "pass" };
 }
 
 /** Unexplained survivors over the profile's maximum fail; at or under, they pass and are listed. */
@@ -203,7 +196,7 @@ function judge(ctx: LayerContext, read: MutationRead): LayerResult {
     summary(ctx, read, open),
   ];
   const failedAny = findings.some((finding) => finding.verdict === "fail");
-  return { ...outcome(ctx, read, failedAny), findings, artifacts: {} };
+  return { ...outcome(read, failedAny), findings, artifacts: {} };
 }
 
 function readReport(ctx: LayerContext, ts: Ts, report: string): LayerResult {

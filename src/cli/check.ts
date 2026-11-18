@@ -1,6 +1,8 @@
+import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { configHistoryProblems } from "../baseline/config-history.ts";
 import { checkConfigFile } from "../config/validate.ts";
-import type { Problem } from "../config/types.ts";
+import type { Problem, WebTopsConfig } from "../config/types.ts";
 import { checkLedger, DEFAULT_LEDGER } from "../survivors/check.ts";
 import type { Io } from "./io.ts";
 
@@ -33,24 +35,45 @@ function ledgerReport(directory: string, named: string): string | undefined {
   return `${named}: invalid\n${problems.map(line).join("")}`;
 }
 
-function check(argv: readonly string[], io: Io): number {
+type Checked =
+  | { readonly ok: true; readonly config: WebTopsConfig }
+  | { readonly ok: false; readonly problems: readonly Problem[] };
+
+/** The config is valid, and under `ratchet` its baseline only tightens across the change. */
+async function checked(full: string): Promise<Checked> {
+  const result = checkConfigFile(full);
+  if (!result.ok) return { ok: false, problems: result.problems };
+  const problems = await configHistoryProblems(result.value, dirname(full));
+  return problems.length === 0 ? { ok: true, config: result.value } : { ok: false, problems };
+}
+
+/** Under `ratchet` with no baseline yet: how to take the first one (WEB_TOPS.md section 6.7). */
+function bootstrapNote(config: WebTopsConfig, dir: string): string {
+  const bare = config.enforce === "ratchet" && !existsSync(resolve(dir, config.baseline));
+  return bare
+    ? "; no baseline yet: run webtops gate --all --keep-going, then webtops baseline"
+    : "";
+}
+
+async function check(argv: readonly string[], io: Io): Promise<number> {
   const path = pathFrom(argv);
   if (path === undefined) {
     io.err("usage: webtops check [path]\n");
     return 2;
   }
   const file = resolve(io.cwd, path);
-  const result = checkConfigFile(file);
+  const result = await checked(file);
   if (!result.ok) {
     io.err(`${path}: invalid\n${result.problems.map(line).join("")}`);
     return 2;
   }
-  const ledger = ledgerReport(dirname(file), ledgerPathOf(result.value));
+  const ledger = ledgerReport(dirname(file), ledgerPathOf(result.config));
   if (ledger !== undefined) {
     io.err(ledger);
     return 2;
   }
-  io.out(`${path}: ok (class ${result.value.class}, enforce ${result.value.enforce})\n`);
+  const note = bootstrapNote(result.config, dirname(file));
+  io.out(`${path}: ok (class ${result.config.class}, enforce ${result.config.enforce}${note})\n`);
   return 0;
 }
 
@@ -59,5 +82,5 @@ function check(argv: readonly string[], io: Io): number {
  * unreadable or a usage error, with one JSON-pointer line per problem on stderr.
  */
 export function runCheckCli(argv: readonly string[], io: Io): Promise<number> {
-  return Promise.resolve(check(argv, io));
+  return check(argv, io);
 }

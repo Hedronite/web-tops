@@ -49,7 +49,7 @@ describe("G2a report_version, subject and run", () => {
   });
 
   it("report_version is the report format's own semver, 2.1.0 since a survivor carries its key, and apart from protocol", () => {
-    expect(REPORT_VERSION).toBe("2.1.0");
+    expect(REPORT_VERSION).toBe("2.2.0");
     const report = fixture("pass.json");
     expect(get(report, "report_version")).toBe(REPORT_VERSION);
     expect(get(report, "report_version")).not.toBe(get(report, "protocol"));

@@ -237,6 +237,10 @@ export interface RunOptions {
   /** Switches on top of the class's own. */
   readonly steps?: Partial<Record<HygieneStep, Toggle>>;
   readonly settings?: Partial<HygieneSettings>;
+  /** The mode, `hard` unless said. */
+  readonly enforce?: LayerContext["enforce"];
+  /** The baseline the config names, for a ratchet run. */
+  readonly baselinePath?: string;
   readonly env?: Readonly<Record<string, string | undefined>>;
 }
 
@@ -262,6 +266,7 @@ export function runHygiene(
     cwd: prepared.project.dir,
     config: cfg({
       class: full.className,
+      ...(options.baselinePath === undefined ? {} : { baselinePath: options.baselinePath }),
       hygiene: {
         auditFailOn: "high",
         ...options.settings,
@@ -272,7 +277,7 @@ export function runHygiene(
       },
     }),
     base: "origin/main",
-    enforce: "hard",
+    enforce: options.enforce ?? "hard",
     env: full.env,
     exec,
     outDir: prepared.outDir,

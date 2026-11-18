@@ -14,6 +14,7 @@
     },
     "./schema/web-tops.schema.json": "./schema/web-tops.schema.json",
     "./schema/gate-report.schema.json": "./schema/gate-report.schema.json",
+    "./schema/baseline.schema.json": "./schema/baseline.schema.json",
     "./schema/core.schema.json": "./schema/core.schema.json",
     "./package.json": "./package.json"
   },

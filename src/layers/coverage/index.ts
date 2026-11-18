@@ -2,7 +2,7 @@ import type { RawFinding } from "../../report/findings.ts";
 import type { Layer, LayerContext, LayerResult } from "../../gate/types.ts";
 import { join } from "node:path";
 import { arrayOf, parseJson, readOutput, failFinding, relativeTo } from "../hygiene/tooling.ts";
-import { RATCHET_REASON } from "../ratchet.ts";
+import { ratchetHeld } from "../../baseline/state.ts";
 import { coverageHints } from "./hints.ts";
 import { trackedFiles } from "./tracked.ts";
 import {
@@ -117,23 +117,20 @@ function floorFindings(name: string, totals: LcovTotals, floor: number): RawFind
       ];
 }
 
-function ratchetFindings(name: string, totals: LcovTotals): RawFinding[] {
-  const message = `${summaryOf(name, totals)}; the ratchet needs a baseline, which lands in M2`;
+function heldFindings(name: string, totals: LcovTotals): RawFinding[] {
+  const message = `${summaryOf(name, totals)}; held by the baseline, which decides what is below it`;
   return [{ tool: "webtops", rule: "coverage", verdict: "pass", message }];
 }
 
-/** Under `ratchet` the floor is the baseline, which lands in M2; otherwise it is the class floor. */
+/** Held to a baseline, the floor is the baseline's and the ratchet judges it; otherwise it is the class floor. */
 function judgeFindings(ctx: LayerContext, totals: LcovTotals): RawFinding[] {
-  return ctx.enforce === "ratchet"
-    ? ratchetFindings(ctx.config.package, totals)
+  return ratchetHeld(ctx)
+    ? heldFindings(ctx.config.package, totals)
     : floorFindings(ctx.config.package, totals, ctx.config.coverage.linesFloor);
 }
 
-function outcome(failed: boolean, ratchet: boolean): Pick<LayerResult, "verdict" | "reason"> {
-  if (failed) {
-    return { verdict: "fail" };
-  }
-  return ratchet ? { verdict: "not-evaluated", reason: RATCHET_REASON } : { verdict: "pass" };
+function outcome(failed: boolean): Pick<LayerResult, "verdict"> {
+  return { verdict: failed ? "fail" : "pass" };
 }
 
 /** One pass finding per coverage hint in a tracked file in scope: the census counts what the profile never saw (R60). */
@@ -189,7 +186,7 @@ async function run(ctx: LayerContext): Promise<LayerResult> {
     lines_hit: row.hit,
   }));
   return {
-    ...outcome(failed, ctx.enforce === "ratchet"),
+    ...outcome(failed),
     findings,
     artifacts: {},
     metrics: { coverage },

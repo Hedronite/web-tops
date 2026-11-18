@@ -280,6 +280,7 @@ export function toGateConfig(config: WebTopsConfig, project: Project): GateConfi
     enforce: config.enforce,
     ...(base === undefined ? {} : { base }),
     reportPath: config.report.path,
+    baselinePath: config.baseline,
     toggles: togglesOf(config),
     custom: customOf(config),
     optionalLayers: optionalOf(config),

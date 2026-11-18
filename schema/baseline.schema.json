@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedronite.com/schemas/web-tops/0.3/baseline.schema.json",
+  "title": "baseline (.web-tops/baseline.json)",
+  "type": "object",
+  "required": [
+    "report_version",
+    "subject",
+    "crap",
+    "coverage",
+    "findings",
+    "fingerprints",
+    "census",
+    "pages"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "report_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "subject": {
+      "type": "object",
+      "required": ["package", "root"],
+      "additionalProperties": false,
+      "properties": {
+        "package": { "type": "string", "minLength": 1 },
+        "root": { "type": "string", "minLength": 1 }
+      }
+    },
+    "crap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["complexity", "coverage", "crap"],
+        "additionalProperties": false,
+        "properties": {
+          "complexity": { "type": "number", "minimum": 0 },
+          "coverage": { "type": "number", "minimum": 0, "maximum": 1 },
+          "crap": { "type": "number", "minimum": 0 }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["lines_found", "lines_hit"],
+        "additionalProperties": false,
+        "properties": {
+          "lines_found": { "type": "integer", "minimum": 0 },
+          "lines_hit": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "findings": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "fingerprints": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/fingerprint" }
+    },
+    "census": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["count", "fingerprints"],
+        "additionalProperties": false,
+        "properties": {
+          "count": { "type": "integer", "minimum": 0 },
+          "fingerprints": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/fingerprint" }
+          }
+        }
+      }
+    },
+    "pages": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    }
+  },
+  "$defs": {
+    "fingerprint": { "type": "string", "pattern": "^fp1:[0-9a-f]{16}$" }
+  }
+}

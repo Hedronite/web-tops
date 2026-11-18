@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { writeBaselineFile } from "../../baseline/test-support.ts";
 import { cfg } from "../../gate/testkit.ts";
 import type { Exec, ExecResult, GateConfig, LayerContext } from "../../gate/types.ts";
 import { realProject, SOURCE, testFile, type Project } from "../tests/testkit.ts";
@@ -86,7 +87,7 @@ function record(file: string, found: number, hit: number): string {
   return `TN:\nSF:${file}\nDA:1,1\nLF:${String(found)}\nLH:${String(hit)}\nend_of_record\n`;
 }
 
-describe("G4b coverage: empty LCOV fails, below floor fails under hard, ratchet is not-evaluated baseline: M2", () => {
+describe("G4b coverage: empty LCOV fails, below floor fails under hard, and under ratchet until a baseline holds it", () => {
   it.each([
     ["a 0-byte file", ""],
     ["a profile with no records", "TN:\nend_of_record\n"],
@@ -135,12 +136,29 @@ describe("G4b coverage: empty LCOV fails, below floor fails under hard, ratchet 
     expect(result.findings[0]?.message).toContain("50.00 % of 200 lines in 2 files");
   });
 
-  it("under ratchet it is not-evaluated with the reason baseline: M2, never a pass, even above the floor", async () => {
-    const result = await coverageLayer.run(
+  it("under ratchet with no baseline yet, judges as hard does: the floor applies, so the first baseline is measured", async () => {
+    const above = await coverageLayer.run(
       lcovWith(record("src/a.ts", 100, 100)).context({ enforce: "ratchet" }),
     );
-    expect(result.verdict).toBe("not-evaluated");
-    expect(result.reason).toBe("baseline: M2");
+    expect(above.verdict).toBe("pass");
+    const below = await coverageLayer.run(
+      lcovWith(record("src/a.ts", 10000, 8499)).context({ enforce: "ratchet" }),
+    );
+    expect(below.verdict).toBe("fail");
+    expect(below.findings.map((item) => item.rule)).toContain("coverage-below-floor");
+  });
+
+  it("under ratchet with a baseline, reports what it measured and leaves the floor to the ratchet: below the floor is a pass", async () => {
+    const box = lcovWith(record("src/a.ts", 10000, 8499));
+    const context = box.context({
+      enforce: "ratchet",
+      config: cfg({ baselinePath: "baseline.json" }),
+    });
+    writeBaselineFile(context.cwd);
+    const result = await coverageLayer.run(context);
+    expect(result.verdict).toBe("pass");
+    expect(result.findings[0]?.message).toContain("held by the baseline");
+    expect(result.metrics?.coverage).toHaveLength(1);
   });
 
   it("under ratchet an empty LCOV is still a fail: no silent empties", async () => {
@@ -243,7 +261,7 @@ describe("G4c coverage: every tracked in-scope file has an SF record, or the lay
     ]);
   });
 
-  it("under ratchet a missing record is a fail, and a complete profile stays not-evaluated baseline: M2", async () => {
+  it("under ratchet a missing record is a fail, and a complete profile passes", async () => {
     const box = lcovWith(record("src/a.ts", 10, 10));
     const missing = await coverageLayer.run(
       box.context({ enforce: "ratchet", exec: tracked("src/a.ts", "src/b.ts") }),
@@ -252,7 +270,7 @@ describe("G4c coverage: every tracked in-scope file has an SF record, or the lay
     const complete = await coverageLayer.run(
       box.context({ enforce: "ratchet", exec: tracked("src/a.ts") }),
     );
-    expect(complete).toMatchObject({ verdict: "not-evaluated", reason: "baseline: M2" });
+    expect(complete.verdict).toBe("pass");
   });
 
   it("asks git for the tracked files, NUL separated, in the project directory", async () => {

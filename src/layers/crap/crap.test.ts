@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { at, get } from "../../config/test-support.ts";
+import { writeBaselineFile } from "../../baseline/test-support.ts";
 import { cfg } from "../../gate/testkit.ts";
 import type { ScopeResult } from "../../diff/index.ts";
 import type { DiffNeeds, DiffProvider, Exec, GateConfig, LayerContext } from "../../gate/types.ts";
@@ -330,21 +331,38 @@ describe("G4b scope: the diff, --all, and the provider the gate wires in (R63)",
   });
 });
 
-describe("G4b ratchet is not-evaluated until the baseline lands, and never a pass", () => {
-  it("reports the rows and the reason baseline: M2 for a clean project", async () => {
-    const result = await crapLayer.run(
+describe("G4b under ratchet the cap is the baseline's once there is one", () => {
+  it("with no baseline yet, judges as hard does: a function over the cap fails, so the first baseline is measured", async () => {
+    const over = await crapLayer.run(
+      project({ "src/a.ts": BRANCHY }, NONE, { enforce: "ratchet" }),
+    );
+    expect(over.verdict).toBe("fail");
+    const clean = await crapLayer.run(
       project({ "src/a.ts": BRANCHY }, FULL, { enforce: "ratchet" }),
     );
-    expect(result.verdict).toBe("not-evaluated");
-    expect(result.reason).toBe("baseline: M2");
+    expect(clean.verdict).toBe("pass");
+    expect(clean.metrics?.crap).toHaveLength(1);
+  });
+
+  it("with a baseline, reports every function it scored and leaves the cap to the ratchet: over the cap is a pass", async () => {
+    const context = project({ "src/a.ts": BRANCHY }, NONE, {
+      enforce: "ratchet",
+      config: cfg({ baselinePath: "baseline.json" }),
+    });
+    writeBaselineFile(context.cwd);
+    const result = await crapLayer.run(context);
+    expect(result.verdict).toBe("pass");
+    expect(result.findings.map((item) => item.rule)).not.toContain("crap-over-cap");
     expect(result.metrics?.crap).toHaveLength(1);
   });
 
-  it("still fails a function over the cap under ratchet: the cap binds a new function", async () => {
-    const result = await crapLayer.run(
-      project({ "src/a.ts": BRANCHY }, NONE, { enforce: "ratchet" }),
-    );
-    expect(result.verdict).toBe("fail");
+  it("with a baseline, still fails a file that cannot be read: the layer cannot judge what it cannot parse", async () => {
+    const context = project({ "src/a.ts": "export function (\n" }, NONE, {
+      enforce: "ratchet",
+      config: cfg({ baselinePath: "baseline.json" }),
+    });
+    writeBaselineFile(context.cwd);
+    expect((await crapLayer.run(context)).verdict).toBe("fail");
   });
 });
 

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
+import { applyRatchet } from "../baseline/ratchet.ts";
 import { diffScope, type CoverageMap, type ScopeResult } from "../diff/index.ts";
 import { COUNTED_LAYERS, completeFindings, countsByRuleFile } from "../report/findings.ts";
 import {
@@ -445,11 +446,30 @@ function reportOf(
     keep_going: options.keepGoing,
     only: options.only ?? null,
     passed,
+    crap_scope: config.crap.scope === "all" || options.all ? "all" : "diff",
     exit_code: exitCodeOf(passed, enforced),
     counts: countsOf(state),
     problems,
     layers: state.layers,
   };
+}
+
+/** Under `ratchet`, what the run has above its baseline becomes `refuse` findings on its layers (section 6.7). */
+function ratchet(input: RunInput, state: RunState, described: RunDescription): void {
+  const { config } = input;
+  const layers = applyRatchet({
+    enforce: config.enforce,
+    baselinePath: config.baselinePath,
+    cwd: input.cwd,
+    cap: config.crap.cap,
+    report: {
+      report_version: REPORT_VERSION,
+      subject: { package: config.package, root: described.root },
+    },
+    layers: state.layers,
+    read: sourceReader(input.cwd),
+  });
+  state.layers.splice(0, state.layers.length, ...layers);
 }
 
 function describeOf(input: RunInput): Promise<RunDescription> {
@@ -471,5 +491,7 @@ export async function runGate(input: RunInput): Promise<RanReport> {
   for (const item of planGate(input.layers, input.config, input.options)) {
     await step(item, input, base, state);
   }
-  return reportOf(input, base, state, await describeOf(input));
+  const described = await describeOf(input);
+  ratchet(input, state, described);
+  return reportOf(input, base, state, described);
 }

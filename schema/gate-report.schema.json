@@ -171,6 +171,9 @@
     "passed": {
       "type": "boolean"
     },
+    "crap_scope": {
+      "enum": ["all", "diff"]
+    },
     "exit_code": {
       "type": "integer",
       "minimum": 0,

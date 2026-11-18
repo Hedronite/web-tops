@@ -10,6 +10,7 @@ import {
   type LayerContext,
   type LayerResult,
 } from "../../gate/types.ts";
+import { isCountable, ratchetHeld } from "../../baseline/state.ts";
 import { audit } from "./audit.ts";
 import { astroCheck, install, tsc } from "./build.ts";
 import { dependencyCruiser, eslint, format, stylelint } from "./lint.ts";
@@ -104,18 +105,41 @@ function stepContext(ctx: LayerContext): StepContext {
   };
 }
 
+/** The findings a held ratchet may hold: counted ones that failed. */
+const heldBy = (finding: RawFinding): boolean => finding.verdict === "fail" && isCountable(finding);
+
+/**
+ * Under `ratchet` with a baseline, a counted finding does not end the run on its own: the ratchet refuses a count
+ * above the baseline's, per rule per file, so the layer's verdict leaves those findings out, and says how many it
+ * left. Each one stays in the report as the tool said it, because the baseline is projected from them. A failure
+ * that is not a counted finding still fails (WEB_TOPS.md section 6.7).
+ */
+function outcome(ctx: LayerContext, findings: readonly RawFinding[]): LayerResult {
+  const held = ratchetHeld(ctx) ? findings.filter(heldBy) : [];
+  if (held.length === 0)
+    return { verdict: aggregate(findings), findings: [...findings], artifacts: {} };
+  const note: RawFinding = {
+    tool: "webtops",
+    rule: "ratchet-held",
+    verdict: "pass",
+    message: `${String(held.length)} findings held by the baseline; a count above it is the ratchet's to refuse`,
+  };
+  const rest = findings.filter((finding) => !heldBy(finding));
+  return { verdict: aggregate(rest), findings: [...findings, note], artifacts: {} };
+}
+
 async function run(ctx: LayerContext): Promise<LayerResult> {
   const step = stepContext(ctx);
   const findings: RawFinding[] = [];
   const artifacts: Record<string, string> = {};
   let installFailed = false;
   for (const key of HYGIENE_STEPS) {
-    const outcome = await stepOutcome(key, step, installFailed);
-    findings.push(...outcome.findings);
-    Object.assign(artifacts, outcome.artifacts);
-    installFailed = installFailed || failedInstall(key, outcome);
+    const outcomeOfStep = await stepOutcome(key, step, installFailed);
+    findings.push(...outcomeOfStep.findings);
+    Object.assign(artifacts, outcomeOfStep.artifacts);
+    installFailed = installFailed || failedInstall(key, outcomeOfStep);
   }
-  return { verdict: aggregate(findings), findings, artifacts };
+  return { ...outcome(ctx, findings), artifacts };
 }
 
 /** Gate 1: hygiene (WEB_TOPS.md section 3.1). Each tool runs once; ESLint's JSON stays in `.web-tops/out/hygiene/`. */

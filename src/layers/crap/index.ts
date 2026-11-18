@@ -8,7 +8,7 @@ import type { RawFinding } from "../../report/findings.ts";
 import { excludesOf, inScope } from "../coverage/scope.ts";
 import { trackedFiles } from "../coverage/tracked.ts";
 import { failFinding, isRecord, parseJson, readOutput, relativeTo } from "../hygiene/tooling.ts";
-import { RATCHET_REASON } from "../ratchet.ts";
+import { ratchetHeld } from "../../baseline/state.ts";
 
 /** Gate 4: native CRAP over the tracked files in scope, the counter's complexity joined with statement coverage (section 6.2). */
 
@@ -178,9 +178,8 @@ function metricsOf(rows: readonly CrapRow[]): NonNullable<LayerResult["metrics"]
   };
 }
 
-/** The verdict: fail on any function over the cap or any file unread; vacuous over nothing; not-evaluated under ratchet until the baseline lands. */
+/** The verdict: fail on any function over the cap or any file unread; vacuous over nothing. */
 function outcome(
-  ctx: LayerContext,
   failedAny: boolean,
   rows: readonly CrapRow[],
 ): Pick<LayerResult, "verdict" | "reason"> {
@@ -193,9 +192,7 @@ function outcome(
       reason: "no function is in scope: the diff touches none, or no tracked file holds one",
     };
   }
-  return ctx.enforce === "ratchet"
-    ? { verdict: "not-evaluated", reason: RATCHET_REASON }
-    : { verdict: "pass" };
+  return { verdict: "pass" };
 }
 
 function judge(
@@ -203,14 +200,15 @@ function judge(
   rows: readonly CrapRow[],
   parsed: readonly RawFinding[],
 ): LayerResult {
-  const over = rows.filter((row) => row.crap > ctx.config.crap.cap);
+  // Held to a baseline, a function over the cap is the ratchet's to judge: a new one fails, a legacy one stays.
+  const over = ratchetHeld(ctx) ? [] : rows.filter((row) => row.crap > ctx.config.crap.cap);
   const findings = [
     ...parsed,
     ...over.map((row) => overCap(row, ctx.config.crap.cap)),
     ...(rows.length > 0 ? [summary(ctx, rows)] : []),
   ];
   const failedAny = findings.some((finding) => finding.verdict === "fail");
-  return { ...outcome(ctx, failedAny, rows), findings, artifacts: {}, metrics: metricsOf(rows) };
+  return { ...outcome(failedAny, rows), findings, artifacts: {}, metrics: metricsOf(rows) };
 }
 
 async function run(ctx: LayerContext): Promise<LayerResult> {
