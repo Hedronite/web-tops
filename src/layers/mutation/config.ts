@@ -36,6 +36,8 @@ export function strykerConfig(plan: StrykerPlan): Record<string, unknown> {
     checkers: ["typescript"],
     ...(plan.tsconfig === undefined ? {} : { tsconfigFile: plan.tsconfig }),
     coverageAnalysis: "perTest",
+    // Stryker's default writes `// @ts-nocheck` into every file under src/, test/ and lib/, fixtures included.
+    disableTypeChecks: false,
     concurrency: plan.concurrency,
     timeoutFactor: TIMEOUT_FACTOR,
     mutate: [...plan.mutate, NOT_TESTS],

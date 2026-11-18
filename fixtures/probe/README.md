@@ -4,9 +4,8 @@ One cheat per case: each directory is a small project that passes a check it sho
 real tool output recorded from it. `EXPECTED.yaml` states, for each case, the outcome section 6 of
 `WEB_TOPS.md` gives.
 
-This is data. Nothing in the kit counts CRAP, runs Stryker or reads a census from it yet; those engines
-land in M2 and are scored against `EXPECTED.yaml`. `src/layers/probe.test.ts` holds each case's stated
-facts to its recordings.
+This is data. The kit's engines are scored against `EXPECTED.yaml`, and [`SCORE.md`](SCORE.md) records the
+score at the end of M2. `src/layers/probe.test.ts` holds each case's stated facts to its recordings.
 
 | Case | The cheat | Section |
 |---|---|---|

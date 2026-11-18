@@ -33,8 +33,11 @@ gates:
     cap: 4
     scope: all
   mutation:
-    enabled: false
-    reason: "M2: StrykerJS mutation on the diff lands in milestone M2"
+    engine: stryker
+    scope: diff
+    base: origin/main
+    unexplained_survivors_max: 0
+    ledger: .web-tops/survivors.yaml
 
 layers:
   size_limit:
