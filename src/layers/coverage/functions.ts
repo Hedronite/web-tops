@@ -92,23 +92,26 @@ function shareOf(hits: number, within: readonly Statement[]): number {
   return within.length === 0 ? 1 : within.filter((item) => item.hits > 0).length / within.length;
 }
 
+const nameOf = (fn: unknown): string =>
+  isRecord(fn) && typeof fn["name"] === "string" ? fn["name"] : "(anonymous)";
+
+/** The row of one entry of a file's function map, or none when the entry is not an object or has no readable body. */
 function describeFunction(
   file: string,
-  fn: Record<string, unknown>,
+  fn: unknown,
   hits: number,
   statements: readonly Statement[],
 ): FunctionCoverage | undefined {
-  const span = spanOf(fn["loc"]);
+  const span = spanOf(isRecord(fn) ? fn["loc"] : undefined);
   if (span === undefined) {
     return undefined;
   }
   const within = statements.filter((item) => inside(item.start, span));
-  const name = typeof fn["name"] === "string" ? fn["name"] : "(anonymous)";
   const covered = within.filter((item) => item.hits > 0).length;
   const { line, column } = { line: span.start.line, column: span.start.column ?? 0 };
   return {
     file,
-    name,
+    name: nameOf(fn),
     line,
     column,
     hits,
@@ -118,26 +121,14 @@ function describeFunction(
   };
 }
 
-/** The row of one entry of a file's function map, or none when the entry cannot be read. */
-function rowFor(
-  file: string,
-  entry: Record<string, unknown>,
-  statements: readonly Statement[],
-  id: string,
-): FunctionCoverage[] {
-  const fn = isRecord(entry["fnMap"]) ? entry["fnMap"][id] : undefined;
-  const row = isRecord(fn)
-    ? describeFunction(file, fn, hitCount(entry["f"], id), statements)
-    : undefined;
-  return row === undefined ? [] : [row];
-}
-
 function fileFunctions(file: string, entry: unknown): FunctionCoverage[] {
   if (!isRecord(entry) || !isRecord(entry["fnMap"])) {
     return [];
   }
   const statements = statementsOf(entry);
-  return Object.keys(entry["fnMap"]).flatMap((id) => rowFor(file, entry, statements, id));
+  return Object.entries(entry["fnMap"]).flatMap(
+    ([id, fn]) => describeFunction(file, fn, hitCount(entry["f"], id), statements) ?? [],
+  );
 }
 
 /** The span of every function in a file's coverage entry. */

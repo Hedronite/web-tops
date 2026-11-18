@@ -254,6 +254,53 @@ describe("G4b a row is in the diff's scope when a changed line falls inside the 
   });
 });
 
+describe("G4-2 a changed <module> judges the module row alone, and a changed function not the module row", () => {
+  const text = [
+    "export const top = process.argv.length > 2 ? 1 : 2;", // 1
+    "export function one(a: number): number {", // 2
+    "  return a > 0 ? a : 0;", // 3
+    "}", // 4
+    "",
+  ].join("\n");
+  const rows = scoreFile({ ts, file: "src/a.ts", text, coverage: undefined, options: OPTIONS });
+  const scopeOf = (key: string, start: number, end: number): ReturnType<typeof changedRanges> =>
+    changedRanges({
+      mergeBase: "x",
+      files: [],
+      changedFunctions: [{ key, path: "src/a.ts", start, end }],
+      testFiles: [],
+      coveredFunctions: [],
+      mutate: [],
+    });
+
+  it("has a module row and a function row to tell apart", () => {
+    expect(rows.map((row) => row.name)).toEqual(["<module>", "one"]);
+  });
+
+  it("keeps only the <module> row when the changed function is <module>, whose span is the whole file", () => {
+    expect(touched(rows, scopeOf("src/a.ts::<module>", 1, 4)).map((row) => row.name)).toEqual([
+      "<module>",
+    ]);
+  });
+
+  it("keeps the function, and not the <module> row, when the changed function is a function", () => {
+    expect(touched(rows, scopeOf("src/a.ts::one", 2, 4)).map((row) => row.name)).toEqual(["one"]);
+  });
+
+  it("keeps both when the diff changed both", () => {
+    const both = new Map([
+      [
+        "src/a.ts",
+        [
+          { start: 1, end: 4, module: true },
+          { start: 2, end: 4 },
+        ],
+      ],
+    ]);
+    expect(touched(rows, both).map((row) => row.name)).toEqual(["<module>", "one"]);
+  });
+});
+
 describe("G4b the ranges a diff scope gives are its changed functions' spans, by file", () => {
   it("groups the changed functions by path, and gives none for a scope with none", () => {
     const scope = {

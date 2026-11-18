@@ -250,6 +250,31 @@ describe("G4 a malformed coverage entry is read around, never trusted", () => {
     expect(functionCoverage({ "src/a.ts": entry }).map((row) => row.name)).toEqual(["e"]);
   });
 
+  it("skips a function-map entry that is not an object, and keeps the readable ones beside it", () => {
+    const entry = {
+      fnMap: {
+        "0": 3,
+        "1": null,
+        "2": "f",
+        "3": { name: "ok", loc: { start: at(1, 0), end: at(2, 1) } },
+      },
+      f: { "0": 1, "1": 1, "2": 1, "3": 1 },
+      statementMap: {},
+      s: {},
+    };
+    expect(functionCoverage({ "src/a.ts": entry }).map((row) => row.name)).toEqual(["ok"]);
+  });
+
+  it("names a function the coverage tool gave no name as (anonymous)", () => {
+    const entry = {
+      fnMap: { "0": { loc: { start: at(1, 0), end: at(2, 1) } } },
+      f: { "0": 1 },
+      statementMap: {},
+      s: {},
+    };
+    expect(functionCoverage({ "src/a.ts": entry }).map((row) => row.name)).toEqual(["(anonymous)"]);
+  });
+
   it("reads a position with no column as column 0, and an end with no column as the end of its line", () => {
     const entry = {
       fnMap: { "0": { name: "f", loc: { start: at(1), end: at(2) } } },
