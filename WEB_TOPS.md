@@ -592,7 +592,7 @@ fails under `ratchet`.
 | `biome-ignore` | each `biome-ignore` comment |
 | `axe-disable-rules`, `axe-exclude` | each rule in `disableRules`; each selector in `exclude` |
 | `eslint-ignores` | each tracked file in scope that an ESLint `ignores` entry leaves out |
-| `eslint-rule-off` | each (rule, tracked file in scope) pair whose effective level, from ESLint's `calculateConfigForFile`, is `off` while the rule is on for another tracked file: a per-file override that sets a rule off |
+| `eslint-rule-off` | each (rule, tracked file in scope) pair whose effective level, from ESLint's `calculateConfigForFile`, is `off` while the rule is on for another tracked file with the same extension: a per-file override that sets a rule off. A rule that is on only for files of another extension, as typed rules are on for `.ts` and off for `.js`, is not one |
 | `tsconfig-exclude` | each tracked file in scope that `tsconfig.json` `exclude` leaves out of the program |
 
 A rule that is off everywhere is not a census item: for a required law it is `refuse` (§8.1).
