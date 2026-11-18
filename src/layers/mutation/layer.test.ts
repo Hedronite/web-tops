@@ -248,6 +248,10 @@ describe("G7a the layer runs Stryker on the gate's wrapper and reads its report"
     );
     expect(second.findings.filter((item) => item.rule === "no-coverage")).toHaveLength(5);
     expect(second.verdict).toBe("pass");
+    const accepted = second.findings.filter((item) => item.rule === "explained");
+    expect(accepted).toHaveLength(1);
+    expect(accepted[0]).toMatchObject({ verdict: "pass", survivor: key });
+    expect(accepted[0]?.message).toContain("is accepted in the survivor ledger");
   });
 });
 

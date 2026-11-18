@@ -5,6 +5,7 @@ import type { Ts } from "../../complexity/index.ts";
 import type { DiffProvider, Layer, LayerContext, LayerResult } from "../../gate/types.ts";
 import type { RawFinding } from "../../report/findings.ts";
 import { keyString } from "../../survivors/key.ts";
+import type { SurvivorKey } from "../../survivors/key.ts";
 import { excludesOf, inScope } from "../coverage/scope.ts";
 import { trackedFiles } from "../coverage/tracked.ts";
 import {
@@ -114,9 +115,27 @@ function tooLong(text: string): string {
   return line.length > 60 ? `${line.slice(0, 57)}...` : line;
 }
 
+function changeOf(key: SurvivorKey): string {
+  return `${key.mutator} \`${tooLong(key.original)}\` -> \`${tooLong(key.replacement)}\``;
+}
+
+/** A survivor the ledger accepts: a pass, listed so the report shows what was accepted and `webtops survivors list` can see it. */
+function acceptedFinding(row: SurvivorRow): RawFinding {
+  const { key } = row;
+  return {
+    tool: "stryker",
+    rule: "explained",
+    verdict: "pass",
+    message: `${changeOf(key)} is accepted in the survivor ledger (${key.function})`,
+    file: row.file,
+    line: row.line,
+    survivor: key,
+  };
+}
+
 function survivorFinding(row: SurvivorRow, over: boolean): RawFinding {
   const { key } = row;
-  const change = `${key.mutator} \`${tooLong(key.original)}\` -> \`${tooLong(key.replacement)}\``;
+  const change = changeOf(key);
   const rule = row.status === "NoCoverage" ? "no-coverage" : "survived";
   const said = rule === "no-coverage" ? "is not covered by any test" : "survived: no test failed";
   return {
@@ -180,6 +199,7 @@ function judge(ctx: LayerContext, read: MutationRead): LayerResult {
   const findings = [
     ...read.unknown.map(unknownFinding),
     ...open.map((row) => survivorFinding(row, over)),
+    ...read.survivors.filter((row) => explained.has(keyString(row.key))).map(acceptedFinding),
     summary(ctx, read, open),
   ];
   const failedAny = findings.some((finding) => finding.verdict === "fail");

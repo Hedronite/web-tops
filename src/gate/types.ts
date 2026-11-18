@@ -186,6 +186,8 @@ export interface MutationSettings {
   readonly maxSurvivors: number;
   /** `gates.mutation.time_budget_minutes`, else the profile's: a run that passes it is `not-evaluated`. */
   readonly timeBudgetMinutes: number;
+  /** `gates.mutation.ledger`: the survivor ledger; `.web-tops/survivors.yaml` when the config names none. */
+  readonly ledger?: string;
 }
 
 /** What the runner needs from a validated `web-tops.yaml`; a layer's own settings join it in G3 and G4. */

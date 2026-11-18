@@ -225,12 +225,18 @@ function budgetOf(config: WebTopsConfig): number {
   return mutationOf(config)?.time_budget_minutes ?? profileOf(config).mutationBudgetMinutes;
 }
 
+function ledgerSetting(config: WebTopsConfig): { readonly ledger?: string } {
+  const ledger = mutationOf(config)?.ledger;
+  return ledger === undefined ? {} : { ledger };
+}
+
 /** Gate 5: the config's scope, survivors maximum and time budget, else the class profile's (sections 5.2 and 6.4). */
 function mutationSettings(config: WebTopsConfig): MutationSettings {
   return {
     scope: mutationOf(config)?.scope ?? "diff",
     maxSurvivors: maxSurvivorsOf(config),
     timeBudgetMinutes: budgetOf(config),
+    ...ledgerSetting(config),
   };
 }
 
