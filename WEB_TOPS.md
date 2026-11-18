@@ -982,6 +982,7 @@ The kit is written in TypeScript and is installed and started with Bun, so it ga
 web-tops/
 ├── src/
 │   ├── cli/                 # webtops entry and one file per command
+│   ├── complexity/          # the section 6.3 counter on the TypeScript AST, and function keys (6.7)
 │   ├── config/              # class table, config validation, semantic checks, report validation
 │   ├── gate/                # runner, tiers, verdicts, run info
 │   ├── init/                # webtops init: renders the drop-in set
@@ -1001,7 +1002,7 @@ web-tops/
 └── LICENSE · LICENSE-MIT · LICENSE-APACHE
 ```
 
-Not yet in the tree: `src/complexity/` and `src/crap/` (the CRAP counter, M2), `src/budgets/` (the `dist/` byte reader, M4), `packages/eslint-plugin-webtops/`, `laws/` (one `W-NN.yaml` per law) and `fixtures/lints/` (M3).
+Not yet in the tree: `src/crap/` (the CRAP layer, M2), `src/budgets/` (the `dist/` byte reader, M4), `packages/eslint-plugin-webtops/`, `laws/` (one `W-NN.yaml` per law) and `fixtures/lints/` (M3).
 
 Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any release.
 
