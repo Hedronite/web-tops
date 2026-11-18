@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { isSeq, parseDocument } from "yaml";
-import type { Document } from "yaml";
+import { isScalar, isSeq, parseDocument } from "yaml";
+import type { Document, YAMLMap } from "yaml";
 import { keyString } from "./key.ts";
 import { LEDGER_VERSION, parseLedger } from "./ledger.ts";
 import { resolveLedgerPath } from "./path.ts";
@@ -63,8 +63,30 @@ function slotFor(entry: LedgerEntry, existing: readonly LedgerEntry[]): number {
   return index < 0 ? existing.length : index;
 }
 
+/** The fields written as double-quoted text, so what a mutant replaced reads back exactly as written. */
+const ALWAYS_QUOTED = ["original", "replacement"];
+
+function quote(node: YAMLMap, name: string): void {
+  const value = node.get(name, true);
+  if (isScalar(value)) value.type = "QUOTE_DOUBLE";
+}
+
+/**
+ * One entry as a YAML map, its original and replacement as double-quoted scalars. A reason or owner with a
+ * line break is quoted too: a plain or block scalar can lose a space before the break.
+ */
+function entryNode(doc: Document, entry: LedgerEntry) {
+  const node = doc.createNode(plain(entry));
+  ALWAYS_QUOTED.forEach((name) => {
+    quote(node, name);
+  });
+  if (entry.reason.includes("\n")) quote(node, "reason");
+  if (entry.owner.includes("\n")) quote(node, "owner");
+  return node;
+}
+
 function blockList(doc: Document, entries: readonly LedgerEntry[]) {
-  const list = doc.createNode(entries.map(plain));
+  const list = doc.createNode(entries.map((entry) => entryNode(doc, entry)));
   list.flow = false;
   return list;
 }
@@ -83,8 +105,8 @@ function amended(text: string, entry: LedgerEntry, existing: readonly LedgerEntr
   const list = doc.get("survivors", true);
   const at = existing.findIndex((other) => keyString(other.key) === keyString(entry.key));
   if (!isSeq(list) || list.items.length === 0) doc.set("survivors", blockList(doc, [entry]));
-  else if (at >= 0) list.items[at] = doc.createNode(plain(entry));
-  else list.items.splice(slotFor(entry, existing), 0, doc.createNode(plain(entry)));
+  else if (at >= 0) list.items[at] = entryNode(doc, entry);
+  else list.items.splice(slotFor(entry, existing), 0, entryNode(doc, entry));
   return String(doc);
 }
 
