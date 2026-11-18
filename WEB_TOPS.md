@@ -478,8 +478,13 @@ From 0.3.0 the report is the source the baseline is projected from, so it carrie
   hygiene and laws, `pages` on build output.
 
 `.web-tops/baseline.json` is a projection of this report and takes no other input: CRAP per
-function, coverage per package, finding counts per rule per file and bytes per page, with the
-report's `report_version` and `subject` (`fixtures/report/shape/` holds an example of each).
+function, coverage per package, finding counts per rule per file with the `fp1` of each counted
+finding, suppression counts by census kind (§6.7) and bytes per page, with the report's
+`report_version` and `subject` (`fixtures/report/shape/` holds an example of each).
+`schema/baseline.schema.json` defines it, and it is written in one canonical form: sorted keys,
+two-space indent, a trailing newline, so a regeneration with no change is no diff. The coverage
+layer reports each coverage hint (`v8 ignore`, Istanbul, `c8`) as a `coverage-hint` finding with
+tool `webtops`, verdict `pass`, a file, a line and an `fp1`, and the baseline counts those by kind.
 
 `counts` gains `required_not_evaluated`. `failed` counts every verdict §3.3 marks as ending the
 run, a required `not-evaluated` included; `not_evaluated` counts every `not-evaluated`, and
@@ -500,8 +505,21 @@ Baseline rules:
 
 - `.web-tops/baseline.json` holds CRAP per function, coverage per package, finding counts per
   rule per file, bytes per page or route, and suppression counts by census kind (below).
-- Only `webtops baseline` writes it, after a passing run. It is tracked and clean against
-  `HEAD`. Under `ratchet` a missing baseline fails, and deleting it is not a reset.
+- Only `webtops baseline` writes it, from the last report, after a passing run made at `HEAD` on a
+  clean tree (the gate's own `.web-tops/` output aside). It refuses a config that runs `hard`,
+  whose gate reads no baseline, and a result that is looser than the baseline already there. The
+  file is tracked and clean against `HEAD`. Under `ratchet` a missing baseline fails, and deleting
+  it is not a reset.
+- Across a change the baseline may only tighten. `check` under `ratchet` compares it with
+  the merge base's copy: a higher finding count, a function with worse CRAP, lower coverage, a census count
+  that rose or a new function above the class cap fails, so regenerating the baseline cannot
+  launder a rise, and deleting it fails. The first baseline, with none at the merge base, is
+  accepted: legacy findings stay in it. A shallow clone or a missing base is `fail`, as for the diff
+  (§6.4).
+- Package coverage is compared exactly, as lines hit over lines found, with no tolerance. A census
+  count that rises fails; the `fp1` of each directive names the new ones, and a directive that only
+  moves to another line keeps its entry. A count per rule per file, not the fingerprints, decides
+  a finding: one fixed and another added in the same file is a count that has not risen.
 - **A function is keyed by its file, its container chain and its name**: the file path, then the
   enclosing classes, namespaces and functions from the outside in, then the function's own name,
   taken from its declaration, its method or property name, or the variable it is bound to. An
@@ -869,9 +887,9 @@ steps that bypass `webtops` judge nothing.
 | Command | Behavior |
 |---|---|
 | `init --class <c>` | Writes the drop-in set (§4). Refuses to overwrite without `--force` |
-| `check` | Validates `web-tops.yaml` against the JSON Schema, plus semantic checks: the protocol id lies in the range this `webtops` supports (the schema does not pin it to one constant), class has a profile, `crap.cap ≥ 1`, `ts-library` keeps `unexplained_survivors_max = 0`, `advisory` has an `exemption` whose `until` has not passed (UTC, through that day; §9), under `ratchet` the baseline exists and is clean, under `hard` no gate or step the class maps at tier 1 or below is off except `crap`, `mutation`, build output and `laws` (§9), and no coverage floor below, nor CRAP cap or survivors limit above, the class profile's (§5.2), `skip_private` only for a `"private": true` package |
+| `check` | Validates `web-tops.yaml` against the JSON Schema, plus semantic checks: the protocol id lies in the range this `webtops` supports (the schema does not pin it to one constant), class has a profile, `crap.cap ≥ 1`, `ts-library` keeps `unexplained_survivors_max = 0`, `advisory` has an `exemption` whose `until` has not passed (UTC, through that day; §9), under `ratchet` the baseline exists, is clean and is no looser than the merge base's copy (§6.7), under `hard` no gate or step the class maps at tier 1 or below is off except `crap`, `mutation`, build output and `laws` (§9), and no coverage floor below, nor CRAP cap or survivors limit above, the class profile's (§5.2), `skip_private` only for a `"private": true` package |
 | `gate` | Runs enabled layers at or below `--max-tier` (default 1). `--base`, `--keep-going`, `--json`, `--only <layer>`, `--dry-run` (refused in CI) |
-| `baseline` | Writes `.web-tops/baseline.json` after a passing run; the only writer |
+| `baseline` | Writes `.web-tops/baseline.json` from the last report, after a passing run made at `HEAD` on a clean tree; the only writer. Refused under `hard`, and for a result looser than the baseline already there |
 | `laws [list \| run \| explain W-NN]` | Catalog with readers; laws alone; one law explained |
 | `report [--format text \| json]` | Renders the last report |
 | `lock [--verify \| --update]` | Tool pins |
