@@ -43,8 +43,8 @@ describe("G0a: pins exactly as WEB_TOPS.md section 2", () => {
   ];
 
   it.each(pinned)("package.json pins %s to %s", (name, pattern) => {
-    expect(pkg.devDependencies).toHaveProperty([name]);
-    expect(get(pkg.devDependencies, name)).toMatch(pattern);
+    expect({ ...pkg.dependencies, ...pkg.devDependencies }).toHaveProperty([name]);
+    expect(get({ ...pkg.dependencies, ...pkg.devDependencies }, name)).toMatch(pattern);
   });
 
   it("every dependency is an exact version, never a range", () => {
@@ -65,12 +65,13 @@ describe("G0a: pins exactly as WEB_TOPS.md section 2", () => {
       "fast-check",
     ]) {
       const installed = get(readJson(join(root, "node_modules", name, "package.json")), "version");
-      expect(installed, name).toBe(get(pkg.devDependencies, name));
+      expect(installed, name).toBe(get({ ...pkg.dependencies, ...pkg.devDependencies }, name));
     }
   });
 
-  it("the runtime dependencies are a YAML parser and a JSON Schema validator only", () => {
-    expect(Object.keys(pkg.dependencies).sort()).toEqual(["ajv", "yaml"]);
+  it("the runtime dependencies are a JSON Schema validator, the TypeScript compiler API (src/diff reads function spans from the AST) and a YAML parser", () => {
+    expect(Object.keys(pkg.dependencies).sort()).toEqual(["ajv", "typescript", "yaml"]);
+    expect(pkg.dependencies.typescript).toBe(TOOL_PINS.typescript);
   });
 
   it("package.json is ESM with install, typecheck, lint, test and format:check scripts", () => {

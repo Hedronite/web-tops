@@ -81,6 +81,19 @@ function kitConfig(project: string | undefined, vite: string, setupPath: string)
   ].join("\n");
 }
 
+/**
+ * Writes the gate's Vitest config into `directory`: the project's own, without coverage thresholds (see
+ * `kitConfig`), and returns its path. Anything else that runs Vitest for the gate, such as the diff engine's
+ * per-test-file coverage run, uses this config, so a project's thresholds and coverage scope never decide it.
+ */
+export function writeKitConfig(cwd: string, directory: string): string {
+  const configPath = join(directory, "vitest.config.mjs");
+  const setupPath = join(directory, "setup-files.json");
+  writeFileSync(setupPath, "[]");
+  writeFileSync(configPath, kitConfig(projectConfig(cwd), viteUrl(cwd), setupPath));
+  return configPath;
+}
+
 function titleOf(assertion: Record<string, unknown>): string {
   return str(assertion["fullName"], str(assertion["title"], "a test"));
 }
@@ -330,10 +343,7 @@ async function run(ctx: LayerContext): Promise<LayerResult> {
   mkdirSync(directory, { recursive: true });
   const seed = seedFor(ctx);
   const jsonPath = join(directory, "vitest.json");
-  const configPath = join(directory, "vitest.config.mjs");
-  const setupPath = join(directory, "setup-files.json");
-  writeFileSync(setupPath, "[]");
-  writeFileSync(configPath, kitConfig(projectConfig(ctx.cwd), viteUrl(ctx.cwd), setupPath));
+  const configPath = writeKitConfig(ctx.cwd, directory);
   const result = await runTool(ctx, "vitest", vitestArgs(ctx, seed, jsonPath, configPath));
   const launch = launchFailure("vitest", "vitest", result);
   if (launch !== undefined) {
