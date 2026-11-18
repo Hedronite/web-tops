@@ -223,11 +223,13 @@ function learnAssignment(ts: Ts, node: tsApi.Node, scope: Scope): void {
   if (startsAtBuilder(ts, node.right, scope)) learn(scope, "builder", node.left.text);
 }
 
+/** Whether one `return` statement hands back a builder: `return;` and `return value` of anything else do not. */
+const returnedBuilder = (ts: Ts, node: tsApi.ReturnStatement, scope: Scope): boolean =>
+  node.expression !== undefined && startsAtBuilder(ts, node.expression, scope);
+
 /** Whether a return statement under the node, not inside a nested function, returns a builder. */
 function returnsBuilder(ts: Ts, node: tsApi.Node, scope: Scope): boolean {
-  if (ts.isReturnStatement(node)) {
-    return node.expression !== undefined && startsAtBuilder(ts, node.expression, scope);
-  }
+  if (ts.isReturnStatement(node)) return returnedBuilder(ts, node, scope);
   return (
     !ts.isFunctionLike(node) &&
     ts.forEachChild(node, (child) => returnsBuilder(ts, child, scope) || undefined) === true

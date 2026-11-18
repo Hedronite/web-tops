@@ -339,6 +339,14 @@ describe("readAxe: the builder's local name comes from the import or require of 
       'import AxePuppeteer from "@axe-core/puppeteer";\nnew AxePuppeteer(page).exclude(["#a"]);',
     ],
     [
+      "the named export of another axe package",
+      'import { AxePuppeteer } from "@axe-core/puppeteer";\nnew AxePuppeteer(page).exclude(["#a"]);',
+    ],
+    [
+      "the named export of another axe package, through a namespace",
+      'import * as ax from "@axe-core/puppeteer";\nnew ax.AxePuppeteer(page).exclude(["#a"]);',
+    ],
+    [
       "a require of the default",
       'const Axe = require("@axe-core/playwright").default;\nnew Axe({ page }).exclude(["#a"]);',
     ],
