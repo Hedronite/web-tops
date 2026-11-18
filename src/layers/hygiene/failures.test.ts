@@ -184,6 +184,15 @@ describe("G3c hygiene: a missing tool fails, an empty output fails, class-only t
       },
     ],
     [
+      "ESLint writes JSON that is not a list of file results",
+      {
+        eslint: (args: readonly string[]) => (
+          writeFileSync(outputOf(args), "{}"),
+          { code: 0, stdout: "", stderr: "" }
+        ),
+      },
+    ],
+    [
       "dependency-cruiser prints text",
       { depcruise: () => ({ code: 1, stdout: "boom", stderr: "" }) },
     ],

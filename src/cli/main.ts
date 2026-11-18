@@ -7,6 +7,7 @@ import { runInitCli } from "./init.ts";
 import { stdio, type Io } from "./io.ts";
 import { runLockCli } from "./lock.ts";
 import { runReportCli } from "./report.ts";
+import { runSurvivorsCli } from "./survivors.ts";
 import { runVersionCli } from "./version.ts";
 
 export type { Io } from "./io.ts";
@@ -21,6 +22,7 @@ const COMMANDS: ReadonlyMap<string, Command> = new Map<string, Command>([
   ["init", runInitCli],
   ["lock", runLockCli],
   ["report", runReportCli],
+  ["survivors", runSurvivorsCli],
   ["version", runVersionCli],
 ]);
 

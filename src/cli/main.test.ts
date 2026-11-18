@@ -75,7 +75,9 @@ describe("webtops with an unknown command", () => {
 
   it("lists every M1 command in the usage line", async () => {
     const { err } = await exec([]);
-    expect(err).toContain("commands: baseline, check, doctor, gate, init, lock, report, version");
+    expect(err).toContain(
+      "commands: baseline, check, doctor, gate, init, lock, report, survivors, version",
+    );
   });
 });
 

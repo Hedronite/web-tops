@@ -326,6 +326,31 @@
           "if": {
             "properties": {
               "id": {
+                "not": {
+                  "const": "mutation"
+                }
+              }
+            },
+            "required": ["id"]
+          },
+          "then": {
+            "properties": {
+              "findings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "survivor": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "id": {
                 "const": "hygiene"
               }
             },
@@ -499,6 +524,9 @@
         "required": {
           "type": "boolean"
         },
+        "survivor": {
+          "$ref": "#/$defs/survivor"
+        },
         "tool": {
           "$ref": "#/$defs/tool"
         },
@@ -533,6 +561,35 @@
           "file": {
             "type": "string"
           }
+        }
+      }
+    },
+    "survivor": {
+      "type": "object",
+      "required": ["file", "function", "mutator", "original", "replacement", "occurrence"],
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "function": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mutator": {
+          "type": "string",
+          "minLength": 1
+        },
+        "original": {
+          "type": "string"
+        },
+        "replacement": {
+          "type": "string"
+        },
+        "occurrence": {
+          "type": "integer",
+          "minimum": 1
         }
       }
     },
@@ -655,6 +712,7 @@
         "eslint",
         "prettier",
         "publint",
+        "stryker",
         "stylelint",
         "tsc",
         "vitest",

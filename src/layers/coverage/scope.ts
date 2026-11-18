@@ -4,12 +4,16 @@ import { matchesGlob } from "./glob.ts";
 /** What coverage measures: the class source globs, `src/**` for the launch classes (WEB_TOPS.md section 6.1). */
 export const COVERAGE_INCLUDE = "src/**/*.{ts,tsx}";
 
-/** Section 6.1: what coverage leaves out unless `web-tops.yaml` adds a reasoned entry to it. */
+/**
+ * Section 6.1: what coverage leaves out unless `web-tops.yaml` adds a reasoned entry to it. The
+ * output folders are the project root's own (`coverage/`, `dist/`, `.web-tops/`, `node_modules/`): a source folder that
+ * happens to share a name, such as `src/layers/coverage/`, stays in scope.
+ */
 export const DEFAULT_COVERAGE_EXCLUDES: readonly string[] = [
-  "**/node_modules/**",
-  "**/dist/**",
-  "**/coverage/**",
-  "**/.web-tops/**",
+  "node_modules/**",
+  "dist/**",
+  "coverage/**",
+  ".web-tops/**",
   "**/*.d.ts",
   "**/*.{test,spec}.?(c|m)[jt]s?(x)",
   "**/__tests__/**",

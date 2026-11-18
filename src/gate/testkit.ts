@@ -139,6 +139,8 @@ export function cfg(overrides: Partial<GateConfig> = {}): GateConfig {
     hygiene: { steps: {}, auditFailOn: "high" },
     tests: { shuffle: true },
     coverage: { linesFloor: 85, exclude: [] },
+    crap: { cap: 4, scope: "diff", nullishDiscount: true },
+    mutation: { scope: "diff", maxSurvivors: 0, timeBudgetMinutes: 30 },
     ...overrides,
   };
 }
@@ -148,7 +150,7 @@ export function off(reason: string): Toggle {
 }
 
 export function opts(overrides: Partial<GateOptions> = {}): GateOptions {
-  return { maxTier: 1, keepGoing: false, json: false, dryRun: false, ...overrides };
+  return { maxTier: 1, keepGoing: false, json: false, dryRun: false, all: false, ...overrides };
 }
 
 export interface MemoryIo extends Io {

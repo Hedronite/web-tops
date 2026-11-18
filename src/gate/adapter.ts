@@ -7,9 +7,11 @@ import {
   HYGIENE_STEPS,
   type AuditLevel,
   type CoverageSettings,
+  type CrapSettings,
   type GateConfig,
   type HygieneSettings,
   type HygieneStep,
+  type MutationSettings,
   type TestsSettings,
   type Toggle,
 } from "./types.ts";
@@ -173,6 +175,71 @@ function coverageSettings(config: WebTopsConfig): CoverageSettings {
   return { linesFloor: floorFor(config, coverage), exclude: coverage?.exclude ?? [] };
 }
 
+function crapConfig(config: WebTopsConfig): Gates["crap"] {
+  return config.gates?.crap;
+}
+
+/** The class profile's CRAP cap (section 5.2); `check` has already refused a class with no profile. */
+function classCap(config: WebTopsConfig): number {
+  const profile = profileFor(config.class);
+  if (profile === undefined) {
+    throw new Error(`class ${config.class} has no launch profile`);
+  }
+  return profile.crapCap;
+}
+
+function capOf(config: WebTopsConfig): number {
+  return crapConfig(config)?.cap ?? classCap(config);
+}
+
+function scopeOf(config: WebTopsConfig): "diff" | "all" {
+  return crapConfig(config)?.scope ?? "diff";
+}
+
+function nullishOf(config: WebTopsConfig): boolean {
+  return crapConfig(config)?.complexity?.nullish_discount ?? true;
+}
+
+/** Gate 4's cap is the config's, else the class profile's; the scope is the diff unless the config says all. */
+function crapSettings(config: WebTopsConfig): CrapSettings {
+  return { cap: capOf(config), scope: scopeOf(config), nullishDiscount: nullishOf(config) };
+}
+
+function profileOf(config: WebTopsConfig): Profile {
+  const profile = profileFor(config.class);
+  if (profile === undefined) {
+    throw new Error(`class ${config.class} has no launch profile`);
+  }
+  return profile;
+}
+
+function mutationOf(config: WebTopsConfig): Gates["mutation"] {
+  return config.gates?.mutation;
+}
+
+function maxSurvivorsOf(config: WebTopsConfig): number {
+  return mutationOf(config)?.unexplained_survivors_max ?? profileOf(config).unexplainedSurvivorsMax;
+}
+
+function budgetOf(config: WebTopsConfig): number {
+  return mutationOf(config)?.time_budget_minutes ?? profileOf(config).mutationBudgetMinutes;
+}
+
+function ledgerSetting(config: WebTopsConfig): { readonly ledger?: string } {
+  const ledger = mutationOf(config)?.ledger;
+  return ledger === undefined ? {} : { ledger };
+}
+
+/** Gate 5: the config's scope, survivors maximum and time budget, else the class profile's (sections 5.2 and 6.4). */
+function mutationSettings(config: WebTopsConfig): MutationSettings {
+  return {
+    scope: mutationOf(config)?.scope ?? "diff",
+    maxSurvivors: maxSurvivorsOf(config),
+    timeBudgetMinutes: budgetOf(config),
+    ...ledgerSetting(config),
+  };
+}
+
 function testsSettings(config: WebTopsConfig): TestsSettings {
   return { shuffle: config.gates?.tests?.shuffle ?? true };
 }
@@ -219,5 +286,7 @@ export function toGateConfig(config: WebTopsConfig, project: Project): GateConfi
     hygiene: hygieneSettings(config, project),
     tests: testsSettings(config),
     coverage: coverageSettings(config),
+    crap: crapSettings(config),
+    mutation: mutationSettings(config),
   };
 }

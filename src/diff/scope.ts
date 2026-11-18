@@ -197,9 +197,14 @@ async function runCopy(
 const touches = (last: Entry | undefined, entry: Entry): boolean =>
   last !== undefined && last.path === entry.path && entry.start <= last.end + 1;
 
+/** The order of two ranges: by file, then by start. */
+function byPathThenStart(a: Entry, b: Entry): number {
+  return a.path.localeCompare(b.path) || a.start - b.start;
+}
+
 /** Sorts ranges by file and start, and joins those that overlap or touch. */
 function merged(entries: readonly Entry[]): readonly Entry[] {
-  const sorted = [...entries].sort((a, b) => a.path.localeCompare(b.path) || a.start - b.start);
+  const sorted = [...entries].sort(byPathThenStart);
   const out: Entry[] = [];
   for (const entry of sorted) {
     const last = out.at(-1);

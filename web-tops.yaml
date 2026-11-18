@@ -30,8 +30,8 @@ gates:
           reason: "test helpers: the gate runner's fixtures, no production code",
         }
   crap:
-    enabled: false
-    reason: "M2: native CRAP lands in milestone M2"
+    cap: 4
+    scope: all
   mutation:
     enabled: false
     reason: "M2: StrykerJS mutation on the diff lands in milestone M2"

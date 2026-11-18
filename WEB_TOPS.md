@@ -274,8 +274,16 @@ have different budgets.
 
 There is one CRAP cap per class, the same for every author; there is no per-author cap. The cap
 binds new and changed functions: under `ratchet` (§6.7) it applies to them, and the ratchet holds
-legacy functions at their baseline, so they must not get worse. All numbers are **proposed**, and
-the caps stay proposed until set from measurement in M2.5.
+legacy functions at their baseline, so they must not get worse.
+All numbers except the caps are **proposed**.
+The caps were measured in M2.5 over LuminosiTS and the kit, and kept. `ts-library` keeps 4: the kit
+meets it, and 162 of the 194 sampled library functions do (83.5 %), against 173 at 6.
+`ui-components` keeps 5: 90.9 % of its functions pass at 4, 93.5 % at 5 and 97.4 % at 6. `web-app`
+keeps 6: 71 of 126 functions pass at 6 and the same 71 at 8, so a higher cap admits nothing today.
+`astro-site` and `node-service` keep theirs: the sample has 6 functions, none with coverage, for
+the first, and none for the second.
+A function counts as §6.3 says, with callbacks folded into their container.
+A second adopter, an `astro-site` with tests or a `node-service` reopens the question.
 
 **Required.** A class requires every built-in layer it maps (§3.3): the gates, `crap`, `mutation`
 and `laws`, and build output only where the class maps a build-output layer. It requires the judged
@@ -340,7 +348,14 @@ CRAP(f) = comp(f)² × (1 − cov(f))³ + comp(f)          cov(f) ∈ [0,1]
   100% by line and 0 by statement: with complexity 4 its CRAP is 20, not 4.
 - A function is keyed as §6.7 says: file, container chain, name.
 - **Cap:** one per class (§5.2). Drop-in default 6.0. No authorship marking.
-- **Scope:** functions touched in the diff; `--all` for tier 2 trends.
+- **Scope:** the functions the diff touches (`gates.crap.scope: diff`, the default), or every function with
+  `--all` or `gates.crap.scope: all`, for tier 2 trends and for a kit that holds itself to the cap. The functions are
+  those the diff engine reports as changed (§6.4): a changed line, or a deletion taken from them. A diff that touches
+  no function is `vacuous`, and a diff that cannot be computed fails the layer.
+- **Unit:** the counter's scored unit (module-level functions and class members, §6.3); its `cov(f)` is read from
+  the coverage function whose body starts in it. Code outside every function is scored as `<module>` only when it
+  branches. A function the coverage run never reported has `cov(f) = 0`.
+- Under `ratchet` the layer is `not-evaluated` until a baseline exists (§6.7); a function over the cap still fails.
 
 ### 6.3 Complexity counting rule
 
@@ -362,7 +377,7 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
 
 ### 6.4 Mutation
 
-- **Engine:** StrykerJS with the Vitest runner and per-test coverage. The TypeScript checker plugin
+- **Engine:** StrykerJS with the Vitest runner and per-test coverage, run on the gate's own Vitest config (§6.2: the project's, coverage thresholds removed) and on a Stryker config the gate writes for each run, never the project's. The TypeScript checker plugin
   drops mutants that do not type-check: their status is `CompileError`, and they are neither killed
   nor counted as survivors.
 - **Scope:** the lines changed against the merge base, **plus every function covered by a changed
@@ -372,7 +387,7 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
   functions it covers by running that file alone under Vitest, with the gate's own configuration
   (the project's, coverage thresholds removed) and the gate's coverage include and exclude (§6.1),
   once for the version at HEAD and once for the version at the merge base; a deleted test file runs
-  only the second. The functions that ran are added, with their whole ranges. A HEAD version that
+  only the second. The functions that ran are added, with their whole ranges. Each range is then widened to the scored units it reaches into (§6.7), and a range that touches module-level code to all of the file's module-level lines, so the occurrence in a survivor's key does not depend on the diff. A HEAD version that
   cannot run is `fail`; a merge-base version that cannot run against HEAD adds nothing. The diff is
   taken without rename detection, so a renamed file counts as new and every function in it is
   judged. A pure deletion belongs to the smallest function that holds the lines on both sides of
@@ -398,9 +413,10 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
   mutator, original and replacement within that function. Never by Stryker's mutant id, which is a
   run ordinal, and never by a line number, so a ledger entry survives edits elsewhere in the file.
   A ledger entry carries those six fields beside `reason`, `owner` and `expires`.
-- **Time budget.** The layer has a time budget. A run that passes it is stopped and the layer is
-  `not-evaluated`, with the budget and the number of mutants judged in the reason. A run cut short is
-  never a pass. The value is set with the adapter (M2).
+- **Time budget.** `gates.mutation.time_budget_minutes`, 30 by default (provisional, until the first
+  adopter runs confirm it). A run that passes it is stopped, with the processes it started, and the
+  layer is `not-evaluated`, with the budget in the reason: a stopped run writes no report, so it
+  names no count of mutants judged. A run cut short is never a pass.
 
 ### 6.5 Law verdicts
 
@@ -431,8 +447,9 @@ has one shape in every layer: `tool`, `rule`, `law`, `verdict`, `message`, `file
 
 - `tool` is the tool that said it, from a closed set: `astro`, `attw`, `audit` (`bun audit`),
   `biome`, `bun` (install and pack), `dependency-cruiser`, `eslint`, `prettier`, `publint`,
-  `stylelint`, `tsc` and `vitest`; `webtops` is the gate's own checks (coverage, a missing tool,
+  `stryker`, `stylelint`, `tsc` and `vitest`; `webtops` is the gate's own checks (coverage, a missing tool,
   a skipped step).
+- A finding of the mutation layer may carry `survivor`: the six fields of its key (§6.4), which the survivor ledger matches it by. No other layer's finding has one.
 - `rule` is the tool's rule id, or a kit id for a check of the gate's own. `law` is the `W-NN` the
   finding maps to, or `null` until a reader maps it (§8). `file` and `line` are `null` when the
   finding has no place, and a `line` has a `file`.
@@ -460,7 +477,7 @@ To replay a shuffled failure, rerun the suite with that seed: `vitest run --sequ
 From 0.3.0 the report is the source the baseline is projected from, so it carries:
 
 - `report_version`, the report format's own semver, separate from `protocol`; it was `1.0.0`
-  for the shape above and is `2.0.0` since findings have one shape. It changes only when the report's shape does, so a protocol patch that leaves the report alone does not change it;
+  for the shape above, `2.0.0` once findings had one shape, and is `2.1.0` since a mutation survivor carries an optional `survivor` object. It changes only when the report's shape does, so a protocol patch that leaves the report alone does not change it;
 - `subject`, the package and the root the run judged: `{package, root}`, the root being the
   project's directory relative to the git top level (`.` at the top level);
 - `run`: git SHA, `bun` and `node` versions, the version of every tool that ran, read from its
@@ -795,6 +812,7 @@ gates:
     scope: diff
     base: origin/main
     unexplained_survivors_max: 0
+    time_budget_minutes: 30
     ledger: .web-tops/survivors.yaml
 
 layers:
@@ -890,7 +908,7 @@ steps that bypass `webtops` judge nothing.
 |---|---|
 | `init --class <c>` | Writes the drop-in set (§4). Refuses to overwrite without `--force` |
 | `check` | Validates `web-tops.yaml` against the JSON Schema, plus semantic checks: the protocol id lies in the range this `webtops` supports (the schema does not pin it to one constant), class has a profile, `crap.cap ≥ 1`, `ts-library` keeps `unexplained_survivors_max = 0`, `advisory` has an `exemption` whose `until` has not passed (UTC, through that day; §9), under `ratchet` the baseline exists, is clean and is no looser than the merge base's copy (§6.7), under `hard` no gate or step the class maps at tier 1 or below is off except `crap`, `mutation`, build output and `laws` (§9), and no coverage floor below, nor CRAP cap or survivors limit above, the class profile's (§5.2), `skip_private` only for a `"private": true` package |
-| `gate` | Runs enabled layers at or below `--max-tier` (default 1). `--base`, `--keep-going`, `--json`, `--only <layer>`, `--dry-run` (refused in CI) |
+| `gate` | Runs enabled layers at or below `--max-tier` (default 1). `--base`, `--keep-going`, `--json`, `--all` (judge every function, not the diff's), `--only <layer>`, `--dry-run` (refused in CI) |
 | `baseline` | Writes `.web-tops/baseline.json` from the last report, after a passing run made at `HEAD` on a clean tree; the only writer. Refused under `hard`, and for a result looser than the baseline already there |
 | `laws [list \| run \| explain W-NN]` | Catalog with readers; laws alone; one law explained |
 | `report [--format text \| json]` | Renders the last report |
@@ -958,6 +976,14 @@ agent contract.
 ---
 
 ## 16. Decisions
+
+**Resolved in M2:**
+
+32. **CRAP caps from measurement:** the one cap per class was measured over LuminosiTS and the kit
+    (§5.2), and all five classes keep theirs; `astro-site` and `node-service` for want of data. The
+    scored unit stays the one §6.3 defines, with callbacks folded into their container. There is
+    no rule on changed functions beyond §6.7's, which already holds a changed function to its
+    baseline.
 
 **Resolved for 0.3.0:**
 
@@ -1032,12 +1058,14 @@ web-tops/
 │   ├── cli/                 # webtops entry and one file per command
 │   ├── complexity/          # the section 6.3 counter on the TypeScript AST, and function keys (6.7)
 │   ├── config/              # class table, config validation, semantic checks, report validation
+│   ├── crap/                # CRAP: the counter's complexity joined with statement coverage (§6.2)
 │   ├── diff/                # changed lines and functions against the merge base
 │   ├── gate/                # runner, tiers, verdicts, run info
 │   ├── init/                # webtops init: renders the drop-in set
-│   ├── layers/              # hygiene, tests, coverage
+│   ├── layers/              # hygiene, tests, coverage, crap, mutation
 │   ├── lock/                # tool pins, web-tops.lock, the Node range
-│   └── report/              # report writing, text and JSON rendering
+│   ├── report/              # report writing, text and JSON rendering
+│   └── survivors/           # the survivor key (section 6.4), and the ledger when it lands
 ├── profiles/                # one profile per launch class: the data init renders from
 ├── schema/                  # web-tops, gate-report, baseline and core (verdicts, modes) schemas
 ├── config/                  # drop-in templates, AGENTS.md.tmpl
@@ -1051,7 +1079,7 @@ web-tops/
 └── LICENSE · LICENSE-MIT · LICENSE-APACHE
 ```
 
-Not yet in the tree: `src/crap/` (the CRAP layer, M2), `src/budgets/` (the `dist/` byte reader, M4), `packages/eslint-plugin-webtops/`, `laws/` (one `W-NN.yaml` per law) and `fixtures/lints/` (M3).
+Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4), `packages/eslint-plugin-webtops/`, `laws/` (one `W-NN.yaml` per law) and `fixtures/lints/` (M3).
 
 Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any release.
 

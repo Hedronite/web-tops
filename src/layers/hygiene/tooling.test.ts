@@ -81,6 +81,7 @@ describe("G3d tools: resolveTool reads the installed package's bin field", () =>
       ["publint", "publint"],
       ["attw", "@arethetypeswrong/cli"],
       ["vitest", "vitest"],
+      ["stryker", "@stryker-mutator/core"],
     ]);
   });
 });

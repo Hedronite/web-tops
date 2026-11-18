@@ -28,6 +28,10 @@ function tracked(...files: string[]): Exec {
 function lcovWith(text: string | undefined): {
   context: (overrides?: Partial<LayerContext>, floor?: number) => LayerContext;
   withExclude: (exclude: GateConfig["coverage"]["exclude"]) => LayerContext;
+  /** Writes a project file, relative to the project. */
+  write: (file: string, text: string) => void;
+  /** Writes `.web-tops/out/tests/setup-files.json` and returns the artifact map that hands it over. */
+  withSetupFiles: (files: readonly string[]) => ReadonlyMap<string, string>;
 } {
   const item = realProject({});
   projects.push(item);
@@ -36,6 +40,8 @@ function lcovWith(text: string | undefined): {
   if (text !== undefined) {
     writeFileSync(path, text);
   }
+  const setupPath = join(item.outDir, "tests", "setup-files.json");
+  writeFileSync(setupPath, "[]");
   const base = (floor: number, exclude: GateConfig["coverage"]["exclude"]): LayerContext => ({
     cwd: item.project.dir,
     config: cfg({ coverage: { linesFloor: floor, exclude } }),
@@ -44,9 +50,23 @@ function lcovWith(text: string | undefined): {
     env: {},
     exec: tracked(),
     outDir: item.outDir,
-    artifacts: new Map([["lcov", path]]),
+    artifacts: new Map([
+      ["lcov", path],
+      ["setup-files", setupPath],
+    ]),
   });
   return {
+    write: (file, body) => {
+      mkdirSync(dirname(join(item.project.dir, file)), { recursive: true });
+      writeFileSync(join(item.project.dir, file), body);
+    },
+    withSetupFiles: (files) => {
+      writeFileSync(setupPath, JSON.stringify(files));
+      return new Map([
+        ["lcov", path],
+        ["setup-files", setupPath],
+      ]);
+    },
     context: (overrides = {}, floor = 85) => ({ ...base(floor, []), ...overrides }),
     withExclude: (exclude) => base(85, exclude),
   };
@@ -89,7 +109,10 @@ describe("G4b coverage: empty LCOV fails, below floor fails under hard, ratchet 
   });
 
   it("declares what it consumes, and requires the layer that produces it", () => {
-    expect(coverageLayer.consumes).toEqual([{ artifact: "lcov", from: "tests" }]);
+    expect(coverageLayer.consumes).toEqual([
+      { artifact: "lcov", from: "tests" },
+      { artifact: "setup-files", from: "tests" },
+    ]);
     expect(coverageLayer.requires).toEqual(["tests"]);
     expect(coverageLayer.produces).toEqual([]);
   });
@@ -363,5 +386,174 @@ describe("lcov", () => {
     expect(percent({ files: 0, found: 0, hit: 0 })).toBe("0");
     expect(isBelow(totals, 80)).toBe(false);
     expect(isBelow(totals, 81)).toBe(true);
+  });
+});
+
+describe("G2b per-package numbers: a row for each in-scope file, and the package named in the message", () => {
+  it("fills metrics.coverage with the in-scope records only, sorted by file, adding up to the totals", async () => {
+    const text =
+      record("src/b.ts", 20, 10) + record("src/a.ts", 10, 10) + record("src/a.test.ts", 5, 5);
+    const lcov = lcovWith(text);
+    const result = await coverageLayer.run(
+      lcov.context({ exec: tracked("src/a.ts", "src/b.ts", "src/a.test.ts") }, 40),
+    );
+    expect(result.metrics?.coverage).toEqual([
+      { file: "src/a.ts", lines_found: 10, lines_hit: 10 },
+      { file: "src/b.ts", lines_found: 20, lines_hit: 10 },
+    ]);
+    const message = result.findings.find((finding) => finding.rule === "coverage")?.message;
+    expect(message).toContain("fixture: 66.67 % of 30 lines in 2 files");
+  });
+
+  it("carries the rows when the floor fails too, so the baseline sees the numbers it failed on", async () => {
+    const result = await coverageLayer.run(lcovWith(record("src/a.ts", 10, 2)).context());
+    expect(result.verdict).toBe("fail");
+    expect(result.metrics?.coverage).toEqual([{ file: "src/a.ts", lines_found: 10, lines_hit: 2 }]);
+  });
+});
+
+const HINT_RULE = "coverage-hint/";
+
+describe("G2b a coverage hint is one pass finding with its file and line (R60)", () => {
+  const GUARD = [
+    "export function guard(n: number): number {",
+    "  /* v8 ignore next 3 */",
+    "  if (n < 0) {",
+    '    throw new Error("negative");',
+    "  }",
+    "  /* istanbul ignore next */",
+    "  return n;",
+    "}",
+    "",
+  ].join("\n");
+
+  it("emits one coverage-hint finding for each hint in a tracked file in scope, and the layer stays pass", async () => {
+    const lcov = lcovWith(record("src/guard.ts", 4, 4));
+    lcov.write("src/guard.ts", GUARD);
+    const result = await coverageLayer.run(lcov.context({ exec: tracked("src/guard.ts") }));
+    expect(result.verdict).toBe("pass");
+    const hints = result.findings.filter((finding) => finding.rule.startsWith(HINT_RULE));
+    expect(hints).toMatchObject([
+      { tool: "webtops", verdict: "pass", file: "src/guard.ts", line: 2 },
+      { tool: "webtops", verdict: "pass", file: "src/guard.ts", line: 6 },
+    ]);
+    expect(hints.map((finding) => finding.rule)).toEqual([
+      "coverage-hint/v8",
+      "coverage-hint/istanbul",
+    ]);
+    expect(hints[0]?.message).toContain("v8 ignore");
+    expect(hints[1]?.message).toContain("istanbul ignore");
+  });
+
+  it("looks only in tracked files in scope: not in a test file, an excluded file or an untracked one", async () => {
+    const lcov = lcovWith(record("src/a.ts", 4, 4));
+    for (const file of ["src/a.ts", "src/a.test.ts", "src/generated.ts", "src/untracked.ts"]) {
+      lcov.write(file, "/* v8 ignore next */\n");
+    }
+    const context = {
+      ...lcov.withExclude([{ glob: "src/generated.ts", reason: "generated" }]),
+      exec: tracked("src/a.ts", "src/a.test.ts", "src/generated.ts"),
+    };
+    const result = await coverageLayer.run(context);
+    expect(result.findings.filter((finding) => finding.rule.startsWith(HINT_RULE))).toMatchObject([
+      { file: "src/a.ts", line: 1 },
+    ]);
+  });
+
+  it("a hint does not fail the layer under hard, and does not hide a profile under the floor", async () => {
+    const lcov = lcovWith(record("src/guard.ts", 10, 1));
+    lcov.write("src/guard.ts", GUARD);
+    const result = await coverageLayer.run(lcov.context({ exec: tracked("src/guard.ts") }));
+    expect(result.verdict).toBe("fail");
+    expect(result.findings.some((finding) => finding.rule.startsWith(HINT_RULE))).toBe(true);
+  });
+});
+
+describe("G2c G4-4: a Vitest setup file has no record because Vitest does not instrument it", () => {
+  const RULE = "no-coverage-record";
+
+  it("says so, and points at gates.coverage.exclude, for a file the tests layer named as a setup file", async () => {
+    const lcov = lcovWith(record("src/a.ts", 10, 10));
+    const artifacts = lcov.withSetupFiles(["src/setup.ts"]);
+    const result = await coverageLayer.run(
+      lcov.context({ exec: tracked("src/a.ts", "src/setup.ts"), artifacts }),
+    );
+    expect(result.verdict).toBe("fail");
+    const finding = result.findings.find((item) => item.rule === RULE);
+    expect(finding).toMatchObject({ file: "src/setup.ts" });
+    expect(finding?.message).toContain("Vitest does not instrument setup files");
+    expect(finding?.message).toContain("gates.coverage.exclude");
+    expect(finding?.message).not.toContain("no test imports it");
+  });
+
+  it("keeps no test imports it for a source file that is not a setup file", async () => {
+    const lcov = lcovWith(record("src/a.ts", 10, 10));
+    const artifacts = lcov.withSetupFiles(["src/setup.ts"]);
+    const result = await coverageLayer.run(
+      lcov.context({ exec: tracked("src/a.ts", "src/setup.ts", "src/never.ts"), artifacts }),
+    );
+    const never = result.findings.find((item) => item.file === "src/never.ts");
+    expect(never?.message).toContain("no test imports it");
+    expect(never?.message).not.toContain("setup");
+  });
+
+  it("an unreadable or malformed setup-files input names no file as a setup file", async () => {
+    const lcov = lcovWith(record("src/a.ts", 10, 10));
+    lcov.write(".web-tops/out/tests/setup-files.json", "not json");
+    const result = await coverageLayer.run(
+      lcov.context({ exec: tracked("src/a.ts", "src/setup.ts") }),
+    );
+    expect(result.findings.find((item) => item.rule === RULE)?.message).toContain(
+      "no test imports it",
+    );
+  });
+});
+
+describe("G2-1 the layer measures a source folder named coverage", () => {
+  it("counts its files in the totals and the rows, and scans them for hints", async () => {
+    const text = record("src/layers/coverage/lcov.ts", 10, 5) + record("src/a.ts", 10, 10);
+    const lcov = lcovWith(text);
+    lcov.write("src/layers/coverage/lcov.ts", "/* v8 ignore next */\nexport const a = 1;\n");
+    const result = await coverageLayer.run(
+      lcov.context({ exec: tracked("src/layers/coverage/lcov.ts", "src/a.ts") }, 60),
+    );
+    expect(result.metrics?.coverage?.map((row) => row.file)).toEqual([
+      "src/a.ts",
+      "src/layers/coverage/lcov.ts",
+    ]);
+    expect(result.findings.find((item) => item.rule === "coverage")?.message).toContain("75.00 %");
+    expect(result.findings.filter((item) => item.rule.startsWith(HINT_RULE))).toMatchObject([
+      { file: "src/layers/coverage/lcov.ts", line: 1 },
+    ]);
+  });
+
+  it("fails a coverage-folder file no test imports, instead of dropping it from the denominator", async () => {
+    const lcov = lcovWith(record("src/a.ts", 10, 10));
+    const result = await coverageLayer.run(
+      lcov.context({ exec: tracked("src/a.ts", "src/layers/coverage/lcov.ts") }),
+    );
+    expect(result.verdict).toBe("fail");
+    expect(result.findings.find((item) => item.rule === "no-coverage-record")).toMatchObject({
+      file: "src/layers/coverage/lcov.ts",
+    });
+  });
+});
+
+describe("R67 the hint kind is in the rule name: coverage-hint/v8, /istanbul and /c8", () => {
+  it("names each kind, keeps the tool webtops and the verdict pass", async () => {
+    const lcov = lcovWith(record("src/h.ts", 3, 3));
+    lcov.write(
+      "src/h.ts",
+      "/* v8 ignore next */\n// istanbul ignore next\n/* c8 ignore start */\n",
+    );
+    const result = await coverageLayer.run(lcov.context({ exec: tracked("src/h.ts") }));
+    const hints = result.findings.filter((finding) => finding.rule.startsWith(HINT_RULE));
+    expect(
+      hints.map((finding) => [finding.rule, finding.tool, finding.verdict, finding.line]),
+    ).toEqual([
+      ["coverage-hint/v8", "webtops", "pass", 1],
+      ["coverage-hint/istanbul", "webtops", "pass", 2],
+      ["coverage-hint/c8", "webtops", "pass", 3],
+    ]);
   });
 });
