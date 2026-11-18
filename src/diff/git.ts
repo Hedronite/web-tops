@@ -1,0 +1,57 @@
+import { realExec } from "../gate/exec.ts";
+import type { Exec } from "../gate/types.ts";
+
+export type GitResult =
+  { readonly ok: true; readonly value: string } | { readonly ok: false; readonly reason: string };
+
+async function git(exec: Exec, cwd: string, args: readonly string[]): Promise<GitResult> {
+  const result = await exec("git", args, { cwd, timeoutMs: 60_000 });
+  if (result.code === 0) return { ok: true, value: result.stdout.trim() };
+  return { ok: false, reason: result.stderr.trim() || `git ${args.join(" ")} failed` };
+}
+
+const SHALLOW =
+  "this is a shallow clone, so the merge base cannot be found; check out with fetch-depth: 0 (WEB_TOPS.md section 11)";
+
+/** A reason the diff cannot be taken from this checkout, or undefined when it can. */
+async function checkout(exec: Exec, cwd: string): Promise<string | undefined> {
+  const inside = await git(exec, cwd, ["rev-parse", "--is-inside-work-tree"]);
+  if (!inside.ok) return `not a git work tree: ${inside.reason}`;
+  const shallow = await git(exec, cwd, ["rev-parse", "--is-shallow-repository"]);
+  return shallow.ok && shallow.value === "true" ? SHALLOW : undefined;
+}
+
+async function absent(exec: Exec, cwd: string, base: string): Promise<string | undefined> {
+  const known = await git(exec, cwd, ["rev-parse", "--verify", "--quiet", `${base}^{commit}`]);
+  return known.ok ? undefined : `the base ${base} does not exist in this checkout`;
+}
+
+function mergeBaseResult(found: GitResult, base: string): GitResult {
+  if (found.ok && found.value !== "") return found;
+  return { ok: false, reason: `there is no merge base between HEAD and ${base}` };
+}
+
+/** The merge base of HEAD and `base`, or the reason there is none: a shallow clone, a missing base, no shared history. */
+export async function mergeBaseOf(exec: Exec, cwd: string, base: string): Promise<GitResult> {
+  const blocked = (await checkout(exec, cwd)) ?? (await absent(exec, cwd, base));
+  if (blocked !== undefined) return { ok: false, reason: blocked };
+  return mergeBaseResult(await git(exec, cwd, ["merge-base", "HEAD", base]), base);
+}
+
+/** The work tree against the merge base, with no context: tracked files, staged or not. */
+export function diffText(exec: Exec, cwd: string, mergeBase: string): Promise<GitResult> {
+  const args = [
+    "-c",
+    "core.quotepath=false",
+    "diff",
+    "--no-color",
+    "--no-ext-diff",
+    "--no-renames",
+    "-U0",
+    mergeBase,
+    "--",
+  ];
+  return git(exec, cwd, args);
+}
+
+export { realExec };

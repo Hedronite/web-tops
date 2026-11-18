@@ -6,6 +6,7 @@
       "name": "web-tops",
       "dependencies": {
         "ajv": "8.20.0",
+        "typescript": "6.0.3",
         "yaml": "2.9.1",
       },
       "devDependencies": {
@@ -23,7 +24,6 @@
         "fast-check": "4.10.2",
         "prettier": "3.10.1",
         "publint": "0.3.25",
-        "typescript": "6.0.3",
         "typescript-eslint": "8.73.0",
         "vitest": "5.1.0",
       },

@@ -983,6 +983,7 @@ web-tops/
 ├── src/
 │   ├── cli/                 # webtops entry and one file per command
 │   ├── config/              # class table, config validation, semantic checks, report validation
+│   ├── diff/                # changed lines and functions against the merge base
 │   ├── gate/                # runner, tiers, verdicts, run info
 │   ├── init/                # webtops init: renders the drop-in set
 │   ├── layers/              # hygiene, tests, coverage
