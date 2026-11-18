@@ -1,3 +1,4 @@
+import { CENSUS_RULE_PREFIX } from "../census/kinds.ts";
 import { hasRun, type Finding, type Report, type ReportLayer } from "./types.ts";
 
 const REQUIRED_BY = /^(?:(.+) \()?required by ([^)]+?)\)?$/u;
@@ -35,13 +36,32 @@ function findingLine(finding: Finding): string {
   return `      - [${finding.verdict}] ${finding.rule}: ${finding.message}${placeOf(finding)}`;
 }
 
-/** The most findings the text report prints for a layer; the JSON report keeps every one (section 6.6). */
+/** The most findings the text report prints for a layer, passing census findings apart; the JSON report keeps every one (section 6.6). */
 const MAX_PRINTED = 100;
 
+/** A passing census finding: one for each hit, which a large project counts by the hundred (WEB_TOPS.md section 6.6). */
+const isCensusPass = (finding: Finding): boolean =>
+  finding.verdict === "pass" && finding.rule.startsWith(CENSUS_RULE_PREFIX);
+
+/** One line for each census kind, with how many were found, in the order the kinds are first met. */
+function censusLines(findings: readonly Finding[]): string[] {
+  const counts = new Map<string, number>();
+  for (const finding of findings) {
+    counts.set(finding.rule, (counts.get(finding.rule) ?? 0) + 1);
+  }
+  return [...counts].map(
+    ([rule, count]) => `      - [pass] ${rule}: ${String(count)} found, listed in the JSON report`,
+  );
+}
+
 function findingLines(findings: readonly Finding[]): string[] {
-  const shown = findings.slice(0, MAX_PRINTED).map(findingLine);
-  const more = findings.length - MAX_PRINTED;
-  return more > 0 ? [...shown, `      - and ${String(more)} more findings, not listed`] : shown;
+  const rest = findings.filter((finding) => !isCensusPass(finding));
+  const shown = rest.slice(0, MAX_PRINTED).map(findingLine);
+  const more = rest.length - MAX_PRINTED;
+  const folded = censusLines(findings.filter(isCensusPass));
+  return more > 0
+    ? [...shown, `      - and ${String(more)} more findings, not listed`, ...folded]
+    : [...shown, ...folded];
 }
 
 function layerLines(layer: ReportLayer): string[] {
