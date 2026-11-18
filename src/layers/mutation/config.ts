@@ -34,7 +34,7 @@ export function strykerConfig(plan: StrykerPlan): Record<string, unknown> {
     testRunner: "vitest",
     vitest: { configFile: plan.vitestConfig },
     checkers: ["typescript"],
-    ...(plan.tsconfig === undefined || plan.tsconfig === "" ? {} : { tsconfigFile: plan.tsconfig }),
+    ...(plan.tsconfig === undefined ? {} : { tsconfigFile: plan.tsconfig }),
     coverageAnalysis: "perTest",
     // Stryker's default writes `// @ts-nocheck` into every file under src/, test/ and lib/, fixtures included.
     disableTypeChecks: false,
