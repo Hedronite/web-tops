@@ -4,6 +4,7 @@ import { loadTypeScript } from "../../complexity/index.ts";
 import type { Ts } from "../../complexity/index.ts";
 import type { DiffProvider, Layer, LayerContext, LayerResult } from "../../gate/types.ts";
 import type { RawFinding } from "../../report/findings.ts";
+import type { MutationMetric } from "../../config/report.ts";
 import { keyString } from "../../survivors/key.ts";
 import type { SurvivorKey } from "../../survivors/key.ts";
 import { excludesOf, inScope } from "../coverage/scope.ts";
@@ -157,6 +158,19 @@ function unknownFinding(status: string): RawFinding {
   );
 }
 
+/** Every status Stryker gave a mutant, with its count, so a run that read differently on another machine shows how. */
+function countsOf(counts: MutationMetric): string {
+  return [
+    `killed ${String(counts.killed)}`,
+    `timeout ${String(counts.timeout)}`,
+    `survived ${String(counts.survived)}`,
+    `no-coverage ${String(counts.no_coverage)}`,
+    `runtime-error ${String(counts.runtime_error)}`,
+    `compile-error ${String(counts.compile_error)}`,
+    `ignored ${String(counts.ignored)}`,
+  ].join(", ");
+}
+
 function summary(ctx: LayerContext, read: MutationRead, open: readonly SurvivorRow[]): RawFinding {
   const { maxSurvivors } = ctx.config.mutation;
   const explained = read.survivors.length - open.length;
@@ -167,7 +181,8 @@ function summary(ctx: LayerContext, read: MutationRead, open: readonly SurvivorR
     message:
       `${ctx.config.package}: ${String(read.killed)} mutants killed, ${String(open.length)} unexplained ` +
       `survivors of ${String(read.survivors.length)} (${String(explained)} explained), ` +
-      `${String(read.excluded)} excluded, at most ${String(maxSurvivors)} allowed`,
+      `${String(read.excluded)} excluded, at most ${String(maxSurvivors)} allowed ` +
+      `(${countsOf(read.counts)})`,
   };
 }
 
@@ -196,7 +211,12 @@ function judge(ctx: LayerContext, read: MutationRead): LayerResult {
     summary(ctx, read, open),
   ];
   const failedAny = findings.some((finding) => finding.verdict === "fail");
-  return { ...outcome(read, failedAny), findings, artifacts: {} };
+  return {
+    ...outcome(read, failedAny),
+    findings,
+    artifacts: {},
+    metrics: { mutation: read.counts },
+  };
 }
 
 function readReport(ctx: LayerContext, ts: Ts, report: string): LayerResult {

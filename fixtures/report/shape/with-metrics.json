@@ -1,5 +1,5 @@
 {
-  "report_version": "2.2.0",
+  "report_version": "2.3.0",
   "protocol": "0.3.0",
   "class": "ts-library",
   "enforce": "hard",
@@ -183,7 +183,17 @@
       "verdict": "pass",
       "required": true,
       "findings": [],
-      "metrics": {}
+      "metrics": {
+        "mutation": {
+          "killed": 8,
+          "timeout": 1,
+          "survived": 0,
+          "no_coverage": 0,
+          "runtime_error": 0,
+          "compile_error": 2,
+          "ignored": 4
+        }
+      }
     },
     {
       "id": "build-output",

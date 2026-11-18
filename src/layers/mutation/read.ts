@@ -1,4 +1,5 @@
 import type { Ts } from "../../complexity/index.ts";
+import type { MutationMetric } from "../../config/report.ts";
 import { keyMutants } from "../../survivors/key.ts";
 import type { Mutant, SurvivorKey } from "../../survivors/key.ts";
 
@@ -21,6 +22,8 @@ export interface MutationRead {
   readonly excluded: number;
   /** Statuses the table does not list, each once, in the order met. */
   readonly unknown: readonly string[];
+  /** One count for each status Stryker gave a mutant, so a status that moves between runs is seen. */
+  readonly counts: MutationMetric;
 }
 
 type Kind = "killed" | "survivor" | "excluded";
@@ -29,21 +32,23 @@ type Kind = "killed" | "survivor" | "excluded";
  * The P3 status table (WEB_TOPS.md section 6.4). `NoCoverage` counts with `Survived`: a function no test runs has
  * only `NoCoverage` mutants, and counting `Survived` alone would score it best.
  */
-const KINDS: ReadonlyMap<string, Kind> = new Map([
-  ["Killed", "killed"],
-  ["Timeout", "killed"],
-  ["Survived", "survivor"],
-  ["NoCoverage", "survivor"],
-  ["CompileError", "excluded"],
-  ["RuntimeError", "excluded"],
-  ["Ignored", "excluded"],
-]);
+const STATUSES: ReadonlyMap<string, { readonly kind: Kind; readonly key: keyof MutationMetric }> =
+  new Map([
+    ["Killed", { kind: "killed", key: "killed" }],
+    ["Timeout", { kind: "killed", key: "timeout" }],
+    ["Survived", { kind: "survivor", key: "survived" }],
+    ["NoCoverage", { kind: "survivor", key: "no_coverage" }],
+    ["CompileError", { kind: "excluded", key: "compile_error" }],
+    ["RuntimeError", { kind: "excluded", key: "runtime_error" }],
+    ["Ignored", { kind: "excluded", key: "ignored" }],
+  ]);
 
 interface Tally {
   killed: number;
   excluded: number;
   survivors: SurvivorRow[];
   unknown: string[];
+  counts: Record<keyof MutationMetric, number>;
 }
 
 const COUNT: Readonly<Record<Kind, (tally: Tally, row: SurvivorRow) => void>> = {
@@ -59,9 +64,10 @@ const COUNT: Readonly<Record<Kind, (tally: Tally, row: SurvivorRow) => void>> = 
 };
 
 function count(tally: Tally, row: SurvivorRow): void {
-  const kind = KINDS.get(row.status);
-  if (kind !== undefined) {
-    COUNT[kind](tally, row);
+  const status = STATUSES.get(row.status);
+  if (status !== undefined) {
+    COUNT[status.kind](tally, row);
+    tally.counts[status.key] += 1;
   } else if (!tally.unknown.includes(row.status)) {
     tally.unknown.push(row.status);
   }
@@ -139,7 +145,21 @@ export interface ReadInput {
  * for a report that is not Stryker's, and for a file whose source cannot be read.
  */
 export function readMutation(input: ReadInput): MutationRead {
-  const tally: Tally = { killed: 0, excluded: 0, survivors: [], unknown: [] };
+  const tally: Tally = {
+    killed: 0,
+    excluded: 0,
+    survivors: [],
+    unknown: [],
+    counts: {
+      killed: 0,
+      timeout: 0,
+      survived: 0,
+      no_coverage: 0,
+      runtime_error: 0,
+      compile_error: 0,
+      ignored: 0,
+    },
+  };
   for (const [file, mutants] of filesOf(input.report)) {
     const source = input.text(file);
     if (source === undefined) {

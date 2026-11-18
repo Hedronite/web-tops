@@ -477,7 +477,7 @@ To replay a shuffled failure, rerun the suite with that seed: `vitest run --sequ
 From 0.3.0 the report is the source the baseline is projected from, so it carries:
 
 - `report_version`, the report format's own semver, separate from `protocol`; it was `1.0.0`
-  for the shape above, `2.0.0` once findings had one shape, `2.1.0` once a mutation survivor carried an optional `survivor` object, and is `2.2.0` since the report says `crap_scope`. It changes only when the report's shape does, so a protocol patch that leaves the report alone does not change it;
+  for the shape above, `2.0.0` once findings had one shape, `2.1.0` once a mutation survivor carried an optional `survivor` object, `2.2.0` once the report said `crap_scope`, and is `2.3.0` since the mutation layer carries a count for each Stryker status. It changes only when the report's shape does, so a protocol patch that leaves the report alone does not change it;
 - `crap_scope`, `all` or `diff`: whether the CRAP layer judged every function, under `--all` or
   `gates.crap.scope: all`, or only the ones the diff changed;
 - `subject`, the package and the root the run judged: `{package, root}`, the root being the
@@ -492,9 +492,9 @@ From 0.3.0 the report is the source the baseline is projected from, so it carrie
   complexity, coverage, crap}` for CRAP; per file `{file, lines_found, lines_hit}` for coverage;
   per rule per file `{rule, file, count}` for findings, counted from the layer's own findings and never
   set by the layer (a count that differs from its findings fails the report); per page `{route, bytes}` for build
-  output. A layer that has no metrics yet carries an empty object, never absent, and a layer carries only
+  output; one count for each Stryker status, `{killed, timeout, survived, no_coverage, runtime_error, compile_error, ignored}`, for mutation, so a status that reads differently on another machine is seen. A layer that has no metrics yet carries an empty object, never absent, and a layer carries only
   the metrics of its own kind: `crap` on the CRAP layer, `coverage` on coverage, `findings` on
-  hygiene and laws, `pages` on build output.
+  hygiene and laws, `mutation` on the mutation layer, `pages` on build output.
 
 `.web-tops/baseline.json` is a projection of this report and takes no other input: CRAP per
 function, coverage per package, finding counts per rule per file with the `fp1` of each counted

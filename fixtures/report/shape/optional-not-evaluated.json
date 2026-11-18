@@ -1,5 +1,5 @@
 {
-  "report_version": "2.2.0",
+  "report_version": "2.3.0",
   "protocol": "0.3.0",
   "class": "ts-library",
   "enforce": "hard",
