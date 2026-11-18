@@ -92,7 +92,7 @@ describe("G7a: the kit's own web-tops.yaml", () => {
     expect(at(config, ["gates", "coverage", "lines_floor"])).toBe(
       profileFor("ts-library")?.linesFloor,
     );
-    expect(at(config, ["toolchain", "typescript"])).toBe(pkg.devDependencies.typescript);
+    expect(at(config, ["toolchain", "typescript"])).toBe(pkg.dependencies.typescript);
     expect(get(config, "version")).toBe(pkg.version);
   });
 
