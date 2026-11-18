@@ -117,6 +117,6 @@ export function runTests(item: Project, exec: Exec, options: Options = {}): Prom
 
 export function rulesOf(result: LayerResult): string[] {
   return result.findings
-    .filter((finding) => finding.verdict === "Refuse")
+    .filter((finding) => finding.verdict === "fail")
     .map((finding) => finding.rule);
 }

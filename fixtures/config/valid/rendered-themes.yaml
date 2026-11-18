@@ -1,0 +1,14 @@
+protocol: "0.3.0"
+version: "0.1.0"
+package: pkg
+class: astro-site
+enforce: hard
+layers:
+  rendered:
+    routes: ["/", "/docs/"]
+    widths: [1280, 768, 320]
+    reduced_motion: true
+  themes:
+    switch: { mechanism: attribute, name: data-theme }
+    schemes: [light, dark]
+    tokens: ["--color-bg", "--color-fg"]

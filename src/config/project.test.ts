@@ -40,7 +40,7 @@ describe("readProject: a project depends on Astro when package.json lists astro"
     ["an empty file", "", false],
     ["a file that is not JSON", '{ "name": ', false],
   ])("%s", (_label, manifest, expected) => {
-    expect(readProject(dirWith(manifest))).toEqual({ dependsOnAstro: expected });
+    expect(readProject(dirWith(manifest))).toMatchObject({ dependsOnAstro: expected });
   });
 
   it("a missing package.json is not Astro", () => {

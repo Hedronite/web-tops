@@ -1,0 +1,389 @@
+# What WEB_TOPS.md section 6 says about each cheat in this directory.
+#
+# Data only. No code reads it until M2, when the CRAP counter, the Stryker adapter and the census are
+# scored against it. A case names the cheat, the section that states the outcome, the recorded inputs,
+# the facts those inputs hold, and the outcome the protocol states. A test (src/layers/probe.test.ts)
+# holds the facts to the recordings, so a fixture cannot drift from what it claims.
+#
+# Outcomes assume a ts-library under `enforce: hard` (section 5.2): CRAP cap 4, line coverage floor
+# 85 %, `unexplained_survivors_max` 0, no baseline unless a case says one.
+protocol: "0.3"
+assume:
+  class: ts-library
+  enforce: hard
+  crap_cap: 4
+  coverage_floor: 85
+  unexplained_survivors_max: 0
+cases:
+  - id: e2-one-line-arrow
+    cheat: A one-line arrow with three branches that nothing calls. Its declaration runs at load, so by line it reads as covered.
+    section: "6.2"
+    inputs:
+      - src/sign.ts
+      - recorded/coverage-final.json
+      - recorded/lcov.info
+    facts:
+      complexity: 4
+      function_hits: 0
+      lcov_lines_found: 1
+      lcov_lines_hit: 1
+      body_statements: 1
+      body_statements_hit: 0
+    outcome:
+      verdicts:
+        crap: fail
+      cov: 0
+      crap: 20
+      note: The line reading gives cov 1 and CRAP 4, which passes the cap. The statement reading gives cov 0 and CRAP 4 * 4 * 1 + 4 = 20.
+
+  - id: e3-v8-ignore
+    cheat: A v8 ignore hint over an untested throw. The three lines vanish from the profile.
+    section: "6.7"
+    inputs:
+      - src/guard.ts
+      - recorded/lcov.info
+    facts:
+      hint_line: 2
+      lines_hidden: [3, 4, 5]
+      lcov_lines_found: 1
+      lcov_lines_hit: 1
+    outcome:
+      verdicts:
+        coverage: pass
+      census:
+        v8-ignore: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Coverage still reads 100 %. The census counts the hint, and under ratchet a count above the baseline fails.
+
+  - id: e4-unimported-file
+    cheat: A source file no test imports. Without the gate's include it is absent from the profile.
+    section: "6.1"
+    inputs:
+      - src/unimported.ts
+      - recorded/lcov-without-include.info
+      - recorded/lcov.info
+    facts:
+      records_without_include: [src/used.ts]
+      records_with_include: [src/unimported.ts, src/used.ts]
+      lcov_lines_found: 4
+      lcov_lines_hit: 1
+    outcome:
+      verdicts:
+        coverage: fail
+      findings:
+        - rule: no-coverage-record
+          file: src/unimported.ts
+      note: The gate passes the include and checks every tracked in-scope file for an SF record. Judged on the profile without the include, coverage would read 100 %.
+
+  - id: no-coverage-survivors
+    cheat: A function that no test runs. Every one of its mutants is NoCoverage, none is Survived.
+    section: "6.4"
+    inputs:
+      - src/price.ts
+      - recorded/mutation.json
+    facts:
+      statuses:
+        Killed: 8
+        NoCoverage: 6
+        CompileError: 2
+      no_coverage_function: src/price.ts::untested
+    outcome:
+      verdicts:
+        mutation: fail
+      survivors: 6
+      note: NoCoverage counts with Survived. Counting Survived alone gives 0 and a pass for the least-tested function.
+
+  - id: test-only-diff
+    cheat: A diff that only weakens a test. No source line changed.
+    section: "6.4"
+    inputs:
+      - changes.diff
+      - src/sum.ts
+      - src/sum.test.ts
+      - recorded/mutation.json
+    facts:
+      changed_files: [src/sum.test.ts]
+      changed_source_lines: 0
+      statuses:
+        Survived: 2
+        CompileError: 1
+    outcome:
+      verdicts:
+        mutation: fail
+      scope: [src/sum.ts::sum]
+      survivors: 2
+      note: The scope is the changed lines plus the functions a changed test covers, so sum is mutated. Scoped to changed source lines alone the layer would be vacuous and the weaker test would pass.
+
+  - id: rule-off-override
+    cheat: A per-file ESLint override that sets a rule to off for a directory. The config registers the plugin and the parser, so the rule resolves.
+    section: "6.7"
+    inputs:
+      - eslint.config.js
+      - src/legacy/loose.ts
+      - src/strict.ts
+      - recorded/effective-rule-levels.json
+    facts:
+      rule: "@typescript-eslint/no-explicit-any"
+      override_files: "src/legacy/**"
+      effective_levels:
+        src/legacy/loose.ts: off
+        src/strict.ts: error
+      tracked_files_off: [src/legacy/loose.ts]
+      tracked_files_on: [src/strict.ts]
+    outcome:
+      census:
+        eslint-rule-off: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: No directive comment appears in any file. The census reads the effective setting per tracked file, recorded here from ESLint's calculateConfigForFile.
+
+  - id: stryker-disable
+    cheat: A Stryker disable comment that silences the mutants of one line.
+    section: "6.7"
+    inputs:
+      - src/clamp.ts
+      - recorded/mutation.json
+    facts:
+      directive_line: 2
+      statuses:
+        Ignored: 4
+        Killed: 1
+        CompileError: 1
+    outcome:
+      verdicts:
+        mutation: pass
+      survivors: 0
+      census:
+        stryker-disable: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Stryker marks the four mutants Ignored and the table excludes them, so the layer passes. The census counts the comment.
+
+  - id: assertion-free-test
+    cheat: A test that runs the function and asserts nothing. Every line is covered and no mutant is killed.
+    section: "6.4"
+    inputs:
+      - src/total.ts
+      - src/total.test.ts
+      - recorded/lcov.info
+      - recorded/mutation.json
+    facts:
+      lcov_lines_found: 4
+      lcov_lines_hit: 4
+      statuses:
+        Survived: 2
+        CompileError: 1
+    outcome:
+      verdicts:
+        coverage: pass
+        mutation: fail
+      survivors: 2
+      note: Coverage cannot see a missing assertion. Mutation survival does.
+
+  - id: census-eslint-disable
+    cheat: "ESLint directive comments: a block disable, a next-line disable and a line disable."
+    section: "6.7"
+    inputs:
+      - src/log.ts
+    facts:
+      directive_lines: [1, 7, 9]
+    outcome:
+      census:
+        eslint-disable: 3
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Each directive is counted, whatever its form.
+
+  - id: census-ts-expect-error
+    cheat: A @ts-expect-error directive.
+    section: "6.7"
+    inputs:
+      - src/wire.ts
+    facts:
+      directive_lines: [1]
+    outcome:
+      census:
+        ts-expect-error: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Counted as its own kind.
+
+  - id: census-ts-ignore
+    cheat: A @ts-ignore directive.
+    section: "6.7"
+    inputs:
+      - src/wire.ts
+    facts:
+      directive_lines: [1]
+    outcome:
+      census:
+        ts-ignore: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Counted as its own kind, apart from @ts-expect-error.
+
+  - id: census-ts-nocheck
+    cheat: A @ts-nocheck directive that switches a whole file off.
+    section: "6.7"
+    inputs:
+      - src/wire.ts
+    facts:
+      directive_lines: [1]
+    outcome:
+      census:
+        ts-nocheck: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Counted as its own kind.
+
+  - id: census-stylelint-disable
+    cheat: A stylelint-disable-next-line comment.
+    section: "6.7"
+    inputs:
+      - src/style.css
+    facts:
+      directive_lines: [1]
+    outcome:
+      census:
+        stylelint-disable: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Counted in a CSS file.
+
+  - id: census-istanbul-ignore
+    cheat: An istanbul ignore hint over an untested throw.
+    section: "6.7"
+    inputs:
+      - src/guard.ts
+    facts:
+      directive_lines: [2]
+    outcome:
+      census:
+        istanbul-ignore: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: A coverage hint, counted apart from the v8 and c8 hints.
+
+  - id: census-c8-ignore
+    cheat: A c8 ignore hint over an untested throw.
+    section: "6.7"
+    inputs:
+      - src/guard.ts
+    facts:
+      directive_lines: [2]
+    outcome:
+      census:
+        c8-ignore: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: A coverage hint, counted apart from the v8 and istanbul hints.
+
+  - id: census-html-validate-disable
+    cheat: An html-validate disable directive in a page.
+    section: "6.7"
+    inputs:
+      - src/page.html
+    facts:
+      directive_lines: [5]
+    outcome:
+      census:
+        html-validate-disable: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Counted in an HTML file.
+
+  - id: census-biome-ignore
+    cheat: A biome-ignore comment.
+    section: "6.7"
+    inputs:
+      - src/loose.ts
+    facts:
+      directive_lines: [1]
+    outcome:
+      census:
+        biome-ignore: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Counted as its own kind.
+
+  - id: census-axe-disable-rules
+    cheat: An axe run that disables two rules.
+    section: "6.7"
+    inputs:
+      - src/a11y.test.ts
+    facts:
+      rules: [color-contrast, region]
+    outcome:
+      census:
+        axe-disable-rules: 2
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Each rule in disableRules is counted.
+
+  - id: census-axe-exclude
+    cheat: An axe run that excludes two selectors.
+    section: "6.7"
+    inputs:
+      - src/a11y.test.ts
+    facts:
+      selectors: [.legacy-banner, "#ad"]
+    outcome:
+      census:
+        axe-exclude: 2
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Each selector in exclude is counted.
+
+  - id: census-eslint-ignores
+    cheat: An ESLint ignores entry that leaves two tracked files out.
+    section: "6.7"
+    inputs:
+      - eslint.config.js
+      - src/ok.ts
+      - src/legacy/a.ts
+      - src/legacy/b.ts
+      - recorded/ignored-files.json
+    facts:
+      ignored: [src/legacy/a.ts, src/legacy/b.ts]
+      linted: [src/ok.ts]
+    outcome:
+      census:
+        eslint-ignores: 2
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: The census counts each tracked file in scope that the recorded isPathIgnored says is ignored.
+
+  - id: census-tsconfig-exclude
+    cheat: A tsconfig exclude that leaves a tracked file out of the program.
+    section: "6.7"
+    inputs:
+      - tsconfig.json
+      - src/ok.ts
+      - src/generated/g.ts
+      - recorded/program-files.txt
+    facts:
+      program_files: [src/ok.ts]
+      excluded: [src/generated/g.ts]
+    outcome:
+      census:
+        tsconfig-exclude: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: The census counts each tracked file in scope that the recorded tsc --listFilesOnly omits.

@@ -66,7 +66,7 @@ function entryOf(report: Report, id: string): Report["layers"][number] {
 
 function pair(
   box: Fixture,
-  producer: { verdict?: "pass" | "Refuse" | "not-evaluated"; write?: boolean },
+  producer: { verdict?: "pass" | "fail" | "not-evaluated"; write?: boolean },
   calls: string[] = [],
 ): readonly [Layer, Layer] {
   const path = join(box.outDir, "tests", "results.json");
@@ -121,7 +121,7 @@ describe("G2c hand-offs: produces, consumes and a missing input (R29 N5)", () =>
     const box = fixture();
     const calls: string[] = [];
     const report = await box.run(
-      pair(box, { verdict: "Refuse" }, calls),
+      pair(box, { verdict: "fail" }, calls),
       cfg(),
       opts({ keepGoing: true }),
     );
@@ -134,7 +134,7 @@ describe("G2c hand-offs: produces, consumes and a missing input (R29 N5)", () =>
   it("without --keep-going a failed producer still stops the run, and the consumer says so", async () => {
     const box = fixture();
     const calls: string[] = [];
-    const report = await box.run(pair(box, { verdict: "Refuse" }, calls));
+    const report = await box.run(pair(box, { verdict: "fail" }, calls));
     expect(calls).toEqual(["tests"]);
     expect(entryOf(report, "coverage")).toMatchObject({
       verdict: "not-run",
@@ -145,14 +145,20 @@ describe("G2c hand-offs: produces, consumes and a missing input (R29 N5)", () =>
   it("gives not-run with the producer's verdict when a failed producer left no file", async () => {
     const box = fixture();
     const calls: string[] = [];
-    const layers = pair(box, { verdict: "Refuse", write: false }, calls);
+    const layers = pair(box, { verdict: "fail", write: false }, calls);
     const report = await box.run(layers, cfg(), opts({ keepGoing: true }));
     expect(calls).toEqual(["tests"]);
     expect(entryOf(report, "coverage")).toMatchObject({
       verdict: "not-run",
-      reason: "input results missing: tests Refuse",
+      reason: "input results missing: tests fail",
     });
-    expect(report.counts).toEqual({ in_range: 2, ran: 1, failed: 2, not_evaluated: 0 });
+    expect(report.counts).toEqual({
+      in_range: 2,
+      ran: 1,
+      failed: 2,
+      not_evaluated: 0,
+      required_not_evaluated: 0,
+    });
     expect(report.exit_code).toBe(1);
   });
 
@@ -233,7 +239,7 @@ describe("G2f hand-offs: an input is matched by name and by the layer that produ
         id: "first",
         gate: 1,
         calls,
-        verdict: failFirst ? "Refuse" : "pass",
+        verdict: failFirst ? "fail" : "pass",
         produces: ["results"],
         artifacts: failFirst ? {} : { results: first },
       }),
@@ -278,7 +284,7 @@ describe("G2f hand-offs: an input is matched by name and by the layer that produ
     expect(calls).toEqual(["first", "second"]);
     expect(entryOf(report, "third")).toMatchObject({
       verdict: "not-run",
-      reason: "input results missing: first Refuse",
+      reason: "input results missing: first fail",
     });
   });
 

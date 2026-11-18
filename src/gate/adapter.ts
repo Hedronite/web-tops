@@ -1,6 +1,8 @@
 import { mapsStep, profileFor } from "../config/profiles.ts";
+import { requiredLayers } from "../config/required.ts";
+import { LAYER_IDS } from "../config/report.ts";
 import type { LayerKey, Profile, Project } from "../config/profiles.ts";
-import type { Switch, WebTopsConfig } from "../config/types.ts";
+import type { PackageExportsLayer, Switch, WebTopsConfig } from "../config/types.ts";
 import {
   HYGIENE_STEPS,
   type AuditLevel,
@@ -82,12 +84,27 @@ function isMapped(profile: Profile | undefined, step: HygieneStep, project: Proj
     : mapsStep(profile, step, project);
 }
 
+/** `skip_private` on a private package switches the exports check off with its own reason (WEB_TOPS.md section 9). */
+function privateSkip(
+  exports: PackageExportsLayer | undefined,
+  project: Project,
+): Switch | undefined {
+  if (exports?.skip_private === undefined || project.isPrivate !== true) return undefined;
+  return { enabled: false, reason: exports.skip_private };
+}
+
+function exportsSwitch(config: WebTopsConfig, project: Project): Switch | undefined {
+  const exports = config.layers?.package_exports;
+  return privateSkip(exports, project) ?? exports;
+}
+
 function stepSwitch(
   config: WebTopsConfig,
   hygiene: HygieneConfig | undefined,
   step: HygieneStep,
+  project: Project,
 ): Switch | undefined {
-  return step === "package_exports" ? config.layers?.package_exports : hygiene?.[step];
+  return step === "package_exports" ? exportsSwitch(config, project) : hygiene?.[step];
 }
 
 /** Off when the class and project do not map the step (`mapsStep`) or the config switches it off. */
@@ -99,7 +116,7 @@ function stepToggle(
 ): Toggle | undefined {
   const profile = profileFor(config.class);
   if (isMapped(profile, step, project)) {
-    return off(stepSwitch(config, hygiene, step));
+    return off(stepSwitch(config, hygiene, step, project));
   }
   return { enabled: false, reason: unmapped(config.class, step, isConditional(profile, step)) };
 }
@@ -175,6 +192,13 @@ function baseOf(config: WebTopsConfig): string | undefined {
   return config.gates?.mutation?.base;
 }
 
+/** The built-in layers the class profile does not require (section 3.3); custom layers are always required. */
+function optionalOf(config: WebTopsConfig): readonly string[] {
+  const profile = profileFor(config.class);
+  const required = profile === undefined ? LAYER_IDS : requiredLayers(profile);
+  return LAYER_IDS.filter((id) => !required.includes(id));
+}
+
 function customOf(config: WebTopsConfig): GateConfig["custom"] {
   return (config.layers?.custom ?? []).map(({ id, tier, command }) => ({ id, tier, command }));
 }
@@ -191,6 +215,7 @@ export function toGateConfig(config: WebTopsConfig, project: Project): GateConfi
     reportPath: config.report.path,
     toggles: togglesOf(config),
     custom: customOf(config),
+    optionalLayers: optionalOf(config),
     hygiene: hygieneSettings(config, project),
     tests: testsSettings(config),
     coverage: coverageSettings(config),

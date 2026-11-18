@@ -37,25 +37,28 @@ describe("G2a runner: §3.1 order, stop on failure, --keep-going, --max-tier, --
 
   it("stops at the first failing gate and reports the layers it never reached as not-run", async () => {
     const calls: string[] = [];
-    const report = await run(fakeBuiltins(calls, { tests: "Refuse" }));
-    expect(calls).toEqual(["hygiene", "tests"]);
+    const report = await run(fakeBuiltins(calls, { tests: "fail" }));
+    expect(calls).toEqual(["hygiene", "tests", "laws"]);
     const byId = new Map(report.layers.map((layer) => [layer.id, layer]));
     expect(byId.get("coverage")).toMatchObject({
       verdict: "not-run",
       reason: "stopped: gate 2 failed",
     });
-    expect(byId.get("laws")).toMatchObject({
-      verdict: "not-run",
-      reason: "stopped: gate 2 failed",
+    expect(byId.get("laws")?.verdict).toBe("pass");
+    expect(report.counts).toEqual({
+      in_range: 7,
+      ran: 3,
+      failed: 5,
+      not_evaluated: 0,
+      required_not_evaluated: 0,
     });
-    expect(report.counts).toEqual({ in_range: 7, ran: 2, failed: 6, not_evaluated: 0 });
     expect(report.exit_code).toBe(1);
   });
 
   it("runs every layer under --keep-going and still fails", async () => {
     const calls: string[] = [];
     const report = await run(
-      fakeBuiltins(calls, { tests: "Refuse" }),
+      fakeBuiltins(calls, { tests: "fail" }),
       cfg(),
       opts({ keepGoing: true }),
     );
@@ -68,15 +71,15 @@ describe("G2a runner: §3.1 order, stop on failure, --keep-going, --max-tier, --
   it("names the layer that stopped the run, including laws", async () => {
     const calls: string[] = [];
     const layers = [
-      ...fakeBuiltins(calls, { hygiene: "Refuse" }),
+      ...fakeBuiltins(calls, { hygiene: "fail" }),
       fakeLayer({ id: "extra", gate: 6, calls }),
     ];
     const report = await run(layers);
     expect(report.layers.find((layer) => layer.id === "extra")?.reason).toBe(
       "stopped: gate 1 failed",
     );
-    const lawsFirst = await run(fakeBuiltins([], { laws: "Refuse" }), cfg(), opts({ maxTier: 0 }));
-    expect(lawsFirst.exit_code).toBe(1);
+    const lawsFailed = await run(fakeBuiltins([], { laws: "refuse" }));
+    expect(lawsFailed.exit_code).toBe(1);
   });
 
   it("filters by --max-tier: a tier-2 layer is skipped by default and runs at --max-tier 2", async () => {
@@ -97,8 +100,9 @@ describe("G2a runner: §3.1 order, stop on failure, --keep-going, --max-tier, --
 
   it("--max-tier 0 runs only the tier-0 layers", async () => {
     const calls: string[] = [];
-    await run(fakeBuiltins(calls), cfg(), opts({ maxTier: 0 }));
-    expect(calls).toEqual(["laws"]);
+    const floor = fakeLayer({ id: "floor", gate: 6, tier: 0, calls });
+    await run([...fakeBuiltins(calls), floor], cfg(), opts({ maxTier: 0 }));
+    expect(calls).toEqual(["floor"]);
   });
 
   it("--only runs the named layer and what it requires, and skips the rest with a reason", async () => {
@@ -121,7 +125,13 @@ describe("G2a runner: §3.1 order, stop on failure, --keep-going, --max-tier, --
       verdict: "skip",
       reason: "not selected by --only coverage",
     });
-    expect(report.counts).toEqual({ in_range: 2, ran: 2, failed: 0, not_evaluated: 0 });
+    expect(report.counts).toEqual({
+      in_range: 2,
+      ran: 2,
+      failed: 0,
+      not_evaluated: 0,
+      required_not_evaluated: 0,
+    });
     expect(report.passed).toBe(true);
     expect(report.exit_code).toBe(0);
     expect((await run(layers)).only).toBeNull();
@@ -170,7 +180,7 @@ describe("G2a runner: §3.1 order, stop on failure, --keep-going, --max-tier, --
 
   it("keeps a pulled-in layer's own reason and adds who required it", async () => {
     const layers = [
-      fakeLayer({ id: "tests", gate: 2, verdict: "Refuse", reason: "a test failed" }),
+      fakeLayer({ id: "tests", gate: 2, verdict: "fail", reason: "a test failed" }),
       fakeLayer({ id: "coverage", gate: 3, requires: ["tests"] }),
     ];
     const report = await run(layers, cfg(), opts({ only: "coverage", keepGoing: true }));

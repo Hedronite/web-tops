@@ -11,7 +11,7 @@ afterAll(() => {
 });
 
 /** A stored report with a failure, a skip and a layer that was never judged. */
-const sample = () => buildReport({ tests: "Refuse", coverage: "not-evaluated", crap: "skip" });
+const sample = () => buildReport({ tests: "fail", coverage: "not-evaluated", crap: "skip" });
 
 describe("renderReport", () => {
   const report = sample();

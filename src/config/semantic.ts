@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { mapsStep, profileFor, STEP_KEYS, type Project, type StepKey } from "./profiles.ts";
 import { readProject } from "./project.ts";
 import { LAYER_IDS } from "./report.ts";
+import { checkLimits, checkSkipPrivate } from "./semantic-profile.ts";
 import type { Exemption, LayerConfig, Problem, WebTopsConfig } from "./types.ts";
 
 export interface SemanticContext {
@@ -171,11 +172,14 @@ export function runSemanticChecks(
   context: SemanticContext = { cwd: process.cwd() },
 ): readonly Problem[] {
   const today = context.today ?? new Date().toISOString().slice(0, 10);
+  const project = context.project ?? readProject(context.cwd);
   return [
     ...checkClass(config),
     ...checkSurvivors(config),
     ...checkAdvisory(config, today),
-    ...checkHard(config, context.project ?? readProject(context.cwd)),
+    ...checkHard(config, project),
+    ...checkLimits(config),
+    ...checkSkipPrivate(config, project),
     ...checkCustomIds(config),
     ...checkBaseline(config, context.cwd),
   ];

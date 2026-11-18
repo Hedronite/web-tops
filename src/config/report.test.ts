@@ -169,26 +169,26 @@ describe("G1b: gate-report.schema.json covers section 6.6 and every section 3.3 
 
 describe("a finding has rule, message and verdict, and file and line when it has a place", () => {
   const withFinding = (finding: unknown): unknown =>
-    edit(buildReport({ hygiene: "Refuse" }), ["layers", "0", "findings"], [finding]);
+    edit(buildReport({ hygiene: "fail" }), ["layers", "0", "findings"], [finding]);
 
   it("accepts the minimal finding and one with a place", () => {
     expect(
-      pointers(withFinding({ rule: "no-explicit-any", message: "m", verdict: "Refuse" })),
+      pointers(withFinding({ rule: "no-explicit-any", message: "m", verdict: "fail" })),
     ).toEqual([]);
     expect(
       pointers(
-        withFinding({ rule: "W-01", message: "m", verdict: "Refuse", file: "src/a.ts", line: 3 }),
+        withFinding({ rule: "W-01", message: "m", verdict: "fail", file: "src/a.ts", line: 3 }),
       ),
     ).toEqual([]);
   });
 
   it.each(["rule", "message", "verdict"])("requires %s", (key) => {
-    const finding = { rule: "r", message: "m", verdict: "Refuse" };
+    const finding = { rule: "r", message: "m", verdict: "fail" };
     expect(pointers(withFinding(edit(finding, [key])))).toEqual([`/layers/0/findings/0/${key}`]);
   });
 
   it("refuses path (the place is file and line), a line below 1 and a verdict outside section 3.3", () => {
-    const finding = { rule: "r", message: "m", verdict: "Refuse" };
+    const finding = { rule: "r", message: "m", verdict: "fail" };
     expect(pointers(withFinding({ ...finding, path: "a.ts" }))).toEqual([
       "/layers/0/findings/0/path",
     ]);
@@ -213,11 +213,11 @@ describe("a finding has rule, message and verdict, and file and line when it has
     ]);
   });
 
-  it("an acknowledged Ack finding carries source and reason", () => {
+  it("an acknowledged soft rule is a pass that carries source and reason", () => {
     const ack = {
       rule: "W-12",
       message: "m",
-      verdict: "Ack",
+      verdict: "pass",
       ack: { source: "ledger", reason: "bounded" },
     };
     expect(pointers(withFinding(ack))).toEqual([]);
@@ -240,17 +240,23 @@ describe("what a schema cannot say: counts, enforcement and the verdict", () => 
     ]);
   });
 
-  it("the failed count is Refuse, unacknowledged Ack and not-run, and not-evaluated is not in it", () => {
+  it("the failed count is every verdict that ends the run, a required not-evaluated included", () => {
     const report = buildReport({
-      tests: "Refuse",
-      crap: "Ack",
+      tests: "fail",
+      crap: "ack-missing",
       mutation: "not-run",
       laws: "not-evaluated",
     });
-    expect(report.counts).toEqual({ in_range: 7, ran: 6, failed: 3, not_evaluated: 1 });
+    expect(report.counts).toEqual({
+      in_range: 7,
+      ran: 6,
+      failed: 4,
+      not_evaluated: 1,
+      required_not_evaluated: 1,
+    });
     expect(pointers(report)).toEqual([]);
-    expect(pointers(edit(report, ["counts", "failed"], 4))).toEqual(["/counts/failed"]);
-    expect(pointers(edit(report, ["counts", "failed"], 2))).toEqual(["/counts/failed"]);
+    expect(pointers(edit(report, ["counts", "failed"], 5))).toEqual(["/counts/failed"]);
+    expect(pointers(edit(report, ["counts", "failed"], 3))).toEqual(["/counts/failed"]);
   });
 
   it("more layers run than are in range is refused", () => {
@@ -274,7 +280,13 @@ describe("what a schema cannot say: counts, enforcement and the verdict", () => 
       "build-output": "skip",
       laws: "skip",
     });
-    expect(allSkipped.counts).toEqual({ in_range: 0, ran: 0, failed: 0, not_evaluated: 0 });
+    expect(allSkipped.counts).toEqual({
+      in_range: 0,
+      ran: 0,
+      failed: 0,
+      not_evaluated: 0,
+      required_not_evaluated: 0,
+    });
     expect(allSkipped.passed).toBe(false);
     expect(pointers(allSkipped)).toEqual([]);
     const claimed = validateReport(edit(allSkipped, ["passed"], true));
@@ -289,7 +301,7 @@ describe("what a schema cannot say: counts, enforcement and the verdict", () => 
   it("a run that passed claims passed true, and any failure claims passed false", () => {
     expect(buildReport().passed).toBe(true);
     expect(pointers(edit(buildReport(), ["passed"], false))).toEqual(["/passed"]);
-    for (const verdict of ["Refuse", "Ack", "not-run", "not-evaluated"] as const) {
+    for (const verdict of ["fail", "ack-missing", "not-run", "not-evaluated"] as const) {
       const report = buildReport({ tests: verdict });
       expect(report.passed, verdict).toBe(false);
       expect(pointers(edit(report, ["passed"], true)), verdict).toEqual(["/passed"]);
@@ -302,11 +314,11 @@ describe("what a schema cannot say: counts, enforcement and the verdict", () => 
   });
 
   it("`passed` is optional", () => {
-    expect(pointers(edit(buildReport({ tests: "Refuse" }), ["passed"]))).toEqual([]);
+    expect(pointers(edit(buildReport({ tests: "fail" }), ["passed"]))).toEqual([]);
   });
 
   it("enforced is false exactly under advisory, and an advisory run keeps its failing verdicts", () => {
-    const advisory = buildReport({ tests: "Refuse" }, { enforce: "advisory" });
+    const advisory = buildReport({ tests: "fail" }, { enforce: "advisory" });
     expect(advisory.enforced).toBe(false);
     expect(pointers(advisory)).toEqual([]);
     expect(pointers({ ...advisory, passed: true })).toEqual([]);

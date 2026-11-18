@@ -51,7 +51,7 @@ describe("G3d format: Prettier does not judge .web-tops (real run)", () => {
         env: { PATH: process.env["PATH"] },
         steps: only("format"),
       });
-      expect(result.findings.filter((finding) => finding.verdict === "Refuse")).toEqual([]);
+      expect(result.findings.filter((finding) => finding.verdict === "fail")).toEqual([]);
       expect(result.verdict).toBe("pass");
     },
   );
@@ -70,7 +70,7 @@ describe("G3d format: Prettier does not judge .web-tops (real run)", () => {
       .filter((finding) => finding.rule === "format")
       .map((finding) => finding.file);
     expect(files).toEqual(["src/b.ts"]);
-    expect(result.verdict).toBe("Refuse");
+    expect(result.verdict).toBe("fail");
   });
 });
 

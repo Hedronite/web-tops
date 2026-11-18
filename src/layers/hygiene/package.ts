@@ -9,7 +9,7 @@ import {
   isRecord,
   parseJson,
   ran,
-  refuse,
+  failFinding,
   str,
   tail,
   printed,
@@ -56,7 +56,9 @@ async function pack(
   if (result.code !== 0 || tarball === undefined) {
     const said = `bun pm pack exited ${String(result.code)} and left no tarball`;
     return {
-      failed: { findings: [refuse("pack-failed", `${said}: ${tail(printed(result, "stderr"))}`)] },
+      failed: {
+        findings: [failFinding("pack-failed", `${said}: ${tail(printed(result, "stderr"))}`)],
+      },
     };
   }
   return { file: join(step.dir, tarball) };
@@ -76,7 +78,7 @@ async function publintFindings(step: StepContext, file: string): Promise<Finding
     items.length > 0
       ? items
       : [`publint exited ${String(result.code)}: ${tail(printed(result, "stdout"))}`];
-  return shown.map((item) => refuse("publint", item));
+  return shown.map((item) => failFinding("publint", item));
 }
 
 function entrypointOf(entry: unknown): string {
@@ -88,7 +90,9 @@ function attwEntries(problems: unknown): Finding[] {
     return [];
   }
   return Object.entries(problems).flatMap(([kind, entries]) =>
-    arrayOf(entries).map((entry) => refuse(`attw:${kind}`, `entrypoint ${entrypointOf(entry)}`)),
+    arrayOf(entries).map((entry) =>
+      failFinding(`attw:${kind}`, `entrypoint ${entrypointOf(entry)}`),
+    ),
   );
 }
 
@@ -100,7 +104,7 @@ function attwProblems(result: ExecResult): Finding[] {
   const found = attwEntries(isRecord(value) ? value["problems"] : undefined);
   return found.length > 0
     ? found
-    : [refuse("attw-failed", `attw exited ${String(result.code)} with no listed problems`)];
+    : [failFinding("attw-failed", `attw exited ${String(result.code)} with no listed problems`)];
 }
 
 function attwProfile(esmOnly: boolean): Finding {

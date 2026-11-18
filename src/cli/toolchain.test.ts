@@ -1,11 +1,20 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { ESLint } from "eslint";
 import ts from "typescript";
 import { afterEach, describe, expect, it } from "vitest";
 import pkg from "../../package.json" with { type: "json" };
+import { TOOL_PINS } from "../lock/pins.ts";
 
 const root = resolve(import.meta.dirname, "../..");
 
@@ -21,7 +30,8 @@ function readJson(path: string): unknown {
 describe("G0a: pins exactly as WEB_TOPS.md section 2", () => {
   const pinned: readonly (readonly [string, RegExp])[] = [
     ["typescript", /^6\.0\.3$/],
-    ["eslint", /^9\.39\.\d+$/],
+    ["eslint", /^10\.15\.\d+$/],
+    ["@eslint/js", /^10\.0\.\d+$/],
     ["typescript-eslint", /^8\.73\.\d+$/],
     ["vitest", /^5\.1\.\d+$/],
     ["@vitest/coverage-v8", /^5\.1\.\d+$/],
@@ -76,6 +86,7 @@ describe("G0a: pins exactly as WEB_TOPS.md section 2", () => {
       get(dot, "default"),
       get(pkg.exports, "./schema/web-tops.schema.json"),
       get(pkg.exports, "./schema/gate-report.schema.json"),
+      get(pkg.exports, "./schema/core.schema.json"),
       get(pkg.exports, "./package.json"),
       pkg.bin.webtops,
     ]) {
@@ -349,4 +360,112 @@ describe("G0b: lint enables the rule behind every judged ts-library law, at erro
     const linterOptions = get(await printConfig("src/cli/main.ts"), "linterOptions");
     expect([2, "error"]).toContain(get(linterOptions, "reportUnusedDisableDirectives"));
   });
+});
+
+describe("G0d: probes/** and fixtures/probe/** are reserved in every tool scope", () => {
+  const reserved = [
+    "probes/x.ts",
+    "probes/w22/run.ts",
+    "probes/w22/fixtures/a.tsx",
+    "fixtures/probe/x.ts",
+    "fixtures/probe/e2/cheat.ts",
+  ];
+  const checked = ["src/x.ts", "src/config/validate.ts", "src/probes/x.ts"];
+  const prettier = join(root, "node_modules/prettier/bin/prettier.cjs");
+  const made: string[] = [];
+
+  afterEach(() => {
+    for (const dir of made.splice(0)) rmSync(dir, { recursive: true, force: true });
+  });
+
+  const ignoredByPrettier = (path: string): unknown => {
+    const result = spawnSync(process.execPath, [prettier, "--file-info", path], {
+      cwd: root,
+      encoding: "utf8",
+    });
+    const info: unknown = JSON.parse(result.stdout);
+    return get(info, "ignored");
+  };
+
+  it.each(reserved)(
+    "ESLint ignores %s, so a planted lint error there does not fail lint",
+    async (path) => {
+      expect(await new ESLint({ cwd: root }).isPathIgnored(join(root, path))).toBe(true);
+    },
+  );
+
+  it.each(checked)("ESLint still lints %s", async (path) => {
+    expect(await new ESLint({ cwd: root }).isPathIgnored(join(root, path))).toBe(false);
+  });
+
+  it.each(reserved)("Prettier skips %s", (path) => {
+    expect(ignoredByPrettier(path)).toBe(true);
+  });
+
+  it.each(checked)("Prettier still checks %s", (path) => {
+    expect(ignoredByPrettier(path)).toBe(false);
+  });
+
+  it("tsconfig excludes both, even if its include were widened to the whole repo", () => {
+    const read = ts.readConfigFile(join(root, "tsconfig.json"), (file) => ts.sys.readFile(file));
+    expect(get(get(read.config, "exclude"), "length")).toBeGreaterThanOrEqual(2);
+    const dir = mkdtempSync(join(tmpdir(), "wt-tsconfig-"));
+    made.push(dir);
+    for (const name of [...reserved, "src/x.ts"]) {
+      mkdirSync(dirname(join(dir, name)), { recursive: true });
+      writeFileSync(join(dir, name), "export const x = 1;\n");
+    }
+    const config: unknown = read.config;
+    const widened = { ...(typeof config === "object" ? config : {}), include: ["**/*"] };
+    const parsed = ts.parseJsonConfigFileContent(widened, ts.sys, dir);
+    expect(parsed.fileNames.map((name) => name.slice(dir.length + 1)).sort()).toEqual(["src/x.ts"]);
+  });
+
+  it("vitest.config.ts excludes both from the tests it collects", () => {
+    const text = readFileSync(join(root, "vitest.config.ts"), "utf8");
+    expect(text).toMatch(/exclude: \[[^\]]*"probes\/\*\*"[^\]]*"fixtures\/probe\/\*\*"/);
+    expect(text).toContain('include: ["src/**/*.test.ts"]');
+  });
+});
+
+describe("G7: section 2 names the lint pins the kit and the lock carry", () => {
+  const section2 = readFileSync(join(root, "WEB_TOPS.md"), "utf8");
+  const row = section2.split("\n").find((line) => line.startsWith("| Lint |")) ?? "";
+  const lint = [
+    "eslint",
+    "@eslint/js",
+    "typescript-eslint",
+    "eslint-plugin-astro",
+    "eslint-plugin-jsx-a11y-x",
+    "@eslint-community/eslint-plugin-eslint-comments",
+  ] as const;
+  const minor = (version: string): string => version.split(".").slice(0, 2).join(".");
+
+  it.each(lint)("the Lint row gives %s at the minor of its pin", (name) => {
+    const pin: string = TOOL_PINS[name];
+    expect(row).toMatch(
+      new RegExp(`\`${name}\` \\*{0,2}${minor(pin).replace(".", "\\.")}\\*{0,2}[ ,|]`),
+    );
+  });
+
+  it("the kit installs the ESLint the pins table names, and no ESLint 9 is left in section 2", () => {
+    expect(get(pkg.devDependencies, "eslint")).toBe(TOOL_PINS.eslint);
+    expect(get(pkg.devDependencies, "@eslint/js")).toBe(TOOL_PINS["@eslint/js"]);
+    expect(section2.slice(section2.indexOf("## 2. Pins"), section2.indexOf("## 3."))).not.toMatch(
+      /ESLint 9|9\.39/,
+    );
+  });
+});
+
+describe("R55: section 2 lists the readers W-47 and W-48 name", () => {
+  const section2 = readFileSync(join(root, "WEB_TOPS.md"), "utf8");
+  const row = section2.split("\n").find((line) => line.startsWith("| Law readers |")) ?? "";
+
+  it.each(["eslint-plugin-react-hooks", "knip"] as const)(
+    "the Law readers row gives %s at its pin",
+    (name) => {
+      const [major, minor] = TOOL_PINS[name].split(".");
+      expect(row).toContain(`\`${name}\` ${String(major)}.${String(minor)}`);
+    },
+  );
 });

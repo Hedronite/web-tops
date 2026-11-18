@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import configSchema from "../../schema/web-tops.schema.json" with { type: "json" };
+import coreSchema from "../../schema/core.schema.json" with { type: "json" };
 import reportSchema from "../../schema/gate-report.schema.json" with { type: "json" };
 import { CLASSES, LAYER_KEYS, STEP_KEYS } from "./profiles.ts";
-import { PROTOCOL } from "./protocol.ts";
-import { LAYER_IDS, VERDICTS } from "./report.ts";
+import { PROTOCOL_PATTERN } from "./protocol.ts";
+import { LAYER_IDS } from "./report.ts";
 import {
   at,
   containing,
@@ -87,17 +88,16 @@ describe("G1a: web-tops.schema.json covers every section 9 key", () => {
 
   it("keeps what the file sets over a default", () => {
     const result = parseConfig(
-      'protocol: "0.2.1"\nversion: "1"\npackage: p\nclass: web-app\nenforce: hard\nbaseline: b.json\nreport: { path: r.json }\n',
+      'protocol: "0.3.0"\nversion: "1"\npackage: p\nclass: web-app\nenforce: hard\nbaseline: b.json\nreport: { path: r.json }\n',
     );
     expect(get(get(result, "value"), "baseline")).toBe("b.json");
     expect(at(get(result, "value"), ["report", "path"])).toBe("r.json");
   });
 
-  it("pins the protocol to the const this kit speaks", () => {
-    expect(get(get(configSchema, "properties"), "protocol")).toEqual({ const: PROTOCOL });
-    expect(get(get(reportSchema, "properties"), "protocol")).toEqual({ const: PROTOCOL });
-    expect(get(configSchema, "$id")).toContain(`/${PROTOCOL}/`);
-    expect(get(reportSchema, "$id")).toContain(`/${PROTOCOL}/`);
+  it("matches the protocol by the minor, not one patch, in both schemas", () => {
+    const shape = { type: "string", pattern: PROTOCOL_PATTERN };
+    expect(get(get(configSchema, "properties"), "protocol")).toEqual(shape);
+    expect(get(get(reportSchema, "properties"), "protocol")).toEqual(shape);
   });
 
   it("agrees with the class table and the layer keys", () => {
@@ -113,11 +113,11 @@ describe("G1a: web-tops.schema.json covers every section 9 key", () => {
 
   it("an unknown key fails, at the root and in a nested object", () => {
     const root = parseConfig(
-      'protocol: "0.2.1"\nversion: "1"\npackage: p\nclass: web-app\nzz: 1\n',
+      'protocol: "0.3.0"\nversion: "1"\npackage: p\nclass: web-app\nzz: 1\n',
     );
     expect(root).toEqual({ ok: false, problems: [objectLike({ pointer: "/zz" })] });
     const nested = parseConfig(
-      'protocol: "0.2.1"\nversion: "1"\npackage: p\nclass: web-app\nlayers: { axe: { zz: 1 } }\n',
+      'protocol: "0.3.0"\nversion: "1"\npackage: p\nclass: web-app\nlayers: { axe: { zz: 1 } }\n',
     );
     expect(nested).toEqual({ ok: false, problems: [objectLike({ pointer: "/layers/axe/zz" })] });
   });
@@ -178,12 +178,12 @@ describe("parse and validate edge cases", () => {
 
   it("escapes ~ and / in a pointer", () => {
     const result = parseConfig(
-      'protocol: "0.2.1"\nversion: "1"\npackage: p\nclass: web-app\nlayers: { "a/b~c": 1 }\n',
+      'protocol: "0.3.0"\nversion: "1"\npackage: p\nclass: web-app\nlayers: { "a/b~c": 1 }\n',
     );
     expect(get(result, "problems")).toContainEqual(objectLike({ pointer: "/layers/a~1b~0c" }));
   });
 
-  it("names the allowed values of a failed enum and the allowed constant", () => {
+  it("names the allowed values of a failed enum and the range of a protocol outside it", () => {
     const result = loaded("invalid/bad-class.yaml");
     expect(get(result, "problems")).toContainEqual({
       pointer: "/class",
@@ -191,7 +191,7 @@ describe("parse and validate edge cases", () => {
     });
     expect(get(loaded("invalid/wrong-protocol.yaml"), "problems")).toContainEqual({
       pointer: "/protocol",
-      message: containing('"0.2.1"'),
+      message: containing("0.3.x"),
     });
   });
 
@@ -203,10 +203,34 @@ describe("parse and validate edge cases", () => {
   });
 });
 
+describe("G3c: enforce takes its modes from the core schema", () => {
+  it("references the core enum, keeps the ratchet default, and holds no inline enum", () => {
+    const enforce = get(get(configSchema, "properties"), "enforce");
+    expect(get(enforce, "$ref")).toBe("core.schema.json#/$defs/enforce");
+    expect(get(enforce, "default")).toBe("ratchet");
+    expect(get(enforce, "enum")).toBeUndefined();
+    expect(get(get(get(coreSchema, "$defs"), "enforce"), "enum")).toEqual([
+      "hard",
+      "ratchet",
+      "advisory",
+    ]);
+  });
+
+  it("still fills ratchet for a config without enforce, and names the modes for a bad one", () => {
+    expect(get(get(loaded("valid/minimal.yaml"), "value"), "enforce")).toBe("ratchet");
+    expect(get(loaded("invalid/bad-enforce.yaml"), "problems")).toContainEqual({
+      pointer: "/enforce",
+      message: containing('"advisory"'),
+    });
+  });
+});
+
 describe("G1b reader tables match the schema", () => {
-  it("lists the built-in layers and the verdicts of section 3.3", () => {
+  it("lists the built-in layers and takes the verdicts of section 3.3 from the core schema", () => {
     const layer = get(get(reportSchema, "$defs"), "layer");
-    expect(get(get(get(layer, "properties"), "verdict"), "enum")).toEqual([...VERDICTS]);
+    expect(get(get(get(layer, "properties"), "verdict"), "$ref")).toBe(
+      "core.schema.json#/$defs/verdict",
+    );
     const contains = get(reportSchema, "properties");
     expect(JSON.stringify(get(get(contains, "layers"), "allOf"))).toBe(
       JSON.stringify(

@@ -4,6 +4,21 @@ All notable changes to this project are listed here. The protocol version and th
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-17
+
+The `webtops` CLI in this release implements protocol 0.3.0. The verdicts, the report schema, the lint stack and the configuration changed since 0.1.0, which implemented protocol 0.2.1. Protocol 0.3.0 is the truth pass: the text, the schemas and the fixtures agree, and the kit gates itself on them.
+
+- Protocol id checked by the supported range: `check` accepts 0.3.x and exits 2 at `/protocol` outside it. `probes/**` and `fixtures/probe/**` are reserved in every tool scope. (G0)
+- Protocol 0.3.0 has one verdict set in `schema/core.schema.json`. The report, runner and printer use it. Laws run at tier 1 and judge a stopped run. (G1)
+- The gate report carries `report_version`, `subject`, `run`, `required`, `metrics` and `counts.required_not_evaluated`, and the baseline is a projection of it. (G2)
+- Each class requires its layers and the judged laws it maps (§5.2). Under `hard`, `check` refuses a looser floor, cap or survivors limit. `layers.rendered` and `layers.themes` have reserved shapes. `skip_private` skips the package-exports check for a private package. There is one example config per launch class, and `enforce` takes its modes from the core schema. (G3)
+- Protocol 0.3.0 defines `cov(f)` by body statements, the mutation status table, the widened scope, the survivor key, the time-budget rule, the function key and a normative suppression census. `fixtures/probe/` holds one cheat per case. (G4)
+- The gate job runs on Ubuntu and macOS; `engines` names Node and Bun. (G5)
+- W-22 is proven on ESLint 10 through `eslint-plugin-jsx-a11y-x`. (G6)
+- The lint pin moves to ESLint 10.15 with `@eslint/js` 10.0, `eslint-plugin-astro` 3.2 and `eslint-plugin-jsx-a11y-x` 0.2 (W-22's reader). §2 lists the pins and the law readers. (G7)
+- §7 presets and page JavaScript defined; W-06, W-13, W-22 and W-35 corrected; W-47 (rules of hooks) and W-48 (unused code) added; the template names W-42 to W-46 and cites §3.4. (G8)
+- §19 is the roadmap, from P3 through M7; §16 records the 0.3.0 decisions; §3.4 holds the full list of stated rules. (G9)
+
 ## [0.1.0] - 2026-11-17
 
 The `webtops` CLI in this release implements protocol 0.2.1; the 0.3.0 text is merged but not yet implemented.

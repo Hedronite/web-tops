@@ -1,0 +1,112 @@
+{
+  "report_version": "1.0.0",
+  "protocol": "0.3.0",
+  "class": "ts-library",
+  "enforce": "hard",
+  "enforced": true,
+  "max_tier": 1,
+  "only": null,
+  "subject": {
+    "package": "fixture",
+    "root": "."
+  },
+  "run": {
+    "sha": "0123456789abcdef0123456789abcdef01234567",
+    "bun": "1.4.4",
+    "node": "26.12.1",
+    "tools": {
+      "eslint": "9.39.5",
+      "typescript": "6.0.3",
+      "vitest": "5.1.0"
+    },
+    "seed": 1337
+  },
+  "counts": {
+    "in_range": 7,
+    "ran": 7,
+    "failed": 0,
+    "not_evaluated": 0,
+    "required_not_evaluated": 0
+  },
+  "layers": [
+    {
+      "id": "hygiene",
+      "gate": 1,
+      "tier": 1,
+      "verdict": "pass",
+      "required": true,
+      "findings": [],
+      "metrics": {}
+    },
+    {
+      "id": "tests",
+      "gate": 2,
+      "tier": 1,
+      "verdict": "pass",
+      "required": true,
+      "findings": [],
+      "metrics": {}
+    },
+    {
+      "id": "coverage",
+      "gate": 3,
+      "tier": 1,
+      "verdict": "pass",
+      "required": true,
+      "findings": [],
+      "metrics": {}
+    },
+    {
+      "id": "crap",
+      "gate": 4,
+      "tier": 1,
+      "verdict": "pass",
+      "required": true,
+      "findings": [],
+      "metrics": {}
+    },
+    {
+      "id": "mutation",
+      "gate": 5,
+      "tier": 1,
+      "verdict": "pass",
+      "required": true,
+      "findings": [],
+      "metrics": {}
+    },
+    {
+      "id": "build-output",
+      "gate": 6,
+      "tier": 1,
+      "verdict": "pass",
+      "required": true,
+      "findings": [],
+      "metrics": {}
+    },
+    {
+      "id": "laws",
+      "gate": "laws",
+      "tier": 1,
+      "verdict": "pass",
+      "required": true,
+      "findings": [
+        {
+          "rule": "W-07",
+          "verdict": "pass",
+          "message": "acknowledged: the legacy parser keeps its loose input type",
+          "file": "src/legacy/parse.ts",
+          "line": 12,
+          "required": true,
+          "ack": {
+            "source": "comment",
+            "reason": "legacy parser, removal tracked"
+          }
+        }
+      ],
+      "metrics": {}
+    }
+  ],
+  "passed": true,
+  "exit_code": 0,
+  "problems": []
+}

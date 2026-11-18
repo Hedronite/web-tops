@@ -13,9 +13,13 @@ import { dirname, join, resolve } from "node:path";
 import { ESLint } from "eslint";
 import { afterEach, describe, expect, it } from "vitest";
 import pkg from "../../package.json" with { type: "json" };
+import { toGateConfig } from "../gate/adapter.ts";
 import { profileFor } from "../config/profiles.ts";
+import { readProject } from "../config/project.ts";
 import { at, get, keys, matching } from "../config/test-support.ts";
 import { checkConfigFile, parseYaml } from "../config/validate.ts";
+import { PROTOCOL, inProtocolRange } from "../config/protocol.ts";
+import { satisfiesNodeRange } from "../lock/node.ts";
 import { NODE_RANGE, TOOL_PINS } from "../lock/pins.ts";
 import { runDoctorCli } from "./doctor.ts";
 import type { Io } from "./io.ts";
@@ -28,6 +32,28 @@ function yamlOf(name: string): unknown {
   expect(parsed.ok, name).toBe(true);
   return parsed.ok ? parsed.value : undefined;
 }
+
+describe("G0c: the kit speaks protocol 0.3.0", () => {
+  it("says 0.3.0 in web-tops.yaml, the id PROTOCOL holds, inside the supported range", () => {
+    expect(PROTOCOL).toBe("0.3.0");
+    expect(get(yamlOf("web-tops.yaml"), "protocol")).toBe("0.3.0");
+    expect(inProtocolRange(get(yamlOf("web-tops.yaml"), "protocol"))).toBe(true);
+  });
+});
+
+describe("G3c: the kit keeps publint and attw live although it is private", () => {
+  it("is private, sets no skip_private, and the runner maps the exports step on", () => {
+    expect(get(pkg, "private")).toBe(true);
+    const config = checkConfigFile(join(root, "web-tops.yaml"));
+    expect(config.ok).toBe(true);
+    if (!config.ok) return;
+    expect(at(config.value, ["layers", "package_exports", "skip_private"])).toBeUndefined();
+    const project = readProject(root);
+    expect(project.isPrivate).toBe(true);
+    const steps = get(get(toGateConfig(config.value, project), "hygiene"), "steps");
+    expect(get(steps, "package_exports")).toBeUndefined();
+  });
+});
 
 describe("G7a: the kit's own web-tops.yaml", () => {
   it("passes check as class ts-library under enforce hard", () => {
@@ -97,35 +123,100 @@ describe("G7: the lint config holds every function to complexity 4", () => {
   });
 });
 
-describe("R48: the 0.1.0 release", () => {
+describe("R57: the 0.2.0 release", () => {
   const text = (name: string): string => readFileSync(join(root, name), "utf8");
 
-  it("is version 0.1.0 in package.json, web-tops.yaml and web-tops.lock, and stays private", () => {
-    expect(pkg.version).toBe("0.1.0");
-    expect(get(yamlOf("web-tops.yaml"), "version")).toBe("0.1.0");
-    expect(get(yamlOf("web-tops.lock"), "webtops")).toBe("0.1.0");
+  it("is version 0.2.0 in package.json, web-tops.yaml and web-tops.lock, and stays private", () => {
+    expect(pkg.version).toBe("0.2.0");
+    expect(get(yamlOf("web-tops.yaml"), "version")).toBe("0.2.0");
+    expect(get(yamlOf("web-tops.lock"), "webtops")).toBe("0.2.0");
     expect(get(pkg, "private")).toBe(true);
+    expect(text("WEB_TOPS.md")).toContain("| Package version | 0.2.0 (");
   });
 
   it("dates the changelog entry, with an empty Unreleased above it and the protocol line first", () => {
     const changelog = text("CHANGELOG.md");
     const unreleased = changelog.indexOf("## [Unreleased]");
-    const release = changelog.indexOf("## [0.1.0] - 2026-11-17");
+    const release = changelog.indexOf("## [0.2.0] - 2026-11-17");
     expect(unreleased).toBeGreaterThan(-1);
     expect(release).toBeGreaterThan(unreleased);
-    expect(changelog.slice(unreleased, release).trim()).toBe("## [Unreleased]");
+    const between = changelog.slice(unreleased + "## [Unreleased]".length, release);
+    expect(between.trim()).toBe("");
+    const first = changelog
+      .slice(release)
+      .split("\n")
+      .find((line, i) => i > 0 && line.trim() !== "");
+    expect(first).toMatch(/implements protocol 0\.3\.0/);
+  });
+
+  it("leaves the 0.1.0 entry as history: dated, and implementing protocol 0.2.1", () => {
+    const changelog = text("CHANGELOG.md");
+    const release = changelog.indexOf("## [0.1.0] - 2026-11-17");
+    expect(release).toBeGreaterThan(changelog.indexOf("## [0.2.0]"));
     const first = changelog
       .slice(release)
       .split("\n")
       .find((line, i) => i > 0 && line.trim() !== "");
     expect(first).toMatch(/implements protocol 0\.2\.1/);
-    expect(first).toMatch(/0\.3\.0/);
   });
 
-  it("says the same in the README status line and in AGENTS.md", () => {
-    expect(text("README.md")).toMatch(/version 0\.1\.0|0\.1\.0/);
+  it("says in the README and AGENTS.md that 0.2.0 implements protocol 0.3.0 and 0.1.0 implemented 0.2.1", () => {
+    expect(text("README.md")).toMatch(/this tree implements it/);
+    expect(text("README.md")).toMatch(/version 0\.2\.0 \(the 0\.1\.0 release implements 0\.2\.1\)/);
     expect(text("README.md")).not.toContain("unreleased (0.0.0)");
-    expect(text("AGENTS.md")).toContain("0.1.0");
+    expect(text("AGENTS.md")).toMatch(
+      /Version 0\.2\.0 implements protocol 0\.3\.0 \(the 0\.1\.0 release implements 0\.2\.1\)/,
+    );
+    expect(text("AGENTS.md")).not.toContain("not yet implemented");
+  });
+
+  it("holds one bullet in [0.2.0] for each step G0 to G9, in order", () => {
+    const changelog = text("CHANGELOG.md");
+    const start = changelog.indexOf("## [0.2.0]");
+    const end = changelog.indexOf("## [0.1.0]");
+    const steps = changelog
+      .slice(start, end)
+      .split("\n")
+      .filter((line) => line.startsWith("- "))
+      .map((line) => /\((G\d+)\)\s*$/.exec(line)?.[1]);
+    expect(steps).toEqual(["G0", "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9"]);
+  });
+
+  it("no longer calls protocol 0.3.0 proposed, in the spec, the README or the license line", () => {
+    const spec = text("WEB_TOPS.md");
+    const lines = spec.split("\n");
+    expect(lines[2]).toMatch(/^\*\*Spec status:\*\* Draft 0\.3\.0 · /);
+    expect(spec).not.toMatch(/0\.3\.0 \((draft, )?proposed\)/);
+    expect(spec).not.toContain("License (proposed)");
+    expect(text("README.md")).toContain("The protocol, draft 0.3.0 |");
+    expect(text("README.md")).not.toMatch(/0\.3\.0 \(proposed\)/);
+  });
+
+  it("records the migration decision (27) as resolved for 0.3.0, in number order", () => {
+    const spec = text("WEB_TOPS.md");
+    const decisions = spec.slice(spec.indexOf("## 16."), spec.indexOf("## 17."));
+    expect(decisions).not.toContain("**Proposed for 0.3.0:**");
+    const resolved = decisions.slice(decisions.indexOf("**Resolved for 0.3.0:**"));
+    const numbers = resolved
+      .slice(0, resolved.indexOf("**Resolved for 0.2.1:**"))
+      .split("\n")
+      .map((line) => /^(\d+)\. /.exec(line)?.[1])
+      .filter((id) => id !== undefined);
+    expect(numbers).toEqual(["23", "24", "25", "26", "27", "28", "29", "30", "31"]);
+  });
+
+  it("lists in the README the milestones of section 19, in its order", () => {
+    const ids = (pattern: RegExp, from: string): (string | undefined)[] =>
+      from
+        .split("\n")
+        .map((line) => pattern.exec(line)?.[1])
+        .filter((id) => id !== undefined);
+    const spec = text("WEB_TOPS.md");
+    const roadmap = spec.slice(spec.indexOf("## 19."), spec.indexOf("## 20."));
+    const status = text("README.md");
+    expect(ids(/^\| \*\*(M\d|P3)\*\*/, status.slice(status.indexOf("| Milestone |")))).toEqual(
+      ids(/^\| \*\*(M\d|P3)\*\*/, roadmap),
+    );
   });
 });
 
@@ -158,9 +249,16 @@ describe("G7b: CI is the one gate job", () => {
     expect(existsSync(join(root, ".github/workflows/web-tops.yml"))).toBe(true);
   });
 
-  it("has one job, named gate, on ubuntu-latest", () => {
+  it("runs on every pull request, whatever its base branch, so one into protocol/0.3.0 is gated", () => {
+    const on = get(workflow(), "on");
+    expect(keys(on)).toContain("pull_request");
+    expect(get(get(on, "pull_request"), "branches")).toBeUndefined();
+    expect(get(get(on, "pull_request"), "branches-ignore")).toBeUndefined();
+    expect(at(on, ["push", "branches"])).toEqual(["main"]);
+  });
+
+  it("has one job, named gate", () => {
     expect(keys(get(workflow(), "jobs"))).toEqual(["gate"]);
-    expect(at(workflow(), ["jobs", "gate", "runs-on"])).toBe("ubuntu-latest");
   });
 
   it("runs the frozen install and one command, the gate at tier 1, and nothing else", () => {
@@ -207,6 +305,68 @@ describe("G7b: CI is the one gate job", () => {
   it("runs on pull requests and on pushes to main", () => {
     expect(keys(get(workflow(), "on")).sort()).toEqual(["pull_request", "push"]);
     expect(at(workflow(), ["on", "push", "branches"])).toEqual(["main"]);
+  });
+});
+
+describe("G5a: the one gate job runs as a matrix over ubuntu and macOS", () => {
+  const job = (): unknown => at(yamlOf(".github/workflows/web-tops.yml"), ["jobs", "gate"]);
+  const steps = (): unknown[] => {
+    const list = get(job(), "steps");
+    return keys(list).map((index) => get(list, index));
+  };
+
+  it("takes its runner from a matrix of ubuntu-latest and macos-latest, and lets both legs finish", () => {
+    expect(at(job(), ["strategy", "matrix", "os"])).toEqual(["ubuntu-latest", "macos-latest"]);
+    expect(get(job(), "runs-on")).toBe("${{ matrix.os }}");
+    expect(at(job(), ["strategy", "fail-fast"])).toBe(false);
+  });
+
+  it("has nothing in the matrix but the operating system, so both legs run the same steps", () => {
+    expect(keys(at(job(), ["strategy", "matrix"]))).toEqual(["os"]);
+    const text = readFileSync(join(root, ".github/workflows/web-tops.yml"), "utf8");
+    expect(text.match(/matrix\./g)).toHaveLength(1);
+    expect(text).not.toMatch(/\bif:/);
+  });
+
+  it("sets Node up at the one exact version on both legs, inside the engines range", () => {
+    const setup = steps().find((step) =>
+      String(get(step, "uses")).startsWith("actions/setup-node@"),
+    );
+    const version = at(setup, ["with", "node-version"]);
+    expect(version).toBe("24.22.3");
+    expect(satisfiesNodeRange(String(version), String(at(pkg, ["engines", "node"])))).toBe(true);
+  });
+});
+
+describe("G5b: engines, NODE_RANGE and the workflow agree", () => {
+  const setup = (action: string): unknown =>
+    keys(at(yamlOf(".github/workflows/web-tops.yml"), ["jobs", "gate", "steps"]))
+      .map((index) =>
+        at(yamlOf(".github/workflows/web-tops.yml"), ["jobs", "gate", "steps", index]),
+      )
+      .find((step) => String(get(step, "uses")).startsWith(action));
+
+  it("engines names Node and Bun, and nothing else", () => {
+    expect(keys(get(pkg, "engines")).sort()).toEqual(["bun", "node"]);
+  });
+
+  it("engines.node is the range NODE_RANGE holds, and the lock records it", () => {
+    expect(at(pkg, ["engines", "node"])).toBe(NODE_RANGE);
+    expect(get(yamlOf("web-tops.lock"), "node")).toBe(NODE_RANGE);
+  });
+
+  it("the workflow's Node is inside engines.node and NODE_RANGE", () => {
+    const version = String(at(setup("actions/setup-node@"), ["with", "node-version"]));
+    expect(satisfiesNodeRange(version, String(at(pkg, ["engines", "node"])))).toBe(true);
+    expect(satisfiesNodeRange(version, NODE_RANGE)).toBe(true);
+  });
+
+  it("the workflow's Bun is the packageManager Bun and meets engines.bun", () => {
+    const version = String(at(setup("oven-sh/setup-bun@"), ["with", "bun-version"]));
+    expect(get(pkg, "packageManager")).toBe(`bun@${version}`);
+    expect(at(pkg, ["engines", "bun"])).toBe(">=1.4.0");
+    // The clause syntax is the same, whatever the runtime: >=1.4.0 is read as a floor.
+    expect(satisfiesNodeRange(version, String(at(pkg, ["engines", "bun"])))).toBe(true);
   });
 });
 
@@ -287,7 +447,7 @@ describe("G7: .dependency-cruiser.cjs", () => {
           allowImportingTsExtensions: true,
           noEmit: true,
         },
-        include: ["src"],
+        include: ["src", "lib", "probes", "fixtures/probe"],
       }),
     );
     symlinkSync(join(root, "node_modules"), join(dir, "node_modules"));
@@ -298,8 +458,8 @@ describe("G7: .dependency-cruiser.cjs", () => {
     return dir;
   }
 
-  function cruise(cwd: string): { status: number | null; out: string } {
-    const result = spawnSync(depcruise, ["src", "--config", config], { cwd, encoding: "utf8" });
+  function cruise(cwd: string, target = "src"): { status: number | null; out: string } {
+    const result = spawnSync(depcruise, [target, "--config", config], { cwd, encoding: "utf8" });
     return { status: result.status, out: result.stdout + result.stderr };
   }
 
@@ -356,6 +516,31 @@ describe("G7: .dependency-cruiser.cjs", () => {
     },
     30_000,
   );
+
+  describe("G0d: probes/** and fixtures/probe/** are reserved", () => {
+    const circular = (dir: string): Readonly<Record<string, string>> => ({
+      [`${dir}/a.ts`]: 'import { b } from "./b.ts";\nexport const a = b;\n',
+      [`${dir}/b.ts`]: 'import { a } from "./a.ts";\nexport const b = a;\n',
+    });
+
+    const ok = { "src/ok.ts": "export const ok = 1;\n" };
+
+    it("the same planted cycle is refused outside the reserved paths", () => {
+      const { status, out } = cruise(project({ ...circular("lib"), ...ok }), "lib");
+      expect(out).toContain("no-circular");
+      expect(status).not.toBe(0);
+    }, 30_000);
+
+    it.each(["probes", "probes/w22", "fixtures/probe"])(
+      "passes a planted cycle in %s",
+      (dir) => {
+        const { status, out } = cruise(project({ ...circular(dir), ...ok }), dir);
+        expect(out).not.toContain("no-circular");
+        expect(status).toBe(0);
+      },
+      30_000,
+    );
+  });
 
   it("refuses production code that imports a devDependency", () => {
     const dir = project(

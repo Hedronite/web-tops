@@ -1,0 +1,8 @@
+protocol: "0.3.0"
+version: "0.1.0"
+package: pkg
+class: web-app
+enforce: hard
+gates:
+  mutation:
+    unexplained_survivors_max: 3

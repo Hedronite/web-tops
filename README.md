@@ -11,18 +11,21 @@ TypeScript is the foundational language; HTML, CSS, Tailwind CSS and Astro compl
 
 ## Status
 
-Draft. Protocol **0.3.0** (proposed); the kit implements 0.2.1 until its code moves to 0.3.0. The package is version 0.1.0: a GitHub release, private, not published to npm.
+Draft. Protocol **0.3.0**; this tree implements it: one verdict set, the report shape, required layers and laws per class, and the protocol id checked by range. The package is version 0.2.0 (the 0.1.0 release implements 0.2.1): a GitHub release, private, not published to npm.
 
-This repo is at milestone M1: the `webtops` CLI (`init`, `check`, `gate`, `report`, `lock`, `doctor`, `version`) runs from source on Bun and gates this repo on itself at tier 1, under `enforce: hard`. CRAP, mutation, the laws layer and the build-output layers are off in [`web-tops.yaml`](web-tops.yaml), each with the milestone that turns it on. The package is not published to npm.
+This repo has shipped milestone M1 and is releasing protocol 0.3.0: the `webtops` CLI (`init`, `check`, `gate`, `report`, `lock`, `doctor`, `version`) runs from source on Bun and gates this repo on itself at tier 1, under `enforce: hard`. CRAP, mutation, the laws layer and the build-output layers are off in [`web-tops.yaml`](web-tops.yaml), each with the milestone that turns it on. The package is not published to npm.
 
 | Milestone | Contents |
 |---|---|
-| M0 spec | `WEB_TOPS.md`, schemas, profiles for five launch classes, the AGENTS template |
-| **M1** CLI | `init`, `check`, `gate`: hygiene, tests, coverage, `report.json`; Web-TOPS gates itself |
-| M2 | Native CRAP, Stryker adapter, survivor ledger, baseline and ratchet |
-| M3 | Laws v0.1: 26 of 46 judged; lint fixtures; `eslint-plugin-webtops` |
-| M4 | Build-output layers: HTML validity, axe, links, byte budgets; rendered checks and theme contrast |
-| M5–M6 | First adopter, protocol 1.0 |
+| **M0** | `WEB_TOPS.md`, schemas, profiles for five launch classes, the AGENTS template |
+| **M1** | `init`, `check`, `gate`: hygiene, tests, coverage, `report.json`; Web-TOPS gates itself |
+| **P3** | Protocol 0.3.0, the truth pass: one verdict set, required layers and laws per class, the report shape, risk definitions, the protocol id by range, ESLint 10 (this repo) |
+| **M2** | The risk engine: native CRAP, the Stryker adapter, the survivor ledger, baseline and ratchet |
+| **M3** | Laws v1: `laws/W-NN.yaml`, law fixtures, `eslint-plugin-webtops`, the non-lint readers, `law-diff` |
+| **M4** | Build output: HTML validity, links, page and route bytes, axe, `size-limit` per entry |
+| **M5** | Rendered interface and themes: reflow, focus, motion, theme contrast |
+| **M6** | Workspaces and adoption: the `workspace-root` and `cli` profiles, the adopter PRs |
+| **M7** | Calibration and 1.0 |
 
 The full roadmap is in [`WEB_TOPS.md` §19](WEB_TOPS.md#19-roadmap).
 
@@ -44,13 +47,13 @@ bun src/cli/main.ts gate           # tier 1: hygiene, tests, coverage
 | Risk | Native CRAP, one cap per class, ratcheted for adopters |
 | What ships | `html-validate` and axe on built pages; JS and CSS bytes per page or route |
 
-TypeScript is pinned to 6.0.x because `typescript-eslint` and `@astrojs/check` do not yet accept TypeScript 7, and ESLint to 9.39 because `eslint-plugin-jsx-a11y` does not yet accept ESLint 10. See [§2](WEB_TOPS.md#2-pins).
+TypeScript is pinned to 6.0.x because `typescript-eslint` and `@astrojs/check` do not yet accept TypeScript 7, and ESLint to 10.15 with `eslint-plugin-jsx-a11y-x`, the fork of `eslint-plugin-jsx-a11y` that accepts it. See [§2](WEB_TOPS.md#2-pins).
 
 ## What is here
 
 | Path | What it is |
 |---|---|
-| [`WEB_TOPS.md`](WEB_TOPS.md) | The protocol, draft 0.3.0 (proposed) |
+| [`WEB_TOPS.md`](WEB_TOPS.md) | The protocol, draft 0.3.0 |
 | [`schema/`](schema) | `web-tops.schema.json` and `gate-report.schema.json` |
 | [`src/`](src) | The `webtops` CLI (`src/cli`), the config module and class table (`src/config`), the gate runner (`src/gate`) and its layers (`src/layers`), `init` (`src/init`), the lock format (`src/lock`) and the report writer (`src/report`) |
 | [`web-tops.yaml`](web-tops.yaml) | This repo's own config: class `ts-library`, `enforce: hard` |

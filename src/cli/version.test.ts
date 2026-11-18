@@ -30,7 +30,7 @@ describe("webtops version", () => {
       env: {},
     });
     expect(code).toBe(0);
-    expect(firstLines(out)).toEqual(["protocol 0.2.1", `package ${pkg.version}`]);
+    expect(firstLines(out)).toEqual(["protocol 0.3.0", `package ${pkg.version}`]);
     expect(out.endsWith("\n")).toBe(true);
     expect(err).toBe("");
   });
@@ -76,6 +76,6 @@ describe("webtops version", () => {
       encoding: "utf8",
     });
     expect(result.status).toBe(0);
-    expect(firstLines(result.stdout)).toEqual(["protocol 0.2.1", `package ${pkg.version}`]);
+    expect(firstLines(result.stdout)).toEqual(["protocol 0.3.0", `package ${pkg.version}`]);
   });
 });

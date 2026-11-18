@@ -1,4 +1,4 @@
-import type { Finding, Report, ReportLayer } from "./types.ts";
+import { hasRun, type Finding, type Report, type ReportLayer } from "./types.ts";
 
 const REQUIRED_BY = /^(?:(.+) \()?required by ([^)]+?)\)?$/u;
 
@@ -40,8 +40,27 @@ function layerLines(layer: ReportLayer): string[] {
   const head = `  ${String(layer.gate).padEnd(7)}${`${name} `.padEnd(15)}tier ${String(layer.tier)}  ${layer.verdict.padEnd(14)}`;
   return [
     reason === undefined ? head.trimEnd() : `${head}${reason}`,
-    ...layer.findings.map(findingLine),
+    ...(layer.gate === "laws" ? [] : layer.findings.map(findingLine)),
   ];
+}
+
+/** The laws layer's findings: a stopped run still prints them, for what ran (WEB_TOPS.md section 6.5). */
+function lawsFindings(report: Report): readonly Finding[] {
+  return report.layers.find((layer) => layer.gate === "laws")?.findings ?? [];
+}
+
+function readFrom(report: Report): string {
+  const read = report.layers
+    .filter((layer) => layer.gate !== "laws" && hasRun(layer.verdict))
+    .map((layer) => layer.id);
+  return read.length === 0 ? "none" : read.join(", ");
+}
+
+function lawsLines(report: Report): string[] {
+  const findings = lawsFindings(report);
+  return findings.length === 0
+    ? []
+    : [`  laws mapping (from ${readFrom(report)}):`, ...findings.map(findingLine), ""];
 }
 
 function problemLines(report: Report): string[] {
@@ -67,6 +86,7 @@ export function formatText(report: Report): string {
     "",
     ...report.layers.flatMap(layerLines),
     "",
+    ...lawsLines(report),
     ...problemLines(report),
     totalsLine(report),
     ...endLines(report),

@@ -21,7 +21,7 @@ const LAUNCH_CLASSES = ["ts-library", "ui-components", "astro-site", "web-app", 
 /** The files this layer leaves in `.web-tops/out/hygiene/`, by name. */
 const ARTIFACTS = ["audit-json", "eslint-json", "stylelint-json", "dependency-cruiser-json"];
 
-const WORST_FIRST: readonly Verdict[] = ["Refuse", "not-run", "not-evaluated", "Ack"];
+const WORST_FIRST: readonly Verdict[] = ["fail", "not-run", "not-evaluated", "ack-missing"];
 
 /** The worst verdict among findings, in the order that tells a reader what to do first. */
 function aggregate(findings: readonly Finding[]): Verdict {
@@ -79,7 +79,7 @@ async function stepOutcome(
 }
 
 function failedInstall(key: HygieneStep, outcome: StepResult): boolean {
-  return key === "install" && outcome.findings.some((finding) => finding.verdict === "Refuse");
+  return key === "install" && outcome.findings.some((finding) => finding.verdict === "fail");
 }
 
 function stepContext(ctx: LayerContext): StepContext {

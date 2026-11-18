@@ -1,7 +1,7 @@
 # The kit gates itself: class ts-library, enforce hard (WEB_TOPS.md section 6.7). The layers that
 # land after M1 are off, each with the milestone that turns it on.
-protocol: "0.2.1"
-version: "0.1.0"
+protocol: "0.3.0"
+version: "0.2.0"
 package: web-tops
 class: ts-library
 enforce: hard

@@ -1,0 +1,11 @@
+{
+  "testRunner": "vitest",
+  "checkers": ["typescript"],
+  "tsconfigFile": "tsconfig.json",
+  "coverageAnalysis": "perTest",
+  "reporters": ["json"],
+  "jsonReporter": { "fileName": "recorded/mutation.json" },
+  "vitest": { "configFile": "vitest.config.ts" },
+  "concurrency": 2,
+  "cleanTempDir": true
+}

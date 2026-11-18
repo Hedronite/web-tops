@@ -7,7 +7,7 @@ import {
   ran,
   readJsonOutput,
   records,
-  refuse,
+  failFinding,
   shapeFinding,
   str,
   tail,
@@ -46,7 +46,7 @@ function silentAudit(result: ExecResult): Finding | undefined {
       message: `the advisory registry could not be reached: ${tail(result.stderr, 2)}`,
     };
   }
-  return refuse(
+  return failFinding(
     "output-empty",
     `bun audit exited ${String(result.code)} and printed nothing: ${tail(result.stderr)}`,
   );
@@ -76,7 +76,9 @@ function advisoryFinding(
     return [];
   }
   const title = str(advisory["title"], "advisory");
-  return [refuse(advisoryId(advisory["url"], advisory["id"]), `${name}: ${title} (${severity})`)];
+  return [
+    failFinding(advisoryId(advisory["url"], advisory["id"]), `${name}: ${title} (${severity})`),
+  ];
 }
 
 function advisoryFindings(report: Record<string, unknown>, failOn: AuditLevel): Finding[] {

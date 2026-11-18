@@ -1,13 +1,26 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hedronite.com/schemas/web-tops/0.2.1/gate-report.schema.json",
+  "$id": "https://hedronite.com/schemas/web-tops/0.3/gate-report.schema.json",
   "title": "gate report (.web-tops/report.json)",
   "type": "object",
-  "required": ["protocol", "class", "enforce", "enforced", "max_tier", "only", "counts", "layers"],
+  "required": [
+    "report_version",
+    "protocol",
+    "class",
+    "enforce",
+    "enforced",
+    "max_tier",
+    "only",
+    "subject",
+    "run",
+    "counts",
+    "layers"
+  ],
   "additionalProperties": false,
   "properties": {
     "protocol": {
-      "const": "0.2.1"
+      "type": "string",
+      "pattern": "^0\\.3\\.[0-9]+$"
     },
     "class": {
       "enum": [
@@ -22,7 +35,7 @@
       ]
     },
     "enforce": {
-      "enum": ["hard", "ratchet", "advisory"]
+      "$ref": "core.schema.json#/$defs/enforce"
     },
     "enforced": {
       "type": "boolean"
@@ -32,7 +45,7 @@
     },
     "counts": {
       "type": "object",
-      "required": ["in_range", "ran", "failed", "not_evaluated"],
+      "required": ["in_range", "ran", "failed", "not_evaluated", "required_not_evaluated"],
       "additionalProperties": false,
       "properties": {
         "in_range": {
@@ -48,6 +61,10 @@
           "minimum": 0
         },
         "not_evaluated": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "required_not_evaluated": {
           "type": "integer",
           "minimum": 0
         }
@@ -174,6 +191,55 @@
           }
         }
       }
+    },
+    "report_version": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+\\.[0-9]+$"
+    },
+    "subject": {
+      "type": "object",
+      "required": ["package", "root"],
+      "additionalProperties": false,
+      "properties": {
+        "package": {
+          "type": "string",
+          "minLength": 1
+        },
+        "root": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "run": {
+      "type": "object",
+      "required": ["sha", "bun", "node", "tools", "seed"],
+      "additionalProperties": false,
+      "properties": {
+        "sha": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "bun": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "node": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "tools": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "seed": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        }
+      }
     }
   },
   "$defs": {
@@ -184,7 +250,7 @@
     },
     "layer": {
       "type": "object",
-      "required": ["id", "gate", "tier", "verdict", "findings"],
+      "required": ["id", "gate", "tier", "verdict", "required", "findings", "metrics"],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -207,7 +273,7 @@
           "$ref": "#/$defs/tier"
         },
         "verdict": {
-          "enum": ["pass", "Refuse", "Ack", "skip", "not-run", "not-evaluated"]
+          "$ref": "core.schema.json#/$defs/verdict"
         },
         "reason": {
           "$ref": "#/$defs/reason"
@@ -232,6 +298,12 @@
         "seed": {
           "type": "integer",
           "minimum": 0
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "metrics": {
+          "$ref": "#/$defs/metrics"
         }
       },
       "if": {
@@ -248,7 +320,145 @@
           "reason": true
         },
         "required": ["reason"]
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "id": {
+                "const": "hygiene"
+              }
+            },
+            "required": ["id"]
+          },
+          "then": {
+            "properties": {
+              "metrics": {
+                "propertyNames": {
+                  "enum": ["findings"]
+                },
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "id": {
+                "const": "tests"
+              }
+            },
+            "required": ["id"]
+          },
+          "then": {
+            "properties": {
+              "metrics": {
+                "type": "object",
+                "maxProperties": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "id": {
+                "const": "coverage"
+              }
+            },
+            "required": ["id"]
+          },
+          "then": {
+            "properties": {
+              "metrics": {
+                "propertyNames": {
+                  "enum": ["coverage"]
+                },
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "id": {
+                "const": "crap"
+              }
+            },
+            "required": ["id"]
+          },
+          "then": {
+            "properties": {
+              "metrics": {
+                "propertyNames": {
+                  "enum": ["crap"]
+                },
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "id": {
+                "const": "mutation"
+              }
+            },
+            "required": ["id"]
+          },
+          "then": {
+            "properties": {
+              "metrics": {
+                "type": "object",
+                "maxProperties": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "id": {
+                "const": "build-output"
+              }
+            },
+            "required": ["id"]
+          },
+          "then": {
+            "properties": {
+              "metrics": {
+                "propertyNames": {
+                  "enum": ["pages"]
+                },
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "id": {
+                "const": "laws"
+              }
+            },
+            "required": ["id"]
+          },
+          "then": {
+            "properties": {
+              "metrics": {
+                "propertyNames": {
+                  "enum": ["findings"]
+                },
+                "type": "object"
+              }
+            }
+          }
+        }
+      ]
     },
     "finding": {
       "type": "object",
@@ -260,7 +470,7 @@
           "minLength": 1
         },
         "verdict": {
-          "enum": ["pass", "Refuse", "Ack", "skip", "not-run", "not-evaluated"]
+          "$ref": "core.schema.json#/$defs/verdict"
         },
         "message": {
           "type": "string"
@@ -285,6 +495,18 @@
         "line": {
           "type": "integer",
           "minimum": 1
+        },
+        "required": {
+          "type": "boolean"
+        }
+      },
+      "dependentSchemas": {
+        "ack": {
+          "properties": {
+            "verdict": {
+              "const": "pass"
+            }
+          }
         }
       }
     },
@@ -292,6 +514,109 @@
       "type": "string",
       "minLength": 1,
       "pattern": "\\S"
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "crap": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["file", "name", "line", "complexity", "coverage", "crap"],
+            "additionalProperties": false,
+            "properties": {
+              "file": {
+                "type": "string",
+                "minLength": 1
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "line": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "complexity": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "coverage": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "crap": {
+                "type": "number",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "coverage": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["file", "lines_found", "lines_hit"],
+            "additionalProperties": false,
+            "properties": {
+              "file": {
+                "type": "string",
+                "minLength": 1
+              },
+              "lines_found": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "lines_hit": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["rule", "file", "count"],
+            "additionalProperties": false,
+            "properties": {
+              "rule": {
+                "type": "string",
+                "minLength": 1
+              },
+              "file": {
+                "type": "string",
+                "minLength": 1
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "pages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["route", "bytes"],
+            "additionalProperties": false,
+            "properties": {
+              "route": {
+                "type": "string",
+                "minLength": 1
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

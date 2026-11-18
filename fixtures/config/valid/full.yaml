@@ -1,6 +1,6 @@
 # Every key of WEB_TOPS.md section 9 (protocol 0.2.1), set once. Under hard, the layers that
 # land later (crap, mutation, build output, laws) are off, each with its reason.
-protocol: "0.2.1"
+protocol: "0.3.0"
 version: "0.1.0"
 package: "@example/lib"
 class: ts-library
