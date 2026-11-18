@@ -144,7 +144,7 @@ function hintFindings(ctx: LayerContext, files: readonly string[]): RawFinding[]
     .flatMap((file) =>
       coverageHints(readOutput(join(ctx.cwd, file)) ?? "").map((hint): RawFinding => ({
         tool: "webtops",
-        rule: "coverage-hint",
+        rule: `coverage-hint/${hint.kind.replace("-ignore", "")}`,
         verdict: "pass",
         message: `a ${hint.kind.replace("-", " ")} hint takes lines out of the coverage profile`,
         file,

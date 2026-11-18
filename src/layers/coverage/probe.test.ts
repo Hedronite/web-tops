@@ -90,7 +90,7 @@ describe("G2b E3: a v8 ignore hint over an untested throw", () => {
       contextFor(id, "lcov.info", ["src/guard.ts", "src/guard.test.ts"]),
     );
     expect(result.verdict).toBe(at(stated(id), ["outcome", "verdicts", "coverage"]));
-    const hints = result.findings.filter((item) => item.rule === "coverage-hint");
+    const hints = result.findings.filter((item) => item.rule === "coverage-hint/v8");
     expect(hints).toMatchObject([
       { tool: "webtops", verdict: "pass", file: "src/guard.ts", line: 2 },
     ]);
