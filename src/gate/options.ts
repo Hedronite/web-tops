@@ -12,6 +12,7 @@ interface Draft {
   keepGoing: boolean;
   json: boolean;
   dryRun: boolean;
+  all: boolean;
 }
 
 /** Reads the value that follows a flag (`--flag=value` or the next argument). */
@@ -27,10 +28,11 @@ const TIERS: ReadonlyMap<string, Tier> = new Map<string, Tier>([
   ["3", 3],
 ]);
 
-const SWITCHES: ReadonlyMap<string, "keepGoing" | "json" | "dryRun"> = new Map([
+const SWITCHES: ReadonlyMap<string, "keepGoing" | "json" | "dryRun" | "all"> = new Map([
   ["--keep-going", "keepGoing"],
   ["--json", "json"],
   ["--dry-run", "dryRun"],
+  ["--all", "all"],
 ] as const);
 
 const maxTier: ValuedFlag = (draft, take) => {
@@ -103,12 +105,13 @@ function optionsOf(draft: Draft): GateOptions {
     keepGoing: draft.keepGoing,
     json: draft.json,
     dryRun: draft.dryRun,
+    all: draft.all,
   };
 }
 
 /** Parses `webtops gate` arguments (WEB_TOPS.md section 12). A usage error is exit 2. */
 export function parseGateArgs(argv: readonly string[]): ParsedOptions {
-  const draft: Draft = { maxTier: 1, keepGoing: false, json: false, dryRun: false };
+  const draft: Draft = { maxTier: 1, keepGoing: false, json: false, dryRun: false, all: false };
   const queue = [...argv];
   for (let argument = queue.shift(); argument !== undefined; argument = queue.shift()) {
     const [flag, inline] = split(argument);

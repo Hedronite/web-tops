@@ -92,23 +92,26 @@ function shareOf(hits: number, within: readonly Statement[]): number {
   return within.length === 0 ? 1 : within.filter((item) => item.hits > 0).length / within.length;
 }
 
+const nameOf = (fn: unknown): string =>
+  isRecord(fn) && typeof fn["name"] === "string" ? fn["name"] : "(anonymous)";
+
+/** The row of one entry of a file's function map, or none when the entry is not an object or has no readable body. */
 function describeFunction(
   file: string,
-  fn: Record<string, unknown>,
+  fn: unknown,
   hits: number,
   statements: readonly Statement[],
 ): FunctionCoverage | undefined {
-  const span = spanOf(fn["loc"]);
+  const span = spanOf(isRecord(fn) ? fn["loc"] : undefined);
   if (span === undefined) {
     return undefined;
   }
   const within = statements.filter((item) => inside(item.start, span));
-  const name = typeof fn["name"] === "string" ? fn["name"] : "(anonymous)";
   const covered = within.filter((item) => item.hits > 0).length;
   const { line, column } = { line: span.start.line, column: span.start.column ?? 0 };
   return {
     file,
-    name,
+    name: nameOf(fn),
     line,
     column,
     hits,
@@ -122,15 +125,35 @@ function fileFunctions(file: string, entry: unknown): FunctionCoverage[] {
   if (!isRecord(entry) || !isRecord(entry["fnMap"])) {
     return [];
   }
-  const fnMap = entry["fnMap"];
   const statements = statementsOf(entry);
-  return Object.keys(fnMap).flatMap((id) => {
-    const fn = fnMap[id];
-    const row = isRecord(fn)
-      ? describeFunction(file, fn, hitCount(entry["f"], id), statements)
-      : undefined;
-    return row === undefined ? [] : [row];
+  return Object.entries(entry["fnMap"]).flatMap(
+    ([id, fn]) => describeFunction(file, fn, hitCount(entry["f"], id), statements) ?? [],
+  );
+}
+
+/** The span of every function in a file's coverage entry. */
+function functionSpans(entry: Record<string, unknown>): Span[] {
+  const map = entry["fnMap"];
+  const found = isRecord(map) ? Object.values(map) : [];
+  return found.flatMap((fn): Span[] => {
+    const span = isRecord(fn) ? spanOf(fn["loc"]) : undefined;
+    return span === undefined ? [] : [span];
   });
+}
+
+/**
+ * Statement coverage of the code outside every function (the `<module>` pseudo-function, section 6.7): 1 when
+ * there is no such statement, and 0 when the run never reported the file.
+ */
+export function moduleCoverage(entry: unknown): number {
+  if (!isRecord(entry)) {
+    return 0;
+  }
+  const spans = functionSpans(entry);
+  const outside = statementsOf(entry).filter(
+    (item) => !spans.some((span) => inside(item.start, span)),
+  );
+  return shareOf(1, outside);
 }
 
 function bySource(left: FunctionCoverage, right: FunctionCoverage): number {

@@ -32,8 +32,7 @@ export function stubLayer(
   };
 }
 
-/** Gates 4 to 6 and the laws layer: later milestones (WEB_TOPS.md section 19). */
-export const CRAP_STUB = stubLayer("crap", 4, 1, "M2");
+/** Gates 5 and 6 and the laws layer: later milestones (WEB_TOPS.md section 19). */
 export const MUTATION_STUB = stubLayer("mutation", 5, 1, "M2");
 export const BUILD_OUTPUT_STUB = stubLayer("build-output", 6, 1, "M4");
 /** Laws run at the tier of the layer they read: hygiene is tier 1 (WEB_TOPS.md section 3.2). */

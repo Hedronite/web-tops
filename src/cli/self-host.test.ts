@@ -64,7 +64,6 @@ describe("G7a: the kit's own web-tops.yaml", () => {
   });
 
   it.each([
-    [["gates", "crap"], "M2"],
     [["gates", "mutation"], "M2"],
     [["laws"], "M3"],
     [["layers", "size_limit"], "M4"],
@@ -76,6 +75,14 @@ describe("G7a: the kit's own web-tops.yaml", () => {
     const entry = at(yamlOf("web-tops.yaml"), path);
     expect(get(entry, "enabled")).toBe(false);
     expect(get(entry, "reason")).toMatch(new RegExp(`^${milestone}\\b`));
+  });
+
+  it("holds the kit to the CRAP cap of its class on every function, under hard", () => {
+    const config = yamlOf("web-tops.yaml");
+    expect(get(at(config, ["gates", "crap"]), "enabled")).not.toBe(false);
+    expect(at(config, ["gates", "crap", "cap"])).toBe(4);
+    expect(at(config, ["gates", "crap", "cap"])).toBe(profileFor("ts-library")?.crapCap);
+    expect(at(config, ["gates", "crap", "scope"])).toBe("all");
   });
 
   it("keeps every layer that M1 builds on", () => {

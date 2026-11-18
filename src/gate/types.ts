@@ -1,3 +1,4 @@
+import type { ScopeResult } from "../diff/types.ts";
 import type { ClassName } from "../config/profiles.ts";
 import type { Enforce, GateRef, Metrics, RawFinding, Verdict } from "../report/types.ts";
 
@@ -58,6 +59,14 @@ export interface RunDescription {
   readonly tools: Readonly<Record<string, string>>;
 }
 
+/** What a layer needs from the diff: the functions a changed test file runs cost a Vitest run, so a layer says when it needs them. */
+export interface DiffNeeds {
+  readonly coveredByTests: boolean;
+}
+
+/** The diff of this run against the merge base (WEB_TOPS.md section 6.4), computed the first time a layer asks. */
+export type DiffProvider = (needs: DiffNeeds) => Promise<ScopeResult>;
+
 export interface LayerContext {
   readonly cwd: string;
   readonly config: GateConfig;
@@ -70,6 +79,10 @@ export interface LayerContext {
   readonly outDir: string;
   /** The inputs this layer declared in `consumes`, by artifact name, each from the layer it named. */
   readonly artifacts: ReadonlyMap<string, string>;
+  /** `--all`: judge everything, not the diff's scope. */
+  readonly all?: boolean;
+  /** The diff of this run, for a layer judged on what changed; without one a diff-scoped layer judges everything. */
+  readonly diff?: DiffProvider;
 }
 
 /** An input a layer reads: the artifact's name and the layer that produces it (R29 N5, WEB_TOPS.md section 3.1). */
@@ -153,6 +166,16 @@ export interface CoverageSettings {
   readonly exclude: readonly CoverageExclusion[];
 }
 
+/** Gate 4 settings from `gates.crap`, with the class cap filled in by the adapter (WEB_TOPS.md sections 5.2 and 6.2). */
+export interface CrapSettings {
+  /** `gates.crap.cap`, else the class profile's CRAP cap. */
+  readonly cap: number;
+  /** `gates.crap.scope`: the functions the diff touches, or all of them. */
+  readonly scope: "diff" | "all";
+  /** `gates.crap.complexity.nullish_discount`: `??`, `??=` and `?.` weigh 0 (default true). */
+  readonly nullishDiscount: boolean;
+}
+
 /** What the runner needs from a validated `web-tops.yaml`; a layer's own settings join it in G3 and G4. */
 export interface GateConfig {
   readonly protocol: string;
@@ -171,6 +194,7 @@ export interface GateConfig {
   readonly hygiene: HygieneSettings;
   readonly tests: TestsSettings;
   readonly coverage: CoverageSettings;
+  readonly crap: CrapSettings;
 }
 
 export interface GateOptions {
@@ -181,6 +205,8 @@ export interface GateOptions {
   readonly keepGoing: boolean;
   readonly json: boolean;
   readonly dryRun: boolean;
+  /** `--all`: judge every function, not only the diff's. */
+  readonly all: boolean;
 }
 
 export interface Io {
