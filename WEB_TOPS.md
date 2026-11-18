@@ -1,6 +1,6 @@
 # Web-TOPS: Web Testing and Optimization Protocol Suite
 
-**Spec status:** Draft 0.3.0 (proposed) · **Date:** 2026-11-17 · **Owner:** Hedronite
+**Spec status:** Draft 0.3.0 · **Date:** 2026-11-17 · **Owner:** Hedronite
 **Supersedes:** the TS-TOPS 0.1.0 sketch (renamed: the protocol covers the web stack, not only TypeScript)
 **Modeled on:** [Rust-TOPS](https://github.com/Hedronite/rust-tops) and [Go-TOPS](https://github.com/Hedronite/go-tops) 0.3.0
 
@@ -12,7 +12,7 @@
 > behavior or flag not yet confirmed at pin time. Versions in §2 are npm `latest` as read on
 > 2026-11-16, except where §2 says why a pin holds back. 0.2.0 folds in what the first adopter,
 > LuminosiTS, proved in practice (§20). 0.2.1 adds what the M1 configuration schema needed:
-> `enabled` and `reason` on every gate and layer, a coverage exclusion key, and run counts in the report. 0.3.0 (proposed) gives the report one verdict vocabulary, required items and the shape the M2 baseline reads.
+> `enabled` and `reason` on every gate and layer, a coverage exclusion key, and run counts in the report. 0.3.0 gives the report one verdict vocabulary, required items and the shape the M2 baseline reads.
 
 ---
 
@@ -74,7 +74,7 @@ Schema (`schema/web-tops.schema.json` plus a gate-report schema), and per-class 
 
 | Item | Value |
 |---|---|
-| Protocol version | **0.3.0** (draft, proposed) |
+| Protocol version | **0.3.0** (draft) |
 | Package version | 0.2.0 (private; a GitHub release, not published to npm) |
 | TypeScript | **6.0.x** pinned (6.0.3 current); the gate runs the pin, and `erasableSyntaxOnly` needs 5.8 or later. See below |
 | Runtime | Bun ≥ 1.4 installs and runs `webtops`; Node `^22.23.4 \|\| ^24.15.0 \|\| >=26` runs the tools, in every class (where the pinned tools' engine ranges meet). The range is recorded in `web-tops.lock` (§10) and in `engines` of the kit's `package.json`, beside Bun |
@@ -912,16 +912,13 @@ agent contract.
 
 ## 16. Decisions
 
-**Proposed for 0.3.0:**
-
-27. **Migration:** 0.3.0 takes effect with the slice that moves the code, schemas and fixtures to it; until that slice lands, the kit implements 0.2.1. From then on `check` refuses a 0.2.x config with exit 2, and `init --force` or a one-line `protocol:` edit migrates it.
-
 **Resolved for 0.3.0:**
 
 23. **One verdict vocabulary:** `pass`, `fail`, `refuse`, `ack-missing`, `skip`, `not-run`, `not-evaluated`, `vacuous`, with one table of which end the run (§3.3, §6.4, §6.5).
 24. **Required items:** required by default (every in-range layer, every judged law the class maps); a profile may mark a layer or law optional, with a reason; `not-evaluated` fails only on a required item, so the laws catalog can grow without the gate never passing (§3.3).
 25. **The report is the baseline's source:** `report_version`, `subject`, run context and per-layer `metrics` (§6.6).
 26. **Protocol id by range:** `check` accepts the protocol range the installed `webtops` supports; the schema matches the minor, not one patch (§12, §18).
+27. **Migration:** 0.3.0 took effect with the slice that moved the code, schemas and fixtures to it. `check` refuses a 0.2.x config with exit 2, and `init --force` or a one-line `protocol:` edit migrates it (§12).
 28. **A shared core:** verdicts, enforcement modes and the failure table live once, in §3.3 and `schema/core.schema.json`, which is the seam. The sibling protocols copy that core by a checked sync and adopt it in their next revision (§3.3, §18).
 29. **Audience and platforms:** a house standard first, for Hedronite repositories on macOS development machines with Bun, and built to be public: no private paths, clean licenses. No Windows. Where the kit runs on Macs, a macOS lane is required: the kit's own gate runs on `ubuntu-latest` and `macos-latest` as one job (§11).
 30. **ESLint 10:** `probes/w22/` ran every `eslint-plugin-jsx-a11y` 6.10.2 rule that upstream has not deprecated, with a bad and a clean fixture each, through `eslint-plugin-jsx-a11y-x` on ESLint 10 and through `oxlint`. Both passed the rule rows. Only the fork also passed both claim rows (an unlabeled input fires; the Astro rules fire on an `.astro` page), so it is W-22's reader, and §2 pins ESLint 10.15, `eslint-plugin-astro` 3.2 and the fork. This supersedes item 11.
@@ -1158,4 +1155,4 @@ make. Then one required status, `webtops gate`, replaces its 15-step chain.
 
 Built by Hedronite. Structure adapted from Rust-TOPS and Go-TOPS. The TypeScript laws draw on
 *Common Mistakes AI Coding Agents Make in TypeScript* (Hedronite sketch). CRAP is the 2007 Change
-Risk Anti-Patterns metric (Savoia and Evans). License (proposed): MIT OR Apache-2.0.
+Risk Anti-Patterns metric (Savoia and Evans). License: MIT OR Apache-2.0.
