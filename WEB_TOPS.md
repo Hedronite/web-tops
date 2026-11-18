@@ -469,7 +469,8 @@ has one shape in every layer: `tool`, `rule`, `law`, `verdict`, `message`, `file
   flagged line, the file, the rule or the tool changes. A renamed file is a new finding. The `fp1`
   prefix names the algorithm. The baseline and the ratchet key a finding by it (§6.7).
 - The report keeps every finding. The text report prints the first 100 of a layer's findings and
-  says how many more there are.
+  says how many more there are, and folds the passing census findings (`census/<kind>`, one for each
+  hit) into one line for each kind with its count, which it does not count toward the 100.
 
 Verdicts are
 spelled as in §3.3: `pass`, `fail`, `refuse`, `ack-missing`, `skip`, `not-run`, `not-evaluated`, `vacuous`. `skip` and
