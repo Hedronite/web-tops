@@ -274,8 +274,16 @@ have different budgets.
 
 There is one CRAP cap per class, the same for every author; there is no per-author cap. The cap
 binds new and changed functions: under `ratchet` (§6.7) it applies to them, and the ratchet holds
-legacy functions at their baseline, so they must not get worse. All numbers are **proposed**, and
-the caps stay proposed until set from measurement in M2.5.
+legacy functions at their baseline, so they must not get worse.
+All numbers except the caps are **proposed**.
+The caps were measured in M2.5 over LuminosiTS and the kit, and kept. `ts-library` keeps 4: the kit
+meets it, and 162 of the 194 sampled library functions do (83.5 %), against 173 at 6.
+`ui-components` keeps 5: 90.9 % of its functions pass at 4, 93.5 % at 5 and 97.4 % at 6. `web-app`
+keeps 6: 71 of 126 functions pass at 6 and the same 71 at 8, so a higher cap admits nothing today.
+`astro-site` and `node-service` keep theirs: the sample has 6 functions, none with coverage, for
+the first, and none for the second.
+A function counts as §6.3 says, with callbacks folded into their container.
+A second adopter, an `astro-site` with tests or a `node-service` reopens the question.
 
 **Required.** A class requires every built-in layer it maps (§3.3): the gates, `crap`, `mutation`
 and `laws`, and build output only where the class maps a build-output layer. It requires the judged
@@ -948,6 +956,14 @@ agent contract.
 ---
 
 ## 16. Decisions
+
+**Resolved in M2:**
+
+32. **CRAP caps from measurement:** the one cap per class was measured over LuminosiTS and the kit
+    (§5.2), and all five classes keep theirs; `astro-site` and `node-service` for want of data. The
+    scored unit stays the one §6.3 defines, with callbacks folded into their container. There is
+    no rule on changed functions beyond §6.7's, which already holds a changed function to its
+    baseline.
 
 **Resolved for 0.3.0:**
 
