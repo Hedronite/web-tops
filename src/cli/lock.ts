@@ -3,6 +3,7 @@ import { join } from "node:path";
 import pkg from "../../package.json" with { type: "json" };
 import type { LockRead } from "../lock/config.ts";
 import { NO_NODE_RANGE, readLockFile } from "../lock/config.ts";
+import { candidateTools } from "../lock/candidates.ts";
 import type { Env } from "../lock/environment.ts";
 import { hostVersion } from "../lock/environment.ts";
 import { serializeLock } from "../lock/format.ts";
@@ -74,16 +75,35 @@ function verify(lock: Lock, io: Io): number {
   return 2;
 }
 
-/** The installed version of each locked tool, and the tools that are not installed. */
-function gather(lock: Lock, cwd: string): { next: Record<string, string>; absent: string[] } {
+type Gathered = { readonly next: Record<string, string> } | { readonly error: string };
+
+/** What `--update` looks at: the running kit, the tools the lock names, and the candidates. */
+const namesToRead = (lock: Lock, candidates: readonly string[]): string[] => [
+  ...new Set(["webtops", ...toolNames(lock), ...candidates]),
+];
+
+/**
+ * The installed version of each name. A name that is not installed is skipped when only a candidate,
+ * and listed as absent when the lock names it (the lock never silently loses an entry).
+ */
+function scan(lock: Lock, cwd: string, names: readonly string[]) {
   const next: Record<string, string> = {};
   const absent: string[] = [];
-  for (const tool of toolNames(lock)) {
+  for (const tool of names) {
     const now = installed(cwd, tool);
-    if (now === undefined) absent.push(tool);
-    else next[tool] = now;
+    if (now !== undefined) next[tool] = now;
+    else if (lock[tool] !== undefined) absent.push(tool);
   }
   return { next, absent };
+}
+
+function gather(lock: Lock, cwd: string): Gathered {
+  const found = candidateTools(cwd);
+  if (!found.ok) return { error: `cannot update, ${found.error}` };
+  const { next, absent } = scan(lock, cwd, namesToRead(lock, found.names));
+  return absent.length > 0
+    ? { error: `cannot update, not installed: ${absent.join(", ")}` }
+    : { next };
 }
 
 function writeLock(cwd: string, next: Lock): string | undefined {
@@ -95,20 +115,27 @@ function writeLock(cwd: string, next: Lock): string | undefined {
   }
 }
 
+/** What the lock held for a tool before the update: its version, or `(new)` for an entry it did not have. */
+const before = (lock: Lock, tool: string): string => lock[tool] ?? "(new)";
+
 function announce(lock: Lock, next: Lock, io: Io): number {
   const changes = Object.entries(next).filter(([tool, version]) => lock[tool] !== version);
   if (changes.length === 0) io.out("web-tops.lock already matches the installed versions\n");
-  for (const [tool, version] of changes) io.out(`${tool} ${lock[tool] ?? "?"} -> ${version}\n`);
+  for (const [tool, version] of changes) io.out(`${tool} ${before(lock, tool)} -> ${version}\n`);
   return 0;
 }
 
-/** Rewrites the lock with the installed versions of the tools it names; the Node range stays as recorded. */
+/**
+ * Rewrites the lock with the installed versions of the tools it names, and adds every installed tool
+ * that pins.ts or the project's package.json pins exactly; the Node range stays as recorded.
+ */
 function update(lock: Lock, io: Io): number {
-  const { next, absent } = gather(lock, io.cwd);
-  if (absent.length > 0) {
-    io.err(`webtops lock: cannot update, not installed: ${absent.join(", ")}\n`);
+  const gathered = gather(lock, io.cwd);
+  if ("error" in gathered) {
+    io.err(`webtops lock: ${gathered.error}\n`);
     return 3;
   }
+  const next = gathered.next;
   next["node"] = lock["node"] ?? NODE_RANGE;
   const failure = writeLock(io.cwd, next);
   if (failure !== undefined) {
@@ -139,7 +166,8 @@ function lockCommand(argv: readonly string[], io: Io): number {
 /**
  * `webtops lock [--verify | --update]` (WEB_TOPS.md section 10). `--verify` (also the bare form) only reads: it
  * exits 2 on a differing tool version or a Node outside the lock's range. `--update` is the one writer, and
- * writes the installed versions of the tools the lock already names.
+ * writes the installed versions of the tools the lock names, and adds the installed tools that pins.ts or
+ * package.json pins exactly.
  */
 export function runLockCli(argv: readonly string[], io: Io): Promise<number> {
   return Promise.resolve(lockCommand(argv, io));

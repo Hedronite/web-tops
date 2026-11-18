@@ -34,9 +34,12 @@ function toEntries(value: unknown): [string, unknown][] | undefined {
   return Object.entries(value);
 }
 
+/** True for one exact version (`1.2.3`, `1.0.0-rc.1`), never a range, tag or spec. */
+export const isExactVersion = (version: string): boolean => EXACT.test(version);
+
 /** `node` holds a range; every other entry holds one exact version, never a range. */
 function accepts(tool: string, version: string): boolean {
-  return tool === "node" ? isNodeRange(version) : EXACT.test(version);
+  return tool === "node" ? isNodeRange(version) : isExactVersion(version);
 }
 
 function rejection(tool: string, version: unknown): LockParse {
