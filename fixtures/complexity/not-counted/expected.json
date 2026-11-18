@@ -1,0 +1,59 @@
+{
+  "records": [
+    {
+      "key": "input.ts::<module>",
+      "kind": "module",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        1,
+        9
+      ]
+    },
+    {
+      "key": "input.ts::typeLevel",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        1,
+        1
+      ]
+    },
+    {
+      "key": "input.ts::asAndSatisfies",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        2,
+        2
+      ]
+    },
+    {
+      "key": "input.ts::overloaded",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        5,
+        5
+      ]
+    },
+    {
+      "key": "input.ts::Shape.describe",
+      "kind": "method",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        9,
+        9
+      ]
+    }
+  ]
+}

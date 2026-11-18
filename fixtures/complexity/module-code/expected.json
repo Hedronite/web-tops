@@ -1,0 +1,15 @@
+{
+  "records": [
+    {
+      "key": "input.ts::<module>",
+      "kind": "module",
+      "scored": true,
+      "own": 6,
+      "score": 6,
+      "lines": [
+        1,
+        4
+      ]
+    }
+  ]
+}

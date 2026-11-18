@@ -27,10 +27,11 @@ module.exports = {
     },
     {
       name: "not-to-dev-dependency",
-      comment: "Production code imports only dependencies, never devDependencies.",
+      comment:
+        "Production code imports only dependencies, never devDependencies. A type-only import is erased, so it may name a tool's types (the complexity counter takes the project's own TypeScript as an argument).",
       severity: "error",
       from: { path: "^src/", pathNot: TEST },
-      to: { dependencyTypes: ["npm-dev"] },
+      to: { dependencyTypes: ["npm-dev"], dependencyTypesNot: ["type-only"] },
     },
     {
       name: "no-non-package-json",

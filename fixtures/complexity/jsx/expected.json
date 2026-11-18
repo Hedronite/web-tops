@@ -1,0 +1,26 @@
+{
+  "records": [
+    {
+      "key": "input.jsx::<module>",
+      "kind": "module",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        1,
+        1
+      ]
+    },
+    {
+      "key": "input.jsx::View",
+      "kind": "arrow",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        1,
+        1
+      ]
+    }
+  ]
+}

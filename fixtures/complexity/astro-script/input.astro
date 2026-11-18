@@ -1,0 +1,9 @@
+---
+const n = Astro.props.n;
+const big = n > 1 && n < 9;
+---
+<p>{big ? "big" : "small"}</p>
+<script>
+  document.querySelectorAll("a").forEach((a) => { if (a.href) a.remove(); });
+  function track(e: Event) { return e.target || null; }
+</script>

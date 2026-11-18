@@ -1,0 +1,92 @@
+{
+  "records": [
+    {
+      "key": "input.ts::<module>",
+      "kind": "module",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        1,
+        7
+      ]
+    },
+    {
+      "key": "input.ts::host",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        1,
+        5
+      ]
+    },
+    {
+      "key": "input.ts::host~1",
+      "kind": "arrow",
+      "scored": false,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        2,
+        2
+      ]
+    },
+    {
+      "key": "input.ts::host~2",
+      "kind": "function",
+      "scored": false,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        3,
+        3
+      ]
+    },
+    {
+      "key": "input.ts::host~3",
+      "kind": "arrow",
+      "scored": false,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        4,
+        4
+      ]
+    },
+    {
+      "key": "input.ts::other",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        6,
+        6
+      ]
+    },
+    {
+      "key": "input.ts::other~1",
+      "kind": "arrow",
+      "scored": false,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        6,
+        6
+      ]
+    },
+    {
+      "key": "input.ts::<module>~1",
+      "kind": "arrow",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        7,
+        7
+      ]
+    }
+  ]
+}

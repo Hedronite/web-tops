@@ -1,0 +1,16 @@
+{
+  "records": [
+    {
+      "key": "input.astro::<module>",
+      "kind": "module",
+      "scored": true,
+      "own": 3,
+      "score": 3,
+      "lines": [
+        1,
+        5
+      ]
+    }
+  ],
+  "diagnostics": "some"
+}

@@ -1,0 +1,268 @@
+{
+  "records": [
+    {
+      "key": "input.ts::<module>",
+      "kind": "module",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        1,
+        23
+      ]
+    },
+    {
+      "key": "input.ts::noBranch",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        1,
+        1
+      ]
+    },
+    {
+      "key": "input.ts::ifOnly",
+      "kind": "function",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        2,
+        2
+      ]
+    },
+    {
+      "key": "input.ts::elseIf",
+      "kind": "function",
+      "scored": true,
+      "own": 3,
+      "score": 3,
+      "lines": [
+        3,
+        3
+      ]
+    },
+    {
+      "key": "input.ts::ternary",
+      "kind": "function",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        4,
+        4
+      ]
+    },
+    {
+      "key": "input.ts::nestedTernary",
+      "kind": "function",
+      "scored": true,
+      "own": 3,
+      "score": 3,
+      "lines": [
+        5,
+        5
+      ]
+    },
+    {
+      "key": "input.ts::caseTwo",
+      "kind": "function",
+      "scored": true,
+      "own": 3,
+      "score": 3,
+      "lines": [
+        6,
+        6
+      ]
+    },
+    {
+      "key": "input.ts::caseNoDefault",
+      "kind": "function",
+      "scored": true,
+      "own": 3,
+      "score": 3,
+      "lines": [
+        7,
+        7
+      ]
+    },
+    {
+      "key": "input.ts::caseGrouped",
+      "kind": "function",
+      "scored": true,
+      "own": 4,
+      "score": 4,
+      "lines": [
+        8,
+        8
+      ]
+    },
+    {
+      "key": "input.ts::onlyDefault",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        9,
+        9
+      ]
+    },
+    {
+      "key": "input.ts::forLoop",
+      "kind": "function",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        10,
+        10
+      ]
+    },
+    {
+      "key": "input.ts::forIn",
+      "kind": "function",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        11,
+        11
+      ]
+    },
+    {
+      "key": "input.ts::forOf",
+      "kind": "function",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        12,
+        12
+      ]
+    },
+    {
+      "key": "input.ts::forAwait",
+      "kind": "function",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        13,
+        13
+      ]
+    },
+    {
+      "key": "input.ts::whileLoop",
+      "kind": "function",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        14,
+        14
+      ]
+    },
+    {
+      "key": "input.ts::doLoop",
+      "kind": "function",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        15,
+        15
+      ]
+    },
+    {
+      "key": "input.ts::catchOnly",
+      "kind": "function",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        16,
+        16
+      ]
+    },
+    {
+      "key": "input.ts::finallyOnly",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        17,
+        17
+      ]
+    },
+    {
+      "key": "input.ts::andOr",
+      "kind": "function",
+      "scored": true,
+      "own": 3,
+      "score": 3,
+      "lines": [
+        18,
+        18
+      ]
+    },
+    {
+      "key": "input.ts::logicalAssign",
+      "kind": "function",
+      "scored": true,
+      "own": 3,
+      "score": 3,
+      "lines": [
+        19,
+        19
+      ]
+    },
+    {
+      "key": "input.ts::mixed",
+      "kind": "function",
+      "scored": true,
+      "own": 5,
+      "score": 5,
+      "lines": [
+        20,
+        20
+      ]
+    },
+    {
+      "key": "input.ts::elseOnly",
+      "kind": "function",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        21,
+        21
+      ]
+    },
+    {
+      "key": "input.ts::bitwise",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        22,
+        22
+      ]
+    },
+    {
+      "key": "input.ts::negation",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        23,
+        23
+      ]
+    }
+  ]
+}

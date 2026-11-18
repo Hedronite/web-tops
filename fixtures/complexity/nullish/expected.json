@@ -1,0 +1,226 @@
+{
+  "records": [
+    {
+      "key": "input.ts::<module>",
+      "kind": "module",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        1,
+        9
+      ]
+    },
+    {
+      "key": "input.ts::coalesce",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        1,
+        1
+      ]
+    },
+    {
+      "key": "input.ts::coalesceAssign",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        2,
+        2
+      ]
+    },
+    {
+      "key": "input.ts::optionalProperty",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        3,
+        3
+      ]
+    },
+    {
+      "key": "input.ts::optionalElement",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        4,
+        4
+      ]
+    },
+    {
+      "key": "input.ts::optionalCall",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        5,
+        5
+      ]
+    },
+    {
+      "key": "input.ts::optionalChainLong",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        6,
+        6
+      ]
+    },
+    {
+      "key": "input.ts::nullishWithBranches",
+      "kind": "function",
+      "scored": true,
+      "own": 3,
+      "score": 3,
+      "lines": [
+        7,
+        7
+      ]
+    },
+    {
+      "key": "input.ts::defaultParam",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        8,
+        8
+      ]
+    },
+    {
+      "key": "input.ts::nonNull",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        9,
+        9
+      ]
+    }
+  ],
+  "withoutDiscount": [
+    {
+      "key": "input.ts::<module>",
+      "kind": "module",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        1,
+        9
+      ]
+    },
+    {
+      "key": "input.ts::coalesce",
+      "kind": "function",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        1,
+        1
+      ]
+    },
+    {
+      "key": "input.ts::coalesceAssign",
+      "kind": "function",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        2,
+        2
+      ]
+    },
+    {
+      "key": "input.ts::optionalProperty",
+      "kind": "function",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        3,
+        3
+      ]
+    },
+    {
+      "key": "input.ts::optionalElement",
+      "kind": "function",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        4,
+        4
+      ]
+    },
+    {
+      "key": "input.ts::optionalCall",
+      "kind": "function",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        5,
+        5
+      ]
+    },
+    {
+      "key": "input.ts::optionalChainLong",
+      "kind": "function",
+      "scored": true,
+      "own": 3,
+      "score": 3,
+      "lines": [
+        6,
+        6
+      ]
+    },
+    {
+      "key": "input.ts::nullishWithBranches",
+      "kind": "function",
+      "scored": true,
+      "own": 5,
+      "score": 5,
+      "lines": [
+        7,
+        7
+      ]
+    },
+    {
+      "key": "input.ts::defaultParam",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        8,
+        8
+      ]
+    },
+    {
+      "key": "input.ts::nonNull",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        9,
+        9
+      ]
+    }
+  ]
+}
