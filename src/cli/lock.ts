@@ -44,6 +44,18 @@ function toolProblems(lock: Lock, cwd: string): string[] {
   });
 }
 
+/** A tool pins.ts pins and package.json declares that is installed and that the lock does not name: a lock that lost an entry, or never had it. */
+function missingFromLock(lock: Lock, cwd: string): string[] {
+  const found = candidateTools(cwd);
+  if (!found.ok) return [found.error];
+  return found.names.flatMap((tool) => {
+    const now = lock[tool] === undefined ? installedVersion(cwd, tool) : undefined;
+    return now === undefined
+      ? []
+      : [`${tool}: installed ${now}, pinned in section 2, missing from web-tops.lock`];
+  });
+}
+
 /** The line to print when the Node on the PATH is missing or outside the lock's range, else none. */
 function nodeProblems(lock: Lock, env: Env): string[] {
   const range = lock["node"];
@@ -65,7 +77,11 @@ function confirm(lock: Lock, io: Io): number {
 }
 
 function verify(lock: Lock, io: Io): number {
-  const problems = [...toolProblems(lock, io.cwd), ...nodeProblems(lock, io.env)];
+  const problems = [
+    ...toolProblems(lock, io.cwd),
+    ...missingFromLock(lock, io.cwd),
+    ...nodeProblems(lock, io.env),
+  ];
   if (problems.length === 0) return confirm(lock, io);
   const plural = problems.length === 1 ? "" : "s";
   io.err(
@@ -127,7 +143,7 @@ function announce(lock: Lock, next: Lock, io: Io): number {
 
 /**
  * Rewrites the lock with the installed versions of the tools it names, and adds every installed tool
- * that pins.ts or the project's package.json pins exactly; the Node range stays as recorded.
+ * that pins.ts pins and package.json declares (WEB_TOPS.md section 2); the Node range stays as recorded.
  */
 function update(lock: Lock, io: Io): number {
   const gathered = gather(lock, io.cwd);
@@ -166,8 +182,7 @@ function lockCommand(argv: readonly string[], io: Io): number {
 /**
  * `webtops lock [--verify | --update]` (WEB_TOPS.md section 10). `--verify` (also the bare form) only reads: it
  * exits 2 on a differing tool version or a Node outside the lock's range. `--update` is the one writer, and
- * writes the installed versions of the tools the lock names, and adds the installed tools that pins.ts or
- * package.json pins exactly.
+ * writes the installed versions of the tools the lock names, and adds the installed tools that pins.ts pins and package.json declares.
  */
 export function runLockCli(argv: readonly string[], io: Io): Promise<number> {
   return Promise.resolve(lockCommand(argv, io));
