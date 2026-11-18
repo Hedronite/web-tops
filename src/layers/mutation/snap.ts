@@ -18,15 +18,35 @@ function parse(entry: string): Entry | undefined {
   return file === undefined ? undefined : { file, start: Number(start), end: Number(end) };
 }
 
-/** The line spans of the scored units of a file (never `<module>`), or undefined when the file cannot be read as code. */
-function unitsOf(ts: Ts, file: string, text: string | undefined): Range[] | undefined {
+/** The line spans of a file's scored units, and of the lines no unit holds (its module-level code). */
+interface Found {
+  readonly units: readonly Range[];
+  readonly module: readonly Range[];
+}
+
+/** The lines of 1 to `lines` that no unit holds, as ranges. */
+function outside(units: readonly Range[], lines: number): Range[] {
+  const gaps: Range[] = [];
+  let next = 1;
+  for (const unit of joined(units)) {
+    if (unit.start > next) {
+      gaps.push({ start: next, end: unit.start - 1 });
+    }
+    next = unit.end + 1;
+  }
+  return next <= lines ? [...gaps, { start: next, end: lines }] : gaps;
+}
+
+/** The scored units of a file (never `<module>`) and its module-level lines, or undefined when it cannot be read as code. */
+function foundIn(ts: Ts, file: string, text: string | undefined): Found | undefined {
   if (text === undefined) {
     return undefined;
   }
   try {
-    return analyzeFile(ts, file, text)
+    const units = analyzeFile(ts, file, text)
       .records.filter((record) => record.scored && record.kind !== "module")
       .map((record) => ({ start: record.span.startLine, end: record.span.endLine }));
+    return { units, module: outside(units, text.split("\n").length) };
   } catch {
     return undefined;
   }
@@ -34,11 +54,19 @@ function unitsOf(ts: Ts, file: string, text: string | undefined): Range[] | unde
 
 const overlaps = (a: Range, b: Range): boolean => a.start <= b.end && b.start <= a.end;
 
-/** A range and every scored unit it reaches into, so a changed line mutates its whole function. */
-const widen = (range: Range, units: readonly Range[]): Range[] => [
-  range,
-  ...units.filter((unit) => overlaps(range, unit)),
-];
+/**
+ * A range and every scored unit it reaches into, so a changed line mutates its whole function. A range that touches
+ * module-level code brings all of it, so the occurrence of a `<module>` survivor does not depend on which module
+ * lines the diff touched.
+ */
+function widen(range: Range, found: Found): Range[] {
+  const touchesModule = found.module.some((lines) => overlaps(range, lines));
+  return [
+    range,
+    ...found.units.filter((unit) => overlaps(range, unit)),
+    ...(touchesModule ? found.module : []),
+  ];
+}
 
 /** The ranges in line order, with those that overlap or touch joined. */
 function joined(ranges: readonly Range[]): Range[] {
@@ -56,7 +84,7 @@ const show = (file: string, range: Range): string =>
 
 /**
  * Widens each `file:start-end` entry to the scored units it reaches into (WEB_TOPS.md section 6.4), so whole
- * functions are mutated and a survivor's key always names a unit. Lines outside every unit stay as they are. An
+ * functions are mutated and a survivor's key always names a unit. A range that touches module-level code widens to all of the file's module-level lines. An
  * entry whose file cannot be read or parsed, or that has no range, is kept as it was given.
  */
 export function snapEntries(
@@ -74,10 +102,10 @@ export function snapEntries(
   const kept = parsed.filter((item) => item.found === undefined).map((item) => item.entry);
   const snapped = [...byFile.keys()].sort().flatMap((file) => {
     const ranges = byFile.get(file) ?? [];
-    const units = unitsOf(ts, file, text(file));
-    return units === undefined
+    const found = foundIn(ts, file, text(file));
+    return found === undefined
       ? ranges.map((range) => show(file, range))
-      : joined(ranges.flatMap((range) => widen(range, units))).map((range) => show(file, range));
+      : joined(ranges.flatMap((range) => widen(range, found))).map((range) => show(file, range));
   });
   return [...kept, ...snapped];
 }

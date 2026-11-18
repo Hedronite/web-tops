@@ -47,18 +47,39 @@ describe("G7a snapEntries widens a range to its scored unit", () => {
   });
 
   it("joins the units a range crosses, and merges units that touch or overlap", () => {
-    expect(snap(["src/a.ts:3-5"])).toEqual(["src/a.ts:1-7"]);
+    expect(snap(["src/a.ts:3-5"])).toEqual(["src/a.ts:1-9", "src/a.ts:16-19"]);
     expect(snap(["src/a.ts:2-2", "src/a.ts:3-3"])).toEqual(["src/a.ts:1-3"]);
     expect(snap(["src/a.ts:2-2", "src/a.ts:6-6"])).toEqual(["src/a.ts:1-3", "src/a.ts:5-7"]);
   });
 
-  it("keeps module-level lines as they are: the module is no unit to mutate whole", () => {
-    expect(snap(["src/a.ts:18-18"])).toEqual(["src/a.ts:18-18"]);
+  it("widens a module-level range to every module-level line of the file, so <module> occurrences do not depend on the diff", () => {
+    const module = ["src/a.ts:4-4", "src/a.ts:8-9", "src/a.ts:16-19"];
+    expect(snap(["src/a.ts:18-18"])).toEqual(module);
+    expect(snap(["src/a.ts:4-4"])).toEqual(module);
+    expect(snap(["src/a.ts:9-9"])).toEqual(module);
   });
 
-  it("keeps the lines of a range that only partly lies in a function", () => {
-    expect(snap(["src/a.ts:3-4"])).toEqual(["src/a.ts:1-4"]);
-    expect(snap(["src/a.ts:17-18"])).toEqual(["src/a.ts:17-18"]);
+  it("gives the same entries for any module line the diff touched, and none of the functions' lines", () => {
+    expect(snap(["src/a.ts:18-18"])).toEqual(snap(["src/a.ts:16-16"]));
+    expect(snap(["src/a.ts:18-18"]).some((entry) => /:(?:1-3|5-7|10-15)$/u.test(entry))).toBe(
+      false,
+    );
+  });
+
+  it("adds the module lines to the units a range reaches, when it touches both", () => {
+    expect(snap(["src/a.ts:3-4"])).toEqual(["src/a.ts:1-4", "src/a.ts:8-9", "src/a.ts:16-19"]);
+    expect(snap(["src/a.ts:17-18"])).toEqual(["src/a.ts:4-4", "src/a.ts:8-9", "src/a.ts:16-19"]);
+  });
+
+  it("counts a module line that is the last line of the file, with no newline after it", () => {
+    const last = "const y = 1;\nexport function a(): number {\n  return 1;\n}\nexport const x = 1;";
+    expect(snap(["src/a.ts:1-1"], last)).toEqual(["src/a.ts:1-1", "src/a.ts:5-5"]);
+    expect(snap(["src/a.ts:3-3"], last)).toEqual(["src/a.ts:2-4"]);
+  });
+
+  it("leaves a file with no module line to its units", () => {
+    const only = "export function a(): number {\n  return 1;\n}";
+    expect(snap(["src/a.ts:2-2"], only)).toEqual(["src/a.ts:1-3"]);
   });
 
   it("works per file, in file order, and merges only within a file", () => {

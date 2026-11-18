@@ -379,7 +379,7 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
   functions it covers by running that file alone under Vitest, with the gate's own configuration
   (the project's, coverage thresholds removed) and the gate's coverage include and exclude (§6.1),
   once for the version at HEAD and once for the version at the merge base; a deleted test file runs
-  only the second. The functions that ran are added, with their whole ranges. A HEAD version that
+  only the second. The functions that ran are added, with their whole ranges. Each range is then widened to the scored units it reaches into (§6.7), and a range that touches module-level code to all of the file's module-level lines, so the occurrence in a survivor's key does not depend on the diff. A HEAD version that
   cannot run is `fail`; a merge-base version that cannot run against HEAD adds nothing. The diff is
   taken without rename detection, so a renamed file counts as new and every function in it is
   judged. A pure deletion belongs to the smallest function that holds the lines on both sides of
