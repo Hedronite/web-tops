@@ -269,3 +269,36 @@ describe("axeFindings: the project's files", () => {
     expect(found[0]?.message).toContain("typescript");
   });
 });
+
+describe("readAxe: more edges", () => {
+  it("does not take `new ns.Other(...)` for a builder: only a member named AxeBuilder is one", () => {
+    expect(read('new pw.Other({ page }).exclude(["a"]);')).toEqual({ hits: [], unreadable: [] });
+    expect(read('new pw.AxeBuilder({ page }).exclude(["a"]);').hits).toHaveLength(1);
+  });
+
+  it("lists unreadable calls in source order, though the chain's outer call is visited first", () => {
+    const source = [
+      "new AxeBuilder({ page })",
+      "  .exclude(first)",
+      "  .disableRules(second);",
+    ].join("\n");
+    expect(read(source).unreadable.map((item) => `${item.method}@${String(item.line)}`)).toEqual([
+      "exclude@2",
+      "disableRules@3",
+    ]);
+  });
+});
+
+describe("axeFindings: the words of a finding", () => {
+  it("names the method and says why the argument cannot be counted", () => {
+    const root = resolve(import.meta.dirname, "../..");
+    mkdirSync(join(root, "tmp"), { recursive: true });
+    const dir = mkdtempSync(join(root, "tmp", "wt-census-axe-msg-"));
+    made.push(dir);
+    writeFileSync(join(dir, "a.ts"), "new AxeBuilder({ page }).disableRules(list);\n");
+    const found = axeFindings(dir, ["a.ts"]);
+    expect(found[0]?.message).toBe(
+      ".disableRules() on an AxeBuilder is not given a literal string or an array of literal strings, so what it sets cannot be counted",
+    );
+  });
+});

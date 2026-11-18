@@ -43,3 +43,12 @@ describe("realExec", () => {
     expect(removed.stdout).toBe("unset\n");
   });
 });
+
+describe("realExec: the child's standard input", () => {
+  it("is closed, so a tool that reads it to the end finishes instead of waiting for input", async () => {
+    const script = "process.stdin.resume(); process.stdin.on('end', () => console.log('eof'));";
+    const result = await realExec(process.execPath, ["-e", script], { timeoutMs: 20000 });
+    expect(result).toMatchObject({ code: 0, stdout: "eof\n" });
+    expect(result.failure).toBeUndefined();
+  });
+});

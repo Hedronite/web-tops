@@ -1,0 +1,110 @@
+# .web-tops/survivors.yaml: mutants a test does not kill and a person has accepted (WEB_TOPS.md 6.4).
+# An entry is keyed by file, function, mutator, original, replacement and occurrence, never by a line.
+# `original` is the exact source text the mutator replaced, as written, so editing that text makes a
+# new key and the old entry stops matching. Add entries with `webtops survivors explain`; every entry
+# needs a reason and an owner, and may carry `expires` (YYYY-MM-DD, UTC, valid through that day).
+version: 1
+survivors:
+  - file: src/census/directives.ts
+    function: src/census/directives.ts::astroTemplate
+    mutator: StringLiteral
+    original: "\" \""
+    replacement: "\"\""
+    occurrence: 1
+    reason: A blanked code character only has to keep the line breaks; leaving it
+      out instead changes columns, and the census reads lines.
+    owner: web-platform
+  - file: src/census/directives.ts
+    function: src/census/directives.ts::codeParts
+    mutator: ConditionalExpression
+    original: "part.kind !== \"template\""
+    replacement: "true"
+    occurrence: 1
+    reason: "Treating the template part of an Astro file as code blanks only
+      characters the template reading ignores, since its comments and styles are
+      already blank in that part: the template text comes out the same."
+    owner: web-platform
+  - file: src/census/directives.ts
+    function: src/census/directives.ts::codeParts
+    mutator: MethodExpression
+    original: "astroParts(text, file).filter((part) => part.kind !== \"template\")"
+    replacement: "astroParts(text, file)"
+    occurrence: 1
+    reason: "Treating the template part of an Astro file as code blanks only
+      characters the template reading ignores, since its comments and styles are
+      already blank in that part: the template text comes out the same."
+    owner: web-platform
+  - file: src/census/tsconfig.ts
+    function: src/census/tsconfig.ts::readHits
+    mutator: StringLiteral
+    original: "\" \""
+    replacement: "\"\""
+    occurrence: 1
+    reason: The separator only shows in a diagnostic that is a chain of messages;
+      the syntax error tsc reports for a tsconfig.json is a single message.
+    owner: web-platform
+  - file: src/census/tsconfig.ts
+    function: src/census/tsconfig.ts::withoutExclude
+    mutator: ArrayDeclaration
+    original: "[]"
+    replacement: "[\"Stryker was here\"]"
+    occurrence: 1
+    reason: The array only has to be empty; a one-element array holding a pattern
+      that matches nothing empties the exclude just as well, so no test can tell
+      them apart.
+    owner: web-platform
+  - file: src/gate/exec.ts
+    function: src/gate/exec.ts::environmentOf
+    mutator: ConditionalExpression
+    original: "value !== undefined"
+    replacement: "true"
+    occurrence: 1
+    reason: Node drops an environment variable whose value is undefined when it
+      starts a process, so passing one makes no difference to the child.
+    owner: web-platform
+  - file: src/gate/exec.ts
+    function: src/gate/exec.ts::killTree
+    mutator: BlockStatement
+    original: "{\n    child.kill(\"SIGKILL\");\n  }"
+    replacement: "{}"
+    occurrence: 1
+    reason: The kill without a group runs only for a run that has no timeout, which
+      waits the ten-minute default; no test can wait that long.
+    owner: web-platform
+  - file: src/gate/exec.ts
+    function: src/gate/exec.ts::killTree
+    mutator: StringLiteral
+    original: "\"SIGKILL\""
+    replacement: "\"\""
+    occurrence: 2
+    reason: The kill without a group runs only for a run that has no timeout, which
+      waits the ten-minute default; no test can wait that long, and the signal
+      name does not change what a killed child does.
+    owner: web-platform
+  - file: src/gate/exec.ts
+    function: src/gate/exec.ts::realExec
+    mutator: CallExpression
+    original: "clearTimeout(timer);"
+    replacement: ";"
+    occurrence: 1
+    reason: An uncleared timer fires after the promise has settled and kills a
+      process that is already gone; nothing a test can observe differs.
+    owner: web-platform
+  - file: src/gate/exec.ts
+    function: src/gate/exec.ts::realExec
+    mutator: CallExpression
+    original: "clearTimeout(timer);"
+    replacement: ";"
+    occurrence: 2
+    reason: An uncleared timer fires after the promise has settled and kills a
+      process that is already gone; nothing a test can observe differs.
+    owner: web-platform
+  - file: src/gate/exec.ts
+    function: src/gate/exec.ts::realExec
+    mutator: ConditionalExpression
+    original: "options.timeoutMs !== undefined"
+    replacement: "true"
+    occurrence: 1
+    reason: The flag only decides whether a timeout kills the child's whole process
+      group; a run with no timeout never reaches that kill.
+    owner: web-platform

@@ -9,14 +9,13 @@ export type TsconfigRead =
   | { readonly ok: true; readonly hits: readonly ConfigHit[] }
   | { readonly ok: false; readonly message: string };
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+/**
+ * The config with its `exclude` emptied (an `exclude` in an extended config too), so the files `include` selects
+ * can be listed before `exclude` takes any out. TypeScript still leaves `node_modules` out of a `**` it matches.
+ */
+const withoutExclude = (config: unknown): unknown => Object.assign({}, config, { exclude: [] });
 
-/** The config with its `exclude` replaced, so the files `include` selects can be listed before `exclude` takes any out. */
-const withoutExclude = (config: unknown): unknown =>
-  isRecord(config) ? { ...config, exclude: ["**/node_modules/**"] } : config;
-
-const relativeTo = (cwd: string, file: string): string => relative(cwd, file).split("\\").join("/");
+const relativeTo = (cwd: string, file: string): string => relative(cwd, file);
 
 /** The tracked files `tsconfig.json` selects, and the files its program holds (imports followed), relative to the project. */
 function programOf(
@@ -26,10 +25,7 @@ function programOf(
 ): { readonly candidates: string[]; readonly program: Set<string> } {
   const listed = ts.parseJsonConfigFileContent(withoutExclude(config), ts.sys, cwd);
   const kept = ts.parseJsonConfigFileContent(config, ts.sys, cwd);
-  const built = ts.createProgram({
-    rootNames: kept.fileNames,
-    options: { ...kept.options, noEmit: true },
-  });
+  const built = ts.createProgram({ rootNames: kept.fileNames, options: kept.options });
   return {
     candidates: listed.fileNames.map((file) => relativeTo(cwd, file)),
     program: new Set(built.getSourceFiles().map((file) => relativeTo(cwd, file.fileName))),
@@ -68,9 +64,6 @@ export function tsconfigHits(cwd: string, tracked: ReadonlySet<string>): Tsconfi
   try {
     return readHits(cwd, path, tracked);
   } catch (error) {
-    return {
-      ok: false,
-      message: error instanceof Error ? error.message : "tsconfig.json could not be read",
-    };
+    return { ok: false, message: String(error) };
   }
 }

@@ -219,7 +219,8 @@ export function axeFindings(cwd: string, files: readonly string[]): RawFinding[]
     const ts = loadTypeScript(cwd);
     return sources.flatMap((source) => findingsOf(ts, source.file, source.text));
   } catch (error) {
-    const why = error instanceof Error ? error.message : "typescript could not be loaded";
-    return [failed("census-axe-unreadable", `AxeBuilder settings cannot be read: ${why}`)];
+    return [
+      failed("census-axe-unreadable", `AxeBuilder settings cannot be read: ${String(error)}`),
+    ];
   }
 }

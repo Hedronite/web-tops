@@ -46,11 +46,16 @@ function directivesOf(comments: readonly Comment[], matchers: readonly Matcher[]
   });
 }
 
-/** The `<style>` blocks of markup, each with the line its content starts on. */
+const STYLE_BLOCK = /<style\b([^>]*)>([\s\S]*?)<\/style\s*>/giu;
+
+const linesBefore = (text: string, index: number): number =>
+  text.slice(0, index).split("\n").length;
+
+/** The `<style>` blocks of markup, each with the line its content starts on (an opening tag may span lines). */
 function styleBlocks(text: string): { readonly line: number; readonly css: string }[] {
-  return [...text.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/giu)].map((found) => ({
-    line: text.slice(0, found.index + found[0].indexOf(">") + 1).split("\n").length,
-    css: found[1] ?? "",
+  return [...text.matchAll(STYLE_BLOCK)].map((found) => ({
+    line: linesBefore(text, found.index) + String(found[1]).split("\n").length - 1,
+    css: String(found[2]),
   }));
 }
 
