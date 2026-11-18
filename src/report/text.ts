@@ -27,7 +27,7 @@ function split(layer: ReportLayer): { name: string; reason: string | undefined }
 
 function placeOf(finding: Finding): string {
   const file = finding.file ?? "";
-  const where = finding.line === undefined ? file : `${file}:${String(finding.line)}`;
+  const where = finding.line === null ? file : `${file}:${String(finding.line)}`;
   return where === "" ? "" : ` (${where})`;
 }
 
@@ -35,12 +35,21 @@ function findingLine(finding: Finding): string {
   return `      - [${finding.verdict}] ${finding.rule}: ${finding.message}${placeOf(finding)}`;
 }
 
+/** The most findings the text report prints for a layer; the JSON report keeps every one (section 6.6). */
+const MAX_PRINTED = 100;
+
+function findingLines(findings: readonly Finding[]): string[] {
+  const shown = findings.slice(0, MAX_PRINTED).map(findingLine);
+  const more = findings.length - MAX_PRINTED;
+  return more > 0 ? [...shown, `      - and ${String(more)} more findings, not listed`] : shown;
+}
+
 function layerLines(layer: ReportLayer): string[] {
   const { name, reason } = split(layer);
   const head = `  ${String(layer.gate).padEnd(7)}${`${name} `.padEnd(15)}tier ${String(layer.tier)}  ${layer.verdict.padEnd(14)}`;
   return [
     reason === undefined ? head.trimEnd() : `${head}${reason}`,
-    ...(layer.gate === "laws" ? [] : layer.findings.map(findingLine)),
+    ...(layer.gate === "laws" ? [] : findingLines(layer.findings)),
   ];
 }
 
@@ -60,7 +69,7 @@ function lawsLines(report: Report): string[] {
   const findings = lawsFindings(report);
   return findings.length === 0
     ? []
-    : [`  laws mapping (from ${readFrom(report)}):`, ...findings.map(findingLine), ""];
+    : [`  laws mapping (from ${readFrom(report)}):`, ...findingLines(findings), ""];
 }
 
 function problemLines(report: Report): string[] {

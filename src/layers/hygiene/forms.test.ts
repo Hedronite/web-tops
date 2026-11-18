@@ -182,6 +182,7 @@ describe("R18: attw runs with --profile esm-only only for an ESM-only package", 
     ]);
     expect(result.verdict).toBe("pass");
     expect(result.findings).toContainEqual({
+      tool: "attw",
       rule: "attw-profile",
       verdict: "pass",
       message: "attw ran with --profile esm-only: type module and no require condition in exports",

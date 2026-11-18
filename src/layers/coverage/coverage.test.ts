@@ -268,16 +268,16 @@ describe("G4c coverage: every tracked in-scope file has an SF record, or the lay
     expect(result.findings.map((finding) => finding.rule)).toContain(rule);
   });
 
-  it("caps a long list of missing records and says how many it left out", async () => {
+  it("returns every missing record: the report keeps them all and only the printer caps", async () => {
     const files = Array.from({ length: 120 }, (_unused, index) => `src/f${String(index)}.ts`);
     const context = lcovWith(record("src/a.ts", 10, 10)).context({
       exec: tracked("src/a.ts", ...files),
     });
     const result = await coverageLayer.run(context);
-    expect(result.findings.filter((finding) => finding.rule === RULE)).toHaveLength(100);
+    expect(result.findings.filter((finding) => finding.rule === RULE)).toHaveLength(120);
     expect(
       result.findings.some((finding) => finding.message.includes("more findings, not listed")),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it(

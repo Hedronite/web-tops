@@ -1,5 +1,5 @@
 {
-  "report_version": "1.0.0",
+  "report_version": "2.0.0",
   "protocol": "0.3.0",
   "class": "ts-library",
   "enforce": "hard",
@@ -91,11 +91,14 @@
       "required": true,
       "findings": [
         {
-          "rule": "W-07",
+          "tool": "eslint",
+          "rule": "@typescript-eslint/no-explicit-any",
+          "law": "W-07",
           "verdict": "pass",
           "message": "acknowledged: the legacy parser keeps its loose input type",
           "file": "src/legacy/parse.ts",
           "line": 12,
+          "fingerprint": "fp1:cc990ecb6f9d569f",
           "required": true,
           "ack": {
             "source": "comment",
@@ -103,7 +106,15 @@
           }
         }
       ],
-      "metrics": {}
+      "metrics": {
+        "findings": [
+          {
+            "rule": "@typescript-eslint/no-explicit-any",
+            "file": "src/legacy/parse.ts",
+            "count": 1
+          }
+        ]
+      }
     }
   ],
   "passed": true,

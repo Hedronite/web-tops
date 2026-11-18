@@ -1,10 +1,9 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import type { Finding } from "../../report/types.ts";
+import type { RawFinding } from "../../report/findings.ts";
 import type { ExecResult } from "../../gate/types.ts";
 import {
   arrayOf,
-  capFindings,
   exitFinding,
   isRecord,
   parseJson,
@@ -57,14 +56,16 @@ async function pack(
     const said = `bun pm pack exited ${String(result.code)} and left no tarball`;
     return {
       failed: {
-        findings: [failFinding("pack-failed", `${said}: ${tail(printed(result, "stderr"))}`)],
+        findings: [
+          failFinding("bun", "pack-failed", `${said}: ${tail(printed(result, "stderr"))}`),
+        ],
       },
     };
   }
   return { file: join(step.dir, tarball) };
 }
 
-async function publintFindings(step: StepContext, file: string): Promise<Finding[]> {
+async function publintFindings(step: StepContext, file: string): Promise<RawFinding[]> {
   const outcome = await ran(step, "publint", ["run", file]);
   if ("failed" in outcome) {
     return [...outcome.failed.findings];
@@ -78,37 +79,44 @@ async function publintFindings(step: StepContext, file: string): Promise<Finding
     items.length > 0
       ? items
       : [`publint exited ${String(result.code)}: ${tail(printed(result, "stdout"))}`];
-  return shown.map((item) => failFinding("publint", item));
+  return shown.map((item) => failFinding("publint", "publint", item));
 }
 
 function entrypointOf(entry: unknown): string {
   return isRecord(entry) ? str(entry["entrypoint"], "?") : "?";
 }
 
-function attwEntries(problems: unknown): Finding[] {
+function attwEntries(problems: unknown): RawFinding[] {
   if (!isRecord(problems)) {
     return [];
   }
   return Object.entries(problems).flatMap(([kind, entries]) =>
     arrayOf(entries).map((entry) =>
-      failFinding(`attw:${kind}`, `entrypoint ${entrypointOf(entry)}`),
+      failFinding("attw", `attw:${kind}`, `entrypoint ${entrypointOf(entry)}`),
     ),
   );
 }
 
-function attwProblems(result: ExecResult): Finding[] {
+function attwProblems(result: ExecResult): RawFinding[] {
   const value = parseJson(result.stdout);
   if (value === undefined) {
-    return [exitFinding("attw-failed", "attw", result, "stderr")];
+    return [exitFinding("attw", "attw-failed", "attw", result, "stderr")];
   }
   const found = attwEntries(isRecord(value) ? value["problems"] : undefined);
   return found.length > 0
     ? found
-    : [failFinding("attw-failed", `attw exited ${String(result.code)} with no listed problems`)];
+    : [
+        failFinding(
+          "attw",
+          "attw-failed",
+          `attw exited ${String(result.code)} with no listed problems`,
+        ),
+      ];
 }
 
-function attwProfile(esmOnly: boolean): Finding {
+function attwProfile(esmOnly: boolean): RawFinding {
   return {
+    tool: "attw",
     rule: "attw-profile",
     verdict: "pass",
     message: esmOnly
@@ -117,7 +125,7 @@ function attwProfile(esmOnly: boolean): Finding {
   };
 }
 
-async function attwFindings(step: StepContext, file: string): Promise<Finding[]> {
+async function attwFindings(step: StepContext, file: string): Promise<RawFinding[]> {
   const esmOnly = isEsmOnly(step);
   const profile = esmOnly ? ["--profile", "esm-only"] : [];
   const head = attwProfile(esmOnly);
@@ -137,5 +145,5 @@ export async function packageExports(step: StepContext): Promise<StepResult> {
     ...(await publintFindings(step, packed.file)),
     ...(await attwFindings(step, packed.file)),
   ];
-  return { findings: capFindings(findings, "package_exports") };
+  return { findings };
 }

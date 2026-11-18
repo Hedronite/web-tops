@@ -28,7 +28,7 @@ export const VERDICTS = [
 ] as const;
 
 /** The report format's own version (WEB_TOPS.md section 6.6): it changes only when the report's shape does. */
-export const REPORT_VERSION = "1.0.0";
+export const REPORT_VERSION = "2.0.0";
 
 export type BuiltInLayerId = (typeof LAYER_IDS)[number];
 
@@ -89,6 +89,25 @@ export interface RunBlock {
 }
 export type Verdict = (typeof VERDICTS)[number];
 
+/** The closed set of tools a finding may name (WEB_TOPS.md section 6.6); `webtops` is the gate's own checks. */
+export const TOOLS = [
+  "astro",
+  "attw",
+  "audit",
+  "biome",
+  "bun",
+  "dependency-cruiser",
+  "eslint",
+  "prettier",
+  "publint",
+  "stylelint",
+  "tsc",
+  "vitest",
+  "webtops",
+] as const;
+
+export type Tool = (typeof TOOLS)[number];
+
 interface Failure {
   /** The verdict ends the run non-zero. */
   readonly ends_run: boolean;
@@ -115,13 +134,20 @@ export function endsRun(verdict: Verdict, required: boolean): boolean {
 }
 
 export interface Finding {
-  /** A tool rule id or a law id. */
+  /** The tool that said it, from the closed set of section 6.6. */
+  readonly tool: Tool;
+  /** The tool's rule id, or a kit id for one of the gate's own checks. */
   readonly rule: string;
+  /** The law the finding maps to, or null until a reader maps it (M3). */
+  readonly law: string | null;
   /** A `skip` finding records a step the class does not map, or one switched off; its reason is the message. */
   readonly verdict: Verdict;
   readonly message: string;
-  readonly file?: string;
-  readonly line?: number;
+  /** Null when the finding has no place. */
+  readonly file: string | null;
+  readonly line: number | null;
+  /** `fp1:` and 16 hex characters: the finding's key, which survives edits elsewhere in the file (section 6.6). */
+  readonly fingerprint: string;
   /** On a law finding: whether the class profile requires the law (section 3.3). */
   readonly required?: boolean;
   /** Present on an acknowledged soft-rule finding, whose verdict is `pass` (section 3.3). */
@@ -202,6 +228,50 @@ function one(pointer: string, message: string): readonly Problem[] {
   return [{ pointer, message }];
 }
 
+/** The layers whose findings the report counts per rule per file in `metrics.findings`. */
+export const COUNTED_LAYERS: ReadonlySet<string> = new Set(["hygiene", "laws"]);
+
+function compareText(left: string, right: string): number {
+  if (left === right) {
+    return 0;
+  }
+  return left < right ? -1 : 1;
+}
+
+function compareRows(left: FindingMetric, right: FindingMetric): number {
+  return compareText(left.rule, right.rule) || compareText(left.file, right.file);
+}
+
+function bump(counts: Map<string, FindingMetric>, rule: string, file: string): void {
+  const key = `${rule}\0${file}`;
+  counts.set(key, { rule, file, count: (counts.get(key)?.count ?? 0) + 1 });
+}
+
+/** Counts per rule per file, from the findings alone, sorted by rule and then file. A finding with no file has no row. */
+export function countsByRuleFile(findings: readonly Finding[]): FindingMetric[] {
+  const counts = new Map<string, FindingMetric>();
+  for (const finding of findings) {
+    if (finding.file !== null) {
+      bump(counts, finding.rule, finding.file);
+    }
+  }
+  return [...counts.values()].sort(compareRows);
+}
+
+/** The layers that count findings carry exactly the counts their own findings give (section 6.6). */
+function findingCounts(report: GateReport): readonly Problem[] {
+  return report.layers.flatMap((layer, index) => {
+    const held = JSON.stringify(countsByRuleFile(layer.findings));
+    const said = JSON.stringify(layer.metrics.findings ?? []);
+    return COUNTED_LAYERS.has(layer.id) && held !== said
+      ? one(
+          `/layers/${String(index)}/metrics/findings`,
+          "counts per rule per file are not those of the layer's findings",
+        )
+      : [];
+  });
+}
+
 function duplicateLayers(report: GateReport): readonly Problem[] {
   const ids = report.layers.map((layer) => layer.id);
   return [...new Set(ids)]
@@ -275,6 +345,7 @@ function passedFlag(report: GateReport): readonly Problem[] {
 
 const CHECKS: readonly ((report: GateReport) => readonly Problem[])[] = [
   duplicateLayers,
+  findingCounts,
   notEvaluatedCount,
   requiredNotEvaluatedCount,
   failedCount,

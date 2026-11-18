@@ -167,44 +167,55 @@ describe("G1b: gate-report.schema.json covers section 6.6 and every section 3.3 
   });
 });
 
-describe("a finding has rule, message and verdict, and file and line when it has a place", () => {
+describe("a finding has the one shape: tool, rule, law, verdict, message, file, line and fingerprint", () => {
+  const FULL = {
+    tool: "eslint",
+    rule: "r",
+    law: null,
+    verdict: "fail",
+    message: "m",
+    file: null,
+    line: null,
+    fingerprint: "fp1:0123456789abcdef",
+  };
+  /** The tests layer carries no per-rule counts, so a finding with a place needs no matching metrics. */
   const withFinding = (finding: unknown): unknown =>
-    edit(buildReport({ hygiene: "fail" }), ["layers", "0", "findings"], [finding]);
+    edit(buildReport({ tests: "fail" }), ["layers", "1", "findings"], [finding]);
+  const AT = "/layers/1/findings/0";
 
-  it("accepts the minimal finding and one with a place", () => {
+  it("accepts the full finding and one with a place", () => {
+    expect(pointers(withFinding(FULL))).toEqual([]);
     expect(
-      pointers(withFinding({ rule: "no-explicit-any", message: "m", verdict: "fail" })),
-    ).toEqual([]);
-    expect(
-      pointers(
-        withFinding({ rule: "W-01", message: "m", verdict: "fail", file: "src/a.ts", line: 3 }),
-      ),
+      pointers(withFinding({ ...FULL, rule: "W-01", file: "src/a.ts", line: 3, law: "W-01" })),
     ).toEqual([]);
   });
 
-  it.each(["rule", "message", "verdict"])("requires %s", (key) => {
-    const finding = { rule: "r", message: "m", verdict: "fail" };
-    expect(pointers(withFinding(edit(finding, [key])))).toEqual([`/layers/0/findings/0/${key}`]);
-  });
+  it.each(["tool", "rule", "law", "message", "verdict", "file", "line", "fingerprint"])(
+    "requires %s",
+    (key) => {
+      expect(pointers(withFinding(edit(FULL, [key])))).toEqual([`${AT}/${key}`]);
+    },
+  );
 
   it("refuses path (the place is file and line), a line below 1 and a verdict outside section 3.3", () => {
-    const finding = { rule: "r", message: "m", verdict: "fail" };
-    expect(pointers(withFinding({ ...finding, path: "a.ts" }))).toEqual([
-      "/layers/0/findings/0/path",
-    ]);
-    expect(pointers(withFinding({ ...finding, line: 0 }))).toEqual(["/layers/0/findings/0/line"]);
-    expect(pointers(withFinding({ ...finding, file: "" }))).toEqual(["/layers/0/findings/0/file"]);
-    expect(pointers(withFinding({ ...finding, verdict: "Maybe" }))).toEqual([
-      "/layers/0/findings/0/verdict",
-    ]);
+    expect(pointers(withFinding({ ...FULL, path: "a.ts" }))).toEqual([`${AT}/path`]);
+    expect(pointers(withFinding({ ...FULL, file: "a.ts", line: 0 }))).toEqual([`${AT}/line`]);
+    expect(pointers(withFinding({ ...FULL, file: "" }))).toEqual([`${AT}/file`]);
+    expect(pointers(withFinding({ ...FULL, verdict: "Maybe" }))).toEqual([`${AT}/verdict`]);
   });
 
   it.each(VERDICTS)("takes %s as a finding verdict", (verdict) => {
-    expect(pointers(withFinding({ rule: "r", message: "m", verdict }))).toEqual([]);
+    expect(pointers(withFinding({ ...FULL, verdict }))).toEqual([]);
   });
 
   it("a skip finding records an unmapped or switched-off step, and the layer stays pass", () => {
-    const skipped = { rule: "stylelint", verdict: "skip", message: "ts-library: no CSS" };
+    const skipped = {
+      ...FULL,
+      tool: "webtops",
+      rule: "step:stylelint",
+      verdict: "skip",
+      message: "ts-library: no CSS",
+    };
     const report = edit(buildReport(), ["layers", "0", "findings"], [skipped]);
     expect(pointers(report)).toEqual([]);
     expect(validateReport(report)).toMatchObject({ ok: true, value: { passed: true } });
@@ -215,17 +226,17 @@ describe("a finding has rule, message and verdict, and file and line when it has
 
   it("an acknowledged soft rule is a pass that carries source and reason", () => {
     const ack = {
+      ...FULL,
       rule: "W-12",
-      message: "m",
       verdict: "pass",
       ack: { source: "ledger", reason: "bounded" },
     };
     expect(pointers(withFinding(ack))).toEqual([]);
     expect(pointers(withFinding({ ...ack, ack: { source: "memo", reason: "x" } }))).toEqual([
-      "/layers/0/findings/0/ack/source",
+      `${AT}/ack/source`,
     ]);
     expect(pointers(withFinding({ ...ack, ack: { source: "comment" } }))).toEqual([
-      "/layers/0/findings/0/ack/reason",
+      `${AT}/ack/reason`,
     ]);
   });
 });

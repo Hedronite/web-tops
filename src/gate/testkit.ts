@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PROTOCOL } from "../config/protocol.ts";
-import type { Finding, GateRef, Report, Verdict } from "../report/types.ts";
+import type { GateRef, Metrics, RawFinding, Report, Verdict } from "../report/types.ts";
 import type {
   Consumed,
   Exec,
@@ -25,7 +25,8 @@ export interface FakeLayerOptions {
   readonly tier?: Tier;
   readonly verdict?: Verdict;
   readonly reason?: string;
-  readonly findings?: readonly Finding[];
+  readonly findings?: readonly RawFinding[];
+  readonly metrics?: Metrics;
   readonly classes?: readonly string[];
   readonly requires?: readonly string[];
   /** Defaults to the names in `artifacts`. */
@@ -43,7 +44,7 @@ interface FakeDefaults {
   readonly gate: GateRef;
   readonly tier: Tier;
   readonly verdict: Verdict;
-  readonly findings: readonly Finding[];
+  readonly findings: readonly RawFinding[];
   readonly classes: readonly string[];
   readonly requires: readonly string[];
   readonly consumes: readonly Consumed[];
@@ -82,6 +83,7 @@ export function fakeLayer(options: FakeLayerOptions): Layer {
     artifacts: full.artifacts,
     ...reasonField(full.reason),
     ...(full.seed === undefined ? {} : { seed: full.seed }),
+    ...(full.metrics === undefined ? {} : { metrics: full.metrics }),
   };
   return {
     id: full.id,

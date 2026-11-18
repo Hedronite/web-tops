@@ -1,9 +1,8 @@
 import { existsSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Finding } from "../../report/types.ts";
+import type { RawFinding } from "../../report/findings.ts";
 import {
   arrayOf,
-  capFindings,
   exitFinding,
   isRecord,
   place,
@@ -38,8 +37,9 @@ function eslintFinding(
   step: StepContext,
   entry: Record<string, unknown>,
   message: Record<string, unknown>,
-): Finding {
+): RawFinding {
   return failFinding(
+    "eslint",
     str(message["ruleId"], "eslint-fatal"),
     str(message["message"], "no message"),
     place(step.ctx.cwd, entry["filePath"], message["line"]),
@@ -60,14 +60,14 @@ export async function eslint(step: StepContext): Promise<StepResult> {
   }
   if (!Array.isArray(read.value)) {
     return {
-      findings: [shapeFinding(step, path, "eslint JSON is not an array of file results")],
+      findings: [shapeFinding("eslint", step, path, "eslint JSON is not an array of file results")],
     };
   }
   const found = records(read.value).flatMap((entry) =>
     records(entry["messages"]).map((message) => eslintFinding(step, entry, message)),
   );
   return {
-    findings: capFindings(unexplained(found, result, "eslint-failed", "eslint"), "eslint"),
+    findings: unexplained("eslint", found, result, "eslint-failed", "eslint"),
     artifacts: { "eslint-json": path },
   };
 }
@@ -76,8 +76,9 @@ function stylelintFinding(
   step: StepContext,
   entry: Record<string, unknown>,
   warning: Record<string, unknown>,
-): Finding {
+): RawFinding {
   return failFinding(
+    "stylelint",
     str(warning["rule"], "stylelint"),
     str(warning["text"], "no message"),
     place(step.ctx.cwd, entry["source"], warning["line"]),
@@ -101,7 +102,7 @@ export async function stylelint(step: StepContext, globs: readonly string[]): Pr
     records(entry["warnings"]).map((warning) => stylelintFinding(step, entry, warning)),
   );
   return {
-    findings: capFindings(unexplained(found, result, "stylelint-failed", "stylelint"), "stylelint"),
+    findings: unexplained("stylelint", found, result, "stylelint-failed", "stylelint"),
     artifacts: { "stylelint-json": path },
   };
 }
@@ -127,13 +128,15 @@ function hasConfig(step: StepContext, names: readonly string[]): boolean {
 }
 
 /** Both configs, or neither: the repo does not say which formatter to use. */
-function formatterFinding(bothPresent: boolean): Finding {
+function formatterFinding(bothPresent: boolean): RawFinding {
   return bothPresent
     ? failFinding(
+        "webtops",
         "formatter-ambiguous",
         "both a Prettier and a Biome config are present; set gates.hygiene.format.tool",
       )
     : failFinding(
+        "webtops",
         "formatter-unset",
         "no Prettier or Biome config is present; set gates.hygiene.format.tool",
       );
@@ -142,7 +145,7 @@ function formatterFinding(bothPresent: boolean): Finding {
 /** `format.tool` when set, else the one formatter config in the repo (WEB_TOPS.md section 9). */
 export function chooseFormatter(
   step: StepContext,
-): { tool: "prettier" | "biome" } | { finding: Finding } {
+): { tool: "prettier" | "biome" } | { finding: RawFinding } {
   const set = step.settings.formatTool;
   if (set !== undefined) {
     return { tool: set };
@@ -172,21 +175,21 @@ function formatArgs(cwd: string, tool: "prettier" | "biome"): readonly string[] 
   return tool === "prettier" ? PRETTIER_ARGS : biomeArgs(cwd);
 }
 
-function unformatted(result: ExecResult): Finding[] {
+function unformatted(tool: "prettier" | "biome", result: ExecResult): RawFinding[] {
   return `${result.stdout}\n${result.stderr}`.split("\n").flatMap((line) => {
     const file = PRETTIER_WARN.exec(line)?.[1];
     return file === undefined || file.startsWith("Code style issues")
       ? []
-      : [failFinding("format", `${file} is not formatted`, { file })];
+      : [failFinding(tool, "format", `${file} is not formatted`, { file })];
   });
 }
 
-function formatFindings(tool: string, result: ExecResult): Finding[] {
+function formatFindings(tool: "prettier" | "biome", result: ExecResult): RawFinding[] {
   if (result.code === 0) {
     return [];
   }
-  const files = unformatted(result);
-  return files.length > 0 ? files : [exitFinding("format-failed", tool, result, "stderr")];
+  const files = unformatted(tool, result);
+  return files.length > 0 ? files : [exitFinding(tool, "format-failed", tool, result, "stderr")];
 }
 
 export async function format(step: StepContext): Promise<StepResult> {
@@ -202,7 +205,7 @@ export async function format(step: StepContext): Promise<StepResult> {
   if ("failed" in outcome) {
     return outcome.failed;
   }
-  return { findings: capFindings(formatFindings(chosen.tool, outcome.result), "format") };
+  return { findings: formatFindings(chosen.tool, outcome.result) };
 }
 
 /** dependency-cruiser over `src` (or the project root when there is none), with its config in the repo root. */
@@ -212,12 +215,13 @@ function cruiseArgs(cwd: string): string[] {
 }
 
 /** No report on stdout: the tool failed, or said nothing. */
-function silentCruise(result: ExecResult): Finding | undefined {
+function silentCruise(result: ExecResult): RawFinding | undefined {
   if (result.stdout.trim() !== "") {
     return undefined;
   }
   const rule = result.code === 0 ? "output-empty" : "dependency-cruiser-failed";
   return failFinding(
+    "dependency-cruiser",
     rule,
     `depcruise exited ${String(result.code)} and printed no report: ${tail(result.stderr)}`,
   );
@@ -230,7 +234,7 @@ function violationsOf(value: unknown): readonly unknown[] | undefined {
     : undefined;
 }
 
-function cruiseFinding(violation: Record<string, unknown>): Finding[] {
+function cruiseFinding(violation: Record<string, unknown>): RawFinding[] {
   const rule = violation["rule"];
   if (!isRecord(rule) || rule["severity"] !== "error") {
     return [];
@@ -238,6 +242,7 @@ function cruiseFinding(violation: Record<string, unknown>): Finding[] {
   const from = str(violation["from"], "?");
   return [
     failFinding(
+      "dependency-cruiser",
       str(rule["name"], "dependency-cruiser"),
       `${from} -> ${str(violation["to"], "?")}`,
       {
@@ -251,14 +256,21 @@ function readViolations(
   step: StepContext,
   path: string,
   stdout: string,
-): { readonly violations: readonly unknown[] } | { readonly finding: Finding } {
+): { readonly violations: readonly unknown[] } | { readonly finding: RawFinding } {
   const parsed = readJsonOutput(step, path, stdout, "dependency-cruiser");
   if ("finding" in parsed) {
     return parsed;
   }
   const violations = violationsOf(parsed.value);
   return violations === undefined
-    ? { finding: shapeFinding(step, path, "depcruise JSON has no summary.violations") }
+    ? {
+        finding: shapeFinding(
+          "dependency-cruiser",
+          step,
+          path,
+          "depcruise JSON has no summary.violations",
+        ),
+      }
     : { violations };
 }
 
@@ -281,6 +293,7 @@ export async function dependencyCruiser(step: StepContext): Promise<StepResult> 
   }
   const found = records(read.violations).flatMap(cruiseFinding);
   const findings = unexplained(
+    "dependency-cruiser",
     found,
     result,
     "dependency-cruiser-failed",
@@ -288,7 +301,7 @@ export async function dependencyCruiser(step: StepContext): Promise<StepResult> 
     "no error violations",
   );
   return {
-    findings: capFindings(findings, label),
+    findings,
     artifacts: { "dependency-cruiser-json": path },
   };
 }

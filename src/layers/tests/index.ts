@@ -3,12 +3,11 @@ import { existsSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { join, relative } from "node:path";
-import type { Finding } from "../../report/types.ts";
+import type { RawFinding } from "../../report/findings.ts";
 import type { ExecResult, Layer, LayerContext, LayerResult } from "../../gate/types.ts";
 import { COVERAGE_INCLUDE, excludesOf } from "../coverage/scope.ts";
 import {
   arrayOf,
-  capFindings,
   isRecord,
   launchFailure,
   parseJson,
@@ -106,27 +105,33 @@ function assertion(messages: string): string {
 }
 
 /** A test `.only` makes Vitest fail it under `--allowOnly=false`; that failure is a focused test, not a bug in it. */
-function failedFinding(name: string, title: string, messages: readonly string[]): Finding {
+function failedFinding(name: string, title: string, messages: readonly string[]): RawFinding {
   return messages.some((message) => FOCUSED.test(message))
-    ? failFinding("focused-test", `${title}: a focused test (.only) is committed`, { file: name })
-    : failFinding("test-failed", `${title}: ${assertion(messages.join("\n"))}`, { file: name });
+    ? failFinding("vitest", "focused-test", `${title}: a focused test (.only) is committed`, {
+        file: name,
+      })
+    : failFinding("vitest", "test-failed", `${title}: ${assertion(messages.join("\n"))}`, {
+        file: name,
+      });
 }
 
 /** One failing, skipped or todo test, as a finding. */
-function assertionFinding(name: string, assertion: Record<string, unknown>): Finding[] {
+function assertionFinding(name: string, assertion: Record<string, unknown>): RawFinding[] {
   const status = str(assertion["status"], "");
   const title = titleOf(assertion);
   if (status === "failed") {
     return [failedFinding(name, title, messagesOf(assertion))];
   }
   if (SKIPPED.has(status)) {
-    return [failFinding("skipped-test", `${title} is skipped`, { file: name })];
+    return [failFinding("vitest", "skipped-test", `${title} is skipped`, { file: name })];
   }
-  return status === "todo" ? [failFinding("todo-test", `${title} is a todo`, { file: name })] : [];
+  return status === "todo"
+    ? [failFinding("vitest", "todo-test", `${title} is a todo`, { file: name })]
+    : [];
 }
 
 /** A file that failed with no failing test did not load; with no message at all it holds a focused suite. */
-function suiteFinding(name: string, file: Record<string, unknown>): Finding[] {
+function suiteFinding(name: string, file: Record<string, unknown>): RawFinding[] {
   const assertions = records(file["assertionResults"]);
   if (file["status"] !== "failed" || assertions.some((entry) => entry["status"] === "failed")) {
     return [];
@@ -135,12 +140,16 @@ function suiteFinding(name: string, file: Record<string, unknown>): Finding[] {
   // Under --allowOnly=false a focused suite (describe.only) fails the file with no message at all and skips its tests.
   return [
     message === ""
-      ? failFinding("focused-test", `${name}: a focused suite (.only) is committed`, { file: name })
-      : failFinding("suite-failed", `${name} did not load: ${tail(message, 3)}`, { file: name }),
+      ? failFinding("vitest", "focused-test", `${name}: a focused suite (.only) is committed`, {
+          file: name,
+        })
+      : failFinding("vitest", "suite-failed", `${name} did not load: ${tail(message, 3)}`, {
+          file: name,
+        }),
   ];
 }
 
-function testFindings(results: unknown, cwd: string): Finding[] {
+function testFindings(results: unknown, cwd: string): RawFinding[] {
   return records(results).flatMap((file) => {
     const name = relativeTo(cwd, str(file["name"], "?"));
     return [
@@ -152,11 +161,12 @@ function testFindings(results: unknown, cwd: string): Finding[] {
   });
 }
 
-function zeroTests(report: Record<string, unknown>): Finding[] {
+function zeroTests(report: Record<string, unknown>): RawFinding[] {
   const total = report["numTotalTests"];
   return total === 0
     ? [
         failFinding(
+          "vitest",
           "zero-tests",
           "no test ran: zero tests is a failure (WEB_TOPS.md section 3.1, gate 2)",
         ),
@@ -195,10 +205,11 @@ function vitestArgs(
   ];
 }
 
-function emptyFinding(shown: string, result: ExecResult): Finding {
+function emptyFinding(shown: string, result: ExecResult): RawFinding {
   return result.code === 0
-    ? failFinding("output-empty", `vitest wrote no results to ${shown}`, { file: shown })
+    ? failFinding("vitest", "output-empty", `vitest wrote no results to ${shown}`, { file: shown })
     : failFinding(
+        "vitest",
         "vitest-failed",
         `vitest exited ${String(result.code)} before writing results: ${head(printed(result, "stderr"), 6)}`,
       );
@@ -207,21 +218,31 @@ function emptyFinding(shown: string, result: ExecResult): Finding {
 function parseReport(
   shown: string,
   text: string,
-): { readonly report: Record<string, unknown> } | { readonly finding: Finding } {
+): { readonly report: Record<string, unknown> } | { readonly finding: RawFinding } {
   const value = parseJson(text);
   if (value === undefined) {
     return {
-      finding: failFinding("output-unparseable", `vitest results in ${shown} are not JSON`, {
-        file: shown,
-      }),
+      finding: failFinding(
+        "vitest",
+        "output-unparseable",
+        `vitest results in ${shown} are not JSON`,
+        {
+          file: shown,
+        },
+      ),
     };
   }
   return isRecord(value)
     ? { report: value }
     : {
-        finding: failFinding("output-unparseable", `vitest results in ${shown} are not an object`, {
-          file: shown,
-        }),
+        finding: failFinding(
+          "vitest",
+          "output-unparseable",
+          `vitest results in ${shown} are not an object`,
+          {
+            file: shown,
+          },
+        ),
       };
 }
 
@@ -229,7 +250,7 @@ function readReport(
   cwd: string,
   path: string,
   result: ExecResult,
-): { readonly report: Record<string, unknown> } | { readonly finding: Finding } {
+): { readonly report: Record<string, unknown> } | { readonly finding: RawFinding } {
   const shown = relativeTo(cwd, path);
   const text = readOutput(path);
   if (text === undefined || text.trim() === "") {
@@ -239,7 +260,7 @@ function readReport(
 }
 
 /** What the results say: no tests, or a test that failed, was skipped or was focused. */
-function judge(report: Record<string, unknown>, cwd: string): Finding[] {
+function judge(report: Record<string, unknown>, cwd: string): RawFinding[] {
   return [...zeroTests(report), ...testFindings(report["testResults"], cwd)];
 }
 
@@ -248,20 +269,21 @@ function judge(report: Record<string, unknown>, cwd: string): Finding[] {
  * rejection or a thrown timer after a passing test): `vitest-run-failed`, quoting what it printed (R43).
  * The exit code is read only here; a project threshold cannot cause it, because the gate neutralises them.
  */
-function withRunFailure(found: readonly Finding[], result: ExecResult): Finding[] {
+function withRunFailure(found: readonly RawFinding[], result: ExecResult): RawFinding[] {
   if (found.length > 0 || result.code === 0) {
     return [...found];
   }
   const said = head(printed(result, "stderr"), 6);
   return [
     failFinding(
+      "vitest",
       "vitest-run-failed",
       `vitest exited ${String(result.code)} though no test failed: ${said}`,
     ),
   ];
 }
 
-function failedResult(finding: Finding, seed?: number): LayerResult {
+function failedResult(finding: RawFinding, seed?: number): LayerResult {
   const entry: LayerResult = { verdict: "fail", findings: [finding], artifacts: {} };
   return seed === undefined ? entry : { ...entry, seed };
 }
@@ -278,13 +300,12 @@ function artifactsOf(directory: string): Record<string, string> {
 
 function finish(
   directory: string,
-  findings: readonly Finding[],
+  findings: readonly RawFinding[],
   seed: number | undefined,
 ): LayerResult {
-  const capped = capFindings(findings, "tests");
   return {
-    verdict: capped.some((finding) => finding.verdict === "fail") ? "fail" : "pass",
-    findings: capped,
+    verdict: findings.some((finding) => finding.verdict === "fail") ? "fail" : "pass",
+    findings,
     artifacts: artifactsOf(directory),
     ...(seed === undefined ? {} : { seed }),
   };
@@ -303,7 +324,7 @@ async function run(ctx: LayerContext): Promise<LayerResult> {
   const configPath = join(directory, "vitest.config.mjs");
   writeFileSync(configPath, kitConfig(projectConfig(ctx.cwd), viteUrl(ctx.cwd)));
   const result = await runTool(ctx, "vitest", vitestArgs(ctx, seed, jsonPath, configPath));
-  const launch = launchFailure("vitest", result);
+  const launch = launchFailure("vitest", "vitest", result);
   if (launch !== undefined) {
     return failedResult(launch);
   }

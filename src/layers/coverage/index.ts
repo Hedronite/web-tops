@@ -1,7 +1,6 @@
-import type { Finding } from "../../report/types.ts";
+import type { RawFinding } from "../../report/findings.ts";
 import type { Layer, LayerContext, LayerResult } from "../../gate/types.ts";
 import {
-  capFindings,
   exitFinding,
   launchFailure,
   readOutput,
@@ -19,7 +18,7 @@ interface Profile {
   readonly records: ReadonlySet<string>;
 }
 
-function failedResult(finding: Finding): LayerResult {
+function failedResult(finding: RawFinding): LayerResult {
   return { verdict: "fail", findings: [finding], artifacts: {} };
 }
 
@@ -28,7 +27,9 @@ function readProfile(ctx: LayerContext, path: string): Profile | LayerResult {
   const shown = relativeTo(ctx.cwd, path);
   const text = readOutput(path);
   if (text === undefined) {
-    return failedResult(failFinding("lcov-missing", `${shown} does not exist`, { file: shown }));
+    return failedResult(
+      failFinding("webtops", "lcov-missing", `${shown} does not exist`, { file: shown }),
+    );
   }
   const all = parseRecords(text).map((entry) => ({
     ...entry,
@@ -38,7 +39,9 @@ function readProfile(ctx: LayerContext, path: string): Profile | LayerResult {
   const totals = totalsOf(all.filter((entry) => inScope(entry.file, excludes)));
   if (totals.files === 0 || totals.found === 0) {
     return failedResult(
-      failFinding("lcov-empty", `${shown} holds no instrumented lines in scope`, { file: shown }),
+      failFinding("webtops", "lcov-empty", `${shown} holds no instrumented lines in scope`, {
+        file: shown,
+      }),
     );
   }
   return { totals, records: new Set(all.map((entry) => entry.file)) };
@@ -51,14 +54,16 @@ function isProfile(value: Profile | LayerResult): value is Profile {
 /** The files git tracks, so a file no test imports cannot leave the denominator. */
 async function trackedFiles(
   ctx: LayerContext,
-): Promise<{ readonly files: string[] } | { readonly finding: Finding }> {
+): Promise<{ readonly files: string[] } | { readonly finding: RawFinding }> {
   const result = await ctx.exec("git", ["ls-files", "-z"], { cwd: ctx.cwd, env: ctx.env });
-  const launch = launchFailure("git", result);
+  const launch = launchFailure("webtops", "git", result);
   if (launch !== undefined) {
     return { finding: launch };
   }
   if (result.code !== 0) {
-    return { finding: exitFinding("git-ls-files-failed", "git ls-files", result, "stderr") };
+    return {
+      finding: exitFinding("webtops", "git-ls-files-failed", "git ls-files", result, "stderr"),
+    };
   }
   return { files: result.stdout.split("\0").filter((file) => file !== "") };
 }
@@ -69,12 +74,13 @@ function missingRecords(
   files: readonly string[],
   records: ReadonlySet<string>,
   shown: string,
-): Finding[] {
+): RawFinding[] {
   const excludes = excludesOf(ctx.config);
   return files
     .filter((file) => inScope(file, excludes) && !records.has(file))
     .map((file) =>
       failFinding(
+        "webtops",
         "no-coverage-record",
         `${file} is tracked and in scope but has no SF record in ${shown}: no test imports it`,
         { file },
@@ -86,20 +92,33 @@ function summaryOf(totals: LcovTotals): string {
   return `${percent(totals)} % of ${String(totals.found)} lines in ${String(totals.files)} files`;
 }
 
-function floorFindings(totals: LcovTotals, floor: number): Finding[] {
+function floorFindings(totals: LcovTotals, floor: number): RawFinding[] {
   const summary = summaryOf(totals);
   return isBelow(totals, floor)
-    ? [failFinding("coverage-below-floor", `${summary} is below the floor of ${String(floor)} %`)]
-    : [{ rule: "coverage", verdict: "pass", message: `${summary}, floor ${String(floor)} %` }];
+    ? [
+        failFinding(
+          "webtops",
+          "coverage-below-floor",
+          `${summary} is below the floor of ${String(floor)} %`,
+        ),
+      ]
+    : [
+        {
+          tool: "webtops",
+          rule: "coverage",
+          verdict: "pass",
+          message: `${summary}, floor ${String(floor)} %`,
+        },
+      ];
 }
 
-function ratchetFindings(totals: LcovTotals): Finding[] {
+function ratchetFindings(totals: LcovTotals): RawFinding[] {
   const message = `${summaryOf(totals)}; the ratchet needs a baseline, which lands in M2`;
-  return [{ rule: "coverage", verdict: "pass", message }];
+  return [{ tool: "webtops", rule: "coverage", verdict: "pass", message }];
 }
 
 /** Under `ratchet` the floor is the baseline, which lands in M2; otherwise it is the class floor. */
-function judgeFindings(ctx: LayerContext, totals: LcovTotals): Finding[] {
+function judgeFindings(ctx: LayerContext, totals: LcovTotals): RawFinding[] {
   return ctx.enforce === "ratchet"
     ? ratchetFindings(totals)
     : floorFindings(totals, ctx.config.coverage.linesFloor);
@@ -116,7 +135,7 @@ async function scopeFindings(
   ctx: LayerContext,
   profile: Profile,
   path: string,
-): Promise<Finding[]> {
+): Promise<RawFinding[]> {
   const tracked = await trackedFiles(ctx);
   return "files" in tracked
     ? missingRecords(ctx, tracked.files, profile.records, relativeTo(ctx.cwd, path))
@@ -136,7 +155,7 @@ async function run(ctx: LayerContext): Promise<LayerResult> {
     return profile;
   }
   const scope = await scopeFindings(ctx, profile, path);
-  const findings = capFindings([...scope, ...judgeFindings(ctx, profile.totals)], "coverage");
+  const findings = [...scope, ...judgeFindings(ctx, profile.totals)];
   const failed = findings.some((finding) => finding.verdict === "fail");
   return { ...outcome(failed, ctx.enforce === "ratchet"), findings, artifacts: {} };
 }

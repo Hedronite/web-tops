@@ -221,6 +221,7 @@ describe("G3c hygiene: a missing tool fails, an empty output fails, class-only t
     const result = await runHygiene(item, fake.exec, { steps: { audit: off("offline lab") } });
     expect(fake.count("bun audit")).toBe(0);
     expect(result.findings).toContainEqual({
+      tool: "webtops",
       rule: "step:audit",
       verdict: "skip",
       message: "offline lab",
@@ -271,7 +272,7 @@ describe("G3c hygiene: a missing tool fails, an empty output fails, class-only t
     expect(fake2.count("biome")).toBe(1);
   });
 
-  it("caps a long finding list and says how many it dropped", async () => {
+  it("returns every finding of a long list: the report keeps them all and only the printer caps", async () => {
     const item = setup({ "package.json": PACKAGE });
     const lines = Array.from(
       { length: 130 },
@@ -281,9 +282,7 @@ describe("G3c hygiene: a missing tool fails, an empty output fails, class-only t
       item,
       fakeExec(item.project.dir, { tsc: () => ({ code: 1, stdout: lines, stderr: "" }) }).exec,
     );
-    expect(result.findings.filter((entry) => entry.rule === "TS2322")).toHaveLength(100);
-    expect(
-      result.findings.some((entry) => entry.message === "and 30 more findings, not listed"),
-    ).toBe(true);
+    expect(result.findings.filter((entry) => entry.rule === "TS2322")).toHaveLength(130);
+    expect(result.findings.some((entry) => entry.message.includes("more findings"))).toBe(false);
   });
 });

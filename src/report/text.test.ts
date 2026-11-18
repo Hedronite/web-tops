@@ -48,12 +48,14 @@ describe("G1d a stopped run prints the laws mapping for what ran", () => {
   it("prints the laws findings in a block that names the layers they were read from", () => {
     const text = formatText(stopped());
     expect(text).toContain("laws mapping (from hygiene, tests):");
-    expect(text).toContain("      - [refuse] W-05: enum declaration is forbidden (src/state.ts:4)");
+    expect(text).toContain(
+      "      - [refuse] TS1294: enum declaration is forbidden (src/state.ts:4)",
+    );
   });
 
   it("prints each law finding once, in the block and not again under the laws layer", () => {
     const text = formatText(stopped());
-    expect(text.split("W-05").length - 1).toBe(1);
+    expect(text.split("TS1294").length - 1).toBe(1);
   });
 
   it("prints no block when the laws layer has no findings", () => {
