@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { runBaselineCli } from "./baseline.ts";
 import { runCheckCli } from "./check.ts";
 import { runDoctorCli } from "./doctor.ts";
 import { runGateCli } from "./gate.ts";
@@ -13,6 +14,7 @@ export type { Io } from "./io.ts";
 type Command = (argv: readonly string[], io: Io) => Promise<number>;
 
 const COMMANDS: ReadonlyMap<string, Command> = new Map<string, Command>([
+  ["baseline", runBaselineCli],
   ["check", runCheckCli],
   ["doctor", runDoctorCli],
   ["gate", runGateCli],

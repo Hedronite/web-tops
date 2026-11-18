@@ -1008,6 +1008,7 @@ The kit is written in TypeScript and is installed and started with Bun, so it ga
 ```
 web-tops/
 ├── src/
+│   ├── baseline/            # webtops baseline: the projection from a report, the ratchet comparison, the baseline across a change
 │   ├── cli/                 # webtops entry and one file per command
 │   ├── complexity/          # the section 6.3 counter on the TypeScript AST, and function keys (6.7)
 │   ├── config/              # class table, config validation, semantic checks, report validation
@@ -1018,7 +1019,7 @@ web-tops/
 │   ├── lock/                # tool pins, web-tops.lock, the Node range
 │   └── report/              # report writing, text and JSON rendering
 ├── profiles/                # one profile per launch class: the data init renders from
-├── schema/                  # web-tops, gate-report and core (verdicts, modes) schemas
+├── schema/                  # web-tops, gate-report, baseline and core (verdicts, modes) schemas
 ├── config/                  # drop-in templates, AGENTS.md.tmpl
 ├── fixtures/                # config (with examples/), hygiene, init, lock, report, probe
 ├── probes/                  # w22/: the W-22 proof, its own package and lock
