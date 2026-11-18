@@ -1016,7 +1016,8 @@ web-tops/
 │   ├── init/                # webtops init: renders the drop-in set
 │   ├── layers/              # hygiene, tests, coverage
 │   ├── lock/                # tool pins, web-tops.lock, the Node range
-│   └── report/              # report writing, text and JSON rendering
+│   ├── report/              # report writing, text and JSON rendering
+│   └── survivors/           # the survivor key (section 6.4), and the ledger when it lands
 ├── profiles/                # one profile per launch class: the data init renders from
 ├── schema/                  # web-tops, gate-report and core (verdicts, modes) schemas
 ├── config/                  # drop-in templates, AGENTS.md.tmpl
