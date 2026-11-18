@@ -519,7 +519,9 @@ Baseline rules:
 - Package coverage is compared exactly, as lines hit over lines found, with no tolerance. A census
   count that rises fails; the `fp1` of each directive names the new ones, and a directive that only
   moves to another line keeps its entry. A count per rule per file, not the fingerprints, decides
-  a finding: one fixed and another added in the same file is a count that has not risen.
+  a finding: one fixed and another added in the same file is a count that has not risen. Only
+  findings whose verdict ends the run are counted; a `pass` finding, such as an explained
+  survivor, is not.
 - **A function is keyed by its file, its container chain and its name**: the file path, then the
   enclosing classes, namespaces and functions from the outside in, then the function's own name,
   taken from its declaration, its method or property name, or the variable it is bound to. An

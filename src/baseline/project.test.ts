@@ -73,6 +73,36 @@ describe("G9: the baseline is projected from the report and from nothing else", 
     });
   });
 
+  it("counts only findings whose verdict ends the run, never a pass or an explained row (R69)", () => {
+    const base = report();
+    const explained = {
+      ...HINT("v8 ignore", 1, "fp1:7777777777777777"),
+      tool: "webtops" as const,
+      rule: "survivor-explained",
+      file: "src/wire.ts",
+      line: 3,
+    };
+    const passRow = {
+      ...explained,
+      rule: "no-console",
+      tool: "eslint" as const,
+      fingerprint: "fp1:8888888888888888",
+    };
+    const skipRow = { ...passRow, verdict: "skip" as const, fingerprint: "fp1:6666666666666666" };
+    const failRow = { ...passRow, verdict: "fail" as const, fingerprint: "fp1:5555555555555555" };
+    const extra = (rows: LayerReport["findings"]): GateReport =>
+      withLayer(withLayer(base, "mutation", { findings: [explained] }), "hygiene", {
+        findings: [...layer(base, "hygiene").findings, ...rows],
+      });
+    const plain = projectBaseline(base);
+    expect(projectBaseline(extra([passRow, skipRow]))).toEqual(plain);
+    const counted = projectBaseline(extra([failRow]));
+    expect(counted.fingerprints).toContain("fp1:5555555555555555");
+    expect(counted.findings["no-console"]?.["src/wire.ts"]).toBe(
+      (plain.findings["no-console"]?.["src/wire.ts"] ?? 0) + 1,
+    );
+  });
+
   it("is unchanged by anything that is not a source of the baseline", () => {
     const base = report();
     const noisy: GateReport = {

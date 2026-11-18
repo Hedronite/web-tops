@@ -1,6 +1,7 @@
 import {
   COUNTED_LAYERS,
-  type FindingMetric,
+  endsRun,
+  type Finding,
   type GateReport,
   type LayerReport,
 } from "../config/report.ts";
@@ -37,22 +38,27 @@ function countedLayers(report: GateReport): readonly LayerReport[] {
 
 type Counts = Record<string, Record<string, number>>;
 
-function addRow(out: Counts, row: FindingMetric): Counts {
-  const files = out[row.rule] ?? {};
-  return { ...out, [row.rule]: { ...files, [row.file]: (files[row.file] ?? 0) + row.count } };
+/** The findings the baseline counts: those of the counted layers that have a place and whose verdict ends the run (R69). */
+function countedFindings(report: GateReport): readonly Finding[] {
+  return countedLayers(report)
+    .flatMap((layer) => layer.findings)
+    .filter(
+      (finding) => finding.file !== null && endsRun(finding.verdict, finding.required ?? true),
+    );
+}
+
+function addFinding(out: Counts, finding: Finding): Counts {
+  const files = out[finding.rule] ?? {};
+  const file = finding.file ?? "";
+  return { ...out, [finding.rule]: { ...files, [file]: (files[file] ?? 0) + 1 } };
 }
 
 function findingsOf(report: GateReport): Counts {
-  const rows = countedLayers(report).flatMap((layer) => layer.metrics.findings ?? []);
-  return rows.reduce<Counts>(addRow, {});
+  return countedFindings(report).reduce<Counts>(addFinding, {});
 }
 
 function fingerprintsOf(report: GateReport): readonly string[] {
-  const found = countedLayers(report)
-    .flatMap((layer) => layer.findings)
-    .filter((finding) => finding.file !== null)
-    .map((finding) => finding.fingerprint);
-  return [...new Set(found)].sort();
+  return [...new Set(countedFindings(report).map((finding) => finding.fingerprint))].sort();
 }
 
 function censusOf(report: GateReport): Record<string, CensusEntry> {

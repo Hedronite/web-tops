@@ -35,6 +35,7 @@ describe("G9: the protocol text states the baseline the code writes", () => {
     ["the first baseline is accepted", "first baseline"],
     ["a rise in a census kind fails, and a moved directive keeps its entry", "keeps its entry"],
     ["coverage is compared exactly", "exactly"],
+    ["counts only findings whose verdict ends the run", "whose verdict ends the run"],
   ])("section 6.7 %s", (_what, phrase) => {
     expect(modes).toContain(phrase);
   });
