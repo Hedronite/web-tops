@@ -334,6 +334,14 @@ describe("webtops survivors expire", () => {
     expect(digest(dir)).toBe(before);
   });
 
+  it("exits 2 for an invalid ledger, as list does", async () => {
+    const dir = tempDir();
+    put(dir, LEDGER, ledgerYaml(entryYaml(CLAMP_KEY, ["owner: o"])));
+    const { code, err } = await cli(["expire"], dir);
+    expect(code).toBe(2);
+    expect(err).toContain("/survivors/0/reason");
+  });
+
   it.each([
     [["expire", "--within", "soon"]],
     [["expire", "--within", "-3"]],

@@ -156,14 +156,21 @@ function duplicates(entries: readonly (LedgerEntry | undefined)[]): Problem[] {
   });
 }
 
+const failuresOf = (built: readonly (LedgerEntry | Problem[])[]): Problem[] =>
+  built.flatMap((item) => (Array.isArray(item) ? item : []));
+
+const entriesIn = (built: readonly (LedgerEntry | Problem[])[]): (LedgerEntry | undefined)[] =>
+  built.map((item) => (Array.isArray(item) ? undefined : item));
+
+const present = (entries: readonly (LedgerEntry | undefined)[]): LedgerEntry[] =>
+  entries.flatMap((entry) => (entry === undefined ? [] : [entry]));
+
 function entriesOf(list: readonly unknown[]): LedgerParse {
   const built = list.map(entryOf);
-  const problems = built.flatMap((item) => (Array.isArray(item) ? item : []));
-  const entries = built.map((item) => (Array.isArray(item) ? undefined : item));
-  const repeated = problems.length === 0 ? duplicates(entries) : [];
-  const all = [...problems, ...repeated];
-  if (all.length > 0) return { ok: false, problems: all };
-  return { ok: true, entries: entries.flatMap((entry) => (entry === undefined ? [] : [entry])) };
+  const problems = failuresOf(built);
+  const entries = entriesIn(built);
+  const all = [...problems, ...(problems.length === 0 ? duplicates(entries) : [])];
+  return all.length > 0 ? { ok: false, problems: all } : { ok: true, entries: present(entries) };
 }
 
 function topLevel(value: Fields): Problem[] {
