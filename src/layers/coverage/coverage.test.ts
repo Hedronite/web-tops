@@ -502,3 +502,33 @@ describe("G2c G4-4: a Vitest setup file has no record because Vitest does not in
     );
   });
 });
+
+describe("G2-1 the layer measures a source folder named coverage", () => {
+  it("counts its files in the totals and the rows, and scans them for hints", async () => {
+    const text = record("src/layers/coverage/lcov.ts", 10, 5) + record("src/a.ts", 10, 10);
+    const lcov = lcovWith(text);
+    lcov.write("src/layers/coverage/lcov.ts", "/* v8 ignore next */\nexport const a = 1;\n");
+    const result = await coverageLayer.run(
+      lcov.context({ exec: tracked("src/layers/coverage/lcov.ts", "src/a.ts") }, 60),
+    );
+    expect(result.metrics?.coverage?.map((row) => row.file)).toEqual([
+      "src/a.ts",
+      "src/layers/coverage/lcov.ts",
+    ]);
+    expect(result.findings.find((item) => item.rule === "coverage")?.message).toContain("75.00 %");
+    expect(result.findings.filter((item) => item.rule === "coverage-hint")).toMatchObject([
+      { file: "src/layers/coverage/lcov.ts", line: 1 },
+    ]);
+  });
+
+  it("fails a coverage-folder file no test imports, instead of dropping it from the denominator", async () => {
+    const lcov = lcovWith(record("src/a.ts", 10, 10));
+    const result = await coverageLayer.run(
+      lcov.context({ exec: tracked("src/a.ts", "src/layers/coverage/lcov.ts") }),
+    );
+    expect(result.verdict).toBe("fail");
+    expect(result.findings.find((item) => item.rule === "no-coverage-record")).toMatchObject({
+      file: "src/layers/coverage/lcov.ts",
+    });
+  });
+});

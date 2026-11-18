@@ -181,3 +181,49 @@ describe("G2b coverage hints are found in the source, by kind and line", () => {
     expect(coverageHints("/* v8 ignore next */ /* istanbul ignore next */\n")).toHaveLength(2);
   });
 });
+
+describe("G2-2 a hint is a comment: prose and strings are not hints", () => {
+  it.each([
+    "/* v8 ignore next */",
+    "/*v8 ignore next*/",
+    "// v8 ignore next",
+    "//v8 ignore start",
+    "/* istanbul ignore next */",
+    "// c8 ignore next 2",
+    "  /* c8 ignore start */",
+    "const a = 1; // v8 ignore next",
+  ])("%s is a hint", (text) => {
+    expect(coverageHints(`${text}\n`)).toHaveLength(1);
+  });
+
+  it.each([
+    [
+      "a doc comment that names the hints",
+      "/** Every v8, istanbul and c8 ignore hint in a source file. */",
+    ],
+    ["a line comment about a hint", "// the v8 ignore hint takes lines out of the profile"],
+    ["a block comment that continues a sentence", "/* see the c8 ignore docs */"],
+    ["a JSDoc comment, which is not a block hint comment", "/** v8 ignore next */"],
+    ["a JSDoc line", " * Every v8 ignore, istanbul ignore and c8 ignore"],
+    ["a string with the words", "const note = 'a v8 ignore hint';"],
+    ["a string with the whole comment form", 'const text = "/* v8 ignore next */";'],
+    ["a single-quoted string with a line comment", "const text = '// c8 ignore next';"],
+    ["a template literal with the form", "const text = `/* istanbul ignore next */`;"],
+    ["an escaped quote inside a string", 'const text = "a \\" /* v8 ignore next */ b";'],
+  ])("%s is not a hint", (_label, text) => {
+    expect(coverageHints(`${text}\n`)).toEqual([]);
+  });
+
+  it("finds a hint after a string on the same line", () => {
+    expect(coverageHints("const a = 'x'; /* v8 ignore next */\n")).toEqual([
+      { kind: "v8-ignore", line: 1 },
+    ]);
+  });
+
+  it("is not fooled by an apostrophe in a comment that carries the hint", () => {
+    expect(coverageHints("// don't cover this: v8 ignore next\n")).toEqual([]);
+    expect(coverageHints("/* v8 ignore next */ // it's fine\n")).toEqual([
+      { kind: "v8-ignore", line: 1 },
+    ]);
+  });
+});
