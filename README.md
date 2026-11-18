@@ -1,22 +1,109 @@
-<p align="center">
-  <img src="docs/brand/web-tops-logo.jpg" alt="web-tops logo" width="640" />
-</p>
-
 # Web-TOPS
 
-**A protocol and drop-in kit for web code that is correct, dense, accessible, and fast.**
-TypeScript is the foundational language; HTML, CSS, Tailwind CSS and Astro complement it. The gate checks the source and the build output the browser receives.
+<p align="center">
+  <img src="docs/brand/web-tops-logo.jpg" alt="Web-TOPS product mark and wordmark" width="720" />
+</p>
 
-[Protocol](WEB_TOPS.md) · [Agent harness](AGENTS.md) · [Changelog](CHANGELOG.md)
+<p align="center"><strong>A protocol and drop-in kit for web code that is correct, dense, accessible, and fast.</strong><br/>
+TypeScript is the foundational language; HTML, CSS, Tailwind CSS, and Astro complement it. The gate checks the source and the build output the browser receives.</p>
+
+<p align="center">
+  <a href="https://www.typescriptlang.org"><img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-6.0-3178C6?style=flat-square&logo=typescript&logoColor=white&labelColor=0A0A0A" /></a>
+  <a href="https://github.com/Hedronite"><img alt="Hedronite" src="https://img.shields.io/badge/org-Hedronite-0CB8B0?style=flat-square&logo=github&logoColor=white&labelColor=0A0A0A" /></a>
+  <a href="WEB_TOPS.md"><img alt="Protocol 0.3.0" src="https://img.shields.io/badge/protocol-0.3.0-0CB8B0?style=flat-square&labelColor=0A0A0A" /></a>
+  <a href="https://github.com/Hedronite/web-tops/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Hedronite/web-tops?style=flat-square&label=release&labelColor=0A0A0A&color=0CB8B0" /></a>
+  <a href="LICENSE"><img alt="License: MIT OR Apache-2.0" src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-0CB8B0?style=flat-square&labelColor=0A0A0A" /></a>
+  <a href="https://github.com/Hedronite/web-tops/actions/workflows/web-tops.yml"><img alt="CI workflow: web-tops" src="https://img.shields.io/github/actions/workflow/status/Hedronite/web-tops/web-tops.yml?branch=main&style=flat-square&label=ci&labelColor=0A0A0A&color=0CB8B0" /></a>
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#what-you-get">What you get</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#status">Status</a> ·
+  <a href="WEB_TOPS.md">Protocol</a> ·
+  <a href="AGENTS.md">Harness</a> ·
+  <a href="CHANGELOG.md">Changelog</a>
+</p>
+
+<p align="center">
+  Built by <a href="https://github.com/Hedronite">Hedronite</a>. Structure adapted from Rust-TOPS and Go-TOPS.<br/>
+  CRAP scores use the 2007 Change Risk Anti-Patterns formula. This kit did not originate that metric.
+</p>
+
+---
+
+Web-TOPS (Web Testing and Optimization Protocol Suite) is a protocol and drop-in kit for web work. TypeScript is the foundational language; HTML, CSS, Tailwind CSS, and Astro complement it. The gate is meant to check the source and the build output the browser receives.
+
+The `webtops` CLI in this tree runs from source on Bun and gates this repository at tier 1, with native CRAP and StrykerJS mutation on the diff. The package is not published to npm.
+
+## Pins
+
+| Plane | Pin | Where |
+| --- | --- | --- |
+| Protocol | 0.3.0 | [`WEB_TOPS.md`](WEB_TOPS.md) and `PROTOCOL` in [`src/config/protocol.ts`](src/config/protocol.ts) |
+| Package | 0.2.0, private | [`package.json`](package.json). Not published to npm |
+| GitHub release | v0.1.0 | Implements protocol 0.2.1. Current `main` is ahead of that tag |
+| Runtime | Bun >= 1.4.0; Node 22.23.4, 24.15.0, or 26 and later | [`package.json`](package.json) `engines` |
+| TypeScript | 6.0.x | Pinned because `typescript-eslint` and `@astrojs/check` do not yet accept TypeScript 7. See [§2](WEB_TOPS.md#2-pins) |
+
+## Quick start
+
+```bash
+bun install --frozen-lockfile
+bun src/cli/main.ts check
+bun src/cli/main.ts gate
+```
+
+`check` validates `web-tops.yaml` against the schema, then the semantic checks. `gate` runs hygiene, tests, coverage, CRAP, and mutation on the diff at tier 1. This repository's CI runs `bun src/cli/main.ts gate --max-tier 1`.
+
+## What you get
+
+| | Tooling you wire yourself | This kit today |
+| --- | --- | --- |
+| Contract | Docs and tests you arrange | Protocol 0.3.0, JSON Schemas, and profiles for five launch classes |
+| Orchestrator | You sequence the commands | `webtops` `init`, `check`, `gate`, `report`, `lock`, `doctor`, `version`, `survivors`, `baseline`, run from source on Bun |
+| CI on this repo | — | The one `gate` job in [`.github/workflows/web-tops.yml`](.github/workflows/web-tops.yml), on Linux and macOS |
+
+The protocol's later layers, once they are on, check:
+
+| Layer | Tools (pinned in §2) |
+| --- | --- |
+| Types and lint | TypeScript 6.0 (strict, `erasableSyntaxOnly`), type-aware `typescript-eslint`, `astro check`, Stylelint |
+| Boundaries and packages | `dependency-cruiser`, `publint`, `@arethetypeswrong/cli` |
+| Tests | Vitest with v8 coverage, one run; StrykerJS mutation on the diff |
+| Risk | Native CRAP, one cap per class, ratcheted for adopters |
+| What ships | `html-validate` and axe on built pages; JS and CSS bytes per page or route |
+
+### What you do not get
+
+| Claim | Reality |
+| --- | --- |
+| An npm package | `package.json` is private. Install and run from this tree |
+| Laws or build-output checks on this repo today | Those layers are off in [`web-tops.yaml`](web-tops.yaml), each with the milestone that turns it on. Native CRAP at cap 4 and StrykerJS mutation on the diff are on, with no unexplained survivors |
+| A test framework or a design system | `webtops` runs Vitest, Playwright, Stryker, and related tools; it does not replace them, and it does not enforce an aesthetic |
+
+## How it works
+
+The gate judges what ships: the browser receives HTML, CSS, and JavaScript, not `.astro` or `.tsx`. A layer that was not evaluated is reported as not evaluated, never as a pass.
+
+| Path | Role |
+| --- | --- |
+| [`WEB_TOPS.md`](WEB_TOPS.md) | The protocol, draft 0.3.0 |
+| [`schema/`](schema) | `web-tops.schema.json` and `gate-report.schema.json` |
+| [`src/`](src) | The `webtops` CLI and the config, gate, init, lock, and report modules |
+| [`web-tops.yaml`](web-tops.yaml) | This repository's own config: class `ts-library`, `enforce: hard` |
+| [`config/AGENTS.md.tmpl`](config/AGENTS.md.tmpl) | The `AGENTS.md` section that `webtops init` will write into an adopting repo |
+| [`AGENTS.md`](AGENTS.md) | Editing harness for this repository ([`CLAUDE.md`](CLAUDE.md) imports it) |
 
 ## Status
 
-Draft. Protocol **0.3.0**; this tree implements it: one verdict set, the report shape, required layers and laws per class, and the protocol id checked by range. The package is version 0.2.0 (the 0.1.0 release implements 0.2.1): a GitHub release, private, not published to npm.
+Draft. Protocol **0.3.0**; this tree implements it: one verdict set, the report shape, required layers and laws per class, and the protocol id checked by range. The package is version 0.2.0 (the 0.1.0 release implements 0.2.1): a GitHub release, private, not published to npm. Current `main` is ahead of that tag.
 
-This repo has shipped milestones M1 and M2: the `webtops` CLI (`init`, `check`, `gate`, `report`, `lock`, `doctor`, `version`, `survivors`, `baseline`) runs from source on Bun and gates this repo on itself at tier 1, under `enforce: hard`, with native CRAP at cap 4 and StrykerJS mutation on the diff, no unexplained survivors, in the one `gate` job on Ubuntu and macOS. The laws layer and the build-output layers are off in [`web-tops.yaml`](web-tops.yaml), each with the milestone that turns it on. The package is not published to npm.
+This repository has shipped milestones M1 and M2: the `webtops` CLI (`init`, `check`, `gate`, `report`, `lock`, `doctor`, `version`, `survivors`, `baseline`) runs from source on Bun and gates this repo on itself at tier 1, under `enforce: hard`, with native CRAP at cap 4 and StrykerJS mutation on the diff, no unexplained survivors, in the one `gate` job on Ubuntu and macOS. The laws layer and the build-output layers are off in [`web-tops.yaml`](web-tops.yaml), each with the milestone that turns it on. The package is not published to npm.
 
 | Milestone | Contents |
-|---|---|
+| --- | --- |
 | **M0** | `WEB_TOPS.md`, schemas, profiles for five launch classes, the AGENTS template |
 | **M1** | `init`, `check`, `gate`: hygiene, tests, coverage, `report.json`; Web-TOPS gates itself |
 | **P3** | Protocol 0.3.0, the truth pass: one verdict set, required layers and laws per class, the report shape, risk definitions, the protocol id by range, ESLint 10 (this repo) |
@@ -29,37 +116,6 @@ This repo has shipped milestones M1 and M2: the `webtops` CLI (`init`, `check`, 
 
 The full roadmap is in [`WEB_TOPS.md` §19](WEB_TOPS.md#19-roadmap).
 
-## Run it
-
-```bash
-bun install --frozen-lockfile
-bun src/cli/main.ts check          # web-tops.yaml: schema, then the semantic checks
-bun src/cli/main.ts gate           # tier 1: hygiene, tests, coverage, CRAP, mutation on the diff
-```
-
-## What it checks
-
-| Layer | Tools (pinned in §2) |
-|---|---|
-| Types and lint | TypeScript 6.0 (strict, `erasableSyntaxOnly`), type-aware `typescript-eslint`, `astro check`, Stylelint |
-| Boundaries and packages | `dependency-cruiser`, `publint`, `@arethetypeswrong/cli` |
-| Tests | Vitest with v8 coverage, one run; StrykerJS mutation on the diff |
-| Risk | Native CRAP, one cap per class, ratcheted for adopters |
-| What ships | `html-validate` and axe on built pages; JS and CSS bytes per page or route |
-
-TypeScript is pinned to 6.0.x because `typescript-eslint` and `@astrojs/check` do not yet accept TypeScript 7, and ESLint to 10.15 with `eslint-plugin-jsx-a11y-x`, the fork of `eslint-plugin-jsx-a11y` that accepts it. See [§2](WEB_TOPS.md#2-pins).
-
-## What is here
-
-| Path | What it is |
-|---|---|
-| [`WEB_TOPS.md`](WEB_TOPS.md) | The protocol, draft 0.3.0 |
-| [`schema/`](schema) | `web-tops.schema.json` and `gate-report.schema.json` |
-| [`src/`](src) | The `webtops` CLI (`src/cli`), the config module and class table (`src/config`), the gate runner (`src/gate`) and its layers (`src/layers`), `init` (`src/init`), the lock format (`src/lock`) and the report writer (`src/report`) |
-| [`web-tops.yaml`](web-tops.yaml) | This repo's own config: class `ts-library`, `enforce: hard` |
-| [`config/AGENTS.md.tmpl`](config/AGENTS.md.tmpl) | The `AGENTS.md` section that `webtops init` will write into an adopting repo |
-| [`AGENTS.md`](AGENTS.md) | Standing orders for agents working on this repo ([`CLAUDE.md`](CLAUDE.md) imports it) |
-
 ## Related
 
 - [Rust-TOPS](https://github.com/Hedronite/rust-tops): the original protocol.
@@ -67,19 +123,12 @@ TypeScript is pinned to 6.0.x because `typescript-eslint` and `@astrojs/check` d
 
 ## Contributing
 
-Read `WEB_TOPS.md` and `AGENTS.md` first. Work on a branch and open a draft PR. A change to laws, schema, profiles, thresholds, budgets, drop-in lint rules or normative spec text is a protocol change: it carries the `protocol-change` label, a changelog entry, and a protocol version bump.
+Read [`WEB_TOPS.md`](WEB_TOPS.md) and [`AGENTS.md`](AGENTS.md) first. Work on a branch and open a draft PR. A change to laws, schema, profiles, thresholds, budgets, drop-in lint rules or normative spec text is a protocol change: it carries the `protocol-change` label, a changelog entry, and a protocol version bump.
 
-## Credits
+## Credits and license
 
 Built by [Hedronite](https://github.com/Hedronite). Structure adapted from Rust-TOPS and Go-TOPS. CRAP scores use the 2007 Change Risk Anti-Patterns formula (Savoia and Evans); this kit did not originate that metric.
 
-## License
-
-Licensed under either of
-
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
-- MIT license ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
-
-at your option.
+Licensed under MIT OR Apache-2.0, at your option. See [`LICENSE`](LICENSE), [`LICENSE-MIT`](LICENSE-MIT), and [`LICENSE-APACHE`](LICENSE-APACHE).
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this work, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
