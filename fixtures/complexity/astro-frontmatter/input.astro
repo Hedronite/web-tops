@@ -1,0 +1,10 @@
+---
+import Layout from "../layouts/Layout.astro";
+const { items, title = "x" } = Astro.props;
+const label = items.length > 1 ? "many" : "one";
+function pick(n: number): string { return n > 1 ? "a" : "b"; }
+const list = items.filter((i: number) => i && title);
+---
+<Layout title={title}>
+  <h1>{label}</h1>
+</Layout>

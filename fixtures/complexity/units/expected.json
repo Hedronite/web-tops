@@ -1,0 +1,114 @@
+{
+  "records": [
+    {
+      "key": "input.ts::<module>",
+      "kind": "module",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        1,
+        12
+      ]
+    },
+    {
+      "key": "input.ts::factory",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        1,
+        5
+      ]
+    },
+    {
+      "key": "input.ts::factory.Local.method",
+      "kind": "method",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        2,
+        2
+      ]
+    },
+    {
+      "key": "input.ts::factory.Other.field",
+      "kind": "arrow",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        3,
+        3
+      ]
+    },
+    {
+      "key": "input.ts::get",
+      "kind": "method",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        7,
+        7
+      ]
+    },
+    {
+      "key": "input.ts::nested",
+      "kind": "method",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        8,
+        8
+      ]
+    },
+    {
+      "key": "input.ts::nested~1",
+      "kind": "arrow",
+      "scored": false,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        8,
+        8
+      ]
+    },
+    {
+      "key": "input.ts::handler",
+      "kind": "arrow",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        9,
+        9
+      ]
+    },
+    {
+      "key": "input.ts::Space.inside",
+      "kind": "function",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        11,
+        11
+      ]
+    },
+    {
+      "key": "input.ts::<module>~1",
+      "kind": "function",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        12,
+        12
+      ]
+    }
+  ]
+}

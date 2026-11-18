@@ -194,7 +194,7 @@
     },
     "report_version": {
       "type": "string",
-      "pattern": "^1\\.[0-9]+\\.[0-9]+$"
+      "pattern": "^2\\.[0-9]+\\.[0-9]+$"
     },
     "subject": {
       "type": "object",
@@ -462,7 +462,7 @@
     },
     "finding": {
       "type": "object",
-      "required": ["rule", "verdict", "message"],
+      "required": ["tool", "rule", "law", "verdict", "message", "file", "line", "fingerprint"],
       "additionalProperties": false,
       "properties": {
         "rule": {
@@ -489,15 +489,26 @@
           }
         },
         "file": {
-          "type": "string",
+          "type": ["string", "null"],
           "minLength": 1
         },
         "line": {
-          "type": "integer",
+          "type": ["integer", "null"],
           "minimum": 1
         },
         "required": {
           "type": "boolean"
+        },
+        "tool": {
+          "$ref": "#/$defs/tool"
+        },
+        "law": {
+          "type": ["string", "null"],
+          "pattern": "^W-[0-9]{2}$"
+        },
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^fp1:[0-9a-f]{16}$"
         }
       },
       "dependentSchemas": {
@@ -506,6 +517,21 @@
             "verdict": {
               "const": "pass"
             }
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "line": {
+            "type": "integer"
+          }
+        },
+        "required": ["line"]
+      },
+      "then": {
+        "properties": {
+          "file": {
+            "type": "string"
           }
         }
       }
@@ -617,6 +643,23 @@
           }
         }
       }
+    },
+    "tool": {
+      "enum": [
+        "astro",
+        "attw",
+        "audit",
+        "biome",
+        "bun",
+        "dependency-cruiser",
+        "eslint",
+        "prettier",
+        "publint",
+        "stylelint",
+        "tsc",
+        "vitest",
+        "webtops"
+      ]
     }
   }
 }

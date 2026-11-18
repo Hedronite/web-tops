@@ -1,11 +1,14 @@
-import { existsSync } from "node:fs";
-import { join, relative, sep } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join, relative, resolve, sep } from "node:path";
+import { COUNTED_LAYERS, completeFindings, countsByRuleFile } from "../report/findings.ts";
 import {
   endsRun,
   hasRun,
   REPORT_VERSION,
   type Counts,
+  type Finding,
   type GateRef,
+  type Metrics,
   type Problem,
   type Report,
   type ReportLayer,
@@ -97,6 +100,43 @@ function entry(
   };
 }
 
+/** The text of a project file, for a fingerprint's anchor; a path outside the project, or one that cannot be read, has none. */
+function readInside(cwd: string, file: string): string | undefined {
+  const path = resolve(cwd, file);
+  if (relative(cwd, path).startsWith("..")) {
+    return undefined;
+  }
+  try {
+    return readFileSync(path, "utf8");
+  } catch {
+    return undefined;
+  }
+}
+
+/** Reads each file once for a layer, however many findings point into it. */
+function sourceReader(cwd: string): (file: string) => string | undefined {
+  const cache = new Map<string, string | undefined>();
+  return (file) => {
+    if (!cache.has(file)) {
+      cache.set(file, readInside(cwd, file));
+    }
+    return cache.get(file);
+  };
+}
+
+function withoutFindings(metrics: Metrics): Metrics {
+  const copy: { -readonly [Key in keyof Metrics]: Metrics[Key] } = { ...metrics };
+  delete copy.findings;
+  return copy;
+}
+
+/** A layer cannot set `metrics.findings`: the counts per rule per file are derived from its findings (section 6.6). */
+function metricsOf(id: string, given: Metrics | undefined, findings: readonly Finding[]): Metrics {
+  const rest = withoutFindings(given ?? {});
+  const rows = COUNTED_LAYERS.has(id) ? countsByRuleFile(findings) : [];
+  return rows.length > 0 ? { ...rest, findings: rows } : rest;
+}
+
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -157,11 +197,12 @@ async function execute(
   try {
     const result = checked(await layer.run(contextOf(input, base, artifacts)));
     const kept = keepArtifacts(layer, result.artifacts, input.outDir);
+    const findings = completeFindings(result.findings, sourceReader(input.cwd));
     return {
       artifacts: kept,
       layer: entry(item, result.verdict, result.reason, {
-        findings: result.findings,
-        ...(result.metrics === undefined ? {} : { metrics: result.metrics }),
+        findings,
+        metrics: metricsOf(layer.id, result.metrics, findings),
         artifacts: Object.values(kept).map((path) => relative(input.cwd, path)),
         duration_ms: input.now() - started,
         ...(result.seed === undefined ? {} : { seed: result.seed }),
@@ -172,7 +213,10 @@ async function execute(
     return {
       artifacts: {},
       layer: entry(item, "fail", `layer threw: ${message}`, {
-        findings: [{ rule: "layer-threw", verdict: "fail", message }],
+        findings: completeFindings(
+          [{ tool: "webtops", rule: "layer-threw", verdict: "fail", message }],
+          sourceReader(input.cwd),
+        ),
         duration_ms: input.now() - started,
       }),
     };

@@ -1,5 +1,5 @@
 {
-  "report_version": "1.0.0",
+  "report_version": "2.0.0",
   "protocol": "0.3.0",
   "class": "ts-library",
   "enforce": "hard",
@@ -91,15 +91,26 @@
       "required": true,
       "findings": [
         {
-          "rule": "W-12",
+          "tool": "eslint",
+          "rule": "no-restricted-syntax",
+          "law": "W-12",
           "verdict": "ack-missing",
           "message": "soft rule broken with no acknowledgement",
           "file": "src/cache.ts",
           "line": 31,
+          "fingerprint": "fp1:28b77ec040551ba7",
           "required": true
         }
       ],
-      "metrics": {}
+      "metrics": {
+        "findings": [
+          {
+            "rule": "no-restricted-syntax",
+            "file": "src/cache.ts",
+            "count": 1
+          }
+        ]
+      }
     }
   ],
   "passed": false,

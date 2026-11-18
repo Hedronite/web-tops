@@ -1,5 +1,5 @@
 {
-  "report_version": "1.0.0",
+  "report_version": "2.0.0",
   "protocol": "0.3.0",
   "class": "ts-library",
   "enforce": "hard",
@@ -24,7 +24,7 @@
   "counts": {
     "in_range": 7,
     "ran": 7,
-    "failed": 0,
+    "failed": 1,
     "not_evaluated": 0,
     "required_not_evaluated": 0
   },
@@ -33,9 +33,70 @@
       "id": "hygiene",
       "gate": 1,
       "tier": 1,
-      "verdict": "pass",
+      "verdict": "fail",
       "required": true,
-      "findings": [],
+      "findings": [
+        {
+          "tool": "eslint",
+          "rule": "@typescript-eslint/no-explicit-any",
+          "law": null,
+          "verdict": "fail",
+          "message": "Unexpected any",
+          "file": "src/legacy/loose.ts",
+          "line": 1,
+          "fingerprint": "fp1:f130b605ebf0bfde"
+        },
+        {
+          "tool": "eslint",
+          "rule": "@typescript-eslint/no-explicit-any",
+          "law": null,
+          "verdict": "fail",
+          "message": "Unexpected any",
+          "file": "src/legacy/loose.ts",
+          "line": 3,
+          "fingerprint": "fp1:f7df23a41c1f9a7f"
+        },
+        {
+          "tool": "eslint",
+          "rule": "@typescript-eslint/no-explicit-any",
+          "law": null,
+          "verdict": "fail",
+          "message": "Unexpected any",
+          "file": "src/wire.ts",
+          "line": 5,
+          "fingerprint": "fp1:20d9e2f84bc06c48"
+        },
+        {
+          "tool": "eslint",
+          "rule": "no-console",
+          "law": null,
+          "verdict": "fail",
+          "message": "Unexpected console statement",
+          "file": "src/wire.ts",
+          "line": 10,
+          "fingerprint": "fp1:7ce0307c6210f838"
+        },
+        {
+          "tool": "eslint",
+          "rule": "no-console",
+          "law": null,
+          "verdict": "fail",
+          "message": "Unexpected console statement",
+          "file": "src/wire.ts",
+          "line": 11,
+          "fingerprint": "fp1:f1b020fbf9b1e852"
+        },
+        {
+          "tool": "eslint",
+          "rule": "no-console",
+          "law": null,
+          "verdict": "fail",
+          "message": "Unexpected console statement",
+          "file": "src/wire.ts",
+          "line": 12,
+          "fingerprint": "fp1:1207e7c9f575866e"
+        }
+      ],
       "metrics": {
         "findings": [
           {
@@ -154,7 +215,7 @@
       "metrics": {}
     }
   ],
-  "passed": true,
-  "exit_code": 0,
+  "passed": false,
+  "exit_code": 1,
   "problems": []
 }

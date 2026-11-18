@@ -1,5 +1,5 @@
 {
-  "report_version": "1.0.0",
+  "report_version": "2.0.0",
   "protocol": "0.3.0",
   "class": "ts-library",
   "enforce": "hard",
@@ -46,11 +46,14 @@
       "required": true,
       "findings": [
         {
+          "tool": "vitest",
           "rule": "test-failed",
+          "law": null,
           "verdict": "fail",
           "message": "expected 2 to be 3",
           "file": "src/sum.test.ts",
-          "line": 9
+          "line": 9,
+          "fingerprint": "fp1:9612c47628340ef1"
         }
       ],
       "metrics": {}

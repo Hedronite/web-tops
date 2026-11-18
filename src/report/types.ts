@@ -1,8 +1,9 @@
 /** The gate report (WEB_TOPS.md section 6.6): the types are the config module's, so the writer cannot drift from the schema. */
 import type { GateReport, LayerReport, Verdict } from "../config/report.ts";
 
-export { endsRun, FAILURE, REPORT_VERSION, VERDICTS } from "../config/report.ts";
-export type { Finding, Metrics, RunBlock, Subject, Verdict } from "../config/report.ts";
+export { endsRun, FAILURE, REPORT_VERSION, TOOLS, VERDICTS } from "../config/report.ts";
+export type { RawFinding } from "./findings.ts";
+export type { Finding, Metrics, RunBlock, Subject, Tool, Verdict } from "../config/report.ts";
 export type { Enforce } from "../config/types.ts";
 export type Report = GateReport;
 export type ReportLayer = LayerReport;

@@ -1,0 +1,103 @@
+{
+  "records": [
+    {
+      "key": "input.ts::<module>",
+      "kind": "module",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        1,
+        13
+      ]
+    },
+    {
+      "key": "input.ts::Box.value",
+      "kind": "arrow",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        3,
+        3
+      ]
+    },
+    {
+      "key": "input.ts::Box.constructor",
+      "kind": "constructor",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        4,
+        4
+      ]
+    },
+    {
+      "key": "input.ts::Box.get size",
+      "kind": "get",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        5,
+        5
+      ]
+    },
+    {
+      "key": "input.ts::Box.set size",
+      "kind": "set",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        6,
+        6
+      ]
+    },
+    {
+      "key": "input.ts::Box.run",
+      "kind": "method",
+      "scored": true,
+      "own": 1,
+      "score": 2,
+      "lines": [
+        8,
+        10
+      ]
+    },
+    {
+      "key": "input.ts::Box.run~1",
+      "kind": "arrow",
+      "scored": false,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        9,
+        9
+      ]
+    },
+    {
+      "key": "input.ts::Box.#hidden",
+      "kind": "method",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        11,
+        11
+      ]
+    },
+    {
+      "key": "input.ts::Box.[Symbol.iterator]",
+      "kind": "method",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        12,
+        12
+      ]
+    }
+  ]
+}

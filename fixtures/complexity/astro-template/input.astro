@@ -1,0 +1,12 @@
+<ul>
+  {items.map((i) => i.done && <li>{i.name ?? "none"}</li>)}
+  {show ? <p>shown</p> : <p>hidden</p>}
+  <a href={url || "#"} class:list={[{ active: on && ready }]} {...rest}>x</a>
+</ul>
+<style>
+  ul { color: red; }
+  .a { content: "{ x ? y : z }"; }
+</style>
+<script>
+  const n = 1;
+</script>

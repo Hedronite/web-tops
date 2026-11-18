@@ -1,0 +1,147 @@
+{
+  "records": [
+    {
+      "key": "input.ts::<module>",
+      "kind": "module",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        1,
+        7
+      ]
+    },
+    {
+      "key": "input.ts::dup",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        1,
+        1
+      ]
+    },
+    {
+      "key": "input.ts::dup#2",
+      "kind": "function",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        2,
+        2
+      ]
+    },
+    {
+      "key": "input.ts::<module>~1",
+      "kind": "arrow",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        3,
+        3
+      ]
+    },
+    {
+      "key": "input.ts::<module>~2",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        3,
+        3
+      ]
+    },
+    {
+      "key": "input.ts::<module>~3",
+      "kind": "arrow",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        3,
+        3
+      ]
+    },
+    {
+      "key": "input.ts::inner",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        4,
+        4
+      ]
+    },
+    {
+      "key": "input.ts::[\"computed\"]",
+      "kind": "arrow",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        5,
+        5
+      ]
+    },
+    {
+      "key": "input.ts::[Symbol.toPrimitive]",
+      "kind": "method",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        5,
+        5
+      ]
+    },
+    {
+      "key": "input.ts::quoted-key",
+      "kind": "method",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        5,
+        5
+      ]
+    },
+    {
+      "key": "input.ts::42",
+      "kind": "method",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        5,
+        5
+      ]
+    },
+    {
+      "key": "input.ts::assigned",
+      "kind": "arrow",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        6,
+        6
+      ]
+    },
+    {
+      "key": "input.ts::lateBound",
+      "kind": "arrow",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        7,
+        7
+      ]
+    }
+  ]
+}
