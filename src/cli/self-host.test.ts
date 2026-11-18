@@ -170,6 +170,41 @@ describe("R57: the 0.2.0 release", () => {
     expect(text("AGENTS.md")).not.toContain("not yet implemented");
   });
 
+  it("holds one bullet in [0.2.0] for each step G0 to G9, in order", () => {
+    const changelog = text("CHANGELOG.md");
+    const start = changelog.indexOf("## [0.2.0]");
+    const end = changelog.indexOf("## [0.1.0]");
+    const steps = changelog
+      .slice(start, end)
+      .split("\n")
+      .filter((line) => line.startsWith("- "))
+      .map((line) => /\((G\d+)\)\s*$/.exec(line)?.[1]);
+    expect(steps).toEqual(["G0", "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9"]);
+  });
+
+  it("no longer calls protocol 0.3.0 proposed, in the spec, the README or the license line", () => {
+    const spec = text("WEB_TOPS.md");
+    const lines = spec.split("\n");
+    expect(lines[2]).toMatch(/^\*\*Spec status:\*\* Draft 0\.3\.0 · /);
+    expect(spec).not.toMatch(/0\.3\.0 \((draft, )?proposed\)/);
+    expect(spec).not.toContain("License (proposed)");
+    expect(text("README.md")).toContain("The protocol, draft 0.3.0 |");
+    expect(text("README.md")).not.toMatch(/0\.3\.0 \(proposed\)/);
+  });
+
+  it("records the migration decision (27) as resolved for 0.3.0, in number order", () => {
+    const spec = text("WEB_TOPS.md");
+    const decisions = spec.slice(spec.indexOf("## 16."), spec.indexOf("## 17."));
+    expect(decisions).not.toContain("**Proposed for 0.3.0:**");
+    const resolved = decisions.slice(decisions.indexOf("**Resolved for 0.3.0:**"));
+    const numbers = resolved
+      .slice(0, resolved.indexOf("**Resolved for 0.2.1:**"))
+      .split("\n")
+      .map((line) => /^(\d+)\. /.exec(line)?.[1])
+      .filter((id) => id !== undefined);
+    expect(numbers).toEqual(["23", "24", "25", "26", "27", "28", "29", "30", "31"]);
+  });
+
   it("lists in the README the milestones of section 19, in its order", () => {
     const ids = (pattern: RegExp, from: string): (string | undefined)[] =>
       from

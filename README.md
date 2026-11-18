@@ -53,7 +53,7 @@ TypeScript is pinned to 6.0.x because `typescript-eslint` and `@astrojs/check` d
 
 | Path | What it is |
 |---|---|
-| [`WEB_TOPS.md`](WEB_TOPS.md) | The protocol, draft 0.3.0 (proposed) |
+| [`WEB_TOPS.md`](WEB_TOPS.md) | The protocol, draft 0.3.0 |
 | [`schema/`](schema) | `web-tops.schema.json` and `gate-report.schema.json` |
 | [`src/`](src) | The `webtops` CLI (`src/cli`), the config module and class table (`src/config`), the gate runner (`src/gate`) and its layers (`src/layers`), `init` (`src/init`), the lock format (`src/lock`) and the report writer (`src/report`) |
 | [`web-tops.yaml`](web-tops.yaml) | This repo's own config: class `ts-library`, `enforce: hard` |

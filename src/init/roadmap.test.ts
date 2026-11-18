@@ -107,21 +107,19 @@ describe("G9b: section 16 records the 0.3.0 decisions and closes O6", () => {
     ["24", "Required items"],
     ["25", "The report is the baseline's source"],
     ["26", "Protocol id by range"],
+    ["27", "Migration"],
     ["28", "A shared core"],
     ["29", "Audience and platforms"],
     ["30", "ESLint 10"],
     ["31", "Rendered readers"],
   ])("resolves item %s, %s", (number, title) => {
     expect(resolved).toContain(`\n${number}. **${title}`);
-    expect(between(section16, "**Proposed for 0.3.0:**", "**Resolved for 0.3.0:**")).not.toContain(
-      `\n${number}. `,
-    );
+    expect(section16).not.toContain("**Proposed for 0.3.0:**");
   });
 
-  it("keeps only the migration proposed, until the release", () => {
-    const proposed = between(section16, "**Proposed for 0.3.0:**", "**Resolved for 0.3.0:**");
-    expect(proposed).toContain("27. **Migration:**");
-    expect(proposed.match(/^\d+\. /gm)).toHaveLength(1);
+  it("leaves nothing proposed for 0.3.0: the migration (27) is resolved with the rest", () => {
+    expect(section16).not.toContain("**Proposed for 0.3.0:**");
+    expect(resolved).toContain("27. **Migration:**");
   });
 
   it("records X1's seam, X4's macOS leg, W1's outcome with the fork, and W3", () => {
