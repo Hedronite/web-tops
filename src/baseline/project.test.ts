@@ -35,7 +35,7 @@ const HINT = (
   fingerprint: string,
 ): LayerReport["findings"][number] => ({
   tool: "webtops",
-  rule: "coverage-hint",
+  rule: `coverage-hint/${kind.split(" ")[0] ?? ""}`,
   law: null,
   verdict: "pass",
   message: `a ${kind} hint takes lines out of the coverage profile`,
@@ -156,7 +156,7 @@ describe("G9: the baseline is projected from the report and from nothing else", 
         }),
     ],
     ["the subject", (r: GateReport) => ({ ...r, subject: { package: "other", root: "." } })],
-    ["the report version", (r: GateReport) => ({ ...r, report_version: "2.1.0" })],
+    ["the report version", (r: GateReport) => ({ ...r, report_version: "9.9.9" })],
   ])("changes with %s", (_what, change) => {
     expect(projectBaseline(change(report()))).not.toEqual(projectBaseline(report()));
   });

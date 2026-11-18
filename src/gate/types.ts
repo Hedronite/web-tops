@@ -200,6 +200,8 @@ export interface GateConfig {
   readonly base?: string;
   /** `report.path`. */
   readonly reportPath: string;
+  /** `baseline`: the file `ratchet` holds the run to (WEB_TOPS.md section 6.7). */
+  readonly baselinePath?: string;
   /** Enable switches by layer id; an id with no entry is enabled (section 9). */
   readonly toggles: Readonly<Record<string, Toggle>>;
   readonly custom: readonly CustomLayer[];

@@ -8,11 +8,11 @@ import {
 import { censusKindOf } from "./census.ts";
 import type { Baseline, BaselineCoverage, BaselineCrap, CensusEntry } from "./types.ts";
 
-function metricsOf(report: GateReport, id: string): LayerReport["metrics"] {
+function metricsOf(report: ProjectInput, id: string): LayerReport["metrics"] {
   return report.layers.find((layer) => layer.id === id)?.metrics ?? {};
 }
 
-function crapOf(report: GateReport): Record<string, BaselineCrap> {
+function crapOf(report: ProjectInput): Record<string, BaselineCrap> {
   const rows = metricsOf(report, "crap").crap ?? [];
   return Object.fromEntries(
     rows.map((row) => [
@@ -22,7 +22,7 @@ function crapOf(report: GateReport): Record<string, BaselineCrap> {
   );
 }
 
-function coverageOf(report: GateReport): Record<string, BaselineCoverage> {
+function coverageOf(report: ProjectInput): Record<string, BaselineCoverage> {
   const rows = metricsOf(report, "coverage").coverage ?? [];
   if (rows.length === 0) return {};
   const sum = (key: "lines_found" | "lines_hit"): number =>
@@ -32,14 +32,17 @@ function coverageOf(report: GateReport): Record<string, BaselineCoverage> {
   };
 }
 
-function countedLayers(report: GateReport): readonly LayerReport[] {
+function countedLayers(report: ProjectInput): readonly LayerReport[] {
   return report.layers.filter((layer) => COUNTED_LAYERS.has(layer.id));
 }
+
+/** What the projection reads of a report; a report in the making has these. */
+export type ProjectInput = Pick<GateReport, "report_version" | "subject" | "layers">;
 
 type Counts = Record<string, Record<string, number>>;
 
 /** The findings the baseline counts: those of the counted layers that have a place and whose verdict ends the run (R69). */
-function countedFindings(report: GateReport): readonly Finding[] {
+function countedFindings(report: ProjectInput): readonly Finding[] {
   return countedLayers(report)
     .flatMap((layer) => layer.findings)
     .filter(
@@ -53,15 +56,15 @@ function addFinding(out: Counts, finding: Finding): Counts {
   return { ...out, [finding.rule]: { ...files, [file]: (files[file] ?? 0) + 1 } };
 }
 
-function findingsOf(report: GateReport): Counts {
+function findingsOf(report: ProjectInput): Counts {
   return countedFindings(report).reduce<Counts>(addFinding, {});
 }
 
-function fingerprintsOf(report: GateReport): readonly string[] {
+function fingerprintsOf(report: ProjectInput): readonly string[] {
   return [...new Set(countedFindings(report).map((finding) => finding.fingerprint))].sort();
 }
 
-function censusOf(report: GateReport): Record<string, CensusEntry> {
+function censusOf(report: ProjectInput): Record<string, CensusEntry> {
   const byKind = new Map<string, string[]>();
   const hints = report.layers.flatMap((layer) => layer.findings);
   for (const finding of hints) {
@@ -76,7 +79,7 @@ function censusOf(report: GateReport): Record<string, CensusEntry> {
   );
 }
 
-function pagesOf(report: GateReport): Record<string, number> {
+function pagesOf(report: ProjectInput): Record<string, number> {
   const rows = metricsOf(report, "build-output").pages ?? [];
   return Object.fromEntries(rows.map((row) => [row.route, row.bytes]));
 }
@@ -86,7 +89,7 @@ function pagesOf(report: GateReport): Record<string, number> {
  * rule per file with the fingerprints of those findings, suppression counts by census kind, and bytes per page,
  * with the report's version and subject. Every value comes from the report; nothing else is read.
  */
-export function projectBaseline(report: GateReport): Baseline {
+export function projectBaseline(report: ProjectInput): Baseline {
   return {
     report_version: report.report_version,
     subject: report.subject,

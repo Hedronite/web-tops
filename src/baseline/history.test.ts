@@ -75,6 +75,16 @@ describe("G9c: a baseline can be tightened and never loosened, deleted or reset,
     expect(await history(dir)).toMatchObject({ ok: false });
   });
 
+  it("fails when the merge base's own baseline is not valid, and says so", async () => {
+    const dir = makeRepo({ [PATH]: "{ not json\n", "src/a.ts": "export const a = 1;\n" });
+    git(dir, "switch", "-q", "-c", "feature");
+    write(dir, { [PATH]: canonicalJson(BASE) });
+    commit(dir, "replace it");
+    const result = await history(dir);
+    expect(result).toMatchObject({ ok: false });
+    expect(JSON.stringify(result)).toContain("at the merge base is not valid JSON");
+  });
+
   it("accepts the first baseline: none at the merge base, so legacy findings may stay in it", async () => {
     const dir = makeRepo({ "src/a.ts": "export const a = 1;\n" });
     git(dir, "switch", "-q", "-c", "feature");

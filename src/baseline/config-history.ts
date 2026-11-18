@@ -7,9 +7,12 @@ export const DEFAULT_BASE = "origin/main";
 
 const baseOf = (config: WebTopsConfig): string => config.gates?.mutation?.base ?? DEFAULT_BASE;
 
+const capOf = (config: WebTopsConfig): number | undefined =>
+  config.gates?.crap?.cap ?? capFor(config.class);
+
 /** The cap a ratchet run holds a new function to; undefined for the modes that read no baseline. */
 const ratchetCap = (config: WebTopsConfig): number | undefined =>
-  config.enforce === "ratchet" ? capFor(config.class) : undefined;
+  config.enforce === "ratchet" ? capOf(config) : undefined;
 
 /**
  * Under `ratchet` the baseline may only tighten across the change: it is held to the merge base's copy

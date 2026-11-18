@@ -500,8 +500,9 @@ finding, suppression counts by census kind (§6.7) and bytes per page, with the 
 `report_version` and `subject` (`fixtures/report/shape/` holds an example of each).
 `schema/baseline.schema.json` defines it, and it is written in one canonical form: sorted keys,
 two-space indent, a trailing newline, so a regeneration with no change is no diff. The coverage
-layer reports each coverage hint (`v8 ignore`, Istanbul, `c8`) as a `coverage-hint` finding with
-tool `webtops`, verdict `pass`, a file, a line and an `fp1`, and the baseline counts those by kind.
+layer reports each coverage hint as a `coverage-hint/<kind>` finding (`v8`, `istanbul` or `c8`) with
+tool `webtops`, verdict `pass`, a file, a line and an `fp1`, and the baseline counts those by kind
+(`v8-ignore`, `istanbul-ignore`, `c8-ignore`).
 
 `counts` gains `required_not_evaluated`. `failed` counts every verdict §3.3 marks as ending the
 run, a required `not-evaluated` included; `not_evaluated` counts every `not-evaluated`, and
@@ -533,6 +534,10 @@ Baseline rules:
   launder a rise, and deleting it fails. The first baseline, with none at the merge base, is
   accepted: legacy findings stay in it. A shallow clone or a missing base is `fail`, as for the diff
   (§6.4).
+- Under `ratchet`, what a run has above the baseline is a `refuse` finding on the layer it belongs
+  to (`ratchet-crap-new`, `ratchet-crap-up`, `ratchet-coverage-down`, `ratchet-findings-up`,
+  `ratchet-census-up`, `ratchet-pages-up`), and the run fails. The baseline's history is checked at
+  the start of `gate`, as `check` does.
 - Package coverage is compared exactly, as lines hit over lines found, with no tolerance. A census
   count that rises fails; the `fp1` of each directive names the new ones, and a directive that only
   moves to another line keeps its entry. A count per rule per file, not the fingerprints, decides

@@ -5,6 +5,8 @@ import { cleanRepos, commit, git, makeRepo, write } from "../diff/test-support.t
 import { canonicalJson } from "./canonical.ts";
 import { projectBaseline } from "./project.ts";
 import { validateReport } from "../config/report.ts";
+import { realExec } from "../gate/exec.ts";
+import type { Exec } from "../gate/types.ts";
 import { writeBaseline } from "./write.ts";
 
 afterEach(cleanRepos);
@@ -136,5 +138,25 @@ describe("G9a: webtops baseline is the only writer, from a passing report on a c
     commit(dir, "a broken baseline");
     write(dir, { [REPORT]: passing(git(dir, "rev-parse", "HEAD")) });
     expect(JSON.stringify(await run(dir))).toMatch(/not a valid baseline/);
+  });
+
+  it("refuses when git cannot say what the work tree holds", async () => {
+    const { dir } = repoWithReport();
+    const broken: Exec = (command, args, options) =>
+      args[0] === "status"
+        ? Promise.resolve({ code: 128, stdout: "", stderr: "fatal: boom" })
+        : realExec(command, args, options);
+    const result = await writeBaseline({
+      cwd: dir,
+      reportPath: REPORT,
+      baselinePath: BASELINE,
+      exec: broken,
+    });
+    expect(JSON.stringify(result)).toContain("cannot read the work tree: fatal: boom");
+  });
+
+  it("refuses a class with no launch profile", async () => {
+    const { dir } = repoWithReport({ class: "cli" });
+    expect(JSON.stringify(await run(dir))).toContain("has no launch profile");
   });
 });

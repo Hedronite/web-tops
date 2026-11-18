@@ -19,7 +19,7 @@ describe("G9: the protocol text states the baseline the code writes", () => {
     ["names the schema", "schema/baseline.schema.json"],
     ["holds the fingerprint of each counted finding", "`fp1`"],
     ["holds the suppression counts by census kind", "census kind"],
-    ["counts a coverage hint, as the coverage layer reports it", "`coverage-hint`"],
+    ["counts a coverage hint, as the coverage layer reports it", "`coverage-hint/<kind>`"],
     ["is written in one canonical form", "canonical"],
   ])("section 6.6 %s", (_what, phrase) => {
     expect(report).toContain(phrase);
@@ -36,6 +36,8 @@ describe("G9: the protocol text states the baseline the code writes", () => {
     ["a rise in a census kind fails, and a moved directive keeps its entry", "keeps its entry"],
     ["coverage is compared exactly", "exactly"],
     ["counts only findings whose verdict ends the run", "whose verdict ends the run"],
+    ["turns what is above the baseline into refuse findings", "`ratchet-crap-up`"],
+    ["asks for the baseline's history at the start of gate", "start of `gate`"],
   ])("section 6.7 %s", (_what, phrase) => {
     expect(modes).toContain(phrase);
   });
