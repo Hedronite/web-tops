@@ -246,6 +246,19 @@ describe("recordEntry", () => {
     expect(read.ok && read.entries).toEqual([written]);
   });
 
+  it.each([
+    ["a first line of only a space", " \nwhy"],
+    ["a space before a break in the middle", "line one \nline two"],
+    ["a blank line of spaces between two", "a\n  \nb"],
+    ["a break at the end", "why\n"],
+  ])("keeps a reason or an owner with %s as written, quoted or not", (_name, text) => {
+    const dir = tempDir();
+    const written = entry(CLAMP_KEY, { reason: text, owner: text });
+    expect(recordEntry(dir, PATH, written).ok).toBe(true);
+    const read = readLedger(dir, PATH);
+    expect(read.ok && read.entries).toEqual([written]);
+  });
+
   it("writes the original and the replacement as double-quoted scalars, always", () => {
     const dir = tempDir();
     recordEntry(dir, PATH, entry({ ...CLAMP_KEY, original: "n < low", replacement: "n <= low" }));

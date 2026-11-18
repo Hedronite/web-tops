@@ -71,17 +71,12 @@ function quote(node: YAMLMap, name: string): void {
   if (isScalar(value)) value.type = "QUOTE_DOUBLE";
 }
 
-/**
- * One entry as a YAML map, its original and replacement as double-quoted scalars. A reason or owner with a
- * line break is quoted too: a plain or block scalar can lose a space before the break.
- */
+/** One entry as a YAML map, its original and replacement as double-quoted scalars. */
 function entryNode(doc: Document, entry: LedgerEntry) {
   const node = doc.createNode(plain(entry));
   ALWAYS_QUOTED.forEach((name) => {
     quote(node, name);
   });
-  if (entry.reason.includes("\n")) quote(node, "reason");
-  if (entry.owner.includes("\n")) quote(node, "owner");
   return node;
 }
 
