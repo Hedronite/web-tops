@@ -1,6 +1,8 @@
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { checkConfigFile } from "../config/validate.ts";
 import type { Problem } from "../config/types.ts";
+import { checkLedger } from "../survivors/check.ts";
+import { DEFAULT_LEDGER } from "../survivors/check.ts";
 import type { Io } from "./io.ts";
 
 const DEFAULT_PATH = "web-tops.yaml";
@@ -20,19 +22,38 @@ function line(problem: Problem): string {
   return `  ${problem.pointer === "" ? "(document)" : problem.pointer}: ${problem.message}\n`;
 }
 
+/** The survivor ledger's problems as lines, each at `<ledger path>#<pointer>`; none when it is absent or valid. */
+function ledgerLines(directory: string, ledger: string | undefined): string[] {
+  const named = ledger ?? DEFAULT_LEDGER;
+  return checkLedger(directory, named).map(
+    (problem) => `  ${named}#${problem.pointer}: ${problem.message}\n`,
+  );
+}
+
+type Checked = ReturnType<typeof checkConfigFile>;
+
+/** Every problem the config file has, as lines: the schema and semantic ones, or the ledger's when those pass. */
+function problemLines(file: string, result: Checked): string[] {
+  return result.ok
+    ? ledgerLines(dirname(file), result.value.gates?.mutation?.ledger)
+    : result.problems.map(line);
+}
+
 function check(argv: readonly string[], io: Io): number {
   const path = pathFrom(argv);
   if (path === undefined) {
     io.err("usage: webtops check [path]\n");
     return 2;
   }
-  const result = checkConfigFile(resolve(io.cwd, path));
-  if (result.ok) {
-    io.out(`${path}: ok (class ${result.value.class}, enforce ${result.value.enforce})\n`);
-    return 0;
+  const file = resolve(io.cwd, path);
+  const result = checkConfigFile(file);
+  const lines = problemLines(file, result);
+  if (!result.ok || lines.length > 0) {
+    io.err(`${path}: invalid\n${lines.join("")}`);
+    return 2;
   }
-  io.err(`${path}: invalid\n${result.problems.map(line).join("")}`);
-  return 2;
+  io.out(`${path}: ok (class ${result.value.class}, enforce ${result.value.enforce})\n`);
+  return 0;
 }
 
 /**
