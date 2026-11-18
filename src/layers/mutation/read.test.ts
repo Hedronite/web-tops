@@ -80,6 +80,68 @@ describe("G7a the P3 status table", () => {
   });
 });
 
+const NONE = {
+  killed: 0,
+  timeout: 0,
+  survived: 0,
+  no_coverage: 0,
+  runtime_error: 0,
+  compile_error: 0,
+  ignored: 0,
+};
+
+describe("R75 a count for each Stryker status, so a status that moves between runs is seen", () => {
+  it.each([
+    ["Killed", "killed"],
+    ["Timeout", "timeout"],
+    ["Survived", "survived"],
+    ["NoCoverage", "no_coverage"],
+    ["RuntimeError", "runtime_error"],
+    ["CompileError", "compile_error"],
+    ["Ignored", "ignored"],
+  ])("%s is counted as %s, and nothing else", (status, key) => {
+    expect(read([status]).counts).toEqual({ ...NONE, [key]: 1 });
+  });
+
+  it("counts every mutant once, by its own status", () => {
+    const found = read([
+      "Killed",
+      "Killed",
+      "Timeout",
+      "Survived",
+      "NoCoverage",
+      "Ignored",
+      "Killed",
+    ]);
+    expect(found.counts).toEqual({
+      ...NONE,
+      killed: 3,
+      timeout: 1,
+      survived: 1,
+      no_coverage: 1,
+      ignored: 1,
+    });
+  });
+
+  it("counts a status the table does not list nowhere, and gives zeros for no mutant", () => {
+    expect(read(["Pending"]).counts).toEqual(NONE);
+    expect(read([]).counts).toEqual(NONE);
+  });
+
+  it("the recorded reports hold the counts the P3 recordings held", () => {
+    const counts = (id: string): unknown =>
+      readMutation({ ts, report: recorded(id), text: sourceOf(id) }).counts;
+    expect(counts("no-coverage-survivors")).toEqual({
+      ...NONE,
+      killed: 8,
+      no_coverage: 6,
+      compile_error: 2,
+    });
+    expect(counts("assertion-free-test")).toEqual({ ...NONE, survived: 2, compile_error: 1 });
+    expect(counts("stryker-disable")).toEqual({ ...NONE, killed: 1, ignored: 4, compile_error: 1 });
+  });
+});
+
 describe("G7a every mutant is keyed, so a killed neighbour does not move a survivor's key", () => {
   it("numbers the occurrence over all the mutants of the same mutation, not only the survivors", () => {
     const found = read(["Killed", "Survived"]);

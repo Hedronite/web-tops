@@ -440,8 +440,10 @@
           "then": {
             "properties": {
               "metrics": {
-                "type": "object",
-                "maxProperties": 0
+                "propertyNames": {
+                  "enum": ["mutation"]
+                },
+                "type": "object"
               }
             }
           }
@@ -681,6 +683,49 @@
                 "type": "integer",
                 "minimum": 0
               }
+            }
+          }
+        },
+        "mutation": {
+          "type": "object",
+          "required": [
+            "killed",
+            "timeout",
+            "survived",
+            "no_coverage",
+            "runtime_error",
+            "compile_error",
+            "ignored"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "killed": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "timeout": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "survived": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "no_coverage": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "runtime_error": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "compile_error": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "ignored": {
+              "type": "integer",
+              "minimum": 0
             }
           }
         },
