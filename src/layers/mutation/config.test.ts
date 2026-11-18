@@ -47,6 +47,7 @@ describe("G7a strykerConfig", () => {
         "checkers",
         "cleanTempDir",
         "coverageAnalysis",
+        "disableTypeChecks",
         "jsonReporter",
         "mutate",
         "reporters",
@@ -56,6 +57,10 @@ describe("G7a strykerConfig", () => {
         "vitest",
       ].sort(),
     );
+  });
+
+  it("does not let Stryker write a `// @ts-nocheck` header into the files of the project: tests that read fixtures see them as they are", () => {
+    expect(config["disableTypeChecks"]).toBe(false);
   });
 
   it("omits the checker's tsconfig when the project has none to name", () => {
