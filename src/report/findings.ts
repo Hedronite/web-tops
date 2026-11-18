@@ -14,6 +14,7 @@ export interface RawFinding {
   readonly law?: string;
   readonly required?: boolean;
   readonly ack?: Finding["ack"];
+  readonly survivor?: Finding["survivor"];
 }
 
 /** A flagged line as an anchor: trimmed, with every run of whitespace one space. */
@@ -84,10 +85,11 @@ function placeOf(raw: RawFinding): { file: string | null; line: number | null } 
   return { file: raw.file ?? null, line: raw.line ?? null };
 }
 
-function extrasOf(raw: RawFinding): Pick<Finding, "required" | "ack"> {
+function extrasOf(raw: RawFinding): Pick<Finding, "required" | "ack" | "survivor"> {
   return {
     ...(raw.required === undefined ? {} : { required: raw.required }),
     ...(raw.ack === undefined ? {} : { ack: raw.ack }),
+    ...(raw.survivor === undefined ? {} : { survivor: raw.survivor }),
   };
 }
 

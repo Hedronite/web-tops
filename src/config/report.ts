@@ -28,7 +28,7 @@ export const VERDICTS = [
 ] as const;
 
 /** The report format's own version (WEB_TOPS.md section 6.6): it changes only when the report's shape does. */
-export const REPORT_VERSION = "2.0.0";
+export const REPORT_VERSION = "2.1.0";
 
 export type BuiltInLayerId = (typeof LAYER_IDS)[number];
 
@@ -100,6 +100,7 @@ export const TOOLS = [
   "eslint",
   "prettier",
   "publint",
+  "stryker",
   "stylelint",
   "tsc",
   "vitest",
@@ -133,6 +134,16 @@ export function endsRun(verdict: Verdict, required: boolean): boolean {
   return row.ends_run && (required || !row.only_when_required);
 }
 
+/** The six fields that key a mutation survivor (WEB_TOPS.md section 6.4); only a finding of the mutation layer has one. */
+export interface Survivor {
+  readonly file: string;
+  readonly function: string;
+  readonly mutator: string;
+  readonly original: string;
+  readonly replacement: string;
+  readonly occurrence: number;
+}
+
 export interface Finding {
   /** The tool that said it, from the closed set of section 6.6. */
   readonly tool: Tool;
@@ -152,6 +163,8 @@ export interface Finding {
   readonly required?: boolean;
   /** Present on an acknowledged soft-rule finding, whose verdict is `pass` (section 3.3). */
   readonly ack?: { readonly source: "comment" | "ledger"; readonly reason: string };
+  /** On a mutation survivor: the key a ledger entry matches it by. */
+  readonly survivor?: Survivor;
 }
 
 export interface LayerReport {

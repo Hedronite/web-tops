@@ -32,8 +32,8 @@ const FINDING = ["layers", "1", "findings", "0"];
 const AT = "/layers/1/findings/0";
 
 describe("G1a every finding has tool, rule, law, verdict, message, file, line and fingerprint", () => {
-  it("the fixtures hold complete findings, and report_version is 2.0.0", () => {
-    expect(REPORT_VERSION).toBe("2.0.0");
+  it("the fixtures hold complete findings, and report_version is 2.1.0", () => {
+    expect(REPORT_VERSION).toBe("2.1.0");
     const finding = at(fixture("fail.json"), FINDING);
     expect(names(finding).sort()).toEqual([
       "file",
@@ -171,5 +171,52 @@ describe("G1b metrics.findings is the count of the layer's own findings", () => 
     expect(pointers(edit(report, ["layers", "0", "metrics", "findings"]))).toEqual([
       "/layers/0/metrics/findings",
     ]);
+  });
+});
+
+describe("G7 a mutation survivor carries the six fields of its key", () => {
+  const SURVIVOR = ["layers", "4", "findings", "0", "survivor"];
+  const AT_SURVIVOR = "/layers/4/findings/0/survivor";
+  const SIX = ["file", "function", "mutator", "original", "replacement", "occurrence"];
+
+  it("is valid in the fixture, and a 2.0.x report without one still validates", () => {
+    expect(pointers(fixture("shape/survivor.json"))).toEqual([]);
+    const survivor = at(fixture("shape/survivor.json"), SURVIVOR);
+    expect(names(survivor).sort()).toEqual([...SIX].sort());
+    expect(pointers(edit(fixture("fail.json"), ["report_version"], "2.0.0"))).toEqual([]);
+  });
+
+  it.each(SIX)("a survivor missing %s fails at its pointer", (key) => {
+    expect(pointers(edit(fixture("shape/survivor.json"), [...SURVIVOR, key]))).toEqual([
+      `${AT_SURVIVOR}/${key}`,
+    ]);
+  });
+
+  it("a survivor with a key of its own, or an occurrence below 1, fails", () => {
+    expect(
+      pointers(edit(fixture("shape/survivor.json"), [...SURVIVOR, "status"], "NoCoverage")),
+    ).toEqual([`${AT_SURVIVOR}/status`]);
+    expect(pointers(edit(fixture("shape/survivor.json"), [...SURVIVOR, "occurrence"], 0))).toEqual([
+      `${AT_SURVIVOR}/occurrence`,
+    ]);
+  });
+
+  it("a mutant that replaced nothing or was replaced by nothing keeps an empty original or replacement", () => {
+    const empty = edit(
+      edit(fixture("shape/survivor.json"), [...SURVIVOR, "original"], ""),
+      [...SURVIVOR, "replacement"],
+      "",
+    );
+    expect(pointers(empty)).toEqual([]);
+  });
+
+  it("is refused on a finding of any other layer", () => {
+    const survivor = at(fixture("shape/survivor.json"), SURVIVOR);
+    const moved = edit(
+      fixture("fail.json"),
+      ["layers", "1", "findings", "0", "survivor"],
+      survivor,
+    );
+    expect(pointers(moved).some((pointer) => pointer.startsWith("/layers/1/findings"))).toBe(true);
   });
 });

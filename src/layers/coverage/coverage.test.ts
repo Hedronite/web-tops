@@ -412,6 +412,8 @@ describe("G2b per-package numbers: a row for each in-scope file, and the package
   });
 });
 
+const HINT_RULE = "coverage-hint/";
+
 describe("G2b a coverage hint is one pass finding with its file and line (R60)", () => {
   const GUARD = [
     "export function guard(n: number): number {",
@@ -430,10 +432,14 @@ describe("G2b a coverage hint is one pass finding with its file and line (R60)",
     lcov.write("src/guard.ts", GUARD);
     const result = await coverageLayer.run(lcov.context({ exec: tracked("src/guard.ts") }));
     expect(result.verdict).toBe("pass");
-    const hints = result.findings.filter((finding) => finding.rule === "coverage-hint");
+    const hints = result.findings.filter((finding) => finding.rule.startsWith(HINT_RULE));
     expect(hints).toMatchObject([
       { tool: "webtops", verdict: "pass", file: "src/guard.ts", line: 2 },
       { tool: "webtops", verdict: "pass", file: "src/guard.ts", line: 6 },
+    ]);
+    expect(hints.map((finding) => finding.rule)).toEqual([
+      "coverage-hint/v8",
+      "coverage-hint/istanbul",
     ]);
     expect(hints[0]?.message).toContain("v8 ignore");
     expect(hints[1]?.message).toContain("istanbul ignore");
@@ -449,7 +455,7 @@ describe("G2b a coverage hint is one pass finding with its file and line (R60)",
       exec: tracked("src/a.ts", "src/a.test.ts", "src/generated.ts"),
     };
     const result = await coverageLayer.run(context);
-    expect(result.findings.filter((finding) => finding.rule === "coverage-hint")).toMatchObject([
+    expect(result.findings.filter((finding) => finding.rule.startsWith(HINT_RULE))).toMatchObject([
       { file: "src/a.ts", line: 1 },
     ]);
   });
@@ -459,7 +465,7 @@ describe("G2b a coverage hint is one pass finding with its file and line (R60)",
     lcov.write("src/guard.ts", GUARD);
     const result = await coverageLayer.run(lcov.context({ exec: tracked("src/guard.ts") }));
     expect(result.verdict).toBe("fail");
-    expect(result.findings.some((finding) => finding.rule === "coverage-hint")).toBe(true);
+    expect(result.findings.some((finding) => finding.rule.startsWith(HINT_RULE))).toBe(true);
   });
 });
 
@@ -516,7 +522,7 @@ describe("G2-1 the layer measures a source folder named coverage", () => {
       "src/layers/coverage/lcov.ts",
     ]);
     expect(result.findings.find((item) => item.rule === "coverage")?.message).toContain("75.00 %");
-    expect(result.findings.filter((item) => item.rule === "coverage-hint")).toMatchObject([
+    expect(result.findings.filter((item) => item.rule.startsWith(HINT_RULE))).toMatchObject([
       { file: "src/layers/coverage/lcov.ts", line: 1 },
     ]);
   });
@@ -530,5 +536,24 @@ describe("G2-1 the layer measures a source folder named coverage", () => {
     expect(result.findings.find((item) => item.rule === "no-coverage-record")).toMatchObject({
       file: "src/layers/coverage/lcov.ts",
     });
+  });
+});
+
+describe("R67 the hint kind is in the rule name: coverage-hint/v8, /istanbul and /c8", () => {
+  it("names each kind, keeps the tool webtops and the verdict pass", async () => {
+    const lcov = lcovWith(record("src/h.ts", 3, 3));
+    lcov.write(
+      "src/h.ts",
+      "/* v8 ignore next */\n// istanbul ignore next\n/* c8 ignore start */\n",
+    );
+    const result = await coverageLayer.run(lcov.context({ exec: tracked("src/h.ts") }));
+    const hints = result.findings.filter((finding) => finding.rule.startsWith(HINT_RULE));
+    expect(
+      hints.map((finding) => [finding.rule, finding.tool, finding.verdict, finding.line]),
+    ).toEqual([
+      ["coverage-hint/v8", "webtops", "pass", 1],
+      ["coverage-hint/istanbul", "webtops", "pass", 2],
+      ["coverage-hint/c8", "webtops", "pass", 3],
+    ]);
   });
 });

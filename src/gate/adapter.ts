@@ -11,6 +11,7 @@ import {
   type GateConfig,
   type HygieneSettings,
   type HygieneStep,
+  type MutationSettings,
   type TestsSettings,
   type Toggle,
 } from "./types.ts";
@@ -204,6 +205,35 @@ function crapSettings(config: WebTopsConfig): CrapSettings {
   return { cap: capOf(config), scope: scopeOf(config), nullishDiscount: nullishOf(config) };
 }
 
+function profileOf(config: WebTopsConfig): Profile {
+  const profile = profileFor(config.class);
+  if (profile === undefined) {
+    throw new Error(`class ${config.class} has no launch profile`);
+  }
+  return profile;
+}
+
+function mutationOf(config: WebTopsConfig): Gates["mutation"] {
+  return config.gates?.mutation;
+}
+
+function maxSurvivorsOf(config: WebTopsConfig): number {
+  return mutationOf(config)?.unexplained_survivors_max ?? profileOf(config).unexplainedSurvivorsMax;
+}
+
+function budgetOf(config: WebTopsConfig): number {
+  return mutationOf(config)?.time_budget_minutes ?? profileOf(config).mutationBudgetMinutes;
+}
+
+/** Gate 5: the config's scope, survivors maximum and time budget, else the class profile's (sections 5.2 and 6.4). */
+function mutationSettings(config: WebTopsConfig): MutationSettings {
+  return {
+    scope: mutationOf(config)?.scope ?? "diff",
+    maxSurvivors: maxSurvivorsOf(config),
+    timeBudgetMinutes: budgetOf(config),
+  };
+}
+
 function testsSettings(config: WebTopsConfig): TestsSettings {
   return { shuffle: config.gates?.tests?.shuffle ?? true };
 }
@@ -251,5 +281,6 @@ export function toGateConfig(config: WebTopsConfig, project: Project): GateConfi
     tests: testsSettings(config),
     coverage: coverageSettings(config),
     crap: crapSettings(config),
+    mutation: mutationSettings(config),
   };
 }

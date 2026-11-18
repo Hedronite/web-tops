@@ -369,7 +369,7 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
 
 ### 6.4 Mutation
 
-- **Engine:** StrykerJS with the Vitest runner and per-test coverage. The TypeScript checker plugin
+- **Engine:** StrykerJS with the Vitest runner and per-test coverage, run on the gate's own Vitest config (§6.2: the project's, coverage thresholds removed) and on a Stryker config the gate writes for each run, never the project's. The TypeScript checker plugin
   drops mutants that do not type-check: their status is `CompileError`, and they are neither killed
   nor counted as survivors.
 - **Scope:** the lines changed against the merge base, **plus every function covered by a changed
@@ -379,7 +379,7 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
   functions it covers by running that file alone under Vitest, with the gate's own configuration
   (the project's, coverage thresholds removed) and the gate's coverage include and exclude (§6.1),
   once for the version at HEAD and once for the version at the merge base; a deleted test file runs
-  only the second. The functions that ran are added, with their whole ranges. A HEAD version that
+  only the second. The functions that ran are added, with their whole ranges. Each range is then widened to the scored units it reaches into (§6.7), and a range that touches module-level code to all of the file's module-level lines, so the occurrence in a survivor's key does not depend on the diff. A HEAD version that
   cannot run is `fail`; a merge-base version that cannot run against HEAD adds nothing. The diff is
   taken without rename detection, so a renamed file counts as new and every function in it is
   judged. A pure deletion belongs to the smallest function that holds the lines on both sides of
@@ -405,9 +405,10 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
   mutator, original and replacement within that function. Never by Stryker's mutant id, which is a
   run ordinal, and never by a line number, so a ledger entry survives edits elsewhere in the file.
   A ledger entry carries those six fields beside `reason`, `owner` and `expires`.
-- **Time budget.** The layer has a time budget. A run that passes it is stopped and the layer is
-  `not-evaluated`, with the budget and the number of mutants judged in the reason. A run cut short is
-  never a pass. The value is set with the adapter (M2).
+- **Time budget.** `gates.mutation.time_budget_minutes`, 30 by default (provisional, until the first
+  adopter runs confirm it). A run that passes it is stopped, with the processes it started, and the
+  layer is `not-evaluated`, with the budget in the reason: a stopped run writes no report, so it
+  names no count of mutants judged. A run cut short is never a pass.
 
 ### 6.5 Law verdicts
 
@@ -438,8 +439,9 @@ has one shape in every layer: `tool`, `rule`, `law`, `verdict`, `message`, `file
 
 - `tool` is the tool that said it, from a closed set: `astro`, `attw`, `audit` (`bun audit`),
   `biome`, `bun` (install and pack), `dependency-cruiser`, `eslint`, `prettier`, `publint`,
-  `stylelint`, `tsc` and `vitest`; `webtops` is the gate's own checks (coverage, a missing tool,
+  `stryker`, `stylelint`, `tsc` and `vitest`; `webtops` is the gate's own checks (coverage, a missing tool,
   a skipped step).
+- A finding of the mutation layer may carry `survivor`: the six fields of its key (§6.4), which the survivor ledger matches it by. No other layer's finding has one.
 - `rule` is the tool's rule id, or a kit id for a check of the gate's own. `law` is the `W-NN` the
   finding maps to, or `null` until a reader maps it (§8). `file` and `line` are `null` when the
   finding has no place, and a `line` has a `file`.
@@ -467,7 +469,7 @@ To replay a shuffled failure, rerun the suite with that seed: `vitest run --sequ
 From 0.3.0 the report is the source the baseline is projected from, so it carries:
 
 - `report_version`, the report format's own semver, separate from `protocol`; it was `1.0.0`
-  for the shape above and is `2.0.0` since findings have one shape. It changes only when the report's shape does, so a protocol patch that leaves the report alone does not change it;
+  for the shape above, `2.0.0` once findings had one shape, and is `2.1.0` since a mutation survivor carries an optional `survivor` object. It changes only when the report's shape does, so a protocol patch that leaves the report alone does not change it;
 - `subject`, the package and the root the run judged: `{package, root}`, the root being the
   project's directory relative to the git top level (`.` at the top level);
 - `run`: git SHA, `bun` and `node` versions, the version of every tool that ran, read from its
@@ -782,6 +784,7 @@ gates:
     scope: diff
     base: origin/main
     unexplained_survivors_max: 0
+    time_budget_minutes: 30
     ledger: .web-tops/survivors.yaml
 
 layers:
@@ -1022,7 +1025,7 @@ web-tops/
 │   ├── diff/                # changed lines and functions against the merge base
 │   ├── gate/                # runner, tiers, verdicts, run info
 │   ├── init/                # webtops init: renders the drop-in set
-│   ├── layers/              # hygiene, tests, coverage, crap
+│   ├── layers/              # hygiene, tests, coverage, crap, mutation
 │   ├── lock/                # tool pins, web-tops.lock, the Node range
 │   ├── report/              # report writing, text and JSON rendering
 │   └── survivors/           # the survivor key (section 6.4), and the ledger when it lands

@@ -43,6 +43,7 @@ export const TOOLS: ReadonlyMap<string, ToolSpec> = new Map([
   ["publint", { package: "publint", bin: "publint" }],
   ["attw", { package: "@arethetypeswrong/cli", bin: "attw" }],
   ["vitest", { package: "vitest", bin: "vitest" }],
+  ["stryker", { package: "@stryker-mutator/core", bin: "stryker" }],
 ]);
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
@@ -97,8 +98,10 @@ async function underNode(
   name: string,
   entry: string,
   args: readonly string[],
+  timeoutMs?: number,
 ): Promise<ExecResult> {
-  const result = await ctx.exec("node", [entry, ...args], { cwd: ctx.cwd, env: ctx.env });
+  const limit = timeoutMs === undefined ? {} : { timeoutMs };
+  const result = await ctx.exec("node", [entry, ...args], { cwd: ctx.cwd, env: ctx.env, ...limit });
   return result.failure === "tool-missing"
     ? { ...result, stderr: `node is not on PATH, so ${name} cannot run` }
     : result;
@@ -112,6 +115,7 @@ export async function runTool(
   ctx: LayerContext,
   name: string,
   args: readonly string[],
+  timeoutMs?: number,
 ): Promise<ExecResult> {
   const spec = TOOLS.get(name);
   if (spec === undefined) {
@@ -122,7 +126,7 @@ export async function runTool(
     const stderr = `${name} is not installed in node_modules (package ${spec.package})`;
     return { code: null, stdout: "", stderr, failure: "tool-missing" };
   }
-  return underNode(ctx, name, entry, args);
+  return underNode(ctx, name, entry, args, timeoutMs);
 }
 
 /** The finding's tool for a name the steps run or print: the runtime key, or a label such as `bun audit`. */
@@ -138,6 +142,7 @@ const TOOL_NAMES: Readonly<Record<string, Tool>> = {
   eslint: "eslint",
   prettier: "prettier",
   publint: "publint",
+  stryker: "stryker",
   stylelint: "stylelint",
   tsc: "tsc",
   vitest: "vitest",

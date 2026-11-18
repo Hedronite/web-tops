@@ -46,6 +46,8 @@ export interface Profile {
   /** One CRAP cap per class (section 5.2). */
   readonly crapCap: number;
   readonly unexplainedSurvivorsMax: number;
+  /** The time budget of one mutation run, in minutes; provisional until confirmed (section 6.4). */
+  readonly mutationBudgetMinutes: number;
   /** Layers this class maps. Every other `layers.*` key is written `enabled: false` with a reason. */
   readonly layers: readonly LayerKey[];
   /** Gate 1 steps this class always maps. An unmapped step is `skip` with a reason. */
@@ -94,6 +96,7 @@ export const PROFILES: readonly Profile[] = [
     linesFloor: 85,
     crapCap: 4,
     unexplainedSurvivorsMax: 0,
+    mutationBudgetMinutes: 30,
     layers: ["package_exports", "size_limit"],
     steps: CORE_STEPS,
     conditionalSteps: [],
@@ -105,6 +108,7 @@ export const PROFILES: readonly Profile[] = [
     linesFloor: 80,
     crapCap: 5,
     unexplainedSurvivorsMax: 1,
+    mutationBudgetMinutes: 30,
     layers: ["package_exports", "size_limit", "html_validate", "axe"],
     steps: [...CORE_STEPS, "stylelint"],
     conditionalSteps: ["astro_check"],
@@ -116,6 +120,7 @@ export const PROFILES: readonly Profile[] = [
     linesFloor: 70,
     crapCap: 6,
     unexplainedSurvivorsMax: 2,
+    mutationBudgetMinutes: 30,
     layers: ["html_validate", "axe", "rendered", "themes"],
     steps: [...CORE_STEPS, "astro_check", "stylelint"],
     conditionalSteps: [],
@@ -127,6 +132,7 @@ export const PROFILES: readonly Profile[] = [
     linesFloor: 70,
     crapCap: 6,
     unexplainedSurvivorsMax: 2,
+    mutationBudgetMinutes: 30,
     layers: ["html_validate", "axe", "rendered", "themes"],
     steps: [...CORE_STEPS, "stylelint"],
     conditionalSteps: ["astro_check"],
@@ -138,6 +144,7 @@ export const PROFILES: readonly Profile[] = [
     linesFloor: 80,
     crapCap: 5,
     unexplainedSurvivorsMax: 1,
+    mutationBudgetMinutes: 30,
     layers: [],
     steps: CORE_STEPS,
     conditionalSteps: [],

@@ -254,7 +254,13 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
   );
 
   it("declares what it produces, and consumes nothing", () => {
-    expect(testsLayer.produces).toEqual(["vitest-json", "lcov", "coverage-json", "setup-files"]);
+    expect(testsLayer.produces).toEqual([
+      "vitest-json",
+      "lcov",
+      "coverage-json",
+      "setup-files",
+      "vitest-config",
+    ]);
     expect(testsLayer.consumes).toEqual([]);
   });
 
@@ -753,6 +759,19 @@ describe("G2c the tests layer names the project's Vitest setup files for gate 3 
     const value: unknown = JSON.parse(readFileSync(path ?? "", "utf8"));
     return value;
   }
+
+  it(
+    "hands the gate's own Vitest config to the layers that run Vitest, as vitest-config",
+    async () => {
+      const item = real({ "src/a.ts": SOURCE, "src/a.test.ts": CLEAN });
+      const result = await runTests(item, realExec);
+      expect(result.artifacts["vitest-config"]).toBe(
+        join(item.outDir, "tests", "vitest.config.mjs"),
+      );
+      expect(testsLayer.produces).toContain("vitest-config");
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 
   it("declares the artifact it produces", () => {
     expect(testsLayer.produces).toContain("setup-files");
