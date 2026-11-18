@@ -17,6 +17,8 @@ export default defineConfig(
       // Reserved: the W-22 proof package and the deliberate cheats (WEB_TOPS.md section 6.7).
       "probes/",
       "fixtures/probe/",
+      // Reserved (M2): golden fixtures for the complexity counter, data that is deliberately complex.
+      "fixtures/complexity/",
     ],
   },
   js.configs.recommended,

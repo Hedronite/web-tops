@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, matchesGlob, resolve } from "node:path";
 import { ESLint } from "eslint";
 import ts from "typescript";
 import { afterEach, describe, expect, it } from "vitest";
@@ -32,6 +32,9 @@ describe("G0a: pins exactly as WEB_TOPS.md section 2", () => {
     ["typescript", /^6\.0\.3$/],
     ["eslint", /^10\.15\.\d+$/],
     ["@eslint/js", /^10\.0\.\d+$/],
+    ["@stryker-mutator/core", /^10\.1\.\d+$/],
+    ["@stryker-mutator/vitest-runner", /^10\.1\.\d+$/],
+    ["@stryker-mutator/typescript-checker", /^10\.1\.\d+$/],
     ["typescript-eslint", /^8\.73\.\d+$/],
     ["vitest", /^5\.1\.\d+$/],
     ["@vitest/coverage-v8", /^5\.1\.\d+$/],
@@ -468,4 +471,118 @@ describe("R55: section 2 lists the readers W-47 and W-48 name", () => {
       expect(row).toContain(`\`${name}\` ${String(major)}.${String(minor)}`);
     },
   );
+});
+
+describe("M2 G0a: Stryker is pinned exactly at the section 2 versions", () => {
+  const stryker = [
+    "@stryker-mutator/core",
+    "@stryker-mutator/vitest-runner",
+    "@stryker-mutator/typescript-checker",
+  ] as const;
+
+  it.each(stryker)(
+    "%s is a devDependency at its pin, the same exact version in all three",
+    (name) => {
+      expect(get(pkg.devDependencies, name)).toBe(TOOL_PINS[name]);
+      expect(TOOL_PINS[name]).toBe(TOOL_PINS["@stryker-mutator/core"]);
+    },
+  );
+
+  it.each(stryker)("the section 2 Mutation row names %s", (name) => {
+    const spec = readFileSync(join(root, "WEB_TOPS.md"), "utf8");
+    const row = spec.split("\n").find((line) => line.startsWith("| Mutation |")) ?? "";
+    expect(row).toContain("StrykerJS 10.1");
+    expect(row).toContain(
+      name.replace("@stryker-mutator/", "").replace("core", "`@stryker-mutator/core`"),
+    );
+  });
+
+  it.each(stryker)("web-tops.lock records %s at its pin", (name) => {
+    expect(readFileSync(join(root, "web-tops.lock"), "utf8")).toContain(
+      `"${name}": ${TOOL_PINS[name]}`,
+    );
+  });
+});
+
+describe("M2 G0b: the M2 source paths are in every tool's scope", () => {
+  const source = [
+    "src/complexity",
+    "src/crap",
+    "src/diff",
+    "src/baseline",
+    "src/survivors",
+    "src/layers/crap",
+    "src/layers/mutation",
+  ];
+  const fixtures = "fixtures/complexity";
+  const prettier = join(root, "node_modules/prettier/bin/prettier.cjs");
+  const made: string[] = [];
+
+  afterEach(() => {
+    for (const dir of made.splice(0)) rmSync(dir, { recursive: true, force: true });
+  });
+
+  const eslint = new ESLint({ cwd: root });
+  const ignoredByPrettier = (path: string): unknown => {
+    const result = spawnSync(process.execPath, [prettier, "--file-info", path], {
+      cwd: root,
+      encoding: "utf8",
+    });
+    const info: unknown = JSON.parse(result.stdout);
+    return get(info, "ignored");
+  };
+
+  it.each(source)("ESLint lints %s, at complexity error 4", async (dir) => {
+    for (const file of [`${dir}/x.ts`, `${dir}/x.test.ts`]) {
+      expect(await eslint.isPathIgnored(join(root, file)), file).toBe(false);
+      const config: unknown = await eslint.calculateConfigForFile(join(root, file));
+      expect(get(get(config, "rules"), "complexity"), file).toEqual([2, 4]);
+    }
+  });
+
+  it.each(source)("Prettier checks %s", (dir) => {
+    expect(ignoredByPrettier(`${dir}/x.ts`)).toBe(false);
+  });
+
+  it("tsconfig includes every one, and leaves fixtures/complexity out", () => {
+    const read = ts.readConfigFile(join(root, "tsconfig.json"), (file) => ts.sys.readFile(file));
+    const dir = mkdtempSync(join(tmpdir(), "wt-tsconfig-m2-"));
+    made.push(dir);
+    for (const name of [...source.map((path) => `${path}/x.ts`), `${fixtures}/x.ts`]) {
+      mkdirSync(dirname(join(dir, name)), { recursive: true });
+      writeFileSync(join(dir, name), "export const x = 1;\n");
+    }
+    const config: unknown = read.config;
+    const widened = { ...(typeof config === "object" ? config : {}), include: ["src", "fixtures"] };
+    const parsed = ts.parseJsonConfigFileContent(widened, ts.sys, dir);
+    expect(parsed.fileNames.map((name) => name.slice(dir.length + 1)).sort()).toEqual(
+      source.map((path) => `${path}/x.ts`).sort(),
+    );
+    const own = ts.parseJsonConfigFileContent(config, ts.sys, dir);
+    expect(own.fileNames.map((name) => name.slice(dir.length + 1)).sort()).toEqual(
+      source.map((path) => `${path}/x.ts`).sort(),
+    );
+  });
+
+  it.each(source)("Vitest collects tests in %s and counts its sources for coverage", (dir) => {
+    expect(matchesGlob(`${dir}/x.test.ts`, "src/**/*.test.ts")).toBe(true);
+    expect(matchesGlob(`${dir}/x.ts`, "src/**/*.ts")).toBe(true);
+  });
+
+  it("fixtures/complexity is data: skipped by lint, format, tsc and the tests, like fixtures/probe", async () => {
+    expect(await eslint.isPathIgnored(join(root, `${fixtures}/x.ts`))).toBe(true);
+    expect(await eslint.isPathIgnored(join(root, `${fixtures}/x.tsx`))).toBe(true);
+    expect(ignoredByPrettier(`${fixtures}/x.ts`)).toBe(true);
+    const text = readFileSync(join(root, "vitest.config.ts"), "utf8");
+    expect(text).toContain('"fixtures/complexity/**"');
+    expect(readFileSync(join(root, "tsconfig.json"), "utf8")).toContain('"fixtures/complexity"');
+    expect(readFileSync(join(root, ".dependency-cruiser.cjs"), "utf8")).toContain(
+      "fixtures/complexity",
+    );
+  });
+
+  it("fixtures/probe from P3 is present: every case the spec lists, and the expected outcomes", () => {
+    expect(existsSync(join(root, "fixtures/probe/EXPECTED.yaml"))).toBe(true);
+    expect(readdirSync(join(root, "fixtures/probe")).length).toBeGreaterThan(5);
+  });
 });
