@@ -25,6 +25,9 @@ const OUTPUT = /(?:^|\/)(?:node_modules|dist|coverage|\.web-tops|\.astro)\//u;
 
 const ESLINT_FILES = /\.(?:[cm]?[jt]sx?|astro)$/u;
 
+/** A tracked file ESLint would be asked about: a script or Astro file outside the output and dependency folders. */
+const isLintable = (file: string): boolean => ESLINT_FILES.test(file) && !OUTPUT.test(file);
+
 const passFinding = (
   kind: CensusKind,
   file: string,
@@ -78,7 +81,7 @@ const failed = (rule: string, message: string): RawFinding => ({
 
 /** `eslint-ignores` and `eslint-rule-off`, from the project's own ESLint, for the tracked files it would lint. */
 async function eslintFindings(input: CensusInput): Promise<RawFinding[]> {
-  const files = input.files.filter((file) => ESLINT_FILES.test(file) && !OUTPUT.test(file));
+  const files = input.files.filter(isLintable);
   if (!hasEslintConfig(input.cwd) || files.length === 0) return [];
   const read = await eslintFacts(input, files);
   if (!read.ok) return [failed("census-eslint-unreadable", read.message)];

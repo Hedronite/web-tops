@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { realExec } from "../gate/exec.ts";
@@ -195,6 +195,27 @@ describe("censusFindings: configuration, read through the project's own tools", 
     const found = await censusFindings(inputFor(dir, ["tsconfig.json", "src/a.ts"]));
     expect(found).toHaveLength(1);
     expect(found[0]).toMatchObject({ rule: "census-tsconfig-unreadable", verdict: "fail" });
+  });
+
+  it("asks ESLint only about the tracked scripts and Astro files outside the output folders", async () => {
+    const dir = project({ "eslint.config.js": "export default [];" });
+    let asked: unknown;
+    const exec: Exec = (_command, _args, options) => {
+      const list = Reflect.get(options?.env ?? {}, "WEBTOPS_CENSUS_FILES");
+      asked = JSON.parse(readFileSync(String(list), "utf8"));
+      return Promise.resolve({ code: 0, stdout: '{"ignored":{},"levels":{}}', stderr: "" });
+    };
+    const files = [
+      "src/a.ts",
+      "src/b.tsx",
+      "src/c.astro",
+      "dist/d.js",
+      "node_modules/p/e.ts",
+      "README.md",
+      "src/style.css",
+    ];
+    await censusFindings(inputFor(dir, files, exec));
+    expect(asked).toEqual(["src/a.ts", "src/b.tsx", "src/c.astro"]);
   });
 
   it("asks ESLint about no file, and starts nothing, when none of the tracked files is one it lints", async () => {
