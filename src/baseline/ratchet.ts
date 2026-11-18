@@ -74,6 +74,12 @@ function unreadable(input: RatchetInput, reason: string): LayerReport[] {
   );
 }
 
+/** The layer with its own breaches added, if it has any. */
+function judged(layer: LayerReport, breaches: readonly Breach[], read: Reader): LayerReport {
+  const mine = breaches.filter((breach) => breach.layer === layer.id).map(refusal);
+  return mine.length === 0 ? layer : withFindings(layer, mine, "refuse", read);
+}
+
 /**
  * Under `ratchet`, what the run has above its baseline becomes `refuse` findings on the layers they belong to
  * (WEB_TOPS.md section 6.7), and those layers end the run. Other modes read no baseline.
@@ -84,8 +90,5 @@ export function applyRatchet(input: RatchetInput): LayerReport[] {
   if (!base.ok) return unreadable(input, base.reason);
   const current = projectBaseline({ ...input.report, layers: input.layers });
   const breaches = ratchetBreaches(base.baseline, current, input.cap);
-  return input.layers.map((layer) => {
-    const mine = breaches.filter((breach) => breach.layer === layer.id).map(refusal);
-    return mine.length === 0 ? layer : withFindings(layer, mine, "refuse", input.read);
-  });
+  return input.layers.map((layer) => judged(layer, breaches, input.read));
 }
