@@ -7,7 +7,13 @@ import { realExec } from "../gate/exec.ts";
 import { REAL_TOOL_TIMEOUT } from "../gate/test-support-timeouts.ts";
 import { eslintIgnores, ruleOff, tsconfigExcluded } from "./config.ts";
 import type { Levels } from "./config.ts";
-import { CENSUS_RULE_PREFIX, CONFIG_KINDS, SOURCE_KINDS, censusFindings } from "./index.ts";
+import {
+  AXE_KINDS,
+  CENSUS_RULE_PREFIX,
+  CONFIG_KINDS,
+  SOURCE_KINDS,
+  censusFindings,
+} from "./index.ts";
 
 /**
  * R75: each fixtures/probe census case gives its stated count, from the readers this directory holds. The source
@@ -56,7 +62,7 @@ const CASES: Case[] = (() => {
   }));
 })();
 
-const MINE: readonly string[] = [...SOURCE_KINDS, ...CONFIG_KINDS];
+const MINE: readonly string[] = [...SOURCE_KINDS, ...CONFIG_KINDS, ...AXE_KINDS];
 
 /** The cases that state a count of a kind this reader owns. */
 const OWNED = CASES.filter((item) => Object.keys(item.census).some((kind) => MINE.includes(kind)));
