@@ -340,7 +340,14 @@ CRAP(f) = comp(f)² × (1 − cov(f))³ + comp(f)          cov(f) ∈ [0,1]
   100% by line and 0 by statement: with complexity 4 its CRAP is 20, not 4.
 - A function is keyed as §6.7 says: file, container chain, name.
 - **Cap:** one per class (§5.2). Drop-in default 6.0. No authorship marking.
-- **Scope:** functions touched in the diff; `--all` for tier 2 trends.
+- **Scope:** the functions the diff touches (`gates.crap.scope: diff`, the default), or every function with
+  `--all` or `gates.crap.scope: all`, for tier 2 trends and for a kit that holds itself to the cap. The functions are
+  those the diff engine reports as changed (§6.4): a changed line, or a deletion taken from them. A diff that touches
+  no function is `vacuous`, and a diff that cannot be computed fails the layer.
+- **Unit:** the counter's scored unit (module-level functions and class members, §6.3); its `cov(f)` is read from
+  the coverage function whose body starts in it. Code outside every function is scored as `<module>` only when it
+  branches. A function the coverage run never reported has `cov(f) = 0`.
+- Under `ratchet` the layer is `not-evaluated` until a baseline exists (§6.7); a function over the cap still fails.
 
 ### 6.3 Complexity counting rule
 
@@ -870,7 +877,7 @@ steps that bypass `webtops` judge nothing.
 |---|---|
 | `init --class <c>` | Writes the drop-in set (§4). Refuses to overwrite without `--force` |
 | `check` | Validates `web-tops.yaml` against the JSON Schema, plus semantic checks: the protocol id lies in the range this `webtops` supports (the schema does not pin it to one constant), class has a profile, `crap.cap ≥ 1`, `ts-library` keeps `unexplained_survivors_max = 0`, `advisory` has an `exemption` whose `until` has not passed (UTC, through that day; §9), under `ratchet` the baseline exists and is clean, under `hard` no gate or step the class maps at tier 1 or below is off except `crap`, `mutation`, build output and `laws` (§9), and no coverage floor below, nor CRAP cap or survivors limit above, the class profile's (§5.2), `skip_private` only for a `"private": true` package |
-| `gate` | Runs enabled layers at or below `--max-tier` (default 1). `--base`, `--keep-going`, `--json`, `--only <layer>`, `--dry-run` (refused in CI) |
+| `gate` | Runs enabled layers at or below `--max-tier` (default 1). `--base`, `--keep-going`, `--json`, `--all` (judge every function, not the diff's), `--only <layer>`, `--dry-run` (refused in CI) |
 | `baseline` | Writes `.web-tops/baseline.json` after a passing run; the only writer |
 | `laws [list \| run \| explain W-NN]` | Catalog with readers; laws alone; one law explained |
 | `report [--format text \| json]` | Renders the last report |
@@ -1011,10 +1018,11 @@ web-tops/
 │   ├── cli/                 # webtops entry and one file per command
 │   ├── complexity/          # the section 6.3 counter on the TypeScript AST, and function keys (6.7)
 │   ├── config/              # class table, config validation, semantic checks, report validation
+│   ├── crap/                # CRAP: the counter's complexity joined with statement coverage (§6.2)
 │   ├── diff/                # changed lines and functions against the merge base
 │   ├── gate/                # runner, tiers, verdicts, run info
 │   ├── init/                # webtops init: renders the drop-in set
-│   ├── layers/              # hygiene, tests, coverage
+│   ├── layers/              # hygiene, tests, coverage, crap
 │   ├── lock/                # tool pins, web-tops.lock, the Node range
 │   ├── report/              # report writing, text and JSON rendering
 │   └── survivors/           # the survivor key (section 6.4), and the ledger when it lands
@@ -1031,7 +1039,7 @@ web-tops/
 └── LICENSE · LICENSE-MIT · LICENSE-APACHE
 ```
 
-Not yet in the tree: `src/crap/` (the CRAP layer, M2), `src/budgets/` (the `dist/` byte reader, M4), `packages/eslint-plugin-webtops/`, `laws/` (one `W-NN.yaml` per law) and `fixtures/lints/` (M3).
+Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4), `packages/eslint-plugin-webtops/`, `laws/` (one `W-NN.yaml` per law) and `fixtures/lints/` (M3).
 
 Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any release.
 

@@ -7,6 +7,7 @@ import {
   HYGIENE_STEPS,
   type AuditLevel,
   type CoverageSettings,
+  type CrapSettings,
   type GateConfig,
   type HygieneSettings,
   type HygieneStep,
@@ -173,6 +174,36 @@ function coverageSettings(config: WebTopsConfig): CoverageSettings {
   return { linesFloor: floorFor(config, coverage), exclude: coverage?.exclude ?? [] };
 }
 
+function crapConfig(config: WebTopsConfig): Gates["crap"] {
+  return config.gates?.crap;
+}
+
+/** The class profile's CRAP cap (section 5.2); `check` has already refused a class with no profile. */
+function classCap(config: WebTopsConfig): number {
+  const profile = profileFor(config.class);
+  if (profile === undefined) {
+    throw new Error(`class ${config.class} has no launch profile`);
+  }
+  return profile.crapCap;
+}
+
+function capOf(config: WebTopsConfig): number {
+  return crapConfig(config)?.cap ?? classCap(config);
+}
+
+function scopeOf(config: WebTopsConfig): "diff" | "all" {
+  return crapConfig(config)?.scope ?? "diff";
+}
+
+function nullishOf(config: WebTopsConfig): boolean {
+  return crapConfig(config)?.complexity?.nullish_discount ?? true;
+}
+
+/** Gate 4's cap is the config's, else the class profile's; the scope is the diff unless the config says all. */
+function crapSettings(config: WebTopsConfig): CrapSettings {
+  return { cap: capOf(config), scope: scopeOf(config), nullishDiscount: nullishOf(config) };
+}
+
 function testsSettings(config: WebTopsConfig): TestsSettings {
   return { shuffle: config.gates?.tests?.shuffle ?? true };
 }
@@ -219,5 +250,6 @@ export function toGateConfig(config: WebTopsConfig, project: Project): GateConfi
     hygiene: hygieneSettings(config, project),
     tests: testsSettings(config),
     coverage: coverageSettings(config),
+    crap: crapSettings(config),
   };
 }

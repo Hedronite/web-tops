@@ -1,16 +1,10 @@
 import type { RawFinding } from "../../report/findings.ts";
 import type { Layer, LayerContext, LayerResult } from "../../gate/types.ts";
 import { join } from "node:path";
-import {
-  arrayOf,
-  exitFinding,
-  launchFailure,
-  parseJson,
-  readOutput,
-  failFinding,
-  relativeTo,
-} from "../hygiene/tooling.ts";
+import { arrayOf, parseJson, readOutput, failFinding, relativeTo } from "../hygiene/tooling.ts";
+import { RATCHET_REASON } from "../ratchet.ts";
 import { coverageHints } from "./hints.ts";
+import { trackedFiles } from "./tracked.ts";
 import {
   isBelow,
   parseRecords,
@@ -20,8 +14,6 @@ import {
   type LcovTotals,
 } from "./lcov.ts";
 import { excludesOf, inScope } from "./scope.ts";
-
-const RATCHET_REASON = "baseline: M2";
 
 /** What gate 3 reads from gate 2's run: the totals over the records in scope, and every file that has a record. */
 interface Profile {
@@ -33,6 +25,10 @@ interface Profile {
 
 function failedResult(finding: RawFinding): LayerResult {
   return { verdict: "fail", findings: [finding], artifacts: {} };
+}
+
+function byFile(left: LcovRecord, right: LcovRecord): number {
+  return left.file < right.file ? -1 : 1;
 }
 
 /** The LCOV must exist and have lines (`test -s`, and a profile that is not empty). */
@@ -49,9 +45,7 @@ function readProfile(ctx: LayerContext, path: string): Profile | LayerResult {
     file: relativeTo(ctx.cwd, entry.file),
   }));
   const excludes = excludesOf(ctx.config);
-  const rows = all
-    .filter((entry) => inScope(entry.file, excludes))
-    .sort((left, right) => (left.file < right.file ? -1 : 1));
+  const rows = all.filter((entry) => inScope(entry.file, excludes)).sort(byFile);
   const totals = totalsOf(rows);
   if (totals.files === 0 || totals.found === 0) {
     return failedResult(
@@ -65,23 +59,6 @@ function readProfile(ctx: LayerContext, path: string): Profile | LayerResult {
 
 function isProfile(value: Profile | LayerResult): value is Profile {
   return "totals" in value;
-}
-
-/** The files git tracks, so a file no test imports cannot leave the denominator. */
-async function trackedFiles(
-  ctx: LayerContext,
-): Promise<{ readonly files: string[] } | { readonly finding: RawFinding }> {
-  const result = await ctx.exec("git", ["ls-files", "-z"], { cwd: ctx.cwd, env: ctx.env });
-  const launch = launchFailure("webtops", "git", result);
-  if (launch !== undefined) {
-    return { finding: launch };
-  }
-  if (result.code !== 0) {
-    return {
-      finding: exitFinding("webtops", "git-ls-files-failed", "git ls-files", result, "stderr"),
-    };
-  }
-  return { files: result.stdout.split("\0").filter((file) => file !== "") };
 }
 
 /** Why a tracked file in scope has no record: a Vitest setup file is never instrumented, any other file is not imported. */

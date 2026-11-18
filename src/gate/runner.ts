@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
+import { diffScope, type CoverageMap, type ScopeResult } from "../diff/index.ts";
 import { COUNTED_LAYERS, completeFindings, countsByRuleFile } from "../report/findings.ts";
 import {
   endsRun,
@@ -17,6 +18,8 @@ import {
 import { planGate, type PlanItem } from "./plan.ts";
 import type {
   Consumed,
+  DiffNeeds,
+  DiffProvider,
   Exec,
   GateConfig,
   GateOptions,
@@ -169,6 +172,42 @@ function keepArtifacts(
   );
 }
 
+/** The coverage a layer that does not need the tests' functions gets from the diff engine: none, without a Vitest run. */
+const NO_COVERAGE: CoverageMap = new Map();
+
+/** The diff, computed the first time a layer asks and kept for each kind of ask (the test-covered functions cost Vitest runs). */
+function diffProvider(input: RunInput, base: string): DiffProvider {
+  const asked = new Map<boolean, Promise<ScopeResult>>();
+  return (needs: DiffNeeds) => {
+    const known = asked.get(needs.coveredByTests);
+    if (known !== undefined) {
+      return known;
+    }
+    const exclude = input.config.coverage.exclude.map((entry) => entry.glob);
+    const fresh = diffScope({
+      cwd: input.cwd,
+      base,
+      exec: input.exec,
+      exclude,
+      ...(needs.coveredByTests ? {} : { coverageOf: () => Promise.resolve(NO_COVERAGE) }),
+    });
+    asked.set(needs.coveredByTests, fresh);
+    return fresh;
+  };
+}
+
+const providers = new WeakMap<RunInput, DiffProvider>();
+
+function providerOf(input: RunInput, base: string): DiffProvider {
+  const known = providers.get(input);
+  if (known !== undefined) {
+    return known;
+  }
+  const fresh = diffProvider(input, base);
+  providers.set(input, fresh);
+  return fresh;
+}
+
 function contextOf(
   input: RunInput,
   base: string,
@@ -183,6 +222,8 @@ function contextOf(
     exec: input.exec,
     outDir: input.outDir,
     artifacts,
+    all: input.options.all,
+    diff: providerOf(input, base),
   };
 }
 

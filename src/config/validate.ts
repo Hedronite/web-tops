@@ -11,9 +11,12 @@ import type { Validated, WebTopsConfig } from "./types.ts";
 const validate = ajv.compile<WebTopsConfig>(schema);
 
 /** A protocol id the schema's pattern refuses is outside the range this webtops supports (section 12). */
+function protocolOf(doc: unknown): unknown {
+  return typeof doc === "object" && doc !== null ? Reflect.get(doc, "protocol") : undefined;
+}
+
 function protocolMessage(doc: unknown): (error: ErrorObject) => string | undefined {
-  const id: unknown =
-    typeof doc === "object" && doc !== null ? Reflect.get(doc, "protocol") : undefined;
+  const id = protocolOf(doc);
   return (error) =>
     error.instancePath === "/protocol" && error.keyword === "pattern"
       ? `protocol ${JSON.stringify(id)} is outside the range this webtops supports (${PROTOCOL_RANGE})`

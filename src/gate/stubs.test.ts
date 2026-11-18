@@ -18,13 +18,12 @@ function runReal(config: GateConfig) {
 }
 
 const LATER = [
-  ["crap", "M2"],
   ["mutation", "M2"],
   ["build-output", "M4"],
   ["laws", "M3"],
 ] as const;
 
-describe("G2e stubs: crap, mutation, build-output and laws report not-run when enabled", () => {
+describe("G2e stubs: mutation, build-output and laws report not-run when enabled", () => {
   it("registers the seven built-in layers in gate order", () => {
     expect(buildRegistry(cfg()).map((layer) => layer.id)).toEqual([...BUILTIN_IDS]);
   });
@@ -39,7 +38,15 @@ describe("G2e stubs: crap, mutation, build-output and laws report not-run when e
         ]),
       );
       const report = await runReal(
-        cfg({ toggles: { ...only, hygiene: off("t"), tests: off("t"), coverage: off("t") } }),
+        cfg({
+          toggles: {
+            ...only,
+            hygiene: off("t"),
+            tests: off("t"),
+            coverage: off("t"),
+            crap: off("t"),
+          },
+        }),
       );
       const layer = report.layers.find((entry) => entry.id === id);
       expect(layer?.verdict).toBe("not-run");
@@ -61,7 +68,15 @@ describe("G2e stubs: crap, mutation, build-output and laws report not-run when e
         toggles[other] = off(`${other} lands later`);
       }
       const report = await runReal(
-        cfg({ toggles: { ...toggles, hygiene: off("t"), tests: off("t"), coverage: off("t") } }),
+        cfg({
+          toggles: {
+            ...toggles,
+            hygiene: off("t"),
+            tests: off("t"),
+            coverage: off("t"),
+            crap: off("t"),
+          },
+        }),
       );
       expect(report.layers.find((entry) => entry.id === id)).toMatchObject({
         verdict: "skip",

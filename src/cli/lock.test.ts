@@ -383,6 +383,14 @@ describe("webtops lock --verify: a pinned, installed tool the lock does not name
     expect(err).toBe("");
   });
 
+  it("reports a package.json it cannot read, instead of checking nothing", async () => {
+    const dir = project();
+    put(dir, "package.json", "not json");
+    const { code, err } = await cli(["--verify"], dir);
+    expect(code).toBe(2);
+    expect(err).toContain("package.json");
+  });
+
   it("removes one entry from a complete lock and fails on exactly that tool", async () => {
     const dir = project();
     install(dir, "vitest", "5.1.0");

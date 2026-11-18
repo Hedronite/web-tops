@@ -118,19 +118,51 @@ function describeFunction(
   };
 }
 
+/** The row of one entry of a file's function map, or none when the entry cannot be read. */
+function rowFor(
+  file: string,
+  entry: Record<string, unknown>,
+  statements: readonly Statement[],
+  id: string,
+): FunctionCoverage[] {
+  const fn = isRecord(entry["fnMap"]) ? entry["fnMap"][id] : undefined;
+  const row = isRecord(fn)
+    ? describeFunction(file, fn, hitCount(entry["f"], id), statements)
+    : undefined;
+  return row === undefined ? [] : [row];
+}
+
 function fileFunctions(file: string, entry: unknown): FunctionCoverage[] {
   if (!isRecord(entry) || !isRecord(entry["fnMap"])) {
     return [];
   }
-  const fnMap = entry["fnMap"];
   const statements = statementsOf(entry);
-  return Object.keys(fnMap).flatMap((id) => {
-    const fn = fnMap[id];
-    const row = isRecord(fn)
-      ? describeFunction(file, fn, hitCount(entry["f"], id), statements)
-      : undefined;
-    return row === undefined ? [] : [row];
+  return Object.keys(entry["fnMap"]).flatMap((id) => rowFor(file, entry, statements, id));
+}
+
+/** The span of every function in a file's coverage entry. */
+function functionSpans(entry: Record<string, unknown>): Span[] {
+  const map = entry["fnMap"];
+  const found = isRecord(map) ? Object.values(map) : [];
+  return found.flatMap((fn): Span[] => {
+    const span = isRecord(fn) ? spanOf(fn["loc"]) : undefined;
+    return span === undefined ? [] : [span];
   });
+}
+
+/**
+ * Statement coverage of the code outside every function (the `<module>` pseudo-function, section 6.7): 1 when
+ * there is no such statement, and 0 when the run never reported the file.
+ */
+export function moduleCoverage(entry: unknown): number {
+  if (!isRecord(entry)) {
+    return 0;
+  }
+  const spans = functionSpans(entry);
+  const outside = statementsOf(entry).filter(
+    (item) => !spans.some((span) => inside(item.start, span)),
+  );
+  return shareOf(1, outside);
 }
 
 function bySource(left: FunctionCoverage, right: FunctionCoverage): number {

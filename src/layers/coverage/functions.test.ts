@@ -227,3 +227,53 @@ describe("G2-2 a hint is a comment: prose and strings are not hints", () => {
     ]);
   });
 });
+
+describe("G4 a malformed coverage entry is read around, never trusted", () => {
+  const at = (line: unknown, column?: unknown): unknown => ({
+    line,
+    ...(column === undefined ? {} : { column }),
+  });
+
+  it("skips a function whose body is missing, not a record, or has a position that is not numeric", () => {
+    const entry = {
+      fnMap: {
+        "0": { name: "a" },
+        "1": { name: "b", loc: 3 },
+        "2": { name: "c", loc: { start: at("1", 0), end: at(2, 0) } },
+        "3": { name: "d", loc: { start: at(1, 0) } },
+        "4": { name: "e", loc: { start: at(1, 0), end: at(2, 1) } },
+      },
+      f: { "0": 1, "1": 1, "2": 1, "3": 1, "4": 1 },
+      statementMap: {},
+      s: {},
+    };
+    expect(functionCoverage({ "src/a.ts": entry }).map((row) => row.name)).toEqual(["e"]);
+  });
+
+  it("reads a position with no column as column 0, and an end with no column as the end of its line", () => {
+    const entry = {
+      fnMap: { "0": { name: "f", loc: { start: at(1), end: at(2) } } },
+      f: { "0": 1 },
+      statementMap: {
+        "0": { start: at(2, 99), end: at(2, 120) },
+        "1": { start: at(3, 0), end: at(3, 5) },
+      },
+      s: { "0": 1, "1": 0 },
+    };
+    expect(functionCoverage({ "src/a.ts": entry })).toMatchObject([
+      { name: "f", line: 1, column: 0, statements: 1, covered: 1, cov: 1 },
+    ]);
+  });
+
+  it("skips a statement whose span cannot be read, and gives a function with no name a placeholder", () => {
+    const entry = {
+      fnMap: { "0": { loc: { start: at(1, 0), end: at(5, 1) } } },
+      f: { "0": 1 },
+      statementMap: { "0": { start: "x" }, "1": { start: at(2, 0), end: at(2, 4) }, "2": 7 },
+      s: { "0": 1, "1": 1, "2": 1 },
+    };
+    expect(functionCoverage({ "src/a.ts": entry })).toMatchObject([
+      { name: "(anonymous)", statements: 1, cov: 1 },
+    ]);
+  });
+});
