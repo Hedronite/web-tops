@@ -50,7 +50,7 @@ module.exports = {
   options: {
     doNotFollow: { path: "node_modules" },
     // Reserved: the W-22 proof package and the deliberate cheats are not this kit's code.
-    exclude: { path: "^(probes|fixtures/probe)/" },
+    exclude: { path: "^(probes|fixtures/probe|fixtures/complexity)/" },
     tsPreCompilationDeps: true,
     tsConfig: { fileName: "tsconfig.json" },
     enhancedResolveOptions: {

@@ -447,7 +447,7 @@ describe("G7: .dependency-cruiser.cjs", () => {
           allowImportingTsExtensions: true,
           noEmit: true,
         },
-        include: ["src", "lib", "probes", "fixtures/probe"],
+        include: ["src", "lib", "probes", "fixtures/probe", "fixtures/complexity"],
       }),
     );
     symlinkSync(join(root, "node_modules"), join(dir, "node_modules"));
@@ -540,6 +540,38 @@ describe("G7: .dependency-cruiser.cjs", () => {
       },
       30_000,
     );
+  });
+
+  describe("M2 G0b: the M2 source paths and fixtures/complexity", () => {
+    const circular = (dir: string): Readonly<Record<string, string>> => ({
+      [`${dir}/a.ts`]: 'import { b } from "./b.ts";\nexport const a = b;\n',
+      [`${dir}/b.ts`]: 'import { a } from "./a.ts";\nexport const b = a;\n',
+    });
+
+    it.each([
+      "src/complexity",
+      "src/crap",
+      "src/diff",
+      "src/baseline",
+      "src/survivors",
+      "src/layers/crap",
+      "src/layers/mutation",
+    ])(
+      "refuses a cycle in %s: dependency rules apply there",
+      (dir) => {
+        const { status, out } = cruise(project(circular(dir)));
+        expect(out).toContain("no-circular");
+        expect(status).not.toBe(0);
+      },
+      30_000,
+    );
+
+    it("does not cruise fixtures/complexity", () => {
+      const files = { ...circular("fixtures/complexity"), "src/ok.ts": "export const ok = 1;\n" };
+      const { status, out } = cruise(project(files), "fixtures/complexity");
+      expect(out).not.toContain("no-circular");
+      expect(status).toBe(0);
+    }, 30_000);
   });
 
   it("refuses production code that imports a devDependency", () => {

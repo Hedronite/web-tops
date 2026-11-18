@@ -4,7 +4,12 @@ export default defineConfig({
   test: {
     include: ["src/**/*.test.ts"],
     // Reserved: probes and the deliberate cheats are data, never collected as this kit's tests.
-    exclude: [...configDefaults.exclude, "probes/**", "fixtures/probe/**"],
+    exclude: [
+      ...configDefaults.exclude,
+      "probes/**",
+      "fixtures/probe/**",
+      "fixtures/complexity/**",
+    ],
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "lcov"],
