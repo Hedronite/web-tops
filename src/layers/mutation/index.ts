@@ -19,6 +19,7 @@ import {
   runTool,
 } from "../hygiene/tooling.ts";
 import { strykerConfig } from "./config.ts";
+import { usableWorkers } from "./cpus.ts";
 import { readMutation } from "./read.ts";
 import type { MutationRead, SurvivorRow } from "./read.ts";
 import { snapEntries } from "./snap.ts";
@@ -94,6 +95,7 @@ function writeConfig(
     vitestConfig: relativeTo(ctx.cwd, wrapper),
     report: relativeTo(ctx.cwd, report),
     tempDir: relativeTo(ctx.cwd, join(directory, ".stryker-tmp")),
+    concurrency: usableWorkers(),
     ...tsconfig,
   };
   writeFileSync(config, JSON.stringify(strykerConfig(plan), null, 2));
@@ -186,17 +188,51 @@ function summary(ctx: LayerContext, read: MutationRead, open: readonly SurvivorR
   };
 }
 
+/** The most mutants that may time out before the run is read as starved: a tenth of those judged, and never fewer than two. */
+const timeoutLimit = (judged: number): number => Math.max(2, judged * 0.1);
+
+const judgedOf = (read: MutationRead): number => read.killed + read.survivors.length;
+
+/**
+ * A timeout counts as killed (section 6.4), but a run in which many mutants timed out was starved of CPU or the mutants
+ * looped: the tests did not kill them, so nothing can be said of the ones that "survived" nowhere.
+ */
+function starved(read: MutationRead): boolean {
+  return read.counts.timeout > timeoutLimit(judgedOf(read));
+}
+
+function starvedReason(read: MutationRead): string {
+  const count = `${String(read.counts.timeout)} of ${String(judgedOf(read))}`;
+  return `${count} mutants timed out: the machine was starved or a mutant looped`;
+}
+
+/** The finding that says so, when the run was starved; a pass only if nothing else in the run failed. */
+function starvedFindings(read: MutationRead): RawFinding[] {
+  return starved(read)
+    ? [
+        {
+          tool: "webtops",
+          rule: "mutation-timeouts",
+          verdict: "not-evaluated",
+          message: starvedReason(read),
+        },
+      ]
+    : [];
+}
+
 function outcome(read: MutationRead, failedAny: boolean): Pick<LayerResult, "verdict" | "reason"> {
   if (failedAny) {
     return { verdict: "fail" };
   }
-  if (read.killed + read.survivors.length === 0) {
+  if (judgedOf(read) === 0) {
     return {
       verdict: "vacuous",
       reason: "no mutant was judged: every one was excluded, or none was made",
     };
   }
-  return { verdict: "pass" };
+  return starved(read)
+    ? { verdict: "not-evaluated", reason: starvedReason(read) }
+    : { verdict: "pass" };
 }
 
 /** Unexplained survivors over the profile's maximum fail; at or under, they pass and are listed. */
@@ -206,6 +242,7 @@ function judge(ctx: LayerContext, read: MutationRead): LayerResult {
   const over = open.length > ctx.config.mutation.maxSurvivors;
   const findings = [
     ...read.unknown.map(unknownFinding),
+    ...starvedFindings(read),
     ...open.map((row) => survivorFinding(row, over)),
     ...read.survivors.filter((row) => explained.has(keyString(row.key))).map(acceptedFinding),
     summary(ctx, read, open),
