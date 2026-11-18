@@ -403,6 +403,13 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
   `NoCoverage` counts with `Survived`: a function that no test runs has only `NoCoverage` mutants,
   and counting `Survived` alone would score it best. Stryker classes `CompileError` and `RuntimeError` as invalid mutants, so both are
   excluded. A status the table does not list makes the layer `fail`, with that status in the reason.
+- **Timeouts.** A mutant that Stryker stops as timed out counts as killed (the table above), but a run in
+  which more than a tenth of the judged mutants, and more than two, timed out is `not-evaluated`, with
+  "N of M mutants timed out: the machine was starved or a mutant looped" as the reason and the rule
+  `mutation-timeouts`; a survivor still fails the layer. A starved machine times out the mutants a weak test would
+  have let live, and a pass from such a run proves nothing. The gate sets Stryker's `concurrency` to the CPUs the
+  process can use (`os.availableParallelism()` and a control-group CPU limit, whichever is less) minus one, at least
+  one, and `timeoutFactor` to 3. The message of the layer counts the mutants by every status (§6.6 `metrics.mutation`).
 - **Diff outcomes:** a diff that fails (no merge base, shallow clone) is `fail`, with no
   exemption. A diff with no changed source line and no function covered by a changed test is
   `vacuous` (§3.3); a diff that changes only tests is not. CI checks out with `fetch-depth: 0`.

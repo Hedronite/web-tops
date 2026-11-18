@@ -8,6 +8,7 @@ const BASE = {
   vitestConfig: ".web-tops/out/tests/vitest.config.mjs",
   report: ".web-tops/out/mutation/mutation.json",
   tempDir: ".web-tops/out/mutation/.stryker-tmp",
+  concurrency: 3,
 };
 const PLAN = { ...BASE, tsconfig: "tsconfig.json" };
 
@@ -22,6 +23,11 @@ describe("G7a strykerConfig", () => {
       tsconfigFile: "tsconfig.json",
       coverageAnalysis: "perTest",
     });
+  });
+
+  it("runs the number of workers it was given, and waits three times the measured test time (R78)", () => {
+    expect(config).toMatchObject({ concurrency: 3, timeoutFactor: 3 });
+    expect(strykerConfig({ ...PLAN, concurrency: 1 })).toMatchObject({ concurrency: 1 });
   });
 
   it("mutates the given ranges, and never a test file", () => {
@@ -46,12 +52,14 @@ describe("G7a strykerConfig", () => {
       [
         "checkers",
         "cleanTempDir",
+        "concurrency",
         "coverageAnalysis",
         "jsonReporter",
         "mutate",
         "reporters",
         "tempDirName",
         "testRunner",
+        "timeoutFactor",
         "tsconfigFile",
         "vitest",
       ].sort(),

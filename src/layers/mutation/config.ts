@@ -8,9 +8,18 @@ export interface StrykerPlan {
   readonly report: string;
   /** Stryker's scratch directory, relative to the project root. */
   readonly tempDir: string;
+  /** Stryker's worker count: the CPUs the process can use, less one (`usableWorkers`). */
+  readonly concurrency: number;
   /** The project's tsconfig for the TypeScript checker, when it has one. */
   readonly tsconfig?: string;
 }
+
+/**
+ * How many times the measured test time a mutant's run may take before Stryker calls it a timeout. The default 1.5
+ * times the dry run, plus 5 s, is short for a run on a loaded runner; a timeout counts as killed, so one that comes
+ * of load and not of a loop would hide a weak test (the layer is `not-evaluated` when many do).
+ */
+const TIMEOUT_FACTOR = 3;
 
 /** A test file is never mutated, however the ranges were chosen. */
 const NOT_TESTS = "!**/*.{test,spec}.?(c|m)[jt]s?(x)";
@@ -27,6 +36,8 @@ export function strykerConfig(plan: StrykerPlan): Record<string, unknown> {
     checkers: ["typescript"],
     ...(plan.tsconfig === undefined ? {} : { tsconfigFile: plan.tsconfig }),
     coverageAnalysis: "perTest",
+    concurrency: plan.concurrency,
+    timeoutFactor: TIMEOUT_FACTOR,
     mutate: [...plan.mutate, NOT_TESTS],
     reporters: ["json"],
     jsonReporter: { fileName: plan.report },
