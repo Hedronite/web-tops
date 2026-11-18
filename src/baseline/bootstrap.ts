@@ -1,9 +1,10 @@
+import { isCountable } from "./state.ts";
 import { endsRun, type Finding, type GateReport, type LayerReport } from "../config/report.ts";
 
 type Holds = (finding: Finding) => boolean;
 
 /** A finding the baseline counts per rule per file: a tool's, with a place in a file. */
-const counted: Holds = (finding) => finding.tool !== "webtops" && finding.file !== null;
+const counted: Holds = isCountable;
 
 /** What a baseline holds, by layer (WEB_TOPS.md section 6.7); anything else a layer fails on is not something to adopt. */
 const HOLDS: Readonly<Record<string, Holds>> = {

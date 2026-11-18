@@ -544,6 +544,14 @@ Baseline rules:
   baseline, a new function over the cap, a function above its baseline CRAP. With no baseline yet
   they judge as under `hard`. Mutation stays diff-scoped: a survivor in a function that was never
   mutated is judged against the ledger only, and a legacy survivor outside the diff is not counted.
+- The same holds for the layers that count findings, hygiene and laws: under `ratchet` with a
+  baseline, a counted finding (a tool's own, with a file) at or under its baseline count per rule
+  per file does not end the run, and a count above it is refused as `ratchet-findings-up`. Each
+  finding stays in the report as the tool said it, because the baseline is projected from them,
+  and the layer says how many it held (`ratchet-held`). A failure that is not a counted finding,
+  such as a tool that cannot run, a config error or a step that failed, still fails. With no
+  baseline yet, they fail as under `hard`.
+- Its refusal for a work tree that is not clean names the uncommitted files.
 - Across a change the baseline may only tighten. `check` under `ratchet` compares it with
   the merge base's copy: a higher finding count, a function with worse CRAP, lower coverage, a census count
   that rose or a new function above the class cap fails, so regenerating the baseline cannot

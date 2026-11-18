@@ -5,6 +5,7 @@ import { validateReport, type GateReport } from "../config/report.ts";
 import { cleanRepos, commit, git, write } from "../diff/test-support.ts";
 import { REAL_TOOL_TIMEOUT } from "../gate/test-support-timeouts.ts";
 import { realProject } from "../layers/tests/testkit.ts";
+import { readBaseline } from "../baseline/read.ts";
 import { runBaselineCli } from "./baseline.ts";
 import { runCheckCli } from "./check.ts";
 import { runGateCli } from "./gate.ts";
@@ -65,13 +66,13 @@ const NEWER = `export function newer(a: number, b: number): number {
 }
 `;
 
-function adopter(): string {
+const DEBT_FILES = { "src/legacy.ts": LEGACY, "src/ok.ts": OK, "src/ok.test.ts": OK_TEST };
+
+function adopter(yaml = YAML, files: Readonly<Record<string, string>> = DEBT_FILES): string {
   const { project } = realProject({
-    "web-tops.yaml": YAML,
+    "web-tops.yaml": yaml,
     ".gitignore": "node_modules\n.web-tops/report.json\n.web-tops/out/\n",
-    "src/legacy.ts": LEGACY,
-    "src/ok.ts": OK,
-    "src/ok.test.ts": OK_TEST,
+    ...files,
   });
   dirs.push(project.dir);
   git(project.dir, "init", "-q", "-b", "main");
@@ -105,6 +106,10 @@ async function gate(dir: string, ...args: string[]): Promise<{ code: number; rep
   const read = validateReport(JSON.parse(readFileSync(join(dir, ".web-tops/report.json"), "utf8")));
   if (!read.ok) throw new Error(`the report is not valid: ${JSON.stringify(read.problems)}`);
   return { code, report: read.value };
+}
+
+function layerOf(report: GateReport, layer: string): GateReport["layers"][number] | undefined {
+  return report.layers.find((item) => item.id === layer);
 }
 
 function rulesOf(report: GateReport, layer: string): string[] {
@@ -189,5 +194,91 @@ describe("G9 end to end: legacy debt adopts the ratchet, and is held to it", () 
       expect(existsSync(join(dir, ".web-tops/baseline.json"))).toBe(false);
     },
     REAL_TOOL_TIMEOUT * 3,
+  );
+});
+
+const LINT_YAML = YAML.replace(
+  / {2}hygiene: .*\n/,
+  `  hygiene:
+    install: { enabled: false, reason: "the end-to-end test installs nothing" }
+    tsc: { enabled: false, reason: "the end-to-end test judges the lint" }
+    format: { enabled: false, reason: "the end-to-end test judges the lint" }
+    dependency_cruiser: { enabled: false, reason: "the end-to-end test judges the lint" }
+    audit: { enabled: false, reason: "the end-to-end test audits nothing" }
+    eslint: { config: eslint.config.js }
+`,
+);
+
+const ESLINT_CONFIG = `import tseslint from "typescript-eslint";
+export default [
+  { files: ["**/*.ts"], languageOptions: { parser: tseslint.parser }, rules: { "no-var": "error" } },
+];
+`;
+
+/** `no-var` twice: lint debt that a test covers, so that the lint is all that is wrong with it. */
+const OLD = (vars: number): string =>
+  `export function old(): number {\n${Array.from({ length: vars }, (_, n) => `  var v${String(n)} = ${String(n)};\n`).join("")}  return 3;\n}\n`;
+
+const OLD_TEST =
+  'import { expect, it } from "vitest";\nimport { old } from "./old.ts";\nit("old", () => {\n  expect(old()).toBe(3);\n});\n';
+
+const LINT_FILES = {
+  "eslint.config.js": ESLINT_CONFIG,
+  "src/old.ts": OLD(2),
+  "src/old.test.ts": OLD_TEST,
+};
+
+describe("G9-4 end to end: legacy lint adopts the ratchet, and is held at its count", () => {
+  it(
+    "holds the lint a baseline holds, refuses a rise, and still fails what is not a count",
+    async () => {
+      const dir = adopter(LINT_YAML, LINT_FILES);
+
+      // no baseline yet: the lint fails the run, and that failure is what a first baseline holds
+      const first = await gate(dir, "--all", "--keep-going");
+      expect(first.code).toBe(1);
+      expect(rulesOf(first.report, "hygiene")).toContain("no-var");
+      expect(await runBaselineCli([], streams(dir).io)).toBe(0);
+      commit(dir, "adopt the ratchet");
+      const read = readBaseline(dir, ".web-tops/baseline.json");
+      expect(read.ok && read.baseline.findings).toEqual({ "no-var": { "src/old.ts": 2 } });
+
+      // held: the same lint passes, each finding still in the report, and the count is still the baseline's
+      const held = await gate(dir);
+      expect(held.code).toBe(0);
+      expect(layerOf(held.report, "hygiene")?.verdict).toBe("pass");
+      expect(rulesOf(held.report, "hygiene")).toEqual(
+        expect.arrayContaining(["no-var", "ratchet-held"]),
+      );
+
+      // fewer findings than the baseline holds pass
+      write(dir, { "src/old.ts": OLD(1) });
+      commit(dir, "fix one");
+      expect((await gate(dir)).code).toBe(0);
+
+      // more of the same rule in the same file is refused
+      write(dir, { "src/old.ts": OLD(3) });
+      commit(dir, "one more");
+      const more = await gate(dir);
+      expect(more.code).toBe(1);
+      expect(rulesOf(more.report, "hygiene")).toContain("ratchet-findings-up");
+
+      // so is the same rule in a new file
+      write(dir, { "src/old.ts": OLD(2), "src/fresh.ts": OLD(1).replace("old", "fresh") });
+      commit(dir, "a new file with lint");
+      const fresh = await gate(dir);
+      expect(fresh.code).toBe(1);
+      expect(rulesOf(fresh.report, "hygiene")).toContain("ratchet-findings-up");
+
+      // a failure that is not a count still fails: ESLint cannot load its config
+      git(dir, "rm", "-q", "-f", "src/fresh.ts");
+      write(dir, { "eslint.config.js": 'throw new Error("broken config");\n' });
+      commit(dir, "break the lint config");
+      const broken = await gate(dir);
+      expect(broken.code).toBe(1);
+      expect(layerOf(broken.report, "hygiene")?.verdict).toBe("fail");
+      expect(rulesOf(broken.report, "hygiene")).not.toContain("ratchet-held");
+    },
+    REAL_TOOL_TIMEOUT * 10,
   );
 });

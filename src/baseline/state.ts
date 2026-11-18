@@ -16,3 +16,15 @@ export function ratchetHeld(context: RatchetContext): boolean {
   const path = context.config.baselinePath;
   return context.enforce === "ratchet" && path !== undefined && readBaseline(context.cwd, path).ok;
 }
+
+/**
+ * A finding a baseline counts and a held ratchet may hold: a tool's own, with a place in a file. A failure of the
+ * gate's own (a tool that cannot run, a config error, a step that failed) is not one, and a finding with no file
+ * has nothing to count it by.
+ */
+export function isCountable(finding: {
+  readonly tool: string;
+  readonly file?: string | null | undefined;
+}): boolean {
+  return finding.tool !== "webtops" && finding.file !== undefined && finding.file !== null;
+}

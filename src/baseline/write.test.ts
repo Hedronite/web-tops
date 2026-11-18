@@ -133,6 +133,55 @@ describe("G9a: webtops baseline is the only writer, from a passing report on a c
     );
   });
 
+  it("refuses a first baseline from a run whose CRAP could not read a file, though the finding has a file (G9-5)", async () => {
+    const layers = objectOf(source)["layers"];
+    const list = Array.isArray(layers) ? layers : [];
+    const broken = list.map((layer: unknown) =>
+      objectOf(layer)["id"] === "crap"
+        ? {
+            ...objectOf(layer),
+            verdict: "fail",
+            findings: [
+              {
+                tool: "webtops",
+                rule: "complexity-error",
+                law: null,
+                verdict: "fail",
+                message: "src/a.ts does not parse",
+                file: "src/a.ts",
+                line: 1,
+                fingerprint: "fp1:0123456789abcdef",
+              },
+            ],
+          }
+        : layer,
+    );
+    const { dir } = repoWithReport({
+      passed: false,
+      exit_code: 1,
+      layers: broken,
+      counts: { in_range: 7, ran: 7, failed: 2, not_evaluated: 0, required_not_evaluated: 0 },
+    });
+    const text = JSON.stringify(await run(dir));
+    expect(text).toContain("crap has complexity-error, which a baseline does not hold");
+    expect(existsSync(join(dir, BASELINE))).toBe(false);
+  });
+
+  it("names the uncommitted files in its refusal, and says how many more there are (G9-7)", async () => {
+    const one = repoWithReport();
+    write(one.dir, { "src/a.ts": "export const a = 3;\n", "src/new.ts": "export const n = 1;\n" });
+    const text = JSON.stringify(await run(one.dir));
+    expect(text).toContain("uncommitted changes (2): src/a.ts, src/new.ts;");
+    const many = repoWithReport();
+    const files = Object.fromEntries(
+      [1, 2, 3, 4, 5, 6, 7].map((n) => [`src/n${String(n)}.ts`, "export {};\n"]),
+    );
+    write(many.dir, files);
+    expect(JSON.stringify(await run(many.dir))).toContain(
+      "src/n1.ts, src/n2.ts, src/n3.ts, src/n4.ts, src/n5.ts and 2 more;",
+    );
+  });
+
   it("once a baseline exists, accepts only a passing report (G9-2)", async () => {
     const { dir } = repoWithReport();
     expect((await run(dir)).ok).toBe(true);
@@ -168,6 +217,15 @@ describe("G9a: webtops baseline is the only writer, from a passing report on a c
     const untracked = repoWithReport();
     write(untracked.dir, { "src/new.ts": "export const n = 1;\n" });
     expect(JSON.stringify(await run(untracked.dir))).toMatch(/uncommitted|clean/);
+  });
+
+  it("does not call the baseline's own uncommitted change a dirty tree, even as the first line of the status (G9-7)", async () => {
+    const { dir } = repoWithReport();
+    write(dir, { [BASELINE]: "{}\n" });
+    commit(dir, "a baseline to change");
+    const sha = git(dir, "rev-parse", "HEAD");
+    write(dir, { [REPORT]: passing(sha), [BASELINE]: canonicalJson({ changed: true }) });
+    expect(JSON.stringify(await run(dir))).not.toContain("uncommitted");
   });
 
   it("refuses a baseline that would be looser than the one already written", async () => {

@@ -48,8 +48,11 @@ function readReport(cwd: string, path: string): ReportRead {
 }
 
 /** A path git reports that is not the baseline or the gate's own output. */
+/** The path in a porcelain status line: its status letters and the space after them are dropped, whether or not the first line lost its leading space to a trim. */
+const pathOf = (line: string): string => line.replace(/^\s*\S+\s+/, "");
+
 function isOutside(line: string, baselinePath: string): boolean {
-  const path = line.slice(3);
+  const path = pathOf(line);
   return !(path.startsWith(".web-tops/") || path.includes("/.web-tops/") || path === baselinePath);
 }
 
@@ -65,6 +68,18 @@ async function shaProblem(
     : `the report is for commit ${String(report.run.sha)}, and HEAD is ${head.value}; run webtops gate again`;
 }
 
+/** At most this many uncommitted files are named in the refusal; the rest are counted. */
+const NAMED = 5;
+
+/** The files a porcelain status lists, as the refusal names them. */
+function namesOf(dirty: readonly string[]): string {
+  const names = dirty.map(pathOf);
+  const more = names.length - NAMED;
+  return more > 0
+    ? `${names.slice(0, NAMED).join(", ")} and ${String(more)} more`
+    : names.join(", ");
+}
+
 async function dirtyProblem(
   exec: Exec,
   cwd: string,
@@ -77,7 +92,7 @@ async function dirtyProblem(
     .filter((line) => line.trim() !== "" && isOutside(line, baselinePath));
   return dirty.length === 0
     ? undefined
-    : `the work tree has uncommitted changes (${String(dirty.length)}); commit or stash them, then run webtops gate again`;
+    : `the work tree has uncommitted changes (${String(dirty.length)}): ${namesOf(dirty)}; commit or stash them, then run webtops gate again`;
 }
 
 /** Why the work tree is not the one the report judged, or undefined: the report's commit is HEAD and the tree is clean. */

@@ -60,6 +60,13 @@ describe("G9: the protocol text states the baseline the code writes", () => {
       "judged against the ledger only",
     ],
     ["turns what is above the baseline into refuse findings", "`ratchet-crap-up`"],
+    [
+      "holds a counted hygiene or laws finding at its baseline count",
+      "at or under its baseline count per rule",
+    ],
+    ["refuses a rise in a counted finding", "`ratchet-findings-up`"],
+    ["still fails what is not a counted finding", "A failure that is not a counted finding"],
+    ["names the uncommitted files in its refusal", "names the uncommitted files"],
     ["asks for the baseline's history at the start of gate", "start of `gate`"],
   ])("section 6.7 %s", (_what, phrase) => {
     expect(modes).toContain(phrase);

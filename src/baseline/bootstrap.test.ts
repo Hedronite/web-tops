@@ -119,6 +119,22 @@ describe("G9-2: with no baseline yet, a report is a first baseline if its only f
       { verdict: "fail" as const, findings: [row("stryker-failed", "fail", { tool: "stryker" })] },
     ],
     [
+      "a file the complexity counter could not read",
+      "crap",
+      {
+        verdict: "fail" as const,
+        findings: [row("complexity-error", "fail", { file: "src/a.ts", line: 1 })],
+      },
+    ],
+    [
+      "a coverage input the CRAP layer could not read",
+      "crap",
+      {
+        verdict: "fail" as const,
+        findings: [row("output-unparseable", "fail", { file: ".web-tops/out/c.json" })],
+      },
+    ],
+    [
       "a failed layer with no finding that says why",
       "crap",
       { verdict: "fail" as const, findings: [] },
