@@ -12,9 +12,11 @@ import type {
   ExecResult,
   GateConfig,
   LayerContext,
+  LayerResult,
 } from "../../gate/types.ts";
 import type { RawFinding } from "../../report/findings.ts";
 import { keyString } from "../../survivors/key.ts";
+import { usableWorkers } from "./cpus.ts";
 import { mutationLayer } from "./index.ts";
 
 /** G7a to G7c: the mutation layer runs Stryker on the gate's Vitest wrapper and judges its report (WEB_TOPS.md section 6.4). */
@@ -280,6 +282,96 @@ describe("G7a the layer runs Stryker on the gate's wrapper and reads its report"
     expect(accepted).toHaveLength(1);
     expect(accepted[0]).toMatchObject({ verdict: "pass", survivor: key });
     expect(accepted[0]?.message).toContain("is accepted in the survivor ledger");
+  });
+});
+
+/** A report of `statuses`, every mutant a copy of the first one the recording holds, so each has a place in the source. */
+function reportOf(statuses: readonly string[]): string {
+  const recording: unknown = JSON.parse(recorded(NO_COVERAGE));
+  const file: unknown = Reflect.get(
+    Object(Reflect.get(Object(recording), "files")),
+    "src/price.ts",
+  );
+  const mutants: unknown = Reflect.get(Object(file), "mutants");
+  const first: unknown = Reflect.get(Object(mutants), 0);
+  const base: object = typeof first === "object" && first !== null ? first : {};
+  const copies = statuses.map((status, index) => ({ ...base, id: String(index), status }));
+  return JSON.stringify({ files: { "src/price.ts": { mutants: copies } } });
+}
+
+const times = (count: number, status: string): string[] => Array<string>(count).fill(status);
+
+describe("R78 a run in which many mutants timed out is not evaluated, never a pass", () => {
+  async function run(report: string): Promise<LayerResult> {
+    const dir = project(NO_COVERAGE, PRICE);
+    return mutationLayer.run(contextFor(dir, fakeExec(PRICE, report).exec));
+  }
+
+  it("the starved run of the container: nearly every mutant timed out, so nothing was judged", async () => {
+    const result = await run(reportOf([...times(16, "Timeout"), ...times(5, "Killed")]));
+    expect(result.verdict).toBe("not-evaluated");
+    expect(result.reason).toBe(
+      "16 of 21 mutants timed out: the machine was starved or a mutant looped",
+    );
+    const finding = result.findings.find((item) => item.rule === "mutation-timeouts");
+    expect(finding).toMatchObject({ tool: "webtops", verdict: "not-evaluated" });
+    expect(finding?.message).toBe(result.reason);
+    expect(result.findings.some((item) => item.verdict === "fail")).toBe(false);
+  });
+
+  it("the same machine, not starved: the survivors are seen, and the layer is red", async () => {
+    const result = await run(reportOf([...times(16, "Killed"), ...times(5, "Survived")]));
+    expect(result.verdict).toBe("fail");
+    expect(result.findings.filter((item) => item.rule === "survived")).toHaveLength(5);
+    expect(result.reason).toBeUndefined();
+  });
+
+  it("a survivor still fails the layer when many mutants also timed out: the red is not hidden", async () => {
+    const result = await run(
+      reportOf([...times(16, "Timeout"), "Survived", ...times(4, "Killed")]),
+    );
+    expect(result.verdict).toBe("fail");
+    expect(result.findings.some((item) => item.rule === "mutation-timeouts")).toBe(true);
+  });
+
+  it.each([
+    [20, 2, "pass"],
+    [20, 3, "not-evaluated"],
+    [40, 4, "pass"],
+    [40, 5, "not-evaluated"],
+    [100, 10, "pass"],
+    [100, 11, "not-evaluated"],
+    [2, 2, "pass"],
+    [3, 3, "not-evaluated"],
+    [30, 0, "pass"],
+  ])("%d judged mutants, %d of them timed out: %s", async (judged, timeouts, verdict) => {
+    const result = await run(
+      reportOf([...times(timeouts, "Timeout"), ...times(judged - timeouts, "Killed")]),
+    );
+    expect(result.verdict).toBe(verdict);
+  });
+
+  it("a timeout is still a kill below the line: the summary counts it as killed and says how many", async () => {
+    const result = await run(reportOf([...times(1, "Timeout"), ...times(19, "Killed")]));
+    expect(result.verdict).toBe("pass");
+    const said = result.findings.find((item) => item.rule === "mutation")?.message ?? "";
+    expect(said).toContain("20 mutants killed");
+    expect(said).toContain("timeout 1");
+    expect(result.findings.some((item) => item.rule === "mutation-timeouts")).toBe(false);
+  });
+
+  it("excluded mutants beside the timeouts are not judged, so three timeouts among them are still starved", async () => {
+    const result = await run(reportOf([...times(3, "Timeout"), ...times(5, "CompileError")]));
+    expect(result.verdict).toBe("not-evaluated");
+  });
+});
+
+describe("R78 the generated config sets the workers from the CPUs the process can use", () => {
+  it("writes concurrency and timeoutFactor into the Stryker config", async () => {
+    const dir = project(NO_COVERAGE, PRICE);
+    const run = fakeExec(PRICE, recorded(NO_COVERAGE));
+    await mutationLayer.run(contextFor(dir, run.exec));
+    expect(generated(dir, run)).toMatchObject({ concurrency: usableWorkers(), timeoutFactor: 3 });
   });
 });
 

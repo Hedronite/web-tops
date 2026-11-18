@@ -403,6 +403,13 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
   `NoCoverage` counts with `Survived`: a function that no test runs has only `NoCoverage` mutants,
   and counting `Survived` alone would score it best. Stryker classes `CompileError` and `RuntimeError` as invalid mutants, so both are
   excluded. A status the table does not list makes the layer `fail`, with that status in the reason.
+- **Timeouts.** A mutant that Stryker stops as timed out counts as killed (the table above), but a run in
+  which more than a tenth of the judged mutants, and more than two, timed out is `not-evaluated`, with
+  "N of M mutants timed out: the machine was starved or a mutant looped" as the reason and the rule
+  `mutation-timeouts`; a survivor still fails the layer. A starved machine times out the mutants a weak test would
+  have let live, and a pass from such a run proves nothing. The gate sets Stryker's `concurrency` to the CPUs the
+  process can use (`os.availableParallelism()` and a control-group CPU limit, whichever is less) minus one, at least
+  one, and `timeoutFactor` to 3. The message of the layer counts the mutants by every status (§6.6 `metrics.mutation`).
 - **Diff outcomes:** a diff that fails (no merge base, shallow clone) is `fail`, with no
   exemption. A diff with no changed source line and no function covered by a changed test is
   `vacuous` (§3.3); a diff that changes only tests is not. CI checks out with `fetch-depth: 0`.
@@ -592,7 +599,7 @@ fails under `ratchet`.
 | `biome-ignore` | each `biome-ignore` comment |
 | `axe-disable-rules`, `axe-exclude` | each rule in `disableRules`; each selector in `exclude` |
 | `eslint-ignores` | each tracked file in scope that an ESLint `ignores` entry leaves out |
-| `eslint-rule-off` | each (rule, tracked file in scope) pair whose effective level, from ESLint's `calculateConfigForFile`, is `off` while the rule is on for another tracked file: a per-file override that sets a rule off |
+| `eslint-rule-off` | each (rule, tracked file in scope) pair whose effective level, from ESLint's `calculateConfigForFile`, is `off` while the rule is on for another tracked file with the same extension: a per-file override that sets a rule off. A rule that is on only for files of another extension, as typed rules are on for `.ts` and off for `.js`, is not one |
 | `tsconfig-exclude` | each tracked file in scope that `tsconfig.json` `exclude` leaves out of the program |
 
 A rule that is off everywhere is not a census item: for a required law it is `refuse` (§8.1).
@@ -1084,6 +1091,7 @@ The kit is written in TypeScript and is installed and started with Bun, so it ga
 web-tops/
 ├── src/
 │   ├── baseline/            # webtops baseline: the projection from a report, the ratchet comparison, the baseline across a change
+│   ├── census/              # the suppression census readers (§6.7): directive comments, ESLint and tsconfig configuration
 │   ├── cli/                 # webtops entry and one file per command
 │   ├── complexity/          # the section 6.3 counter on the TypeScript AST, and function keys (6.7)
 │   ├── config/              # class table, config validation, semantic checks, report validation
