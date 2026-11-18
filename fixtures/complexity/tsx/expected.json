@@ -1,0 +1,59 @@
+{
+  "records": [
+    {
+      "key": "input.tsx::<module>",
+      "kind": "module",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        1,
+        11
+      ]
+    },
+    {
+      "key": "input.tsx::List",
+      "kind": "function",
+      "scored": true,
+      "own": 2,
+      "score": 4,
+      "lines": [
+        2,
+        9
+      ]
+    },
+    {
+      "key": "input.tsx::List~1",
+      "kind": "arrow",
+      "scored": false,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        5,
+        5
+      ]
+    },
+    {
+      "key": "input.tsx::List~2",
+      "kind": "arrow",
+      "scored": false,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        6,
+        6
+      ]
+    },
+    {
+      "key": "input.tsx::pair",
+      "kind": "arrow",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        10,
+        10
+      ]
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "records": [
+    {
+      "key": "input.astro::<module>",
+      "kind": "module",
+      "scored": true,
+      "own": 3,
+      "score": 3,
+      "lines": [
+        1,
+        9
+      ]
+    },
+    {
+      "key": "input.astro::<module>~1",
+      "kind": "arrow",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        7,
+        7
+      ]
+    },
+    {
+      "key": "input.astro::track",
+      "kind": "function",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        8,
+        8
+      ]
+    }
+  ]
+}
