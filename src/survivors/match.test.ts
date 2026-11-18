@@ -68,6 +68,14 @@ describe("judge", () => {
     }
   });
 
+  it("tells two survivors apart by occurrence alone: the entry for #2 leaves #1 unexplained", () => {
+    const first = CLAMP_KEY;
+    const second = { ...CLAMP_KEY, occurrence: 2 };
+    const found = judge([entry(second)], [first, second], TODAY);
+    expect(found.explained).toEqual([second]);
+    expect(found.unexplained).toEqual([first]);
+  });
+
   it("stops an expired entry accepting, and fails the entry itself", () => {
     const old = entry(CLAMP_KEY, { expires: "2026-11-16" });
     const found = judge([old], [CLAMP_KEY], TODAY);

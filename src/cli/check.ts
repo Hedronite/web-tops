@@ -1,8 +1,7 @@
 import { dirname, resolve } from "node:path";
 import { checkConfigFile } from "../config/validate.ts";
 import type { Problem } from "../config/types.ts";
-import { checkLedger } from "../survivors/check.ts";
-import { DEFAULT_LEDGER } from "../survivors/check.ts";
+import { checkLedger, DEFAULT_LEDGER } from "../survivors/check.ts";
 import type { Io } from "./io.ts";
 
 const DEFAULT_PATH = "web-tops.yaml";
@@ -22,21 +21,16 @@ function line(problem: Problem): string {
   return `  ${problem.pointer === "" ? "(document)" : problem.pointer}: ${problem.message}\n`;
 }
 
-/** The survivor ledger's problems as lines, each at `<ledger path>#<pointer>`; none when it is absent or valid. */
-function ledgerLines(directory: string, ledger: string | undefined): string[] {
-  const named = ledger ?? DEFAULT_LEDGER;
-  return checkLedger(directory, named).map(
-    (problem) => `  ${named}#${problem.pointer}: ${problem.message}\n`,
-  );
-}
+/** The ledger path the config names, else the default. */
+const ledgerPathOf = (config: {
+  readonly gates?: { readonly mutation?: { readonly ledger?: string } };
+}): string => config.gates?.mutation?.ledger ?? DEFAULT_LEDGER;
 
-type Checked = ReturnType<typeof checkConfigFile>;
-
-/** Every problem the config file has, as lines: the schema and semantic ones, or the ledger's when those pass. */
-function problemLines(file: string, result: Checked): string[] {
-  return result.ok
-    ? ledgerLines(dirname(file), result.value.gates?.mutation?.ledger)
-    : result.problems.map(line);
+/** The survivor ledger's problems, headed with the ledger's own path; none when it is absent or valid. */
+function ledgerReport(directory: string, named: string): string | undefined {
+  const problems = checkLedger(directory, named);
+  if (problems.length === 0) return undefined;
+  return `${named}: invalid\n${problems.map(line).join("")}`;
 }
 
 function check(argv: readonly string[], io: Io): number {
@@ -47,9 +41,13 @@ function check(argv: readonly string[], io: Io): number {
   }
   const file = resolve(io.cwd, path);
   const result = checkConfigFile(file);
-  const lines = problemLines(file, result);
-  if (!result.ok || lines.length > 0) {
-    io.err(`${path}: invalid\n${lines.join("")}`);
+  if (!result.ok) {
+    io.err(`${path}: invalid\n${result.problems.map(line).join("")}`);
+    return 2;
+  }
+  const ledger = ledgerReport(dirname(file), ledgerPathOf(result.value));
+  if (ledger !== undefined) {
+    io.err(ledger);
     return 2;
   }
   io.out(`${path}: ok (class ${result.value.class}, enforce ${result.value.enforce})\n`);

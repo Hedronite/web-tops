@@ -117,17 +117,30 @@ function nextText(
     : amended(text, entry, read.entries);
 }
 
+/** The reason the file could not be written, or undefined once it is. */
+function tryWrite(path: string, text: string): string | undefined {
+  try {
+    writeAtomically(path, text);
+    return undefined;
+  } catch (error) {
+    const why = error instanceof Error ? error.message : "unknown error";
+    return `could not write ${path}: ${why}`;
+  }
+}
+
 /**
  * Records one entry: adds it in sorted place, or replaces the entry that has the same key (reason, owner
  * and expiry change; the key never does). Nothing is written unless the ledger as it stands is valid and
- * the path is allowed; the other entries and the comments are kept.
+ * the path is allowed; the other entries and the comments are kept. A write that fails is reported, and
+ * leaves the ledger as it was.
  */
 export function recordEntry(directory: string, path: string, entry: LedgerEntry): Recorded {
+  const located = resolveLedgerPath(directory, path);
+  if (!located.ok) return { ok: false, message: located.message };
   const read = readLedger(directory, path);
   if (!read.ok)
     return { ok: false, message: read.problems.map((found) => found.message).join("; ") };
-  const located = resolveLedgerPath(directory, path);
-  if (!located.ok) return { ok: false, message: located.message };
-  writeAtomically(located.path, nextText(read, entry));
+  const failed = tryWrite(located.path, nextText(read, entry));
+  if (failed !== undefined) return { ok: false, message: failed };
   return { ok: true, replaced: read.entries.some((other) => sameKey(other, entry)) };
 }

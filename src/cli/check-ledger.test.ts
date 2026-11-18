@@ -48,24 +48,26 @@ describe("webtops check reads the survivor ledger", () => {
   it("fails an entry with no reason, naming the ledger and the pointer", async () => {
     const { code, err } = await check(project(ledgerYaml(entryYaml(CLAMP_KEY, ["owner: o"]))));
     expect(code).toBe(2);
-    expect(err).toContain("web-tops.yaml: invalid");
-    expect(err).toContain(".web-tops/survivors.yaml#/survivors/0/reason: reason is missing");
+    expect(err).toContain(
+      ".web-tops/survivors.yaml: invalid\n  /survivors/0/reason: reason is missing",
+    );
+    expect(err).not.toContain("web-tops.yaml: invalid");
   });
 
   it("fails an entry with no owner, or a blank one", async () => {
     const missing = await check(project(ledgerYaml(entryYaml(CLAMP_KEY, ["reason: r"]))));
-    expect(missing.err).toContain("#/survivors/0/owner: owner is missing");
+    expect(missing.err).toContain("  /survivors/0/owner: owner is missing");
     const blank = await check(
       project(ledgerYaml(entryYaml(CLAMP_KEY, ["reason: r", 'owner: "  "']))),
     );
-    expect(blank.err).toContain("#/survivors/0/owner: owner is blank");
+    expect(blank.err).toContain("  /survivors/0/owner: owner is blank");
   });
 
   it("names every problem of every entry", async () => {
     const both = ledgerYaml(entryYaml(CLAMP_KEY, ["owner: o"]), entryYaml(SUM_KEY, ["reason: r"]));
     const { err } = await check(project(both));
-    expect(err).toContain("#/survivors/0/reason");
-    expect(err).toContain("#/survivors/1/owner");
+    expect(err).toContain("  /survivors/0/reason");
+    expect(err).toContain("  /survivors/1/owner");
   });
 
   it("reads the ledger the config names", async () => {
@@ -76,7 +78,7 @@ describe("webtops check reads the survivor ledger", () => {
       EXAMPLE.replace("ledger: .web-tops/survivors.yaml", "ledger: accepted.yaml"),
     );
     put(dir, "accepted.yaml", ledgerYaml(entryYaml(CLAMP_KEY, ["owner: o"])));
-    expect((await check(dir)).err).toContain("accepted.yaml#/survivors/0/reason");
+    expect((await check(dir)).err).toContain("accepted.yaml: invalid\n  /survivors/0/reason");
   });
 
   it("still reports the config's own problems first, and not the ledger's beside them", async () => {

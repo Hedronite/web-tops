@@ -203,6 +203,14 @@ describe("recordEntry", () => {
     expect(statSync(join(dir, PATH)).ino).not.toBe(before);
   });
 
+  it("reports a write that fails, and changes nothing", () => {
+    const dir = tempDir();
+    writeFileSync(join(dir, ".web-tops"), "not a directory");
+    const result = recordEntry(dir, PATH, entry(CLAMP_KEY));
+    expect(!result.ok && result.message).toContain("could not write");
+    expect(readFileSync(join(dir, ".web-tops"), "utf8")).toBe("not a directory");
+  });
+
   it("leaves no temporary file behind", () => {
     const dir = tempDir();
     recordEntry(dir, PATH, entry(CLAMP_KEY));

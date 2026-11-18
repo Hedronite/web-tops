@@ -214,25 +214,14 @@ function choose(argv: readonly string[], session: Session): Chosen | string {
 const confirmation = (replaced: boolean, key: SurvivorKey): string =>
   `${replaced ? "replaced" : "explained"} ${keyLine(key)}\n`;
 
-type Outcome =
-  { readonly ok: true; readonly text: string } | { readonly ok: false; readonly message: string };
-
-/** Records what the person said about the survivor the id names, or says what stops it. */
-function explained(argv: readonly string[], session: Session, cwd: string): Outcome {
-  const chosen = choose(argv, session);
-  if (typeof chosen === "string") return { ok: false, message: chosen };
-  const recorded = recordEntry(cwd, session.ledger, chosen.entry);
-  return recorded.ok
-    ? { ok: true, text: confirmation(recorded.replaced, chosen.key) }
-    : { ok: false, message: recorded.message };
-}
-
 function explain(argv: readonly string[], io: Io, now: Clock): number {
   const session = open(io, now);
   if (typeof session === "number") return session;
-  const outcome = explained(argv, session, io.cwd);
-  if (!outcome.ok) return failure(io, outcome.message);
-  io.out(outcome.text);
+  const chosen = choose(argv, session);
+  if (typeof chosen === "string") return failure(io, chosen);
+  const recorded = recordEntry(io.cwd, session.ledger, chosen.entry);
+  if (!recorded.ok) return failure(io, recorded.message);
+  io.out(confirmation(recorded.replaced, chosen.key));
   return 0;
 }
 

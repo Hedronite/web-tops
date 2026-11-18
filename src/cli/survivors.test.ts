@@ -261,6 +261,19 @@ describe("webtops survivors explain", () => {
     ).toBe(0);
   });
 
+  it("refuses, and says why, when the ledger cannot be written", async () => {
+    const dir = tempDir();
+    put(dir, "web-tops.yaml", "gates:\n  mutation:\n    ledger: state/survivors.yaml\n");
+    put(dir, "state", "a file where the ledger's directory should be");
+    put(dir, REPORT, reportWith(CLAMP_KEY));
+    const { code, err } = await cli(["explain", survivorId(CLAMP_KEY), ...said], dir);
+    expect(code).toBe(2);
+    expect(err).toContain("could not write");
+    expect(readFileSync(join(dir, "state"), "utf8")).toBe(
+      "a file where the ledger's directory should be",
+    );
+  });
+
   it("refuses when there is no report to name a survivor from", async () => {
     const dir = tempDir();
     const { code, err } = await cli(["explain", id, ...said], dir);

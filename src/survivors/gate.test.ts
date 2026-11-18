@@ -35,6 +35,13 @@ describe("ledgerState: what the gate takes from the survivor ledger", () => {
     expect(state.findings).toEqual([]);
   });
 
+  it("explains the occurrence an entry names and no other of the same mutation", () => {
+    const dir = project(entryYaml({ ...CLAMP_KEY, occurrence: 2 }, ["reason: r", "owner: o"]));
+    const { explained } = ledgerState(dir, LEDGER, TODAY);
+    expect(explained.has(keyString({ ...CLAMP_KEY, occurrence: 2 }))).toBe(true);
+    expect(explained.has(keyString(CLAMP_KEY))).toBe(false);
+  });
+
   it("stops an expired entry accepting and fails the entry itself, naming who owns it", () => {
     const dir = project(
       entryYaml(CLAMP_KEY, ["reason: r", "owner: web-platform", "expires: 2026-11-16"]),
