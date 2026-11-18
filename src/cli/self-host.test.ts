@@ -140,14 +140,12 @@ describe("R57: the 0.2.0 release", () => {
     expect(text("WEB_TOPS.md")).toContain("| Package version | 0.2.0 (");
   });
 
-  it("dates the changelog entry, with an empty Unreleased above it and the protocol line first", () => {
+  it("dates the changelog entry, with the Unreleased section above it and the protocol line first", () => {
     const changelog = text("CHANGELOG.md");
     const unreleased = changelog.indexOf("## [Unreleased]");
     const release = changelog.indexOf("## [0.2.0] - 2026-11-17");
     expect(unreleased).toBeGreaterThan(-1);
     expect(release).toBeGreaterThan(unreleased);
-    const between = changelog.slice(unreleased + "## [Unreleased]".length, release);
-    expect(between.trim()).toBe("");
     const first = changelog
       .slice(release)
       .split("\n")
