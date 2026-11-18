@@ -32,8 +32,8 @@ const FINDING = ["layers", "1", "findings", "0"];
 const AT = "/layers/1/findings/0";
 
 describe("G1a every finding has tool, rule, law, verdict, message, file, line and fingerprint", () => {
-  it("the fixtures hold complete findings, and report_version is 2.2.0", () => {
-    expect(REPORT_VERSION).toBe("2.2.0");
+  it("the fixtures hold complete findings, and report_version is 2.3.0", () => {
+    expect(REPORT_VERSION).toBe("2.3.0");
     const finding = at(fixture("fail.json"), FINDING);
     expect(names(finding).sort()).toEqual([
       "file",
@@ -73,7 +73,7 @@ describe("G1a every finding has tool, rule, law, verdict, message, file, line an
     expect(pointers(edit(fixture("fail.json"), ["report_version"], "1.0.0"))).toEqual([
       "/report_version",
     ]);
-    expect(pointers(edit(fixture("fail.json"), ["report_version"], "2.2.0"))).toEqual([]);
+    expect(pointers(edit(fixture("fail.json"), ["report_version"], "2.3.0"))).toEqual([]);
   });
 });
 

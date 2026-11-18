@@ -49,7 +49,7 @@ describe("G2a report_version, subject and run", () => {
   });
 
   it("report_version is the report format's own semver, 2.1.0 since a survivor carries its key, and apart from protocol", () => {
-    expect(REPORT_VERSION).toBe("2.2.0");
+    expect(REPORT_VERSION).toBe("2.3.0");
     const report = fixture("pass.json");
     expect(get(report, "report_version")).toBe(REPORT_VERSION);
     expect(get(report, "report_version")).not.toBe(get(report, "protocol"));
@@ -221,6 +221,47 @@ describe("G2c metrics in the shapes the baseline needs", () => {
     expect(
       pointers(edit(report, ["layers", "5", "metrics", "pages", "0", "bytes"], "big")),
     ).toEqual(["/layers/5/metrics/pages/0/bytes"]);
+  });
+
+  const keysOf = (value: unknown): string[] =>
+    typeof value === "object" && value !== null ? Object.keys(value) : [];
+
+  it("the mutation layer's metrics hold one count for each Stryker status (R75)", () => {
+    const counts = at(layerOf(report, "mutation"), ["metrics", "mutation"]);
+    expect(keysOf(counts).sort()).toEqual([
+      "compile_error",
+      "ignored",
+      "killed",
+      "no_coverage",
+      "runtime_error",
+      "survived",
+      "timeout",
+    ]);
+    expect(pointers(report)).toEqual([]);
+    for (const key of keysOf(counts)) {
+      expect(pointers(edit(report, ["layers", "4", "metrics", "mutation", key]))).toEqual([
+        `/layers/4/metrics/mutation/${key}`,
+      ]);
+    }
+    expect(pointers(edit(report, ["layers", "4", "metrics", "mutation", "killed"], -1))).toEqual([
+      "/layers/4/metrics/mutation/killed",
+    ]);
+    expect(pointers(edit(report, ["layers", "4", "metrics", "mutation", "killed"], 1.5))).toEqual([
+      "/layers/4/metrics/mutation/killed",
+    ]);
+    expect(pointers(edit(report, ["layers", "4", "metrics", "mutation", "other"], 1))).toEqual([
+      "/layers/4/metrics/mutation/other",
+    ]);
+  });
+
+  it("only the mutation layer carries mutation metrics, and it carries no other kind", () => {
+    const counts = at(layerOf(report, "mutation"), ["metrics", "mutation"]);
+    const onCrap = edit(report, ["layers", "3", "metrics", "mutation"], counts);
+    expect(pointers(onCrap).some((pointer) => pointer.startsWith("/layers/3/metrics"))).toBe(true);
+    const crapOnMutation = edit(report, ["layers", "4", "metrics", "crap"], []);
+    expect(
+      pointers(crapOnMutation).some((pointer) => pointer.startsWith("/layers/4/metrics")),
+    ).toBe(true);
   });
 
   it("a layer carries only the metrics of its own kind", () => {

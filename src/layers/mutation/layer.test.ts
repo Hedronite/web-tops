@@ -157,6 +157,33 @@ describe("G7a the layer runs Stryker on the gate's wrapper and reads its report"
       occurrence: 1,
     });
     expect(new Set(survivors.map(keyOf)).size).toBe(6);
+  });
+
+  it("reports a count for each Stryker status in its metrics and in its message (R75)", async () => {
+    const dir = project(NO_COVERAGE, PRICE);
+    const result = await mutationLayer.run(
+      contextFor(dir, fakeExec(PRICE, recorded(NO_COVERAGE)).exec),
+    );
+    expect(result.metrics).toEqual({
+      mutation: {
+        killed: 8,
+        timeout: 0,
+        survived: 0,
+        no_coverage: 6,
+        runtime_error: 0,
+        compile_error: 2,
+        ignored: 0,
+      },
+    });
+    const said = result.findings.find((item) => item.rule === "mutation")?.message ?? "";
+    expect(said).toContain(
+      "killed 8, timeout 0, survived 0, no-coverage 6, runtime-error 0, compile-error 2, ignored 0",
+    );
+  });
+
+  it("carries no metrics when there is no report to count", async () => {
+    const dir = project(NO_COVERAGE, PRICE);
+    const result = await mutationLayer.run(contextFor(dir, fakeExec(PRICE, undefined).exec));
     expect(result.metrics).toBeUndefined();
   });
 

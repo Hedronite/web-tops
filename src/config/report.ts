@@ -28,7 +28,7 @@ export const VERDICTS = [
 ] as const;
 
 /** The report format's own version (WEB_TOPS.md section 6.6): it changes only when the report's shape does. */
-export const REPORT_VERSION = "2.2.0";
+export const REPORT_VERSION = "2.3.0";
 
 export type BuiltInLayerId = (typeof LAYER_IDS)[number];
 
@@ -62,12 +62,24 @@ export interface PageMetric {
   readonly bytes: number;
 }
 
+/** A count for each status Stryker gave a mutant, for the mutation layer (section 6.4). */
+export interface MutationMetric {
+  readonly killed: number;
+  readonly timeout: number;
+  readonly survived: number;
+  readonly no_coverage: number;
+  readonly runtime_error: number;
+  readonly compile_error: number;
+  readonly ignored: number;
+}
+
 /** What `webtops baseline` projects from (section 6.6): an empty object until a layer has metrics. */
 export interface Metrics {
   readonly crap?: readonly CrapMetric[];
   readonly coverage?: readonly CoverageMetric[];
   readonly findings?: readonly FindingMetric[];
   readonly pages?: readonly PageMetric[];
+  readonly mutation?: MutationMetric;
 }
 
 /** The package and the root the run judged. */
