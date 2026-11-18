@@ -182,7 +182,7 @@ describe("G3d: section 5.2 states how the caps work (X2)", () => {
 
   it.each([
     ["one cap per class", /one CRAP cap per class/i],
-    ["proposed until set from measurement in M2.5", /proposed until[^.]*measurement[^.]*M2\.5/i],
+    ["measured in M2.5 and kept", /measured in M2\.5[^.]*and kept/i],
     ["binds new and changed functions", /new and changed functions/i],
     ["the ratchet holds legacy functions", /ratchet[^.]*legacy/i],
     ["no per-author cap", /no per-author cap/i],
