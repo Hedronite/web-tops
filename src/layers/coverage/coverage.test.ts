@@ -575,3 +575,44 @@ describe("R67 the hint kind is in the rule name: coverage-hint/v8, /istanbul and
     ]);
   });
 });
+
+describe("R75 the census of the project's directives and configuration is carried by the coverage layer", () => {
+  const CENSUS_RULE = "census/";
+
+  it("emits one pass finding for each suppression directive in a tracked file, with its file and line", async () => {
+    const lcov = lcovWith(record("src/a.ts", 4, 4));
+    lcov.write("src/a.ts", "// @ts-ignore\nexport const a = 1;\n/* eslint-disable */\n");
+    const result = await coverageLayer.run(lcov.context({ exec: tracked("src/a.ts") }));
+    expect(result.verdict).toBe("pass");
+    const found = result.findings.filter((finding) => finding.rule.startsWith(CENSUS_RULE));
+    expect(found).toMatchObject([
+      { rule: "census/ts-ignore", verdict: "pass", file: "src/a.ts", line: 1 },
+      { rule: "census/eslint-disable", verdict: "pass", file: "src/a.ts", line: 3 },
+    ]);
+  });
+
+  it("reads a directive in a test file too: a suppression is a suppression wherever it is written", async () => {
+    const lcov = lcovWith(record("src/a.ts", 4, 4));
+    lcov.write("src/a.ts", "export const a = 1;\n");
+    lcov.write("src/a.test.ts", "// @ts-expect-error: why\n");
+    const result = await coverageLayer.run(
+      lcov.context({ exec: tracked("src/a.ts", "src/a.test.ts") }),
+    );
+    expect(
+      result.findings.filter((finding) => finding.rule === "census/ts-expect-error"),
+    ).toMatchObject([{ file: "src/a.test.ts", line: 1 }]);
+  });
+
+  it("fails the layer, rather than reading as zero, when tsconfig.json cannot be read", async () => {
+    const lcov = lcovWith(record("src/a.ts", 4, 4));
+    lcov.write("src/a.ts", "export const a = 1;\n");
+    lcov.write("tsconfig.json", "{ nope");
+    const result = await coverageLayer.run(
+      lcov.context({ exec: tracked("src/a.ts", "tsconfig.json") }),
+    );
+    expect(result.verdict).toBe("fail");
+    expect(result.findings.some((finding) => finding.rule === "census-tsconfig-unreadable")).toBe(
+      true,
+    );
+  });
+});

@@ -599,7 +599,7 @@ fails under `ratchet`.
 | `biome-ignore` | each `biome-ignore` comment |
 | `axe-disable-rules`, `axe-exclude` | each rule in `disableRules`; each selector in `exclude` |
 | `eslint-ignores` | each tracked file in scope that an ESLint `ignores` entry leaves out |
-| `eslint-rule-off` | each (rule, tracked file in scope) pair whose effective level, from ESLint's `calculateConfigForFile`, is `off` while the rule is on for another tracked file: a per-file override that sets a rule off |
+| `eslint-rule-off` | each (rule, tracked file in scope) pair whose effective level, from ESLint's `calculateConfigForFile`, is `off` while the rule is on for another tracked file with the same extension: a per-file override that sets a rule off. A rule that is on only for files of another extension, as typed rules are on for `.ts` and off for `.js`, is not one |
 | `tsconfig-exclude` | each tracked file in scope that `tsconfig.json` `exclude` leaves out of the program |
 
 A rule that is off everywhere is not a census item: for a required law it is `refuse` (§8.1).
@@ -1091,6 +1091,7 @@ The kit is written in TypeScript and is installed and started with Bun, so it ga
 web-tops/
 ├── src/
 │   ├── baseline/            # webtops baseline: the projection from a report, the ratchet comparison, the baseline across a change
+│   ├── census/              # the suppression census readers (§6.7): directive comments, ESLint and tsconfig configuration
 │   ├── cli/                 # webtops entry and one file per command
 │   ├── complexity/          # the section 6.3 counter on the TypeScript AST, and function keys (6.7)
 │   ├── config/              # class table, config validation, semantic checks, report validation

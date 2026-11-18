@@ -1,3 +1,4 @@
+import { censusFindings } from "../../census/index.ts";
 import type { RawFinding } from "../../report/findings.ts";
 import type { Layer, LayerContext, LayerResult } from "../../gate/types.ts";
 import { join } from "node:path";
@@ -162,6 +163,13 @@ async function scopeFindings(
   return [
     ...missingRecords(ctx, tracked.files, profile.records, relativeTo(ctx.cwd, path)),
     ...hintFindings(ctx, tracked.files),
+    ...(await censusFindings({
+      cwd: ctx.cwd,
+      files: tracked.files,
+      exec: ctx.exec,
+      env: ctx.env,
+      outDir: ctx.outDir,
+    })),
   ];
 }
 
