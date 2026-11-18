@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { realExec } from "../../gate/exec.ts";
 import { REPO_ROOT, SOURCE, realProject, runTests, testFile, type Project } from "./testkit.ts";
+import { REAL_TOOL_TIMEOUT } from "../../gate/test-support-timeouts.ts";
 
 const projects: Project[] = [];
 
@@ -48,13 +49,17 @@ describe("G7-3: a linked temp project keeps Vitest's caches to itself", () => {
     },
   );
 
-  it("leaves the kit's cache metadata as it was after a real run", async () => {
-    const before = kitCache();
-    const item = linked({
-      "src/a.ts": SOURCE,
-      "src/a.test.ts": testFile('it("adds", () => { expect(add(1, 2)).toBe(3); });'),
-    });
-    expect((await runTests(item, realExec)).verdict).toBe("pass");
-    expect(kitCache()).toBe(before);
-  });
+  it(
+    "leaves the kit's cache metadata as it was after a real run",
+    async () => {
+      const before = kitCache();
+      const item = linked({
+        "src/a.ts": SOURCE,
+        "src/a.test.ts": testFile('it("adds", () => { expect(add(1, 2)).toBe(3); });'),
+      });
+      expect((await runTests(item, realExec)).verdict).toBe("pass");
+      expect(kitCache()).toBe(before);
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 });

@@ -9,6 +9,7 @@ import { realExec } from "../../gate/exec.ts";
 import { testsLayer } from "../tests/index.ts";
 import { coverageLayer } from "./index.ts";
 import { isBelow, parseRecords, percent, totalsOf } from "./lcov.ts";
+import { REAL_TOOL_TIMEOUT } from "../../gate/test-support-timeouts.ts";
 
 const projects: Project[] = [];
 
@@ -124,32 +125,36 @@ describe("G4b coverage: empty LCOV fails, below floor fails under hard, ratchet 
     expect(result.verdict).toBe("fail");
   });
 
-  it("measures the LCOV the real tests layer wrote, and fails a project under the floor", async () => {
-    const item = realProject({
-      "src/a.ts": `${SOURCE}export const half = (n: number): number => {\n  if (n > 0) {\n    return n;\n  }\n  return -n;\n};\n`,
-      "src/a.test.ts": testFile('it("adds", () => { expect(add(1, 2)).toBe(3); });'),
-    });
-    projects.push(item);
-    gitInit(item);
-    const context: LayerContext = {
-      cwd: item.project.dir,
-      config: cfg({ coverage: { linesFloor: 100, exclude: [] }, tests: { shuffle: true } }),
-      base: "origin/main",
-      enforce: "hard",
-      env: { PATH: process.env["PATH"] },
-      exec: realExec,
-      outDir: item.outDir,
-      artifacts: new Map(),
-    };
-    const ran = await testsLayer.run(context);
-    expect(ran.verdict).toBe("pass");
-    const result = await coverageLayer.run({
-      ...context,
-      artifacts: new Map(Object.entries(ran.artifacts)),
-    });
-    expect(result.verdict).toBe("fail");
-    expect(result.findings[0]?.rule).toBe("coverage-below-floor");
-  });
+  it(
+    "measures the LCOV the real tests layer wrote, and fails a project under the floor",
+    async () => {
+      const item = realProject({
+        "src/a.ts": `${SOURCE}export const half = (n: number): number => {\n  if (n > 0) {\n    return n;\n  }\n  return -n;\n};\n`,
+        "src/a.test.ts": testFile('it("adds", () => { expect(add(1, 2)).toBe(3); });'),
+      });
+      projects.push(item);
+      gitInit(item);
+      const context: LayerContext = {
+        cwd: item.project.dir,
+        config: cfg({ coverage: { linesFloor: 100, exclude: [] }, tests: { shuffle: true } }),
+        base: "origin/main",
+        enforce: "hard",
+        env: { PATH: process.env["PATH"] },
+        exec: realExec,
+        outDir: item.outDir,
+        artifacts: new Map(),
+      };
+      const ran = await testsLayer.run(context);
+      expect(ran.verdict).toBe("pass");
+      const result = await coverageLayer.run({
+        ...context,
+        artifacts: new Map(Object.entries(ran.artifacts)),
+      });
+      expect(result.verdict).toBe("fail");
+      expect(result.findings[0]?.rule).toBe("coverage-below-floor");
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 });
 
 describe("G4c coverage: every tracked in-scope file has an SF record, or the layer fails (R29 N7)", () => {
@@ -263,44 +268,48 @@ describe("G4c coverage: every tracked in-scope file has an SF record, or the lay
     expect(result.findings.map((finding) => finding.rule)).toContain(rule);
   });
 
-  it("caps a long list of missing records and says how many it left out", async () => {
+  it("returns every missing record: the report keeps them all and only the printer caps", async () => {
     const files = Array.from({ length: 120 }, (_unused, index) => `src/f${String(index)}.ts`);
     const context = lcovWith(record("src/a.ts", 10, 10)).context({
       exec: tracked("src/a.ts", ...files),
     });
     const result = await coverageLayer.run(context);
-    expect(result.findings.filter((finding) => finding.rule === RULE)).toHaveLength(100);
+    expect(result.findings.filter((finding) => finding.rule === RULE)).toHaveLength(120);
     expect(
       result.findings.some((finding) => finding.message.includes("more findings, not listed")),
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it("a tracked file the real tests layer never imported counts against the floor instead of leaving the denominator", async () => {
-    const item = realProject({
-      "src/a.ts": SOURCE,
-      "src/b.ts": "export const never = (): number => {\n  return 1;\n};\n",
-      "src/a.test.ts": testFile('it("adds", () => { expect(add(1, 2)).toBe(3); });'),
-    });
-    projects.push(item);
-    gitInit(item);
-    const context: LayerContext = {
-      cwd: item.project.dir,
-      config: cfg({ coverage: { linesFloor: 100, exclude: [] }, tests: { shuffle: true } }),
-      base: "origin/main",
-      enforce: "hard",
-      env: { PATH: process.env["PATH"] },
-      exec: realExec,
-      outDir: item.outDir,
-      artifacts: new Map(),
-    };
-    const ran = await testsLayer.run(context);
-    const result = await coverageLayer.run({
-      ...context,
-      artifacts: new Map(Object.entries(ran.artifacts)),
-    });
-    expect(result.findings.map((finding) => finding.rule)).toEqual(["coverage-below-floor"]);
-    expect(result.findings[0]?.message).toContain("in 2 files");
-  });
+  it(
+    "a tracked file the real tests layer never imported counts against the floor instead of leaving the denominator",
+    async () => {
+      const item = realProject({
+        "src/a.ts": SOURCE,
+        "src/b.ts": "export const never = (): number => {\n  return 1;\n};\n",
+        "src/a.test.ts": testFile('it("adds", () => { expect(add(1, 2)).toBe(3); });'),
+      });
+      projects.push(item);
+      gitInit(item);
+      const context: LayerContext = {
+        cwd: item.project.dir,
+        config: cfg({ coverage: { linesFloor: 100, exclude: [] }, tests: { shuffle: true } }),
+        base: "origin/main",
+        enforce: "hard",
+        env: { PATH: process.env["PATH"] },
+        exec: realExec,
+        outDir: item.outDir,
+        artifacts: new Map(),
+      };
+      const ran = await testsLayer.run(context);
+      const result = await coverageLayer.run({
+        ...context,
+        artifacts: new Map(Object.entries(ran.artifacts)),
+      });
+      expect(result.findings.map((finding) => finding.rule)).toEqual(["coverage-below-floor"]);
+      expect(result.findings[0]?.message).toContain("in 2 files");
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 });
 
 describe("G4e coverage: the floor is over in-scope records only (R36)", () => {

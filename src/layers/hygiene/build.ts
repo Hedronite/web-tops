@@ -1,7 +1,7 @@
-import type { Finding } from "../../report/types.ts";
+import type { RawFinding } from "../../report/findings.ts";
 import {
-  capFindings,
   exitFinding,
+  toolOf,
   ran,
   failFinding,
   type StepContext,
@@ -28,7 +28,10 @@ async function exitStep(step: StepContext, spec: ExitStep): Promise<StepResult> 
   }
   const { result } = outcome;
   return {
-    findings: result.code === 0 ? [] : [exitFinding(spec.rule, spec.label, result, spec.first)],
+    findings:
+      result.code === 0
+        ? []
+        : [exitFinding(toolOf(spec.tool), spec.rule, spec.label, result, spec.first)],
   };
 }
 
@@ -58,18 +61,18 @@ function group(match: RegExpExecArray, index: number): string {
   return match[index] ?? "";
 }
 
-function tscFinding(text: string): Finding | undefined {
+function tscFinding(text: string): RawFinding | undefined {
   const match = TSC_LINE.exec(text);
   if (match === null) {
     return undefined;
   }
-  return failFinding(group(match, 3), group(match, 4), {
+  return failFinding("tsc", group(match, 3), group(match, 4), {
     file: group(match, 1),
     line: Number.parseInt(group(match, 2), 10),
   });
 }
 
-function isFinding(value: Finding | undefined): value is Finding {
+function isFinding(value: RawFinding | undefined): value is RawFinding {
   return value !== undefined;
 }
 
@@ -84,6 +87,7 @@ export async function tsc(step: StepContext): Promise<StepResult> {
     return { findings: [] };
   }
   const found = result.stdout.split("\n").map(tscFinding).filter(isFinding);
-  const findings = found.length > 0 ? found : [exitFinding("tsc-failed", "tsc", result, "stdout")];
-  return { findings: capFindings(findings, "tsc") };
+  const findings =
+    found.length > 0 ? found : [exitFinding("tsc", "tsc-failed", "tsc", result, "stdout")];
+  return { findings };
 }

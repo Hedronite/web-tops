@@ -149,6 +149,7 @@ describe("G3a hygiene: each tool runs once per gate; ESLint JSON kept on disk", 
     expect(sequence(fake)).not.toContain("astro");
     expect(sequence(fake)).toContain("stylelint");
     expect(result.findings).toContainEqual({
+      tool: "webtops",
       rule: "step:astro_check",
       verdict: "skip",
       message: "class web-app maps astro_check only when package.json lists astro",

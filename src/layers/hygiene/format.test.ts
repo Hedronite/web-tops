@@ -5,6 +5,7 @@ import { realExec } from "../../gate/exec.ts";
 import { off } from "../../gate/testkit.ts";
 import { HYGIENE_STEPS, type HygieneStep } from "../../gate/types.ts";
 import { fakeExec, prepare, runHygiene, type Prepared } from "./testkit.ts";
+import { REAL_TOOL_TIMEOUT } from "../../gate/test-support-timeouts.ts";
 
 /** R41: the format step never judges the gate's own output, whatever the project's ignore files say. */
 
@@ -54,24 +55,29 @@ describe("G3d format: Prettier does not judge .web-tops (real run)", () => {
       expect(result.findings.filter((finding) => finding.verdict === "fail")).toEqual([]);
       expect(result.verdict).toBe("pass");
     },
+    REAL_TOOL_TIMEOUT,
   );
 
-  it("still fails a project file that is not formatted, and names that file and not the gate's", async () => {
-    const item = setup(
-      { "src/a.ts": "export const a = 1;\n", "src/b.ts": "export const   b = 1\n" },
-      true,
-    );
-    plant(item, GATE_OUTPUT, UNFORMATTED);
-    const result = await runHygiene(item, realExec, {
-      env: { PATH: process.env["PATH"] },
-      steps: only("format"),
-    });
-    const files = result.findings
-      .filter((finding) => finding.rule === "format")
-      .map((finding) => finding.file);
-    expect(files).toEqual(["src/b.ts"]);
-    expect(result.verdict).toBe("fail");
-  });
+  it(
+    "still fails a project file that is not formatted, and names that file and not the gate's",
+    async () => {
+      const item = setup(
+        { "src/a.ts": "export const a = 1;\n", "src/b.ts": "export const   b = 1\n" },
+        true,
+      );
+      plant(item, GATE_OUTPUT, UNFORMATTED);
+      const result = await runHygiene(item, realExec, {
+        env: { PATH: process.env["PATH"] },
+        steps: only("format"),
+      });
+      const files = result.findings
+        .filter((finding) => finding.rule === "format")
+        .map((finding) => finding.file);
+      expect(files).toEqual(["src/b.ts"]);
+      expect(result.verdict).toBe("fail");
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 });
 
 describe("G3d format: what the layer hands each formatter", () => {

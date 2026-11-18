@@ -1,5 +1,5 @@
 {
-  "report_version": "1.0.0",
+  "report_version": "2.0.0",
   "protocol": "0.3.0",
   "class": "ts-library",
   "enforce": "hard",
@@ -91,15 +91,26 @@
       "required": true,
       "findings": [
         {
-          "rule": "W-05",
+          "tool": "tsc",
+          "rule": "TS1294",
+          "law": "W-05",
           "verdict": "refuse",
           "message": "enum declaration is forbidden",
           "file": "src/state.ts",
           "line": 4,
+          "fingerprint": "fp1:4baa8ae2de486934",
           "required": true
         }
       ],
-      "metrics": {}
+      "metrics": {
+        "findings": [
+          {
+            "rule": "TS1294",
+            "file": "src/state.ts",
+            "count": 1
+          }
+        ]
+      }
     }
   ],
   "passed": false,

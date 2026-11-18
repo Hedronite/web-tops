@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative } from "node:path";
-import type { Finding } from "../../report/types.ts";
+import type { RawFinding } from "../../report/findings.ts";
+import type { Tool } from "../../report/types.ts";
 import type { ExecResult, HygieneSettings, LayerContext } from "../../gate/types.ts";
 
 /** What a step needs from the layer: the context, the settings and a way to run one tool. */
@@ -16,11 +17,9 @@ export interface StepContext {
 }
 
 export interface StepResult {
-  readonly findings: readonly Finding[];
+  readonly findings: readonly RawFinding[];
   readonly artifacts?: Readonly<Record<string, string>>;
 }
-
-export const MAX_FINDINGS = 100;
 
 /** An installed package and the name its `bin` field gives the tool. */
 interface ToolSpec {
@@ -126,25 +125,54 @@ export async function runTool(
   return underNode(ctx, name, entry, args);
 }
 
+/** The finding's tool for a name the steps run or print: the runtime key, or a label such as `bun audit`. */
+const TOOL_NAMES: Readonly<Record<string, Tool>> = {
+  astro: "astro",
+  attw: "attw",
+  biome: "biome",
+  bun: "bun",
+  "bun audit": "audit",
+  "bun pm pack": "bun",
+  "dependency-cruiser": "dependency-cruiser",
+  depcruise: "dependency-cruiser",
+  eslint: "eslint",
+  prettier: "prettier",
+  publint: "publint",
+  stylelint: "stylelint",
+  tsc: "tsc",
+  vitest: "vitest",
+};
+
+/** `webtops` for anything that is not one of the named tools: the gate's own checks. */
+export function toolOf(name: string): Tool {
+  return TOOL_NAMES[name] ?? "webtops";
+}
+
 export function failFinding(
+  tool: Tool,
   rule: string,
   message: string,
   place: { file?: string; line?: number } = {},
-): Finding {
-  return { rule, verdict: "fail", message, ...place };
+): RawFinding {
+  return { tool, rule, verdict: "fail", message, ...place };
 }
 
 /** A tool that could not run or was killed, as the tool-failure rule R5 names. */
-export function launchFailure(tool: string, result: ExecResult): Finding | undefined {
+export function launchFailure(
+  tool: Tool,
+  label: string,
+  result: ExecResult,
+): RawFinding | undefined {
   if (result.failure === "tool-missing") {
     const said = result.stderr.trim();
     return failFinding(
+      tool,
       "tool-missing",
-      said === "" ? `${tool} is not installed or not on PATH` : said,
+      said === "" ? `${label} is not installed or not on PATH` : said,
     );
   }
   if (result.failure === "tool-timeout") {
-    return failFinding("tool-timeout", `${tool} did not finish in time and was killed`);
+    return failFinding(tool, "tool-timeout", `${label} did not finish in time and was killed`);
   }
   return undefined;
 }
@@ -159,7 +187,7 @@ export async function ran(
   label: string = tool,
 ): Promise<Ran> {
   const result = await step.run(tool, args);
-  const launch = launchFailure(label, result);
+  const launch = launchFailure(toolOf(tool), label, result);
   return launch === undefined ? { result } : { failed: { findings: [launch] } };
 }
 
@@ -175,12 +203,14 @@ export function printed(result: ExecResult, first: "stdout" | "stderr"): string 
 
 /** `<label> exited N: <what it printed>`. */
 export function exitFinding(
+  tool: Tool,
   rule: string,
   label: string,
   result: ExecResult,
   first: "stdout" | "stderr",
-): Finding {
+): RawFinding {
   return failFinding(
+    tool,
     rule,
     `${label} exited ${String(result.code)}: ${tail(printed(result, first))}`,
   );
@@ -188,17 +218,19 @@ export function exitFinding(
 
 /** A tool that exited non-zero without a finding to show for it still fails the step. */
 export function unexplained(
-  findings: readonly Finding[],
+  tool: Tool,
+  findings: readonly RawFinding[],
   result: ExecResult,
   rule: string,
   label: string,
   detail = "no findings",
-): Finding[] {
+): RawFinding[] {
   if (findings.length > 0 || result.code === 0) {
     return [...findings];
   }
   return [
     failFinding(
+      tool,
       rule,
       `${label} exited ${String(result.code)} with ${detail}: ${tail(result.stderr)}`,
     ),
@@ -217,18 +249,6 @@ export function relativeTo(cwd: string, path: string): string {
   }
   const resolved = relative(realpathSync(cwd), path);
   return resolved.startsWith("..") ? path : resolved;
-}
-
-/** Keeps a report readable: the first findings, then one that says how many were dropped. */
-export function capFindings(findings: readonly Finding[], step: string): Finding[] {
-  if (findings.length <= MAX_FINDINGS) {
-    return [...findings];
-  }
-  const extra = findings.length - MAX_FINDINGS;
-  return [
-    ...findings.slice(0, MAX_FINDINGS),
-    failFinding(step, `and ${String(extra)} more findings, not listed`),
-  ];
 }
 
 /** The text when the value is one, else the fallback. */
@@ -255,8 +275,13 @@ export function place(cwd: string, file: unknown, line: unknown): { file?: strin
 }
 
 /** A tool's JSON came back in a shape the step does not know. */
-export function shapeFinding(step: StepContext, path: string, message: string): Finding {
-  return failFinding("output-unparseable", message, { file: relativeTo(step.ctx.cwd, path) });
+export function shapeFinding(
+  tool: Tool,
+  step: StepContext,
+  path: string,
+  message: string,
+): RawFinding {
+  return failFinding(tool, "output-unparseable", message, { file: relativeTo(step.ctx.cwd, path) });
 }
 
 export interface PackageInfo {
@@ -292,19 +317,26 @@ export function readJsonOutput(
   path: string,
   text: string | undefined,
   tool: string,
-): { readonly value: unknown } | { readonly finding: Finding } {
+): { readonly value: unknown } | { readonly finding: RawFinding } {
   const shown = relativeTo(step.ctx.cwd, path);
   if (isBlank(text)) {
     return {
-      finding: failFinding("output-empty", `${tool} wrote no output to ${shown}`, { file: shown }),
+      finding: failFinding(toolOf(tool), "output-empty", `${tool} wrote no output to ${shown}`, {
+        file: shown,
+      }),
     };
   }
   const value = parseJson(text);
   return value === undefined
     ? {
-        finding: failFinding("output-unparseable", `${tool} output in ${shown} is not JSON`, {
-          file: shown,
-        }),
+        finding: failFinding(
+          toolOf(tool),
+          "output-unparseable",
+          `${tool} output in ${shown} is not JSON`,
+          {
+            file: shown,
+          },
+        ),
       }
     : { value };
 }
@@ -315,10 +347,10 @@ export function readResultsFile(
   tool: string,
   path: string,
   result: ExecResult,
-): { readonly value: unknown } | { readonly finding: Finding } {
+): { readonly value: unknown } | { readonly finding: RawFinding } {
   const text = readOutput(path);
   if (isBlank(text) && result.code !== 0) {
-    return { finding: exitFinding(`${tool}-failed`, tool, result, "stderr") };
+    return { finding: exitFinding(toolOf(tool), `${tool}-failed`, tool, result, "stderr") };
   }
   return readJsonOutput(step, path, text, tool);
 }

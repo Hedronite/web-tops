@@ -1,5 +1,5 @@
 {
-  "report_version": "1.0.0",
+  "report_version": "2.0.0",
   "protocol": "0.3.0",
   "class": "ts-library",
   "enforce": "hard",
@@ -92,9 +92,14 @@
       "reason": "a law has no reader yet",
       "findings": [
         {
-          "rule": "W-30",
+          "tool": "webtops",
+          "rule": "no-reader",
+          "law": "W-30",
           "verdict": "not-evaluated",
           "message": "no reader for this law yet",
+          "file": null,
+          "line": null,
+          "fingerprint": "fp1:817d4306848585e5",
           "required": true
         }
       ],
