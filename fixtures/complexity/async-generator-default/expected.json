@@ -1,0 +1,70 @@
+{
+  "records": [
+    {
+      "key": "input.ts::<module>",
+      "kind": "module",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        1,
+        4
+      ]
+    },
+    {
+      "key": "input.ts::gen",
+      "kind": "function",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        1,
+        1
+      ]
+    },
+    {
+      "key": "input.ts::asyncArrow",
+      "kind": "arrow",
+      "scored": true,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        2,
+        2
+      ]
+    },
+    {
+      "key": "input.ts::plain",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 1,
+      "lines": [
+        3,
+        3
+      ]
+    },
+    {
+      "key": "input.ts::withDefault",
+      "kind": "function",
+      "scored": true,
+      "own": 1,
+      "score": 2,
+      "lines": [
+        4,
+        4
+      ]
+    },
+    {
+      "key": "input.ts::withDefault~1",
+      "kind": "arrow",
+      "scored": false,
+      "own": 2,
+      "score": 2,
+      "lines": [
+        4,
+        4
+      ]
+    }
+  ]
+}

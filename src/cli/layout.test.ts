@@ -58,7 +58,6 @@ describe("G10a: section 17 matches the tree", () => {
     const paths = [...paragraph.matchAll(/`([^`]+\/)`/g)].map((match) => match[1] ?? "");
     expect(paths).toEqual(
       expect.arrayContaining([
-        "src/complexity/",
         "src/crap/",
         "src/budgets/",
         "packages/eslint-plugin-webtops/",

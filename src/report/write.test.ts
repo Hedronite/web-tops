@@ -135,11 +135,14 @@ describe("G2d report: written to report.path, valid against the schema, text pri
           reason: "1 finding",
           findings: [
             {
+              tool: "eslint",
               rule: "output-empty",
+              law: null,
               verdict: "fail",
               message: "eslint wrote nothing",
               file: ".web-tops/out/eslint.json",
               line: 3,
+              fingerprint: "fp1:0123456789abcdef",
             },
           ],
           metrics: {},

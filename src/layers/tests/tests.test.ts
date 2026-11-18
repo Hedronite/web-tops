@@ -7,6 +7,7 @@ import { realExec } from "../../gate/exec.ts";
 import type { Exec } from "../../gate/types.ts";
 import { testsLayer } from "./index.ts";
 import { SOURCE, realProject, rulesOf, runTests, testFile, type Project } from "./testkit.ts";
+import { REAL_TOOL_TIMEOUT } from "../../gate/test-support-timeouts.ts";
 
 const projects: Project[] = [];
 
@@ -25,19 +26,23 @@ function real(files: Record<string, string>): Project {
 const CLEAN = testFile('it("adds", () => { expect(add(1, 2)).toBe(3); });');
 
 describe("G4a tests: zero tests, .only and .skip each fail", () => {
-  it("a clean shuffled run passes, records its seed, and leaves the JSON and a non-empty LCOV for gate 3", async () => {
-    const item = real({ "src/a.ts": SOURCE, "src/a.test.ts": CLEAN });
-    const result = await runTests(item, realExec);
-    expect(rulesOf(result)).toEqual([]);
-    expect(result.verdict).toBe("pass");
-    expect(Number.isInteger(result.seed)).toBe(true);
-    expect(result.seed).toBeGreaterThan(0);
-    expect(result.artifacts["lcov"]).toBe(join(item.outDir, "tests", "coverage", "lcov.info"));
-    expect(result.artifacts["vitest-json"]).toBe(join(item.outDir, "tests", "vitest.json"));
-    expect(statSync(result.artifacts["lcov"] ?? "").size).toBeGreaterThan(0);
-    expect(existsSync(result.artifacts["vitest-json"] ?? "")).toBe(true);
-    expect(readFileSync(result.artifacts["lcov"] ?? "", "utf8")).toContain("SF:src/a.ts");
-  });
+  it(
+    "a clean shuffled run passes, records its seed, and leaves the JSON and a non-empty LCOV for gate 3",
+    async () => {
+      const item = real({ "src/a.ts": SOURCE, "src/a.test.ts": CLEAN });
+      const result = await runTests(item, realExec);
+      expect(rulesOf(result)).toEqual([]);
+      expect(result.verdict).toBe("pass");
+      expect(Number.isInteger(result.seed)).toBe(true);
+      expect(result.seed).toBeGreaterThan(0);
+      expect(result.artifacts["lcov"]).toBe(join(item.outDir, "tests", "coverage", "lcov.info"));
+      expect(result.artifacts["vitest-json"]).toBe(join(item.outDir, "tests", "vitest.json"));
+      expect(statSync(result.artifacts["lcov"] ?? "").size).toBeGreaterThan(0);
+      expect(existsSync(result.artifacts["vitest-json"] ?? "")).toBe(true);
+      expect(readFileSync(result.artifacts["lcov"] ?? "", "utf8")).toContain("SF:src/a.ts");
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 
   it.each([
     ["a committed it.only", 'it("a", () => {});\nit.only("b", () => {});', "focused-test"],
@@ -51,57 +56,77 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
     ["an it.todo", 'it("a", () => {});\nit.todo("b");', "todo-test"],
     ["a failing test", 'it("a", () => { expect(1).toBe(2); });', "test-failed"],
     ["an empty suite", 'describe("nothing", () => {});', "zero-tests"],
-  ])("%s fails with %s", async (_label, body, rule) => {
-    const item = real({ "src/a.ts": SOURCE, "src/a.test.ts": testFile(body) });
-    const result = await runTests(item, realExec);
-    expect(rulesOf(result)).toContain(rule);
-    expect(result.verdict).toBe("fail");
-  });
+  ])(
+    "%s fails with %s",
+    async (_label, body, rule) => {
+      const item = real({ "src/a.ts": SOURCE, "src/a.test.ts": testFile(body) });
+      const result = await runTests(item, realExec);
+      expect(rulesOf(result)).toContain(rule);
+      expect(result.verdict).toBe("fail");
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 
-  it("a focused test fails even though Vitest exits 0 outside CI by default", async () => {
-    const item = real({
-      "src/a.ts": SOURCE,
-      "src/a.test.ts": testFile('it.only("a", () => {});\nit("b", () => {});'),
-    });
-    const result = await runTests(item, realExec, { env: { PATH: process.env["PATH"] } });
-    expect(rulesOf(result)).toContain("focused-test");
-  });
+  it(
+    "a focused test fails even though Vitest exits 0 outside CI by default",
+    async () => {
+      const item = real({
+        "src/a.ts": SOURCE,
+        "src/a.test.ts": testFile('it.only("a", () => {});\nit("b", () => {});'),
+      });
+      const result = await runTests(item, realExec, { env: { PATH: process.env["PATH"] } });
+      expect(rulesOf(result)).toContain("focused-test");
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 
-  it("no test file at all is zero tests", async () => {
-    const item = real({ "src/a.ts": SOURCE });
-    const result = await runTests(item, realExec);
-    expect(rulesOf(result)).toContain("zero-tests");
-  });
+  it(
+    "no test file at all is zero tests",
+    async () => {
+      const item = real({ "src/a.ts": SOURCE });
+      const result = await runTests(item, realExec);
+      expect(rulesOf(result)).toContain("zero-tests");
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 
-  it("a test file that does not load is a suite-failed finding naming the file", async () => {
-    const item = real({
-      "src/a.ts": SOURCE,
-      "src/a.test.ts": CLEAN,
-      "src/b.test.ts": 'import { it } from "vitest";\nit("x", () => {\n',
-    });
-    const result = await runTests(item, realExec);
-    expect(result.findings).toContainEqual(
-      expect.objectContaining({ rule: "suite-failed", file: "src/b.test.ts" }),
-    );
-    expect(result.verdict).toBe("fail");
-  });
+  it(
+    "a test file that does not load is a suite-failed finding naming the file",
+    async () => {
+      const item = real({
+        "src/a.ts": SOURCE,
+        "src/a.test.ts": CLEAN,
+        "src/b.test.ts": 'import { it } from "vitest";\nit("x", () => {\n',
+      });
+      const result = await runTests(item, realExec);
+      expect(result.findings).toContainEqual(
+        expect.objectContaining({ rule: "suite-failed", file: "src/b.test.ts" }),
+      );
+      expect(result.verdict).toBe("fail");
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 
-  it("test files are not in the LCOV, and a yaml exclusion with a reason is honoured", async () => {
-    const item = real({
-      "src/a.ts": SOURCE,
-      "src/gen/g.ts": "export const g = 1;\n",
-      "src/a.test.ts": testFile(
-        'import { g } from "./gen/g.ts";\nit("adds", () => { expect(add(1, 2) + g).toBe(4); });',
-      ),
-    });
-    const result = await runTests(item, realExec, {
-      coverage: { exclude: [{ glob: "src/gen/**", reason: "written by a generator" }] },
-    });
-    const lcov = readFileSync(result.artifacts["lcov"] ?? "", "utf8");
-    expect(lcov).toContain("SF:src/a.ts");
-    expect(lcov).not.toContain("a.test.ts");
-    expect(lcov).not.toContain("src/gen/g.ts");
-  });
+  it(
+    "test files are not in the LCOV, and a yaml exclusion with a reason is honoured",
+    async () => {
+      const item = real({
+        "src/a.ts": SOURCE,
+        "src/gen/g.ts": "export const g = 1;\n",
+        "src/a.test.ts": testFile(
+          'import { g } from "./gen/g.ts";\nit("adds", () => { expect(add(1, 2) + g).toBe(4); });',
+        ),
+      });
+      const result = await runTests(item, realExec, {
+        coverage: { exclude: [{ glob: "src/gen/**", reason: "written by a generator" }] },
+      });
+      const lcov = readFileSync(result.artifacts["lcov"] ?? "", "utf8");
+      expect(lcov).toContain("SF:src/a.ts");
+      expect(lcov).not.toContain("a.test.ts");
+      expect(lcov).not.toContain("src/gen/g.ts");
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 
   it("a failing test is judged from the JSON whatever the exit code says", async () => {
     const item = real({});
@@ -143,16 +168,20 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
     expect(args.some((arg) => arg.startsWith("--outputFile="))).toBe(false);
   });
 
-  it("a threshold in the project's own Vitest config does not decide gate 2", async () => {
-    const item = real({
-      "src/a.ts": `${SOURCE}export const unused = (): number => {\n  return 1;\n};\n`,
-      "src/a.test.ts": CLEAN,
-      "vitest.config.ts":
-        'import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { coverage: { thresholds: { lines: 100 } } } });\n',
-    });
-    const result = await runTests(item, realExec);
-    expect(result.verdict).toBe("pass");
-  });
+  it(
+    "a threshold in the project's own Vitest config does not decide gate 2",
+    async () => {
+      const item = real({
+        "src/a.ts": `${SOURCE}export const unused = (): number => {\n  return 1;\n};\n`,
+        "src/a.test.ts": CLEAN,
+        "vitest.config.ts":
+          'import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { coverage: { thresholds: { lines: 100 } } } });\n',
+      });
+      const result = await runTests(item, realExec);
+      expect(result.verdict).toBe("pass");
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 
   it("is one process: vitest runs once under node on the installed bin, with the gate's own flags", async () => {
     const calls: { tool: string; args: readonly string[] }[] = [];
@@ -203,22 +232,26 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
     expect(args[at - 1]).toBe("--sequence.shuffle");
   });
 
-  it("a source file no test imports still gets an SF record at zero hits, and a file outside src does not", async () => {
-    const item = real({
-      "src/a.ts": SOURCE,
-      "src/b.ts": "export const never = (): number => {\n  return 1;\n};\n",
-      "src/ui/c.tsx": "export const view = (): number => {\n  return 2;\n};\n",
-      "lib/d.ts": "export const other = 1;\n",
-      "src/a.test.ts": CLEAN,
-    });
-    const result = await runTests(item, realExec);
-    const lcov = readFileSync(result.artifacts["lcov"] ?? "", "utf8");
-    expect(lcov).toContain("SF:src/a.ts");
-    expect(lcov).toContain("SF:src/b.ts");
-    expect(lcov).toContain("SF:src/ui/c.tsx");
-    expect(lcov).not.toContain("lib/d.ts");
-    expect(lcov).not.toContain("a.test.ts");
-  });
+  it(
+    "a source file no test imports still gets an SF record at zero hits, and a file outside src does not",
+    async () => {
+      const item = real({
+        "src/a.ts": SOURCE,
+        "src/b.ts": "export const never = (): number => {\n  return 1;\n};\n",
+        "src/ui/c.tsx": "export const view = (): number => {\n  return 2;\n};\n",
+        "lib/d.ts": "export const other = 1;\n",
+        "src/a.test.ts": CLEAN,
+      });
+      const result = await runTests(item, realExec);
+      const lcov = readFileSync(result.artifacts["lcov"] ?? "", "utf8");
+      expect(lcov).toContain("SF:src/a.ts");
+      expect(lcov).toContain("SF:src/b.ts");
+      expect(lcov).toContain("SF:src/ui/c.tsx");
+      expect(lcov).not.toContain("lib/d.ts");
+      expect(lcov).not.toContain("a.test.ts");
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 
   it("declares what it produces, and consumes nothing", () => {
     expect(testsLayer.produces).toEqual(["vitest-json", "lcov", "coverage-json"]);
@@ -322,45 +355,57 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
       };
     }
 
-    it("an unhandled rejection after a passing test is vitest-run-failed, quoting the error", async () => {
-      const item = real({
-        "src/a.ts": SOURCE,
-        "src/a.test.ts": testFile(
-          'it("adds", () => { expect(add(1, 2)).toBe(3); void Promise.reject(new Error("late rejection")); });',
-        ),
-      });
-      const result = await runTests(item, realExec);
-      expect(rulesOf(result)).toEqual(["vitest-run-failed"]);
-      expect(result.verdict).toBe("fail");
-      const message = result.findings[0]?.message ?? "";
-      expect(message).toContain("late rejection");
-      expect(message).toContain("Unhandled");
-      expect(message).not.toContain("node_modules/vitest/dist");
-    });
+    it(
+      "an unhandled rejection after a passing test is vitest-run-failed, quoting the error",
+      async () => {
+        const item = real({
+          "src/a.ts": SOURCE,
+          "src/a.test.ts": testFile(
+            'it("adds", () => { expect(add(1, 2)).toBe(3); void Promise.reject(new Error("late rejection")); });',
+          ),
+        });
+        const result = await runTests(item, realExec);
+        expect(rulesOf(result)).toEqual(["vitest-run-failed"]);
+        expect(result.verdict).toBe("fail");
+        const message = result.findings[0]?.message ?? "";
+        expect(message).toContain("late rejection");
+        expect(message).toContain("Unhandled");
+        expect(message).not.toContain("node_modules/vitest/dist");
+      },
+      REAL_TOOL_TIMEOUT,
+    );
 
-    it("an error thrown from a timer is vitest-run-failed too", async () => {
-      const item = real({
-        "src/a.ts": SOURCE,
-        "src/a.test.ts": testFile(
-          'it("adds", () => { expect(add(1, 2)).toBe(3); setTimeout(() => { throw new Error("timer boom"); }, 0); });\nit("waits", async () => { await new Promise((done) => setTimeout(done, 30)); });',
-        ),
-      });
-      const result = await runTests(item, realExec);
-      expect(rulesOf(result)).toEqual(["vitest-run-failed"]);
-      expect(result.findings[0]?.message).toContain("timer boom");
-    });
+    it(
+      "an error thrown from a timer is vitest-run-failed too",
+      async () => {
+        const item = real({
+          "src/a.ts": SOURCE,
+          "src/a.test.ts": testFile(
+            'it("adds", () => { expect(add(1, 2)).toBe(3); setTimeout(() => { throw new Error("timer boom"); }, 0); });\nit("waits", async () => { await new Promise((done) => setTimeout(done, 30)); });',
+          ),
+        });
+        const result = await runTests(item, realExec);
+        expect(rulesOf(result)).toEqual(["vitest-run-failed"]);
+        expect(result.findings[0]?.message).toContain("timer boom");
+      },
+      REAL_TOOL_TIMEOUT,
+    );
 
-    it("a project config whose only complaint is a coverage threshold still passes", async () => {
-      const item = real({
-        "src/a.ts": `${SOURCE}export const unused = (): number => {\n  return 1;\n};\n`,
-        "src/a.test.ts": CLEAN,
-        "vitest.config.ts":
-          'import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { coverage: { thresholds: { lines: 100, functions: 100 } } } });\n',
-      });
-      const result = await runTests(item, realExec);
-      expect(rulesOf(result)).toEqual([]);
-      expect(result.verdict).toBe("pass");
-    });
+    it(
+      "a project config whose only complaint is a coverage threshold still passes",
+      async () => {
+        const item = real({
+          "src/a.ts": `${SOURCE}export const unused = (): number => {\n  return 1;\n};\n`,
+          "src/a.test.ts": CLEAN,
+          "vitest.config.ts":
+            'import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { coverage: { thresholds: { lines: 100, functions: 100 } } } });\n',
+        });
+        const result = await runTests(item, realExec);
+        expect(rulesOf(result)).toEqual([]);
+        expect(result.verdict).toBe("pass");
+      },
+      REAL_TOOL_TIMEOUT,
+    );
 
     it("quotes the first lines of what Vitest printed, with colour codes taken out", async () => {
       const esc = String.fromCharCode(27);
@@ -436,18 +481,22 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
       expect(message).not.toContain("run.js");
     });
 
-    it("quotes the assertion of a real failing test", async () => {
-      const item = real({
-        "src/a.ts": SOURCE,
-        "src/a.test.ts": testFile('it("adds", () => { expect(add(1, 2)).toBe(4); });'),
-      });
-      const result = await runTests(item, realExec);
-      const message =
-        result.findings.find((finding) => finding.rule === "test-failed")?.message ?? "";
-      expect(message).toContain("expected 3 to be 4");
-      expect(message).not.toContain("node_modules");
-      expect(message).not.toMatch(/^\s+at /mu);
-    });
+    it(
+      "quotes the assertion of a real failing test",
+      async () => {
+        const item = real({
+          "src/a.ts": SOURCE,
+          "src/a.test.ts": testFile('it("adds", () => { expect(add(1, 2)).toBe(4); });'),
+        });
+        const result = await runTests(item, realExec);
+        const message =
+          result.findings.find((finding) => finding.rule === "test-failed")?.message ?? "";
+        expect(message).toContain("expected 3 to be 4");
+        expect(message).not.toContain("node_modules");
+        expect(message).not.toMatch(/^\s+at /mu);
+      },
+      REAL_TOOL_TIMEOUT,
+    );
   });
 
   describe("R43 amended: the kit config removes the project's coverage thresholds whole", () => {
@@ -471,92 +520,131 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
       ["global thresholds", "{ lines: 100, functions: 100, branches: 100, statements: 100 }"],
       ["per-file thresholds", "{ perFile: true, lines: 100 }"],
       ["auto-updating thresholds", "{ autoUpdate: true, lines: 100 }"],
-    ])("%s do not decide gate 2 when every test passes", async (_label, thresholds) => {
-      const item = project({
-        "vitest.config.ts": `import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { coverage: { thresholds: ${thresholds} } } });\n`,
-      });
-      const result = await runTests(item, realExec);
-      expect(rulesOf(result)).toEqual([]);
-      expect(result.verdict).toBe("pass");
-    });
+    ])(
+      "%s do not decide gate 2 when every test passes",
+      async (_label, thresholds) => {
+        const item = project({
+          "vitest.config.ts": `import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { coverage: { thresholds: ${thresholds} } } });\n`,
+        });
+        const result = await runTests(item, realExec);
+        expect(rulesOf(result)).toEqual([]);
+        expect(result.verdict).toBe("pass");
+      },
+      REAL_TOOL_TIMEOUT,
+    );
 
-    it("reads the function form of a config", async () => {
-      const item = project({
-        "vitest.config.ts":
-          'import { defineConfig } from "vitest/config";\nexport default defineConfig(() => ({ test: { coverage: { thresholds: { 100: true } } } }));\n',
-      });
-      expect((await runTests(item, realExec)).verdict).toBe("pass");
-    });
+    it(
+      "reads the function form of a config",
+      async () => {
+        const item = project({
+          "vitest.config.ts":
+            'import { defineConfig } from "vitest/config";\nexport default defineConfig(() => ({ test: { coverage: { thresholds: { 100: true } } } }));\n',
+        });
+        expect((await runTests(item, realExec)).verdict).toBe("pass");
+      },
+      REAL_TOOL_TIMEOUT,
+    );
 
-    it("reads thresholds from vite.config.ts when there is no vitest config", async () => {
-      const item = project({
-        "vite.config.ts":
-          'import { defineConfig } from "vite";\nexport default defineConfig({ test: { coverage: { thresholds: { lines: 100 } } } });\n',
-      });
-      expect((await runTests(item, realExec)).verdict).toBe("pass");
-    });
+    it(
+      "reads thresholds from vite.config.ts when there is no vitest config",
+      async () => {
+        const item = project({
+          "vite.config.ts":
+            'import { defineConfig } from "vite";\nexport default defineConfig({ test: { coverage: { thresholds: { lines: 100 } } } });\n',
+        });
+        expect((await runTests(item, realExec)).verdict).toBe("pass");
+      },
+      REAL_TOOL_TIMEOUT,
+    );
 
-    it("prefers vitest.config over vite.config, as Vitest does", async () => {
-      const item = real({
-        "src/a.ts": SOURCE,
-        "src/a.check.ts": CLEAN,
-        "vitest.config.ts":
-          'import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { include: ["src/**/*.check.ts"] } });\n',
-        "vite.config.ts":
-          'import { defineConfig } from "vite";\nexport default defineConfig({ test: { include: ["nothing/**"] } });\n',
-      });
-      const result = await runTests(item, realExec);
-      expect(rulesOf(result)).toEqual([]);
-    });
+    it(
+      "prefers vitest.config over vite.config, as Vitest does",
+      async () => {
+        const item = real({
+          "src/a.ts": SOURCE,
+          "src/a.check.ts": CLEAN,
+          "vitest.config.ts":
+            'import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { include: ["src/**/*.check.ts"] } });\n',
+          "vite.config.ts":
+            'import { defineConfig } from "vite";\nexport default defineConfig({ test: { include: ["nothing/**"] } });\n',
+        });
+        const result = await runTests(item, realExec);
+        expect(rulesOf(result)).toEqual([]);
+      },
+      REAL_TOOL_TIMEOUT,
+    );
 
-    it("keeps the rest of the project's config: its include still finds the tests", async () => {
-      const item = real({
-        "src/a.ts": SOURCE,
-        "src/a.check.ts": CLEAN,
-        "vitest.config.ts":
-          'import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { include: ["src/**/*.check.ts"], coverage: { thresholds: { lines: 100 } } } });\n',
-      });
-      const result = await runTests(item, realExec);
-      expect(rulesOf(result)).toEqual([]);
-      expect(result.verdict).toBe("pass");
-    });
+    it(
+      "keeps the rest of the project's config: its include still finds the tests",
+      async () => {
+        const item = real({
+          "src/a.ts": SOURCE,
+          "src/a.check.ts": CLEAN,
+          "vitest.config.ts":
+            'import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { include: ["src/**/*.check.ts"], coverage: { thresholds: { lines: 100 } } } });\n',
+        });
+        const result = await runTests(item, realExec);
+        expect(rulesOf(result)).toEqual([]);
+        expect(result.verdict).toBe("pass");
+      },
+      REAL_TOOL_TIMEOUT,
+    );
 
-    it("works with no project config at all", async () => {
-      const result = await runTests(real({ "src/a.ts": SOURCE, "src/a.test.ts": CLEAN }), realExec);
-      expect(result.verdict).toBe("pass");
-    });
+    it(
+      "works with no project config at all",
+      async () => {
+        const result = await runTests(
+          real({ "src/a.ts": SOURCE, "src/a.test.ts": CLEAN }),
+          realExec,
+        );
+        expect(result.verdict).toBe("pass");
+      },
+      REAL_TOOL_TIMEOUT,
+    );
 
-    it("still fails an unhandled rejection under a project config with thresholds", async () => {
-      const item = real({
-        "src/a.ts": SOURCE,
-        "src/a.test.ts": testFile(
-          'it("adds", () => { expect(add(1, 2)).toBe(3); void Promise.reject(new Error("late rejection")); });',
-        ),
-        "vitest.config.ts":
-          'import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { coverage: { thresholds: { 100: true } } } });\n',
-      });
-      const result = await runTests(item, realExec);
-      expect(rulesOf(result)).toEqual(["vitest-run-failed"]);
-    });
+    it(
+      "still fails an unhandled rejection under a project config with thresholds",
+      async () => {
+        const item = real({
+          "src/a.ts": SOURCE,
+          "src/a.test.ts": testFile(
+            'it("adds", () => { expect(add(1, 2)).toBe(3); void Promise.reject(new Error("late rejection")); });',
+          ),
+          "vitest.config.ts":
+            'import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { coverage: { thresholds: { 100: true } } } });\n',
+        });
+        const result = await runTests(item, realExec);
+        expect(rulesOf(result)).toEqual(["vitest-run-failed"]);
+      },
+      REAL_TOOL_TIMEOUT,
+    );
 
-    it("a project config that does not load is a crash with no results, quoting why", async () => {
-      const item = project({
-        "vitest.config.ts": 'throw new Error("config is broken");\n',
-      });
-      const result = await runTests(item, realExec);
-      expect(rulesOf(result)).toEqual(["vitest-failed"]);
-      expect(result.findings[0]?.message).toContain("config is broken");
-    });
+    it(
+      "a project config that does not load is a crash with no results, quoting why",
+      async () => {
+        const item = project({
+          "vitest.config.ts": 'throw new Error("config is broken");\n',
+        });
+        const result = await runTests(item, realExec);
+        expect(rulesOf(result)).toEqual(["vitest-failed"]);
+        expect(result.findings[0]?.message).toContain("config is broken");
+      },
+      REAL_TOOL_TIMEOUT,
+    );
 
-    it("still fails a failing test and zero tests under a project config", async () => {
-      const item = real({
-        "src/a.ts": SOURCE,
-        "src/a.test.ts": testFile('it("a", () => { expect(1).toBe(2); });'),
-        "vitest.config.ts":
-          'import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { coverage: { thresholds: { 100: true } } } });\n',
-      });
-      expect(rulesOf(await runTests(item, realExec))).toEqual(["test-failed"]);
-    });
+    it(
+      "still fails a failing test and zero tests under a project config",
+      async () => {
+        const item = real({
+          "src/a.ts": SOURCE,
+          "src/a.test.ts": testFile('it("a", () => { expect(1).toBe(2); });'),
+          "vitest.config.ts":
+            'import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { coverage: { thresholds: { 100: true } } } });\n',
+        });
+        expect(rulesOf(await runTests(item, realExec))).toEqual(["test-failed"]);
+      },
+      REAL_TOOL_TIMEOUT,
+    );
 
     it("writes the kit config under .web-tops/out/tests/ and passes it with --config", async () => {
       const calls: (readonly string[])[] = [];
@@ -573,45 +661,57 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
       expect(calls[0]?.some((arg) => arg.startsWith("--coverage.thresholds"))).toBe(false);
     });
 
-    it("resolves vite the way Vitest does: in an isolated install, where vite sits only beside vitest", async () => {
-      const item = realProject(
-        {
-          "src/a.ts": SOURCE,
-          "src/b.ts": B_UNTESTED,
-          "src/a.test.ts": CLEAN,
-          "vitest.config.ts":
-            'import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { coverage: { thresholds: { 100: true, "src/b.ts": { functions: 100 } } } } });\n',
-        },
-        "isolated",
-      );
-      projects.push(item);
-      expect(existsSync(join(item.project.dir, "node_modules", "vite"))).toBe(false);
-      const result = await runTests(item, realExec);
-      expect(rulesOf(result)).toEqual([]);
-      expect(result.verdict).toBe("pass");
-    });
+    it(
+      "resolves vite the way Vitest does: in an isolated install, where vite sits only beside vitest",
+      async () => {
+        const item = realProject(
+          {
+            "src/a.ts": SOURCE,
+            "src/b.ts": B_UNTESTED,
+            "src/a.test.ts": CLEAN,
+            "vitest.config.ts":
+              'import { defineConfig } from "vitest/config";\nexport default defineConfig({ test: { coverage: { thresholds: { 100: true, "src/b.ts": { functions: 100 } } } } });\n',
+          },
+          "isolated",
+        );
+        projects.push(item);
+        expect(existsSync(join(item.project.dir, "node_modules", "vite"))).toBe(false);
+        const result = await runTests(item, realExec);
+        expect(rulesOf(result)).toEqual([]);
+        expect(result.verdict).toBe("pass");
+      },
+      REAL_TOOL_TIMEOUT,
+    );
 
-    it("an isolated install with no project config passes too", async () => {
-      const item = realProject({ "src/a.ts": SOURCE, "src/a.test.ts": CLEAN }, "isolated");
-      projects.push(item);
-      expect((await runTests(item, realExec)).verdict).toBe("pass");
-    });
+    it(
+      "an isolated install with no project config passes too",
+      async () => {
+        const item = realProject({ "src/a.ts": SOURCE, "src/a.test.ts": CLEAN }, "isolated");
+        projects.push(item);
+        expect((await runTests(item, realExec)).verdict).toBe("pass");
+      },
+      REAL_TOOL_TIMEOUT,
+    );
 
-    it("an isolated install with a config that does not load still names why, with no bundler noise first", async () => {
-      const item = realProject(
-        {
-          "src/a.ts": SOURCE,
-          "src/a.test.ts": CLEAN,
-          "vitest.config.ts": 'throw new Error("config is broken");\n',
-        },
-        "isolated",
-      );
-      projects.push(item);
-      const result = await runTests(item, realExec);
-      expect(rulesOf(result)).toEqual(["vitest-failed"]);
-      expect(result.findings[0]?.message).toContain("config is broken");
-      expect(result.findings[0]?.message).not.toContain("UNRESOLVED_IMPORT");
-    });
+    it(
+      "an isolated install with a config that does not load still names why, with no bundler noise first",
+      async () => {
+        const item = realProject(
+          {
+            "src/a.ts": SOURCE,
+            "src/a.test.ts": CLEAN,
+            "vitest.config.ts": 'throw new Error("config is broken");\n',
+          },
+          "isolated",
+        );
+        projects.push(item);
+        const result = await runTests(item, realExec);
+        expect(rulesOf(result)).toEqual(["vitest-failed"]);
+        expect(result.findings[0]?.message).toContain("config is broken");
+        expect(result.findings[0]?.message).not.toContain("UNRESOLVED_IMPORT");
+      },
+      REAL_TOOL_TIMEOUT,
+    );
 
     it("imports vite by the file it resolves to from the real vitest directory, not by name", async () => {
       const exec: Exec = () => Promise.resolve({ code: 0, stdout: "", stderr: "" });

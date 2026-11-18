@@ -1,5 +1,5 @@
 import type { ClassName } from "../config/profiles.ts";
-import type { Enforce, Finding, GateRef, Metrics, Verdict } from "../report/types.ts";
+import type { Enforce, GateRef, Metrics, RawFinding, Verdict } from "../report/types.ts";
 
 export type Tier = 0 | 1 | 2 | 3;
 
@@ -40,7 +40,7 @@ export interface LayerResult {
   readonly verdict: Verdict;
   /** Required with `skip` and `not-evaluated`. */
   readonly reason?: string;
-  readonly findings: readonly Finding[];
+  readonly findings: readonly RawFinding[];
   /** Files this layer wrote this run, by name (for example `lcov`); later layers read them. */
   readonly artifacts: Readonly<Record<string, string>>;
   /** The shuffle seed the tests layer passed, so a shuffled failure can be rerun (WEB_TOPS.md section 6.6). */

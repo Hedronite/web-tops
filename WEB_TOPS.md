@@ -418,9 +418,29 @@ The report holds `protocol`, `class`, `enforce`, `enforced` (false only under `a
 `failed` counts every verdict §3.3 marks as ending the run; `not_evaluated` is counted apart,
 and fails the gate only on a required item.
 Each entry in `layers` has `id` (`hygiene`, `tests`, `coverage`, `crap`, `mutation`,
-`build-output`, `laws`, or a `custom` id), `gate`, `tier`, `verdict` and `findings`. A finding has
-`rule` (a tool rule id or a law id), `message` and `verdict`, and `file` and `line` when it has a
-place. Verdicts are
+`build-output`, `laws`, or a `custom` id), `gate`, `tier`, `verdict` and `findings`. A finding
+has one shape in every layer: `tool`, `rule`, `law`, `verdict`, `message`, `file`, `line` and
+`fingerprint`.
+
+- `tool` is the tool that said it, from a closed set: `astro`, `attw`, `audit` (`bun audit`),
+  `biome`, `bun` (install and pack), `dependency-cruiser`, `eslint`, `prettier`, `publint`,
+  `stylelint`, `tsc` and `vitest`; `webtops` is the gate's own checks (coverage, a missing tool,
+  a skipped step).
+- `rule` is the tool's rule id, or a kit id for a check of the gate's own. `law` is the `W-NN` the
+  finding maps to, or `null` until a reader maps it (§8). `file` and `line` are `null` when the
+  finding has no place, and a `line` has a `file`.
+- `fingerprint` is the finding's key: `fp1:` and 16 hex characters of SHA-256 over `tool`,
+  `rule`, `file`, an anchor and an occurrence. The anchor is the text of the flagged line, trimmed
+  and with its whitespace collapsed (the message when the finding has no readable line), and the
+  occurrence is the 1-based order, by line, among findings with the same tool, rule, file and
+  anchor. It does not use the line number or the message, so it survives lines added or removed
+  elsewhere in the file, a change of indentation and a reworded message; it changes when the
+  flagged line, the file, the rule or the tool changes. A renamed file is a new finding. The `fp1`
+  prefix names the algorithm. The baseline and the ratchet key a finding by it (§6.7).
+- The report keeps every finding. The text report prints the first 100 of a layer's findings and
+  says how many more there are.
+
+Verdicts are
 spelled as in §3.3: `pass`, `fail`, `refuse`, `ack-missing`, `skip`, `not-run`, `not-evaluated`, `vacuous`. `skip` and
 `not-run` carry a `reason`. A stopped run's `not-run` reason is `stopped: gate <n> failed`. An
 acknowledged soft-rule finding is `pass` and carries `ack: { source: comment | ledger, reason }`;
@@ -432,9 +452,8 @@ To replay a shuffled failure, rerun the suite with that seed: `vitest run --sequ
 
 From 0.3.0 the report is the source the baseline is projected from, so it carries:
 
-- `report_version`, the report format's own semver, separate from `protocol`; it starts at
-  `1.0.0` and changes only when the report's shape does, so a protocol patch that leaves the
-  report alone does not change it;
+- `report_version`, the report format's own semver, separate from `protocol`; it was `1.0.0`
+  for the shape above and is `2.0.0` since findings have one shape. It changes only when the report's shape does, so a protocol patch that leaves the report alone does not change it;
 - `subject`, the package and the root the run judged: `{package, root}`, the root being the
   project's directory relative to the git top level (`.` at the top level);
 - `run`: git SHA, `bun` and `node` versions, the version of every tool that ran, read from its
@@ -445,7 +464,8 @@ From 0.3.0 the report is the source the baseline is projected from, so it carrie
   carries `required` too;
 - on each layer, `metrics` shaped for `webtops baseline`: per function `{file, name, line,
   complexity, coverage, crap}` for CRAP; per file `{file, lines_found, lines_hit}` for coverage;
-  per rule per file `{rule, file, count}` for findings; per page `{route, bytes}` for build
+  per rule per file `{rule, file, count}` for findings, counted from the layer's own findings and never
+  set by the layer (a count that differs from its findings fails the report); per page `{route, bytes}` for build
   output. A layer that has no metrics yet carries an empty object, never absent, and a layer carries only
   the metrics of its own kind: `crap` on the CRAP layer, `coverage` on coverage, `findings` on
   hygiene and laws, `pages` on build output.
@@ -982,6 +1002,7 @@ The kit is written in TypeScript and is installed and started with Bun, so it ga
 web-tops/
 ├── src/
 │   ├── cli/                 # webtops entry and one file per command
+│   ├── complexity/          # the section 6.3 counter on the TypeScript AST, and function keys (6.7)
 │   ├── config/              # class table, config validation, semantic checks, report validation
 │   ├── diff/                # changed lines and functions against the merge base
 │   ├── gate/                # runner, tiers, verdicts, run info
@@ -1002,7 +1023,7 @@ web-tops/
 └── LICENSE · LICENSE-MIT · LICENSE-APACHE
 ```
 
-Not yet in the tree: `src/complexity/` and `src/crap/` (the CRAP counter, M2), `src/budgets/` (the `dist/` byte reader, M4), `packages/eslint-plugin-webtops/`, `laws/` (one `W-NN.yaml` per law) and `fixtures/lints/` (M3).
+Not yet in the tree: `src/crap/` (the CRAP layer, M2), `src/budgets/` (the `dist/` byte reader, M4), `packages/eslint-plugin-webtops/`, `laws/` (one `W-NN.yaml` per law) and `fixtures/lints/` (M3).
 
 Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any release.
 

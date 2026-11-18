@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import type { Finding, Verdict } from "../../report/types.ts";
+import type { RawFinding } from "../../report/findings.ts";
+import type { Verdict } from "../../report/types.ts";
 import {
   HYGIENE_STEPS,
   type HygieneSettings,
@@ -24,7 +25,7 @@ const ARTIFACTS = ["audit-json", "eslint-json", "stylelint-json", "dependency-cr
 const WORST_FIRST: readonly Verdict[] = ["fail", "not-run", "not-evaluated", "ack-missing"];
 
 /** The worst verdict among findings, in the order that tells a reader what to do first. */
-function aggregate(findings: readonly Finding[]): Verdict {
+function aggregate(findings: readonly RawFinding[]): Verdict {
   for (const verdict of WORST_FIRST) {
     if (findings.some((finding) => finding.verdict === verdict)) {
       return verdict;
@@ -50,10 +51,11 @@ const RUNNERS: Readonly<Record<HygieneStep, (step: StepContext) => Promise<StepR
 };
 
 /** A step the config or the class switches off is a `skip` finding with its reason. */
-function disabled(key: HygieneStep, settings: HygieneSettings): Finding | undefined {
+function disabled(key: HygieneStep, settings: HygieneSettings): RawFinding | undefined {
   const toggle = settings.steps[key];
   return toggle?.enabled === false
     ? {
+        tool: "webtops",
         rule: `step:${key}`,
         verdict: "skip",
         message: toggle.reason ?? "disabled in web-tops.yaml",
@@ -72,7 +74,14 @@ async function stepOutcome(
   }
   if (installFailed) {
     return {
-      findings: [{ rule: `step:${key}`, verdict: "not-run", message: "stopped: install failed" }],
+      findings: [
+        {
+          tool: "webtops",
+          rule: `step:${key}`,
+          verdict: "not-run",
+          message: "stopped: install failed",
+        },
+      ],
     };
   }
   return RUNNERS[key](step);
@@ -97,7 +106,7 @@ function stepContext(ctx: LayerContext): StepContext {
 
 async function run(ctx: LayerContext): Promise<LayerResult> {
   const step = stepContext(ctx);
-  const findings: Finding[] = [];
+  const findings: RawFinding[] = [];
   const artifacts: Record<string, string> = {};
   let installFailed = false;
   for (const key of HYGIENE_STEPS) {

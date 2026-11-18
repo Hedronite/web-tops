@@ -48,21 +48,21 @@ describe("G2a report_version, subject and run", () => {
     }
   });
 
-  it("report_version is the report format's own semver, starting at 1.0.0 and apart from protocol", () => {
-    expect(REPORT_VERSION).toBe("1.0.0");
+  it("report_version is the report format's own semver, 2.0.0 since findings have one shape, and apart from protocol", () => {
+    expect(REPORT_VERSION).toBe("2.0.0");
     const report = fixture("pass.json");
     expect(get(report, "report_version")).toBe(REPORT_VERSION);
     expect(get(report, "report_version")).not.toBe(get(report, "protocol"));
   });
 
-  it.each(["2.0.0", "1.0", "v1.0.0", "1.0.0-rc.1", 1, ""])("refuses report_version %j", (value) => {
+  it.each(["1.0.0", "1.0", "v2.0.0", "2.0.0-rc.1", 2, ""])("refuses report_version %j", (value) => {
     expect(pointers(edit(fixture("pass.json"), ["report_version"], value))).toEqual([
       "/report_version",
     ]);
   });
 
   it("accepts a later minor or patch of the same format", () => {
-    expect(pointers(edit(fixture("pass.json"), ["report_version"], "1.2.3"))).toEqual([]);
+    expect(pointers(edit(fixture("pass.json"), ["report_version"], "2.2.3"))).toEqual([]);
   });
 
   it.each(["report_version", "subject", "run"])("refuses a report with no %s", (key) => {
