@@ -14,6 +14,7 @@ import {
   type Prepared,
 } from "./testkit.ts";
 import { readFileSync } from "node:fs";
+import { REAL_TOOL_TIMEOUT } from "../../gate/test-support-timeouts.ts";
 
 const prepared: Prepared[] = [];
 
@@ -83,24 +84,29 @@ describe("G3b hygiene: observed forms on the pins (tsc -b --noEmit, bun audit)",
       expect(failures(result)).toEqual([]);
       expect(result.verdict).toBe("pass");
     },
+    REAL_TOOL_TIMEOUT,
   );
 
-  it("tsc -b --noEmit exits 1 on a type error, which the layer reports with its file and line", async () => {
-    const item = setup(
-      {
-        "tsconfig.json": TSCONFIG,
-        "src/index.ts": 'export const a: number = "s";\n',
-      },
-      true,
-    );
-    const result = await runHygiene(item, realExec, {
-      env: { PATH: REAL_PATH },
-      steps: ONLY("tsc"),
-    });
-    expect(result.findings).toContainEqual(
-      expect.objectContaining({ rule: "TS2322", file: "src/index.ts", line: 1, verdict: "fail" }),
-    );
-  });
+  it(
+    "tsc -b --noEmit exits 1 on a type error, which the layer reports with its file and line",
+    async () => {
+      const item = setup(
+        {
+          "tsconfig.json": TSCONFIG,
+          "src/index.ts": 'export const a: number = "s";\n',
+        },
+        true,
+      );
+      const result = await runHygiene(item, realExec, {
+        env: { PATH: REAL_PATH },
+        steps: ONLY("tsc"),
+      });
+      expect(result.findings).toContainEqual(
+        expect.objectContaining({ rule: "TS2322", file: "src/index.ts", line: 1, verdict: "fail" }),
+      );
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 
   it("the audit reader takes the three shapes bun audit 1.4.4 prints: {} clean, an object by package, nothing", async () => {
     const item = setup({ "package.json": "{}" });
@@ -130,26 +136,30 @@ describe("G3b hygiene: observed forms on the pins (tsc -b --noEmit, bun audit)",
     expect(failures(empty)).toEqual(["output-empty"]);
   });
 
-  it("ESLint runs for real once and its JSON file stays on disk, with findings from a planted unused variable", async () => {
-    const item = setup(
-      {
-        "eslint.config.js":
-          'export default [{ files: ["**/*.js"], rules: { "no-unused-vars": "error" } }];\n',
-        "src/bad.js": "const unused = 1;\n",
-      },
-      true,
-    );
-    const result = await runHygiene(item, realExec, {
-      env: { PATH: REAL_PATH },
-      steps: ONLY("eslint"),
-      settings: { eslintConfig: "eslint.config.js" },
-    });
-    expect(result.findings).toContainEqual(
-      expect.objectContaining({ rule: "no-unused-vars", file: "src/bad.js", line: 1 }),
-    );
-    const path = result.artifacts["eslint-json"] ?? "";
-    expect(JSON.parse(readFileSync(path, "utf8"))).toBeInstanceOf(Array);
-  });
+  it(
+    "ESLint runs for real once and its JSON file stays on disk, with findings from a planted unused variable",
+    async () => {
+      const item = setup(
+        {
+          "eslint.config.js":
+            'export default [{ files: ["**/*.js"], rules: { "no-unused-vars": "error" } }];\n',
+          "src/bad.js": "const unused = 1;\n",
+        },
+        true,
+      );
+      const result = await runHygiene(item, realExec, {
+        env: { PATH: REAL_PATH },
+        steps: ONLY("eslint"),
+        settings: { eslintConfig: "eslint.config.js" },
+      });
+      expect(result.findings).toContainEqual(
+        expect.objectContaining({ rule: "no-unused-vars", file: "src/bad.js", line: 1 }),
+      );
+      const path = result.artifacts["eslint-json"] ?? "";
+      expect(JSON.parse(readFileSync(path, "utf8"))).toBeInstanceOf(Array);
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 });
 
 function packageJson(name: string): string {

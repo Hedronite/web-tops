@@ -14,6 +14,7 @@ import {
   type Handler,
   type Prepared,
 } from "./testkit.ts";
+import { REAL_TOOL_TIMEOUT } from "../../gate/test-support-timeouts.ts";
 
 const prepared: Prepared[] = [];
 
@@ -82,22 +83,29 @@ describe("G3c hygiene: a missing tool fails, an empty output fails, class-only t
     },
   );
 
-  it("a tool on PATH does not stand in for one missing from node_modules", async () => {
-    const item = setup({ "package.json": PACKAGE, "tsconfig.json": "{}" }, ["tsc"]);
-    const onPath = `${join(REPO_ROOT, "node_modules", ".bin")}${delimiter}${process.env["PATH"] ?? ""}`;
-    const result = await runHygiene(item, realExec, {
-      env: { PATH: onPath },
-      steps: Object.fromEntries(
-        HYGIENE_STEPS.filter((step) => step !== "tsc").map((step) => [step, off("not under test")]),
-      ),
-    });
-    expect(result.findings).toContainEqual(
-      expect.objectContaining({
-        rule: "tool-missing",
-        message: "tsc is not installed in node_modules (package typescript)",
-      }),
-    );
-  });
+  it(
+    "a tool on PATH does not stand in for one missing from node_modules",
+    async () => {
+      const item = setup({ "package.json": PACKAGE, "tsconfig.json": "{}" }, ["tsc"]);
+      const onPath = `${join(REPO_ROOT, "node_modules", ".bin")}${delimiter}${process.env["PATH"] ?? ""}`;
+      const result = await runHygiene(item, realExec, {
+        env: { PATH: onPath },
+        steps: Object.fromEntries(
+          HYGIENE_STEPS.filter((step) => step !== "tsc").map((step) => [
+            step,
+            off("not under test"),
+          ]),
+        ),
+      });
+      expect(result.findings).toContainEqual(
+        expect.objectContaining({
+          rule: "tool-missing",
+          message: "tsc is not installed in node_modules (package typescript)",
+        }),
+      );
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 
   it("a missing node is not blamed on the tool", async () => {
     const item = setup({ "package.json": PACKAGE });
@@ -111,13 +119,17 @@ describe("G3c hygiene: a missing tool fails, an empty output fails, class-only t
     expect(finding?.message).toBe("node is not on PATH, so tsc cannot run");
   });
 
-  it("with PATH stripped and no node_modules, the real process runner reports the tool missing", async () => {
-    const item = setup({ "package.json": PACKAGE });
-    const result = await runHygiene(item, realExec, { env: { PATH: "" } });
-    expect(result.verdict).toBe("fail");
-    expect(result.findings[0]).toMatchObject({ rule: "tool-missing" });
-    expect(result.findings[0]?.message).toContain("bun");
-  });
+  it(
+    "with PATH stripped and no node_modules, the real process runner reports the tool missing",
+    async () => {
+      const item = setup({ "package.json": PACKAGE });
+      const result = await runHygiene(item, realExec, { env: { PATH: "" } });
+      expect(result.verdict).toBe("fail");
+      expect(result.findings[0]).toMatchObject({ rule: "tool-missing" });
+      expect(result.findings[0]?.message).toContain("bun");
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 
   it("a project with no lockfile makes bun audit print nothing on stdout: output-empty naming the lockfile, not a pass", async () => {
     const item = setup({ "package.json": PACKAGE });
