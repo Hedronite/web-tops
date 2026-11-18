@@ -67,7 +67,9 @@ describe("G7a strykerConfig", () => {
     );
   });
 
-  it("does not let Stryker write a `// @ts-nocheck` header into the files of the project: tests that read fixtures see them as they are", () => {});
+  it("does not let Stryker write a `// @ts-nocheck` header into the files of the project: tests that read fixtures see them as they are", () => {
+    expect(config["disableTypeChecks"]).toBe(false);
+  });
 
   it("omits the checker's tsconfig when the project has none to name", () => {
     expect(strykerConfig(BASE)).not.toHaveProperty("tsconfigFile");
