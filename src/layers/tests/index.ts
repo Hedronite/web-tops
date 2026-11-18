@@ -53,13 +53,16 @@ function viteUrl(cwd: string): string {
  * own config, whichever form it takes, and removes `test.coverage.thresholds` whole: a glob key, `100: true`,
  * `perFile` and `autoUpdate` all fail a run too, and zeroing the global keys would not stop them (R43).
  */
-function kitConfig(project: string | undefined, vite: string): string {
+function kitConfig(project: string | undefined, vite: string, setupPath: string): string {
   if (project === undefined) {
     return "export default {};\n";
   }
   return [
+    'import { writeFileSync } from "node:fs";',
+    'import { relative, resolve, sep } from "node:path";',
     `const viteUrl = ${JSON.stringify(vite)};`,
     `const project = ${JSON.stringify(project)};`,
+    `const setupPath = ${JSON.stringify(setupPath)};`,
     "export default async function config(env) {",
     // A dynamic import by variable, so Vite's config loader does not bundle Vite into the kit config.
     "  const { loadConfigFromFile } = await import(/* @vite-ignore */ viteUrl);",
@@ -67,6 +70,11 @@ function kitConfig(project: string | undefined, vite: string): string {
     "  const { test = {}, ...rest } = loaded?.config ?? {};",
     "  const { coverage = {}, ...otherTest } = test;",
     "  const { thresholds, ...otherCoverage } = coverage;",
+    // Vitest does not instrument setup files, so gate 3 is told which files they are (G4-4).
+    "  const root = resolve(rest.root ?? process.cwd());",
+    "  const listed = [].concat(otherTest.setupFiles ?? []).map((entry) =>",
+    '    relative(process.cwd(), resolve(root, String(entry))).split(sep).join("/"));',
+    "  writeFileSync(setupPath, JSON.stringify(listed));",
     "  return { ...rest, test: { ...otherTest, coverage: otherCoverage } };",
     "}",
     "",
@@ -293,6 +301,7 @@ function artifactsOf(directory: string): Record<string, string> {
   const coverage = join(directory, "coverage");
   return {
     "vitest-json": join(directory, "vitest.json"),
+    "setup-files": join(directory, "setup-files.json"),
     lcov: join(coverage, "lcov.info"),
     "coverage-json": join(coverage, "coverage-final.json"),
   };
@@ -322,7 +331,9 @@ async function run(ctx: LayerContext): Promise<LayerResult> {
   const seed = seedFor(ctx);
   const jsonPath = join(directory, "vitest.json");
   const configPath = join(directory, "vitest.config.mjs");
-  writeFileSync(configPath, kitConfig(projectConfig(ctx.cwd), viteUrl(ctx.cwd)));
+  const setupPath = join(directory, "setup-files.json");
+  writeFileSync(setupPath, "[]");
+  writeFileSync(configPath, kitConfig(projectConfig(ctx.cwd), viteUrl(ctx.cwd), setupPath));
   const result = await runTool(ctx, "vitest", vitestArgs(ctx, seed, jsonPath, configPath));
   const launch = launchFailure("vitest", "vitest", result);
   if (launch !== undefined) {
@@ -341,7 +352,7 @@ export const testsLayer: Layer = {
   tier: 1,
   classes: ["ts-library", "ui-components", "astro-site", "web-app", "node-service"],
   requires: [],
-  produces: ["vitest-json", "lcov", "coverage-json"],
+  produces: ["vitest-json", "lcov", "coverage-json", "setup-files"],
   consumes: [],
   run,
 };
