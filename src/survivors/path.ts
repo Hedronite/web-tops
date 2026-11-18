@@ -35,9 +35,18 @@ function badTarget(resolved: string): string | undefined {
 const isInside = (base: string, target: string): boolean =>
   target === base || !escapes(base, target);
 
-/** Whether the part of the path that exists leads out of the project through a symlink. */
+/** The real path of something that exists, else the path as given. */
+function realOf(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
+  }
+}
+
+/** Whether the part of the path that exists leads out of the project through a symlink. A project that is not there leads nowhere. */
 const leavesProject = (directory: string, resolved: string): boolean =>
-  !isInside(realpathSync(directory), realpathSync(existingAncestor(resolved)));
+  existsSync(directory) && !isInside(realOf(directory), realOf(existingAncestor(resolved)));
 
 type Check = (directory: string, path: string, resolved: string) => string | undefined;
 

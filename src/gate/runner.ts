@@ -15,6 +15,9 @@ import {
   type ReportLayer,
   type Verdict,
 } from "../report/types.ts";
+import { DEFAULT_LEDGER } from "../survivors/check.ts";
+import { utcDate } from "../survivors/dates.ts";
+import { ledgerState, type LedgerState } from "../survivors/gate.ts";
 import { planGate, type PlanItem } from "./plan.ts";
 import type {
   Consumed,
@@ -212,6 +215,7 @@ function contextOf(
   input: RunInput,
   base: string,
   artifacts: ReadonlyMap<string, string>,
+  ledger?: LedgerState,
 ): LayerContext {
   return {
     cwd: input.cwd,
@@ -224,7 +228,30 @@ function contextOf(
     artifacts,
     all: input.options.all,
     diff: providerOf(input, base),
+    ...(ledger === undefined ? {} : { explained: ledger.explained }),
   };
+}
+
+const ledgers = new WeakMap<RunInput, LedgerState>();
+
+/** The survivor ledger, read the first time the mutation layer runs and kept for the run (WEB_TOPS.md section 6.4). */
+function ledgerOf(input: RunInput): LedgerState {
+  const known = ledgers.get(input);
+  if (known !== undefined) {
+    return known;
+  }
+  const path = input.config.mutation.ledger ?? DEFAULT_LEDGER;
+  const fresh = ledgerState(input.cwd, path, utcDate(new Date(input.now())));
+  ledgers.set(input, fresh);
+  return fresh;
+}
+
+/** An invalid ledger or an expired entry fails the mutation layer, whatever else it found. */
+function withLedger(result: LayerResult, ledger: LedgerState | undefined): LayerResult {
+  if (ledger === undefined || ledger.findings.length === 0) {
+    return result;
+  }
+  return { ...result, verdict: "fail", findings: [...result.findings, ...ledger.findings] };
 }
 
 async function execute(
@@ -236,7 +263,11 @@ async function execute(
 ): Promise<Executed> {
   const started = input.now();
   try {
-    const result = checked(await layer.run(contextOf(input, base, artifacts)));
+    const ledger = layer.id === "mutation" ? ledgerOf(input) : undefined;
+    const result = withLedger(
+      checked(await layer.run(contextOf(input, base, artifacts, ledger))),
+      ledger,
+    );
     const kept = keepArtifacts(layer, result.artifacts, input.outDir);
     const findings = completeFindings(result.findings, sourceReader(input.cwd));
     return {
