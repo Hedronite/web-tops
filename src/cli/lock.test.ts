@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
-import { readFileSync, rmSync } from "node:fs";
+import { readFileSync, rmSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import pkg from "../../package.json" with { type: "json" };
 import { fakeHost, madeDirs, put, tempDir } from "../init/test-support.ts";
 import { parseLock } from "../lock/format.ts";
-import { NODE_RANGE } from "../lock/pins.ts";
+import { NODE_RANGE, TOOL_PINS } from "../lock/pins.ts";
 import { runLockCli } from "./lock.ts";
 
 afterAll(() => {
@@ -43,6 +43,18 @@ function project(lock = DEFAULT_LOCK, typescript: string | null = "6.0.3"): stri
   install(dir, "eslint", "9.39.5");
   if (typescript !== null) install(dir, "typescript", typescript);
   return dir;
+}
+
+const STRYKER = [
+  "@stryker-mutator/core",
+  "@stryker-mutator/typescript-checker",
+  "@stryker-mutator/vitest-runner",
+] as const;
+
+/** The lock file in `dir`, parsed; an empty map when it does not parse. */
+function lockOf(dir: string): Record<string, string> {
+  const parsed = parseLock(readFileSync(join(dir, "web-tops.lock"), "utf8"));
+  return parsed.ok ? { ...parsed.lock } : {};
 }
 
 const digest = (dir: string): string =>
@@ -192,17 +204,104 @@ describe("webtops lock --update", () => {
     expect((await cli(["--verify"], dir)).code).toBe(0);
   });
 
-  it("keeps the set of tools the lock already names", async () => {
+  it("adds an installed pinned tool the lock does not name, and says it is new", async () => {
+    const dir = project();
+    install(dir, "vitest", "5.1.0");
+    const { code, out } = await cli(["--update"], dir);
+    expect(code).toBe(0);
+    expect(out).toContain("vitest (new) -> 5.1.0");
+    expect(lockOf(dir)).toEqual({
+      eslint: "9.39.5",
+      node: NODE_RANGE,
+      typescript: "6.0.3",
+      vitest: "5.1.0",
+      webtops: pkg.version,
+    });
+  });
+
+  it("adds the three Stryker pins a lock never named, and --verify then passes", async () => {
+    const dir = project();
+    for (const tool of STRYKER) install(dir, tool, "10.1.1");
+    await cli(["--update"], dir);
+    const lock = lockOf(dir);
+    for (const tool of STRYKER) expect(lock[tool]).toBe("10.1.1");
+    expect((await cli(["--verify"], dir)).code).toBe(0);
+  });
+
+  it("adds a pinned tool the package.json declares, and not one that is only hoisted", async () => {
+    const dir = project();
+    put(dir, "package.json", JSON.stringify({ devDependencies: { vitest: "5.1.0" } }));
+    install(dir, "vitest", "5.1.0");
+    install(dir, "zod", "4.6.7");
+    await cli(["--update"], dir);
+    const lock = lockOf(dir);
+    expect(lock["vitest"]).toBe("5.1.0");
+    expect(lock["zod"]).toBeUndefined();
+  });
+
+  it("does not add a library the package.json depends on, exact or not", async () => {
+    const dir = project();
+    put(dir, "package.json", JSON.stringify({ dependencies: { exact: "1.2.3", loose: "^1.0.0" } }));
+    install(dir, "exact", "1.2.3");
+    install(dir, "loose", "1.4.0");
+    await cli(["--update"], dir);
+    expect(Object.keys(lockOf(dir))).toEqual(["eslint", "node", "typescript", "webtops"]);
+  });
+
+  it("exits 3 and writes nothing when package.json is not valid JSON", async () => {
+    const dir = project();
+    put(dir, "package.json", "{ not json");
+    const before = digest(dir);
+    const { code, err } = await cli(["--update"], dir);
+    expect(code).toBe(3);
+    expect(err).toContain("package.json");
+    expect(digest(dir)).toBe(before);
+  });
+
+  it("skips a pinned tool that is not installed: exit 0 and no entry for it", async () => {
+    const dir = project();
+    const { code, err } = await cli(["--update"], dir);
+    expect(code).toBe(0);
+    expect(err).toBe("");
+    expect(Object.keys(lockOf(dir))).toEqual(["eslint", "node", "typescript", "webtops"]);
+  });
+
+  it("keeps a name the lock holds that neither pins.ts nor package.json names, refreshed", async () => {
+    const dir = project(`${DEFAULT_LOCK}by-hand: 1.0.0\n`);
+    install(dir, "by-hand", "1.0.1");
+    await cli(["--update"], dir);
+    expect(lockOf(dir)["by-hand"]).toBe("1.0.1");
+  });
+
+  it("replaces a version seeded as 0.0.0 with the installed one", async () => {
+    const dir = project(`${DEFAULT_LOCK}vitest: 0.0.0\n`);
+    install(dir, "vitest", "5.1.0");
+    const { out } = await cli(["--update"], dir);
+    expect(out).toContain("vitest 0.0.0 -> 5.1.0");
+    expect(lockOf(dir)["vitest"]).toBe("5.1.0");
+  });
+
+  it("records the installed version of a pinned tool even where it differs from the pin", async () => {
+    const dir = project();
+    install(dir, "vitest", "5.9.9");
+    await cli(["--update"], dir);
+    expect(lockOf(dir)["vitest"]).toBe("5.9.9");
+  });
+
+  it("is a no-op the second time: same bytes, and it says so", async () => {
     const dir = project();
     install(dir, "vitest", "5.1.0");
     await cli(["--update"], dir);
-    const parsed = parseLock(readFileSync(join(dir, "web-tops.lock"), "utf8"));
-    expect(parsed.ok && Object.keys(parsed.lock)).toEqual([
-      "eslint",
-      "node",
-      "typescript",
-      "webtops",
-    ]);
+    const once = digest(dir);
+    const { out } = await cli(["--update"], dir);
+    expect(digest(dir)).toBe(once);
+    expect(out).toContain("already matches");
+  });
+
+  it("adds webtops at the running version when the lock does not name it", async () => {
+    const dir = project("eslint: 9.39.5\ntypescript: 6.0.3\n");
+    await cli(["--update"], dir);
+    expect(lockOf(dir)["webtops"]).toBe(pkg.version);
   });
 
   it("keeps the Node range the lock records, and adds the protocol's when it records none", async () => {
@@ -241,5 +340,94 @@ describe("webtops lock --update", () => {
     await cli(["--update"], dir);
     const parsed = parseLock(readFileSync(join(dir, "web-tops.lock"), "utf8"));
     expect(parsed.ok && parsed.lock["webtops"]).toBe(pkg.version);
+  });
+});
+
+describe("webtops lock --verify: a pinned, installed tool the lock does not name (W-41)", () => {
+  it("fails, naming the tool, and says where it is pinned", async () => {
+    const dir = project();
+    install(dir, "vitest", "5.1.0");
+    const { code, err } = await cli(["--verify"], dir);
+    expect(code).toBe(2);
+    expect(err).toContain(
+      "vitest: installed 5.1.0, pinned in section 2, missing from web-tops.lock",
+    );
+    expect(err).toContain("1 difference");
+  });
+
+  it("counts it beside the other differences", async () => {
+    const dir = project(undefined, "6.0.2");
+    install(dir, "vitest", "5.1.0");
+    expect((await cli(["--verify"], dir)).err).toContain("2 differences");
+  });
+
+  it("passes once --update has added it", async () => {
+    const dir = project();
+    install(dir, "vitest", "5.1.0");
+    await cli(["--update"], dir);
+    expect((await cli(["--verify"], dir)).code).toBe(0);
+  });
+
+  it("says nothing of a pinned tool the package.json does not declare, even when it is installed", async () => {
+    const dir = project();
+    put(dir, "package.json", JSON.stringify({ devDependencies: { eslint: "9.39.5" } }));
+    install(dir, "zod", "4.6.7");
+    expect((await cli(["--verify"], dir)).code).toBe(0);
+  });
+
+  it("says nothing of a pinned tool that is not installed, or an installed one pins.ts does not pin", async () => {
+    const dir = project();
+    install(dir, "ajv", "8.20.0");
+    const { code, err } = await cli(["--verify"], dir);
+    expect(code).toBe(0);
+    expect(err).toBe("");
+  });
+
+  it("removes one entry from a complete lock and fails on exactly that tool", async () => {
+    const dir = project();
+    install(dir, "vitest", "5.1.0");
+    await cli(["--update"], dir);
+    put(
+      dir,
+      "web-tops.lock",
+      readFileSync(join(dir, "web-tops.lock"), "utf8").replace(/^vitest: .*\n/m, ""),
+    );
+    const { code, err } = await cli(["--verify"], dir);
+    expect(code).toBe(2);
+    expect(err).toContain("vitest: installed 5.1.0");
+  });
+});
+
+describe("webtops lock on this kit", () => {
+  const KIT = join(import.meta.dirname, "..", "..");
+
+  /** A project that holds the kit's own lock and package.json and reads the kit's own node_modules. */
+  function kitCopy(): string {
+    const dir = tempDir();
+    put(dir, "web-tops.lock", readFileSync(join(KIT, "web-tops.lock"), "utf8"));
+    put(dir, "package.json", readFileSync(join(KIT, "package.json"), "utf8"));
+    symlinkSync(join(KIT, "node_modules"), join(dir, "node_modules"), "dir");
+    return dir;
+  }
+
+  it("--update adds only tools pins.ts pins, never a library or a type package", async () => {
+    const dir = kitCopy();
+    const before = lockOf(dir);
+    const { code } = await cli(["--update"], dir);
+    expect(code).toBe(0);
+    const added = Object.keys(lockOf(dir)).filter((tool) => before[tool] === undefined);
+    for (const tool of added) expect(TOOL_PINS, tool).toHaveProperty(tool);
+    for (const tool of added)
+      expect(Object.keys({ ...pkg.dependencies, ...pkg.devDependencies }), tool).toContain(tool);
+    for (const name of ["ajv", "yaml", "@types/bun"])
+      expect(lockOf(dir)[name], name).toBeUndefined();
+  });
+
+  it("--update is a no-op on the kit's own lock, and --verify passes", async () => {
+    const dir = kitCopy();
+    const before = digest(dir);
+    expect((await cli(["--update"], dir)).out).toContain("already matches");
+    expect(digest(dir)).toBe(before);
+    expect((await cli(["--verify"], dir)).code).toBe(0);
   });
 });

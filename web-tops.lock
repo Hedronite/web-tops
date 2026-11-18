@@ -10,6 +10,7 @@
 "@vitest/eslint-plugin": 1.6.28
 dependency-cruiser: 18.8.0
 eslint: 10.15.0
+fast-check: 4.10.2
 node: ^22.23.4 || ^24.15.0 || >=26
 prettier: 3.10.1
 publint: 0.3.25
