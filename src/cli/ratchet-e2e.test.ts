@@ -11,8 +11,8 @@ import { runGateCli } from "./gate.ts";
 import type { Io } from "./io.ts";
 
 /**
- * G9 end to end (R72): a project with legacy debt of the shape LuminosiTS has, a function over the cap that no test
- * runs and coverage under the floor, adopts the ratchet through the real CLI and the real gate, and is then held to it.
+ * G9 end to end: a project with legacy debt (a function over the cap that no test runs, and coverage under the floor)
+ * adopts the ratchet through the real CLI and the real gate, and is then held to it.
  */
 
 const dirs: string[] = [];
