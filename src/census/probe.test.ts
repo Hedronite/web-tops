@@ -104,6 +104,13 @@ describe("the probe's census cases give their stated counts", () => {
     expect(OWNED.length).toBeGreaterThanOrEqual(10);
   });
 
+  it("owns every census kind the cases state, except the coverage hints (the coverage layer's)", () => {
+    const hints = ["v8-ignore", "istanbul-ignore", "c8-ignore"];
+    const stated = CASES.flatMap((item) => Object.keys(item.census));
+    expect(stated.filter((kind) => !MINE.includes(kind) && !hints.includes(kind))).toEqual([]);
+    expect(stated.length).toBeGreaterThan(MINE.length - 1);
+  });
+
   it.each(OWNED.map((item) => [item.id, item] as const))(
     "%s",
     async (_id, item) => {

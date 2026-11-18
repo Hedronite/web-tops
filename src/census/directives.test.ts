@@ -397,3 +397,22 @@ describe("directivesIn: Astro script types", () => {
     expect(script("application/ld+json")).toEqual([]);
   });
 });
+
+describe("directivesIn: the words of an Astro template are not script", () => {
+  it("does not count a directive named in the text of a template", () => {
+    expect(kinds("a.astro", "<p>Write // eslint-disable-line to hide it</p>")).toEqual([]);
+    expect(
+      kinds(
+        "a.astro",
+        "---\nconst a = 1;\n---\n<p>use // @ts-ignore here</p>\n<p>or /* eslint-disable */ there</p>",
+      ),
+    ).toEqual([]);
+  });
+
+  it("still counts the same text where it is a comment, in the frontmatter and a script", () => {
+    expect(kinds("a.astro", "---\n// eslint-disable-line\n---\n<p/>")).toEqual([
+      "eslint-disable@2",
+    ]);
+    expect(kinds("a.astro", "<script>\n// @ts-ignore\n</script>")).toEqual(["ts-ignore@2"]);
+  });
+});

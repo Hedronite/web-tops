@@ -2,6 +2,8 @@ import type * as tsApi from "typescript";
 import { loadTypeScript } from "../complexity/index.ts";
 import type { Ts } from "../complexity/index.ts";
 import type { RawFinding } from "../report/findings.ts";
+import { buildScope, startsAtBuilder, unwrap } from "./axeScope.ts";
+import type { Scope } from "./axeScope.ts";
 import { failed, passFinding } from "./finding.ts";
 import { isScriptFile, readSource, withinSource } from "./files.ts";
 import { KIND_MESSAGES } from "./kinds.ts";
@@ -16,10 +18,14 @@ export interface AxeHit {
   readonly text: string;
 }
 
-/** A `.disableRules(...)` or `.exclude(...)` call on an AxeBuilder whose argument is not a literal string or an array of them. */
+/**
+ * A call whose settings cannot be counted: its argument is not a literal string or an array of them
+ * (`argument`), or it is a `.disableRules(...)` on something the reader cannot trace to an AxeBuilder (`receiver`).
+ */
 export interface AxeUnreadable {
   readonly method: string;
   readonly line: number;
+  readonly cause: "argument" | "receiver";
 }
 
 export interface AxeReading {
@@ -32,68 +38,12 @@ const METHODS: ReadonlyMap<string, AxeKind> = new Map([
   ["exclude", "axe-exclude"],
 ]);
 
-type Wrapper =
-  | tsApi.ParenthesizedExpression
-  | tsApi.AsExpression
-  | tsApi.SatisfiesExpression
-  | tsApi.NonNullExpression;
-
-const isWrapper = (ts: Ts, node: tsApi.Node): node is Wrapper =>
-  ts.isParenthesizedExpression(node) ||
-  ts.isAsExpression(node) ||
-  ts.isSatisfiesExpression(node) ||
-  ts.isNonNullExpression(node);
-
-/** The expression inside any parentheses, `as`, `satisfies` or `!` around it. */
-function unwrap(ts: Ts, node: tsApi.Node): tsApi.Node {
-  let inner = node;
-  while (isWrapper(ts, inner)) inner = inner.expression;
-  return inner;
-}
-
-/** `AxeBuilder`, or `something.AxeBuilder`: the class `@axe-core/playwright` exports. */
-const isBuilderName = (ts: Ts, node: tsApi.Node): boolean =>
-  (ts.isIdentifier(node) && node.text === "AxeBuilder") ||
-  (ts.isPropertyAccessExpression(node) && node.name.text === "AxeBuilder");
-
-/** The expression a call or a member access is made on, or undefined for anything else. */
-const receiverOf = (ts: Ts, node: tsApi.Node): tsApi.Node | undefined =>
-  ts.isCallExpression(node) || ts.isPropertyAccessExpression(node) ? node.expression : undefined;
-
-/** True when a chain of calls and member accesses starts at `new AxeBuilder(...)`, or at a variable that holds one. */
-function startsAtBuilder(ts: Ts, node: tsApi.Node, builders: ReadonlySet<string>): boolean {
-  const inner = unwrap(ts, node);
-  if (ts.isNewExpression(inner)) return isBuilderName(ts, inner.expression);
-  if (ts.isIdentifier(inner)) return builders.has(inner.text);
-  const next = receiverOf(ts, inner);
-  return next !== undefined && startsAtBuilder(ts, next, builders);
-}
-
-const declaresBuilder = (
-  ts: Ts,
-  node: tsApi.Node,
-  builders: ReadonlySet<string>,
-): node is tsApi.VariableDeclaration =>
-  ts.isVariableDeclaration(node) &&
-  ts.isIdentifier(node.name) &&
-  node.initializer !== undefined &&
-  startsAtBuilder(ts, node.initializer, builders);
-
-/** The names of the variables of the file that are given a builder (`const b = new AxeBuilder(...)`, or a chain from one). */
-function builderNames(ts: Ts, root: tsApi.Node): Set<string> {
-  const names = new Set<string>();
-  const visit = (node: tsApi.Node): void => {
-    if (declaresBuilder(ts, node, names)) names.add(node.name.getText());
-    ts.forEachChild(node, visit);
-  };
-  visit(root);
-  return names;
-}
-
 interface AxeCall {
   readonly method: string;
   readonly kind: AxeKind;
   readonly receiver: tsApi.Node;
+  /** The method's name as written, where a finding about the call is placed. */
+  readonly name: tsApi.Node;
   readonly call: tsApi.CallExpression;
 }
 
@@ -105,7 +55,13 @@ function axeCallOf(ts: Ts, node: tsApi.Node): AxeCall | undefined {
   const kind = METHODS.get(method);
   return kind === undefined
     ? undefined
-    : { method, kind, receiver: node.expression.expression, call: node };
+    : {
+        method,
+        kind,
+        receiver: node.expression.expression,
+        name: node.expression.name,
+        call: node,
+      };
 }
 
 interface Literal {
@@ -144,7 +100,10 @@ function readCall(ts: Ts, sf: tsApi.SourceFile, found: AxeCall): AxeReading {
   if (argument === undefined) return { hits: [], unreadable: [] };
   const literals = literalsOf(ts, argument);
   if (literals === undefined)
-    return { hits: [], unreadable: [{ method: found.method, line: lineOf(sf, argument) }] };
+    return {
+      hits: [],
+      unreadable: [{ method: found.method, line: lineOf(sf, argument), cause: "argument" }],
+    };
   const hits = literals.map((literal): AxeHit => ({
     kind: found.kind,
     line: lineOf(sf, literal.node),
@@ -154,20 +113,38 @@ function readCall(ts: Ts, sf: tsApi.SourceFile, found: AxeCall): AxeReading {
   return { hits, unreadable: [] };
 }
 
+/** A `.disableRules(...)` on a receiver that cannot be traced to a builder: axe's own method name, so never a zero. */
+const untraced = (sf: tsApi.SourceFile, found: AxeCall): AxeReading => ({
+  hits: [],
+  unreadable: [{ method: found.method, line: lineOf(sf, found.name), cause: "receiver" }],
+});
+
+/** A call on a builder is read; a `.disableRules(...)` that is not on one is unreadable; any other call is not axe's. */
+function readAny(
+  ts: Ts,
+  sf: tsApi.SourceFile,
+  scope: Scope,
+  found: AxeCall,
+): AxeReading | undefined {
+  if (startsAtBuilder(ts, found.receiver, scope)) return readCall(ts, sf, found);
+  return found.method === "disableRules" ? untraced(sf, found) : undefined;
+}
+
 /**
  * The axe settings written in one source file, by AST (WEB_TOPS.md section 6.7): each string of a literal array
- * (or a single string) passed to `.disableRules(...)` or `.exclude(...)` on a chain that starts at
- * `new AxeBuilder(...)`, or at a variable of the file that holds one. An argument that is not a literal makes
- * the call `unreadable`, never a zero. A same-named call on anything else is not an axe setting.
+ * (or a single string) passed to `.disableRules(...)` or `.exclude(...)` on a chain that starts at an axe
+ * builder, which the file's own import or require of an `@axe-core/` package names (see `Scope`). An argument
+ * that is not a literal makes the call `unreadable`, never a zero, and so does a `.disableRules(...)` on a
+ * receiver it cannot trace. An `.exclude(...)` that is not on a traced builder is not an axe setting.
  */
 export function readAxe(ts: Ts, file: string, text: string): AxeReading {
-  const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
-  const builders = builderNames(ts, sf);
+  const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest);
+  const scope = buildScope(ts, sf);
   const readings: AxeReading[] = [];
   const visit = (node: tsApi.Node): void => {
     const found = axeCallOf(ts, node);
-    if (found !== undefined && startsAtBuilder(ts, found.receiver, builders))
-      readings.push(readCall(ts, sf, found));
+    const reading = found === undefined ? undefined : readAny(ts, sf, scope, found);
+    if (reading !== undefined) readings.push(reading);
     ts.forEachChild(node, visit);
   };
   visit(sf);
@@ -177,12 +154,18 @@ export function readAxe(ts: Ts, file: string, text: string): AxeReading {
   };
 }
 
+const WORDS: Readonly<Record<AxeUnreadable["cause"], string>> = {
+  argument:
+    "on an AxeBuilder is not given a literal string or an array of literal strings, so what it sets cannot be counted",
+  receiver:
+    "is called on something that is not traced to an AxeBuilder, so what it switches off cannot be counted",
+};
+
 const unreadableFinding = (file: string, found: AxeUnreadable): RawFinding =>
-  failed(
-    "census-axe-unreadable",
-    `.${found.method}() on an AxeBuilder is not given a literal string or an array of literal strings, so what it sets cannot be counted`,
-    { file, line: found.line },
-  );
+  failed("census-axe-unreadable", `.${found.method}() ${WORDS[found.cause]}`, {
+    file,
+    line: found.line,
+  });
 
 function findingsOf(ts: Ts, file: string, text: string): RawFinding[] {
   const reading = readAxe(ts, file, text);
@@ -194,7 +177,10 @@ function findingsOf(ts: Ts, file: string, text: string): RawFinding[] {
   ];
 }
 
-/** The tracked script files that name AxeBuilder: the only ones whose syntax is worth reading. */
+/** What makes a file worth reading: it imports an axe package, names AxeBuilder, or calls axe's own `.disableRules(`. */
+const MENTIONS = ["@axe-core/", "AxeBuilder", ".disableRules("];
+
+/** The tracked script files that touch axe: the only ones whose syntax is worth reading. */
 function mentioning(
   cwd: string,
   files: readonly string[],
@@ -203,14 +189,16 @@ function mentioning(
     .filter((file) => isScriptFile(file) && withinSource(file))
     .flatMap((file) => {
       const text = readSource(cwd, file);
-      return text?.includes("AxeBuilder") === true ? [{ file, text }] : [];
+      return text !== undefined && MENTIONS.some((word) => text.includes(word))
+        ? [{ file, text }]
+        : [];
     });
 }
 
 /**
  * `axe-disable-rules` and `axe-exclude` for a project (WEB_TOPS.md section 6.7), as findings: a pass finding for
  * each rule or selector, a failing `census-axe-unreadable` finding for each call it cannot read, and one such
- * finding when the project names AxeBuilder and has no TypeScript to read it with.
+ * finding when a file touches axe and the project has no TypeScript to read it with.
  */
 export function axeFindings(cwd: string, files: readonly string[]): RawFinding[] {
   const sources = mentioning(cwd, files);

@@ -51,6 +51,57 @@ describe("ruleOff: a per-file override that sets a rule off", () => {
     expect(ruleOff(levels({ "a.ts": { "no-any": 2 }, "b.ts": {} }))).toEqual([]);
   });
 
+  it("does not count a rule that is off for a file of one extension while it is on only for files of another (R77)", () => {
+    const found = ruleOff(
+      levels({
+        "src/a.ts": { "no-any": 2 },
+        "scripts/b.js": { "no-any": 0 },
+        "scripts/c.mjs": { "no-any": 0 },
+      }),
+    );
+    expect(found).toEqual([]);
+  });
+
+  it("counts the pair when the rule is on for another file with the same extension, and not the other extensions", () => {
+    const found = ruleOff(
+      levels({
+        "src/a.ts": { "no-any": 2 },
+        "src/legacy/b.ts": { "no-any": 0 },
+        "scripts/c.js": { "no-any": 0 },
+      }),
+    );
+    expect(found).toEqual([{ kind: "eslint-rule-off", file: "src/legacy/b.ts", rule: "no-any" }]);
+  });
+
+  it("judges each extension on its own: on and off for .js counts, though .ts has the rule on everywhere", () => {
+    const found = ruleOff(
+      levels({
+        "a.ts": { r: 2 },
+        "b.ts": { r: 2 },
+        "x.js": { r: 1 },
+        "y.js": { r: 0 },
+      }),
+    );
+    expect(found).toEqual([{ kind: "eslint-rule-off", file: "y.js", rule: "r" }]);
+  });
+
+  it("takes extensions without regard to case, and a file with no extension as its own group", () => {
+    expect(ruleOff(levels({ "a.TS": { r: 2 }, "b.ts": { r: 0 } }))).toEqual([
+      { kind: "eslint-rule-off", file: "b.ts", rule: "r" },
+    ]);
+    expect(ruleOff(levels({ Makefile: { r: 2 }, Dockerfile: { r: 0 } }))).toEqual([
+      { kind: "eslint-rule-off", file: "Dockerfile", rule: "r" },
+    ]);
+    expect(ruleOff(levels({ "a.ts": { r: 2 }, Dockerfile: { r: 0 } }))).toEqual([]);
+  });
+
+  it("puts two extensions in one group when they differ only in case, whichever way the case is folded", () => {
+    // The Kelvin sign lowercases to "k" but is its own capital: only folding to lower case puts it with ".k".
+    expect(ruleOff(levels({ "a.k": { r: 2 }, "b.\u212A": { r: 0 } }))).toEqual([
+      { kind: "eslint-rule-off", file: "b.\u212A", rule: "r" },
+    ]);
+  });
+
   it("counts a warning as on, and orders the pairs by file and then rule", () => {
     const found = ruleOff(levels({ "z.ts": { b: 0, a: 0 }, "a.ts": { a: 1, b: 1 } }));
     expect(found.map((hit) => `${hit.file}:${hit.rule}`)).toEqual(["z.ts:a", "z.ts:b"]);
