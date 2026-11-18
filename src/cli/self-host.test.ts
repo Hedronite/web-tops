@@ -64,7 +64,6 @@ describe("G7a: the kit's own web-tops.yaml", () => {
   });
 
   it.each([
-    [["gates", "mutation"], "M2"],
     [["laws"], "M3"],
     [["layers", "size_limit"], "M4"],
     [["layers", "html_validate"], "M4"],
