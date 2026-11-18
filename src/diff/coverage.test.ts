@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Exec } from "../gate/types.ts";
+import { COVERAGE_INCLUDE, DEFAULT_COVERAGE_EXCLUDES } from "../layers/coverage/scope.ts";
 import { coveredSpans, parseCoverage, vitestCoverageOf } from "./coverage.ts";
 
 const recorded: unknown = JSON.parse(
@@ -80,6 +81,26 @@ describe("G6c: running one changed test file for its coverage", () => {
     expect(call).toEqual(
       expect.arrayContaining(["run", "src/sum.test.ts", "--coverage", "--coverage.reporter=json"]),
     );
+  });
+
+  it("runs under the gate's own config and scope, not the project's: no thresholds, the gate's include and exclude", async () => {
+    await vitestCoverageOf("src/sum.test.ts", {
+      cwd: "/repo",
+      exec: stamp("/repo", 0, true),
+      exclude: ["src/generated/**"],
+    });
+    const call = log.at(-1) ?? [];
+    expect(call.some((arg) => /^--config=.*vitest\.config\.mjs$/.test(arg))).toBe(true);
+    expect(call).toEqual(
+      expect.arrayContaining([
+        "--coverage.provider=v8",
+        `--coverage.include=${COVERAGE_INCLUDE}`,
+        "--coverage.exclude=**/*.d.ts",
+        "--coverage.exclude=src/generated/**",
+      ]),
+    );
+    for (const glob of DEFAULT_COVERAGE_EXCLUDES)
+      expect(call).toContain(`--coverage.exclude=${glob}`);
   });
 
   it("gives undefined when vitest fails or writes no coverage", async () => {

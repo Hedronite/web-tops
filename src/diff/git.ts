@@ -54,4 +54,9 @@ export function diffText(exec: Exec, cwd: string, mergeBase: string): Promise<Gi
   return git(exec, cwd, args);
 }
 
+/** A file as it was at `ref`, or the reason it has none there (a file that was added, for one). */
+export function showAt(exec: Exec, cwd: string, ref: string, path: string): Promise<GitResult> {
+  return git(exec, cwd, ["show", `${ref}:${path}`]);
+}
+
 export { realExec };

@@ -366,10 +366,17 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
   drops mutants that do not type-check: their status is `CompileError`, and they are neither killed
   nor counted as survivors.
 - **Scope:** the lines changed against the merge base, **plus every function covered by a changed
-  test file**, so a change that only weakens a test is mutated. `webtops` computes the line ranges
-  and passes them as Stryker `mutate` entries, `file:start-end` (confirmed on Stryker 10.1.1);
-  Stryker's per-test coverage maps each changed test file to the functions it covers, and their
-  ranges are added.
+  test file at the merge base or at HEAD**, so a change that only weakens a test, or drops the call
+  to a function, is mutated. `webtops` computes the line ranges and passes them as Stryker `mutate`
+  entries, `file:start-end` (confirmed on Stryker 10.1.1). It maps each changed test file to the
+  functions it covers by running that file alone under Vitest, with the gate's own configuration
+  (the project's, coverage thresholds removed) and the gate's coverage include and exclude (§6.1),
+  once for the version at HEAD and once for the version at the merge base; a deleted test file runs
+  only the second. The functions that ran are added, with their whole ranges. A HEAD version that
+  cannot run is `fail`; a merge-base version that cannot run against HEAD adds nothing. The diff is
+  taken without rename detection, so a renamed file counts as new and every function in it is
+  judged. A pure deletion belongs to the smallest function that holds the lines on both sides of
+  it, else to the file's `<module>` (§6.7).
 - **Statuses.** Stryker's status of each mutant decides what counts:
 
 | Status | Counts as |

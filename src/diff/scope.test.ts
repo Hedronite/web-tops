@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { existsSync } from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { at, get } from "../config/test-support.ts";
@@ -194,7 +195,7 @@ describe("G6c: a test-only diff maps to the functions its tests cover", () => {
     });
     expect(result.outcome).toBe("scope");
     if (result.outcome !== "scope") return;
-    expect(asked).toEqual(["src/sum.test.ts"]);
+    expect(asked).toEqual(["src/sum.test.ts", "src/sum.wt-base.test.ts"]);
     expect(result.scope.testFiles).toEqual(["src/sum.test.ts"]);
     expect(result.scope.changedFunctions).toEqual([]);
     expect(keys(result.scope.coveredFunctions)).toEqual(["src/sum.ts::sum"]);
@@ -225,7 +226,7 @@ describe("G6c: a test-only diff maps to the functions its tests cover", () => {
     expect(get(result, "reason")).toContain("src/sum.test.ts");
   });
 
-  it("does not ask for coverage when no test file changed, or when a test file was deleted", async () => {
+  it("does not ask for coverage when no test file changed", async () => {
     const asked: string[] = [];
     const coverageOf = (file: string): Promise<undefined> => {
       asked.push(file);
@@ -234,8 +235,6 @@ describe("G6c: a test-only diff maps to the functions its tests cover", () => {
     const dir = makeRepo({ "src/sum.ts": sum, "src/sum.test.ts": strong });
     write(dir, { "src/sum.ts": `${sum}// edit\n` });
     expect((await diffScope({ cwd: dir, base: "main", coverageOf })).outcome).toBe("scope");
-    git(dir, "rm", "-q", "src/sum.test.ts");
-    await diffScope({ cwd: dir, base: "main", coverageOf });
     expect(asked).toEqual([]);
   });
 
@@ -251,5 +250,129 @@ describe("G6c: a test-only diff maps to the functions its tests cover", () => {
       coverageOf: () => Promise.resolve(parseCoverage(recorded)),
     });
     expect(at(result, ["scope", "mutate"])).toEqual(["src/sum.ts:1-7"]);
+  });
+});
+
+describe("G6-3: a weakened test keeps its function in scope (base union head)", () => {
+  const M = [
+    "export function f(a: number): number {",
+    "  return a + 1;",
+    "}",
+    "export function g(a: number): number {",
+    "  return a * 2;",
+    "}",
+    "",
+  ].join("\n");
+  const STRONG = 'import { f, g } from "./m.ts";\nf(1);\ng(2);\n';
+  const WEAK = 'import { f } from "./m.ts";\nf(1);\n';
+  const only = (...ranges: [number, number][]): ReturnType<typeof parseCoverage> =>
+    new Map([["src/m.ts", ranges.map(([start, end]) => ({ start, end, hits: 1 }))]]);
+  const F: [number, number] = [1, 3];
+  const G: [number, number] = [4, 6];
+
+  function weakened(): string {
+    const dir = makeRepo({ "src/m.ts": M, "src/m.test.ts": STRONG });
+    git(dir, "switch", "-q", "-c", "weaken");
+    write(dir, { "src/m.test.ts": WEAK });
+    commit(dir, "weaken");
+    return dir;
+  }
+
+  it("also runs the merge-base version of the test, and adds the functions it covered", async () => {
+    const dir = weakened();
+    const seen: Record<string, string> = {};
+    const result = await diffScope({
+      cwd: dir,
+      base: "main",
+      coverageOf: (file) => {
+        seen[file] = existsSync(join(dir, file)) ? readFileSync(join(dir, file), "utf8") : "";
+        return Promise.resolve(file.includes(".wt-base.") ? only(F, G) : only(F));
+      },
+    });
+    expect(Object.keys(seen)).toEqual(["src/m.test.ts", "src/m.wt-base.test.ts"]);
+    expect(seen["src/m.wt-base.test.ts"]).toBe(STRONG.trim());
+    expect(keys(scopeOf(result)?.coveredFunctions ?? [])).toEqual(["src/m.ts::f", "src/m.ts::g"]);
+    expect(scopeOf(result)?.mutate).toEqual(["src/m.ts:1-6"]);
+    expect(existsSync(join(dir, "src/m.wt-base.test.ts"))).toBe(false);
+  });
+
+  it("without the base version g would be out of scope: the head alone covers f", async () => {
+    const result = await diffScope({
+      cwd: weakened(),
+      base: "main",
+      coverageOf: (file) => Promise.resolve(file.includes(".wt-base.") ? undefined : only(F)),
+    });
+    expect(scopeOf(result)?.mutate).toEqual(["src/m.ts:1-3"]);
+  });
+
+  it("ignores a merge-base version that cannot run against the head, and still judges the head", async () => {
+    const result = await diffScope({
+      cwd: weakened(),
+      base: "main",
+      coverageOf: (file) => Promise.resolve(file.includes(".wt-base.") ? undefined : only(F)),
+    });
+    expect(result.outcome).toBe("scope");
+  });
+
+  it("runs the base version, and only that, for a test file that was deleted", async () => {
+    const dir = makeRepo({ "src/m.ts": M, "src/m.test.ts": STRONG });
+    git(dir, "rm", "-q", "src/m.test.ts");
+    const asked: string[] = [];
+    const result = await diffScope({
+      cwd: dir,
+      base: "main",
+      coverageOf: (file) => {
+        asked.push(file);
+        return Promise.resolve(only(F, G));
+      },
+    });
+    expect(asked).toEqual(["src/m.wt-base.test.ts"]);
+    expect(result.outcome).toBe("scope");
+    expect(scopeOf(result)?.mutate).toEqual(["src/m.ts:1-6"]);
+  });
+
+  it("runs only the head version of a test file that was added", async () => {
+    const dir = makeRepo({ "src/m.ts": M });
+    write(dir, { "src/m.test.ts": STRONG });
+    git(dir, "add", "-A");
+    const asked: string[] = [];
+    await diffScope({
+      cwd: dir,
+      base: "main",
+      coverageOf: (file) => {
+        asked.push(file);
+        return Promise.resolve(only(F, G));
+      },
+    });
+    expect(asked).toEqual(["src/m.test.ts"]);
+  });
+});
+
+describe("G6-1: a deletion belongs to a function only when both sides of it lie inside it", () => {
+  const B = A.replace("}\nexport function two", "}\n\nexport function two");
+
+  it("goes to <module> when the removed line was between two functions", async () => {
+    const dir = makeRepo({ "src/a.ts": B });
+    write(dir, { "src/a.ts": A });
+    const result = await diffScope({ cwd: dir, base: "main" });
+    expect(keys(scopeOf(result)?.changedFunctions ?? [])).toEqual(["src/a.ts::<module>"]);
+  });
+
+  it("goes to <module> when a whole function was removed", async () => {
+    const dir = makeRepo({ "src/a.ts": A });
+    write(dir, { "src/a.ts": A.slice(0, A.indexOf("export function two")) });
+    const result = await diffScope({ cwd: dir, base: "main" });
+    expect(keys(scopeOf(result)?.changedFunctions ?? [])).toEqual(["src/a.ts::<module>"]);
+  });
+
+  it("goes to the smallest function that holds both sides, an outer one when the inner one ended", async () => {
+    const nested =
+      "export function outer() {\n  function inner() {\n    return 1;\n  }\n  const x = 1;\n  return inner() + x;\n}\n";
+    const dir = makeRepo({ "src/n.ts": nested });
+    write(dir, {
+      "src/n.ts": nested.replace("  const x = 1;\n", "").replace("inner() + x", "inner()"),
+    });
+    const result = await diffScope({ cwd: dir, base: "main" });
+    expect(keys(scopeOf(result)?.changedFunctions ?? [])).toContain("src/n.ts::outer");
   });
 });

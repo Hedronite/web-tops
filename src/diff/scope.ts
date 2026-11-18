@@ -1,12 +1,19 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 import { realExec } from "../gate/exec.ts";
 import type { Exec } from "../gate/types.ts";
 import { vitestCoverageOf, coveredSpans } from "./coverage.ts";
 import { functionsIn, innermostAt } from "./functions.ts";
-import { diffText, mergeBaseOf } from "./git.ts";
+import { diffText, mergeBaseOf, showAt } from "./git.ts";
 import { parseDiff } from "./parse.ts";
-import type { ChangedFile, CoverageMap, DiffScope, FunctionRef, ScopeResult } from "./types.ts";
+import type {
+  ChangedFile,
+  CoverageMap,
+  DiffScope,
+  FunctionRef,
+  FunctionSpan,
+  ScopeResult,
+} from "./types.ts";
 
 export type CoverageOf = (testFile: string) => Promise<CoverageMap | undefined>;
 
@@ -17,6 +24,8 @@ export interface ScopeOptions {
   readonly exec?: Exec;
   /** What a test file covers; by default a Vitest run of that file alone. */
   readonly coverageOf?: CoverageOf;
+  /** Reasoned coverage exclusions from `web-tops.yaml`, passed to the default per-file run. */
+  readonly exclude?: readonly string[];
 }
 
 interface Entry {
@@ -56,18 +65,26 @@ function uniqueByKey(refs: readonly FunctionRef[]): readonly FunctionRef[] {
   return [...new Map(refs.map((ref) => [ref.key, ref])).values()];
 }
 
+/**
+ * Where a pure deletion belongs: the smallest function that holds the line before it and the line after it, and
+ * the file's `<module>` when no function holds both (a line between two functions, or a whole function removed).
+ */
+function deletionTarget(spans: readonly FunctionSpan[], after: number): FunctionSpan | undefined {
+  const holding = spans.filter((span) => span.start <= after && after + 1 <= span.end);
+  return innermostAt(holding, after) ?? spans[0];
+}
+
 /** The functions that hold a changed line, or that a pure deletion was taken from. */
 function changedIn(file: ChangedFile, read: Reader): readonly FunctionRef[] {
   const text = read(file.path);
   if (text === undefined) return [];
   const spans = functionsIn(file.path, text);
-  const lines = [
-    ...file.ranges.flatMap((range) => span(range.start, range.end)),
-    ...file.removedAfter.map((after) =>
-      innermostAt(spans, after) === undefined ? after + 1 : after,
-    ),
+  const found = [
+    ...file.ranges
+      .flatMap((range) => span(range.start, range.end))
+      .map((line) => innermostAt(spans, line)),
+    ...file.removedAfter.map((after) => deletionTarget(spans, after)),
   ];
-  const found = lines.map((line) => innermostAt(spans, line));
   return found
     .filter((entry) => entry !== undefined)
     .map((entry) => ({ ...entry, path: file.path }));
@@ -81,20 +98,59 @@ function refsCovered(map: CoverageMap, read: Reader): readonly FunctionRef[] {
   });
 }
 
-async function coveredFunctions(
-  tests: readonly string[],
-  coverageOf: CoverageOf,
-  read: Reader,
-): Promise<Covered> {
+interface CoverRun {
+  readonly coverageOf: CoverageOf;
+  readonly read: Reader;
+  /** The coverage of a test file as it was at the merge base, or undefined when it has none or cannot run. */
+  readonly baseCoverageOf: CoverageOf;
+}
+
+const NONE: CoverageMap = new Map();
+
+async function headMap(test: ChangedFile, run: CoverRun): Promise<CoverageMap | undefined> {
+  return test.status === "deleted" ? NONE : run.coverageOf(test.path);
+}
+
+async function baseMap(test: ChangedFile, run: CoverRun): Promise<CoverageMap> {
+  return test.status === "added" ? NONE : ((await run.baseCoverageOf(test.path)) ?? NONE);
+}
+
+/**
+ * The functions every changed test file covers, as it is at HEAD and as it was at the merge base (so a test
+ * that dropped a call keeps the function it no longer calls in scope). A head version that cannot run is `fail`;
+ * a merge-base version that cannot run against the head is left out.
+ */
+async function coveredFunctions(tests: readonly ChangedFile[], run: CoverRun): Promise<Covered> {
   const refs: FunctionRef[] = [];
   for (const test of tests) {
-    const map = await coverageOf(test);
-    if (map === undefined) {
-      return { ok: false, reason: `could not run ${test} to find the functions it covers` };
+    const head = await headMap(test, run);
+    if (head === undefined) {
+      return { ok: false, reason: `could not run ${test.path} to find the functions it covers` };
     }
-    refs.push(...refsCovered(map, read));
+    refs.push(...refsCovered(head, run.read), ...refsCovered(await baseMap(test, run), run.read));
   }
   return { ok: true, refs: uniqueByKey(refs) };
+}
+
+/** The merge-base copy of a test file, written beside the original so its imports resolve, run, and removed. */
+async function baseCoverage(
+  options: ScopeOptions,
+  exec: Exec,
+  mergeBase: string,
+  coverageOf: CoverageOf,
+  test: string,
+): Promise<CoverageMap | undefined> {
+  const shown = await showAt(exec, options.cwd, mergeBase, test);
+  if (!shown.ok) return undefined;
+  const copy = join(dirname(test), basename(test).replace(/\.(test|spec)\./, ".wt-base.$1."));
+  try {
+    writeFileSync(join(options.cwd, copy), shown.value);
+    return await coverageOf(copy);
+  } catch {
+    return undefined;
+  } finally {
+    rmSync(join(options.cwd, copy), { force: true });
+  }
 }
 
 const touches = (last: Entry | undefined, entry: Entry): boolean =>
@@ -129,9 +185,7 @@ function scopeOf(
     mergeBase,
     files,
     changedFunctions: uniqueByKey(sources.flatMap((file) => changedIn(file, read))),
-    testFiles: files
-      .filter((file) => file.status !== "deleted" && isTestFile(file.path))
-      .map((file) => file.path),
+    testFiles: files.filter((file) => isTestFile(file.path)).map((file) => file.path),
     coveredFunctions: covered,
     mutate: merged(entries).map(
       (entry) => `${entry.path}:${String(entry.start)}-${String(entry.end)}`,
@@ -147,11 +201,13 @@ async function assemble(
 ): Promise<ScopeResult> {
   const read = readerFor(options.cwd);
   const coverageOf =
-    options.coverageOf ?? ((test: string) => vitestCoverageOf(test, { cwd: options.cwd, exec }));
-  const tests = files
-    .filter((file) => file.status !== "deleted" && isTestFile(file.path))
-    .map((file) => file.path);
-  const covered = await coveredFunctions(tests, coverageOf, read);
+    options.coverageOf ??
+    ((test: string) =>
+      vitestCoverageOf(test, { cwd: options.cwd, exec, exclude: options.exclude ?? [] }));
+  const baseCoverageOf = (test: string): Promise<CoverageMap | undefined> =>
+    baseCoverage(options, exec, mergeBase, coverageOf, test);
+  const tests = files.filter((file) => isTestFile(file.path));
+  const covered = await coveredFunctions(tests, { coverageOf, read, baseCoverageOf });
   if (!covered.ok) return { outcome: "fail", reason: covered.reason };
   const scope = scopeOf(mergeBase, files, read, covered.refs);
   return scope.mutate.length === 0
