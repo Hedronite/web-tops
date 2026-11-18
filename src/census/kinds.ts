@@ -13,9 +13,13 @@ export const SOURCE_KINDS = [
 /** The census kinds read from the project's configuration against the tracked files. */
 export const CONFIG_KINDS = ["eslint-rule-off", "eslint-ignores", "tsconfig-exclude"] as const;
 
+/** The census kinds read from the syntax of the project's source: the settings of an axe run. */
+export const AXE_KINDS = ["axe-disable-rules", "axe-exclude"] as const;
+
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 export type ConfigKind = (typeof CONFIG_KINDS)[number];
-export type CensusKind = SourceKind | ConfigKind;
+export type AxeKind = (typeof AXE_KINDS)[number];
+export type CensusKind = SourceKind | ConfigKind | AxeKind;
 
 /** The finding rule that stands for a census kind in a report: `census/<kind>` (read back by the baseline). */
 export const CENSUS_RULE_PREFIX = "census/";
@@ -30,6 +34,8 @@ export const KIND_MESSAGES: Readonly<Record<CensusKind, string>> = {
   "biome-ignore": "a biome-ignore comment turns a Biome rule off here",
   "stryker-disable": "a Stryker disable comment keeps mutants from being judged here",
   "html-validate-disable": "an html-validate directive turns a markup rule off here",
+  "axe-disable-rules": "an axe run switches a rule off",
+  "axe-exclude": "an axe run leaves a selector out of the page it checks",
   "eslint-rule-off": "a per-file ESLint setting turns a rule off for this file",
   "eslint-ignores": "an ESLint ignores entry leaves this file out of linting",
   "tsconfig-exclude": "the tsconfig exclude leaves this file out of the program",

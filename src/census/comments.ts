@@ -50,7 +50,7 @@ const start = (text: string): State => ({
   comments: [],
 });
 
-const at = (state: State, offset = 0): string => state.text.charAt(state.index + offset);
+const at = (state: State): string => state.text.charAt(state.index);
 
 const startsWith = (state: State, marker: string): boolean =>
   state.text.startsWith(marker, state.index);
@@ -69,23 +69,28 @@ function valueRead(state: State): void {
   state.word = "";
 }
 
-function lineComment(state: State): boolean {
-  if (!startsWith(state, "//")) return false;
-  const found = state.text.indexOf("\n", state.index);
-  const end = found < 0 ? state.text.length : found;
-  state.comments.push({ line: state.line, body: state.text.slice(state.index + 2, end) });
-  state.index = end;
+const LINE = /\/\/([^\n]*)\n?/uy;
+const BLOCK = /\/\*([\s\S]*?)(?:\*\/|$)/uy;
+const URL = /url\([^)]*\)?/uy;
+
+/** The match of a sticky pattern at the scan's position, or null. */
+function matchAt(state: State, pattern: RegExp): RegExpExecArray | null {
+  pattern.lastIndex = state.index;
+  return pattern.exec(state.text);
+}
+
+/** A comment the pattern finds at the position: its text is the first group; it is consumed, line break included. */
+function commentAt(state: State, pattern: RegExp): boolean {
+  const found = matchAt(state, pattern);
+  if (found === null) return false;
+  state.comments.push({ line: state.line, body: String(found[1]) });
+  skip(state, found[0].length);
   return true;
 }
 
-function blockComment(state: State): boolean {
-  if (!startsWith(state, "/*")) return false;
-  const found = state.text.indexOf("*/", state.index + 2);
-  const end = found < 0 ? state.text.length : found;
-  state.comments.push({ line: state.line, body: state.text.slice(state.index + 2, end) });
-  skip(state, end + 2 - state.index);
-  return true;
-}
+const lineComment = (state: State): boolean => commentAt(state, LINE);
+
+const blockComment = (state: State): boolean => commentAt(state, BLOCK);
 
 const isQuote = (char: string): boolean => char === "'" || char === '"';
 
@@ -104,7 +109,7 @@ function quoted(state: State): boolean {
   if (!isQuote(quote)) return false;
   skip(state, 1);
   while (inString(state, quote)) textStep(state);
-  if (at(state) === quote) skip(state, 1);
+  skip(state, 1);
   valueRead(state);
   return true;
 }
@@ -114,11 +119,11 @@ const braceWeight = (char: string): number => (char === "{" ? 1 : char === "}" ?
 /** The code inside `${ }` of a template literal: scanned like code, so a comment in it is a comment. */
 function substitution(state: State): void {
   let depth = 1;
-  while (state.index < state.text.length && depth > 0) {
+  while (state.index < state.text.length) {
     depth += braceWeight(at(state));
-    if (depth > 0) step(state);
+    if (depth === 0) return;
+    step(state);
   }
-  skip(state, 1);
 }
 
 /** One piece of a template literal's text: a `${ }` substitution, or a character. */
@@ -141,8 +146,9 @@ function template(state: State): boolean {
   return true;
 }
 
+/** At the start of the text `last` is empty, which `includes` finds in any string: a regex may start there. */
 const regexAllowed = (state: State): boolean =>
-  state.last === "" || REGEX_AFTER.includes(state.last) || REGEX_KEYWORDS.has(state.word);
+  REGEX_AFTER.includes(state.last) || REGEX_KEYWORDS.has(state.word);
 
 const classAfter = (char: string, inClass: boolean): boolean =>
   char === "[" ? true : char === "]" ? false : inClass;
@@ -158,8 +164,7 @@ function regexBody(state: State): void {
     inClass = classAfter(at(state), inClass);
     textStep(state);
   }
-  skip(state, at(state) === "/" ? 1 : 0);
-  while (WORD.test(at(state))) skip(state, 1);
+  skip(state, 1);
 }
 
 function regexLiteral(state: State): boolean {
@@ -171,20 +176,19 @@ function regexLiteral(state: State): boolean {
 }
 
 /** Anything else: one character, remembered so the next `/` can be read. */
-function other(state: State): boolean {
+function other(state: State): void {
   const char = at(state);
   if (char.trim() !== "") {
     state.word = WORD.test(char) ? state.word + char : "";
     state.last = char;
   }
   skip(state, 1);
-  return true;
 }
 
-const SCANNERS = [lineComment, blockComment, quoted, template, regexLiteral, other];
+const SCANNERS = [lineComment, blockComment, quoted, template, regexLiteral];
 
 function step(state: State): void {
-  SCANNERS.some((scan) => scan(state));
+  if (!SCANNERS.some((scan) => scan(state))) other(state);
 }
 
 /** The comments of JavaScript or TypeScript source (`//` and block comments), in order. */
@@ -194,38 +198,35 @@ export function scriptComments(text: string): Comment[] {
   return state.comments;
 }
 
-/** The text of a CSS-like source with strings and `url( )` skipped, so only real comments are left to find. */
-function cssState(text: string): State {
-  return start(text);
-}
-
+/** A `url( )`, whose text may hold `//` that is not a comment, is skipped whole. */
 function cssParen(state: State): boolean {
-  if (!startsWith(state, "url(")) return false;
-  const close = state.text.indexOf(")", state.index);
-  skip(state, (close < 0 ? state.text.length : close + 1) - state.index);
+  const found = matchAt(state, URL);
+  if (found === null) return false;
+  skip(state, found[0].length);
   return true;
 }
 
-function cssStep(state: State, lineComments: boolean): void {
-  const scanners = lineComments
-    ? [cssParen, lineComment, blockComment, quoted, other]
-    : [cssParen, blockComment, quoted, other];
-  scanners.some((scan) => scan(state));
+const BLOCK_SCANNERS = [cssParen, blockComment, quoted];
+const LINE_SCANNERS = [cssParen, lineComment, blockComment, quoted];
+
+function cssStep(state: State, scanners: readonly ((state: State) => boolean)[]): void {
+  if (!scanners.some((scan) => scan(state))) other(state);
 }
 
 /** The comments of a stylesheet: block comments, and `//` ones too in Sass, SCSS and Less. */
 export function styleComments(text: string, lineComments: boolean): Comment[] {
-  const state = cssState(text);
-  while (state.index < text.length) cssStep(state, lineComments);
+  const state = start(text);
+  const scanners = lineComments ? LINE_SCANNERS : BLOCK_SCANNERS;
+  while (state.index < text.length) cssStep(state, scanners);
   return state.comments;
 }
 
-const HTML_COMMENT = /<!--([\s\S]*?)-->/gu;
+const HTML_COMMENT = /<!--[\s\S]*?-->/gu;
 
 /** The comments of HTML or of an Astro template: `<!-- ... -->`. */
 export function htmlComments(text: string): Comment[] {
   return [...text.matchAll(HTML_COMMENT)].map((found) => ({
     line: text.slice(0, found.index).split("\n").length,
-    body: found[1] ?? "",
+    body: found[0].slice(4, -3),
   }));
 }

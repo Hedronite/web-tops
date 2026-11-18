@@ -236,3 +236,54 @@ describe("eslintFacts with the real ESLint, on the probe projects", () => {
     REAL_TOOL_TIMEOUT,
   );
 });
+
+describe("eslintFacts: what it says and where it writes", () => {
+  const runnerWith = (result: ExecResult): { runner: Runner; out: string } => {
+    const out = join(temp(), "out");
+    const exec: Exec = () => Promise.resolve(result);
+    return { runner: { cwd: "/project", env: {}, exec, outDir: out }, out };
+  };
+
+  it("writes the list of files under the output folder, in a census folder", async () => {
+    const { runner, out } = runnerWith({ code: 0, stdout: "{}", stderr: "" });
+    await eslintFacts(runner, ["a.ts"]);
+    expect(JSON.parse(readFileSync(join(out, "census", "eslint-files.json"), "utf8"))).toEqual([
+      "a.ts",
+    ]);
+  });
+
+  it("refuses output that is JSON `null`, saying it is not an object", () => {
+    expect(parseFacts("null")).toEqual({
+      ok: false,
+      message: "ESLint's census output was not an object",
+    });
+    expect(parseFacts("5")).toEqual({
+      ok: false,
+      message: "ESLint's census output was not an object",
+    });
+  });
+
+  it("says why for a process that failed even though its exit code was 0", async () => {
+    const { runner } = runnerWith({ code: 0, stdout: "{}", stderr: "", failure: "tool-timeout" });
+    const read = await eslintFacts(runner, ["a.ts"]);
+    expect(read).toEqual({
+      ok: false,
+      message: "ESLint could not be asked about the project's files (tool-timeout)",
+    });
+  });
+
+  it("quotes the last three lines of ESLint's error on one line, without its trailing line break", async () => {
+    const { runner } = runnerWith({ code: 2, stdout: "", stderr: "a\nb\nc\nd\n" });
+    const read = await eslintFacts(runner, ["a.ts"]);
+    expect(read).toEqual({
+      ok: false,
+      message: "ESLint could not be asked about the project's files (exit 2: b c d)",
+    });
+  });
+
+  it("quotes all of a short error", async () => {
+    const { runner } = runnerWith({ code: 1, stdout: "", stderr: "only one line" });
+    const read = await eslintFacts(runner, ["a.ts"]);
+    expect(!read.ok && read.message).toContain("(exit 1: only one line)");
+  });
+});

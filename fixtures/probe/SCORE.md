@@ -2,7 +2,7 @@
 
 Each case in `EXPECTED.yaml` is scored against the engines the kit has at the end of M2: the CRAP layer, the coverage layer with its hints, the suppression census readers (`src/census`), the diff engine, the mutation layer and the baseline ratchet. A case is **caught** when the kit gives the outcome `EXPECTED.yaml` states: the verdict it names, and under `ratchet` the refusal it names for a census count above the baseline.
 
-**Score: 19 of 21 cases caught. The two that are not, `census-axe-disable-rules` and `census-axe-exclude`, name axe settings, and the axe layer that reads them is milestone M4 (R75).**
+**Score: 21 of 21 cases caught.** The two axe cases, `census-axe-disable-rules` and `census-axe-exclude`, are read from the TypeScript syntax of the project's source (R79); the axe layer that runs axe is milestone M4.
 
 | Case | Stated outcome | The kit gives it | Held by |
 |---|---|---|---|
@@ -19,9 +19,9 @@ Each case in `EXPECTED.yaml` is scored against the engines the kit has at the en
 | `census-ts-expect-error`, `census-ts-ignore`, `census-ts-nocheck` | census of each directive | yes | `src/census/probe.test.ts` |
 | `census-stylelint-disable`, `census-html-validate-disable`, `census-biome-ignore` | census of each directive | yes | `src/census/probe.test.ts` |
 | `census-eslint-ignores`, `census-tsconfig-exclude` | census of each config-level exclusion | yes: ESLint's `isPathIgnored` and the program TypeScript builds | `src/census/probe.test.ts` |
-| `census-axe-disable-rules`, `census-axe-exclude` | census of each axe setting | **no, M4**: the axe layer (W-21, W-44) reads them | |
+| `census-axe-disable-rules`, `census-axe-exclude` | census of each axe setting: 2 and 2 | yes: each string of the literal array given to `.disableRules(...)` or `.exclude(...)` on a chain that starts at `new AxeBuilder(...)`; an argument that is not a literal is a failing `census-axe-unreadable` finding | `src/census/axe.test.ts`, `src/census/probe.test.ts` |
 
-The census is the coverage hints (`v8`, `istanbul`, `c8`, reported by the coverage layer) and the eleven kinds `src/census` reads: eight directive comments and three config-level kinds. The coverage layer reports them as `census/<kind>` findings, and the baseline counts them by kind (`src/baseline/census.ts`).
+The census is the coverage hints (`v8`, `istanbul`, `c8`, reported by the coverage layer) and the thirteen kinds `src/census` reads: eight directive comments, three config-level kinds and the two axe settings. The coverage layer reports them as `census/<kind>` findings, and the baseline counts them by kind (`src/baseline/census.ts`).
 
 ## Reproduce
 

@@ -207,3 +207,212 @@ describe("readsDirectives", () => {
     expect(readsDirectives(file)).toBe(expected);
   });
 });
+
+describe("directivesIn: <style> blocks", () => {
+  it("reads a <style> block with attributes, on the right line", () => {
+    const source = '<p/>\n<style lang="scss" scoped>\n/* stylelint-disable */\n</style>\n';
+    expect(kinds("a.html", source)).toEqual(["stylelint-disable@3"]);
+  });
+
+  it("reads a <style> whose opening tag spans lines, and a closing tag with a space, and upper case", () => {
+    expect(kinds("a.html", '<style\n  lang="css"\n>\n/* stylelint-disable */\n</style >')).toEqual([
+      "stylelint-disable@4",
+    ]);
+    expect(kinds("a.html", "<STYLE>/* stylelint-disable */</STYLE>")).toEqual([
+      "stylelint-disable@1",
+    ]);
+  });
+
+  it("reads each <style> block of the file, with its own lines", () => {
+    const source =
+      "<style>\n/* stylelint-disable */\n</style>\n<p/>\n<style>\n\n/* stylelint-disable-line */\n</style>";
+    expect(kinds("a.html", source)).toEqual(["stylelint-disable@2", "stylelint-disable@7"]);
+  });
+
+  it("does not read `//` as a comment inside a <style> block, where it is CSS", () => {
+    expect(kinds("a.html", "<style>\n// stylelint-disable\n</style>")).toEqual([]);
+    expect(kinds("a.astro", "<style>\n// stylelint-disable\n</style>")).toEqual([]);
+  });
+});
+
+describe("directivesIn: the lines of <style> blocks", () => {
+  it("counts the lines of a multi-line opening tag before the block's own lines", () => {
+    const source = '<style\n  lang="css"\n  scoped>\n\n/* stylelint-disable */\n</style>';
+    expect(kinds("a.html", source)).toEqual(["stylelint-disable@5"]);
+  });
+
+  it("counts a block that starts on the first line from line 1", () => {
+    expect(kinds("a.html", "<style>/* stylelint-disable */</style>")).toEqual([
+      "stylelint-disable@1",
+    ]);
+  });
+});
+
+/** What each kind looks like, and what only looks like it. Each is tried in the comment forms its files use. */
+const FORMS: readonly (readonly [string, string, readonly string[], readonly string[]])[] = [
+  [
+    "eslint-disable",
+    "a.ts",
+    [
+      "eslint-disable",
+      "eslint-disable no-console",
+      "eslint-disable-line",
+      "eslint-disable-line x",
+      "eslint-disable-next-line",
+      "eslint-disable-next-line x -- why",
+    ],
+    [
+      "eslint-disable-nextline",
+      "eslint-disable-lines",
+      "eslint-disabled",
+      "eslint-disable-",
+      "eslint-enable",
+      "note eslint-disable",
+      "x eslint-disable-line",
+    ],
+  ],
+  [
+    "ts-expect-error",
+    "a.ts",
+    ["@ts-expect-error", "@ts-expect-error: why", "@ts-expect-error why"],
+    ["@ts-expect-errors", "@ts-expect-error-x", "ts-expect-error", "note @ts-expect-error"],
+  ],
+  [
+    "ts-ignore",
+    "a.ts",
+    ["@ts-ignore", "@ts-ignore: why", "@ts-ignore why"],
+    ["@ts-ignored", "@ts-ignore-x", "ts-ignore", "note @ts-ignore"],
+  ],
+  [
+    "ts-nocheck",
+    "a.ts",
+    ["@ts-nocheck", "@ts-nocheck: why", "@ts-nocheck why"],
+    ["@ts-nochecks", "@ts-nocheck-x", "ts-nocheck", "note @ts-nocheck"],
+  ],
+  [
+    "biome-ignore",
+    "a.ts",
+    ["biome-ignore", "biome-ignore lint/x: y", "biome-ignore-all lint", "biome-ignore-start lint"],
+    ["biome-ignore-end", "biome-ignored", "biome-ignore-allx", "biome-ignore-", "see biome-ignore"],
+  ],
+  [
+    "stryker-disable",
+    "a.ts",
+    ["Stryker disable", "Stryker disable all", "Stryker disable next-line all: why"],
+    [
+      "Stryker disabled",
+      "stryker disable",
+      "Stryker restore",
+      "Stryker disable-x",
+      "see Stryker disable",
+    ],
+  ],
+  [
+    "stylelint-disable",
+    "a.css",
+    [
+      "stylelint-disable",
+      "stylelint-disable color",
+      "stylelint-disable-line",
+      "stylelint-disable-next-line x",
+    ],
+    [
+      "stylelint-disabled",
+      "stylelint-enable",
+      "stylelint-disable-nextline",
+      "stylelint-disable-",
+      "note stylelint-disable",
+      "x stylelint-disable-line",
+    ],
+  ],
+];
+
+describe.each(FORMS)("directivesIn: the forms of %s", (kind, file, positives, negatives) => {
+  const wrap = (body: string): string[] => [
+    `// ${body}`,
+    `//${body}`,
+    `/* ${body} */`,
+    `/*${body}*/`,
+  ];
+
+  it.each(positives.flatMap((body) => wrap(body)))("counts %s", (source) => {
+    const text = file === "a.css" ? source.replace(/^\/\/ ?(.*)$/u, "/* $1 */") : source;
+    expect(kinds(file, text)).toEqual([`${kind}@1`]);
+  });
+
+  it.each(negatives.flatMap((body) => wrap(body)))("does not count %s", (source) => {
+    const text = file === "a.css" ? source.replace(/^\/\/ ?(.*)$/u, "/* $1 */") : source;
+    expect(kinds(file, text)).toEqual([]);
+  });
+});
+
+describe("directivesIn: the forms in markup", () => {
+  const html = (body: string): string[] => kinds("a.html", `<!-- ${body} -->`);
+
+  it.each([
+    ["eslint-disable", "eslint-disable"],
+    ["eslint-disable", "eslint-disable-line"],
+    ["eslint-disable", "eslint-disable-next-line x"],
+    ["stylelint-disable", "stylelint-disable"],
+    ["stylelint-disable", "stylelint-disable-line"],
+    ["stylelint-disable", "stylelint-disable-next-line x"],
+    ["html-validate-disable", "[html-validate-disable]"],
+    ["html-validate-disable", "[html-validate-disable ]"],
+    ["html-validate-disable", "[html-validate-disable-next]"],
+    ["html-validate-disable", "[html-validate-disable-next no-inline-style: why]"],
+    ["html-validate-disable", "[html-validate-disable-block element-name]"],
+  ])("counts %s in `%s`", (kind, body) => {
+    expect(html(body)).toEqual([`${kind}@1`]);
+  });
+
+  it.each([
+    "eslint-disabled",
+    "eslint-disable-nextline",
+    "eslint-enable",
+    "note eslint-disable",
+    "stylelint-disabled",
+    "stylelint-disable-",
+    "note stylelint-disable",
+    "[html-validate-disabled]",
+    "[html-validate-disable-x]",
+    "[html-validate-disable-nextx]",
+    "html-validate-disable",
+    "note [html-validate-disable]",
+    "[html-validate-enable]",
+  ])("does not count `%s`", (body) => {
+    expect(html(body)).toEqual([]);
+  });
+});
+
+describe("directivesIn: Astro script types", () => {
+  it("reads a script whose type is JavaScript in any case, and not one that is JSON", () => {
+    const script = (type: string): string[] =>
+      kinds(
+        "a.astro",
+        `<script type="${type}">\n// eslint-disable-next-line x\nconsole.log(1);\n</script>`,
+      );
+    expect(script("module")).toEqual(["eslint-disable@2"]);
+    expect(script("Module")).toEqual(["eslint-disable@2"]);
+    expect(script("TEXT/JAVASCRIPT")).toEqual(["eslint-disable@2"]);
+    expect(script("application/ld+json")).toEqual([]);
+  });
+});
+
+describe("directivesIn: the words of an Astro template are not script", () => {
+  it("does not count a directive named in the text of a template", () => {
+    expect(kinds("a.astro", "<p>Write // eslint-disable-line to hide it</p>")).toEqual([]);
+    expect(
+      kinds(
+        "a.astro",
+        "---\nconst a = 1;\n---\n<p>use // @ts-ignore here</p>\n<p>or /* eslint-disable */ there</p>",
+      ),
+    ).toEqual([]);
+  });
+
+  it("still counts the same text where it is a comment, in the frontmatter and a script", () => {
+    expect(kinds("a.astro", "---\n// eslint-disable-line\n---\n<p/>")).toEqual([
+      "eslint-disable@2",
+    ]);
+    expect(kinds("a.astro", "<script>\n// @ts-ignore\n</script>")).toEqual(["ts-ignore@2"]);
+  });
+});

@@ -144,3 +144,59 @@ describe("tsconfigHits (WEB_TOPS.md 6.7: tsconfig-exclude)", () => {
     expect(files(dir, [])[0]).toMatch(/^FAILED: .*typescript/);
   });
 });
+
+describe("tsconfigHits: what `include` selects", () => {
+  it(
+    "counts nothing for a tracked file that `include` does not select, excluded or not",
+    () => {
+      const dir = project({
+        "tsconfig.json": JSON.stringify({
+          compilerOptions: { noEmit: true, types: [] },
+          include: ["src"],
+          exclude: ["src/gen/**"],
+        }),
+        "src/a.ts": "export const a = 1;\n",
+        "src/gen/g.ts": "export const g = 1;\n",
+        "scripts/s.ts": "export const s = 1;\n",
+      });
+      expect(files(dir, ["src/a.ts", "src/gen/g.ts", "scripts/s.ts"])).toEqual(["src/gen/g.ts"]);
+    },
+    REAL_TOOL_TIMEOUT,
+  );
+
+  it(
+    "counts a file with a path that has a folder in it, relative to the project with forward slashes",
+    () => {
+      const dir = project({
+        "tsconfig.json": JSON.stringify({
+          compilerOptions: { noEmit: true, types: [] },
+          exclude: ["a/b/**"],
+        }),
+        "x.ts": "export const x = 1;\n",
+        "a/b/c/d.ts": "export const d = 1;\n",
+      });
+      expect(files(dir, ["x.ts", "a/b/c/d.ts"])).toEqual(["a/b/c/d.ts"]);
+    },
+    REAL_TOOL_TIMEOUT,
+  );
+
+  it("says why in words for a tsconfig.json that is not JSON", () => {
+    const dir = project({ "tsconfig.json": "{ nope" });
+    expect(files(dir, [])[0]).toMatch(/^FAILED: .+/);
+  });
+});
+
+describe("tsconfigHits: dependency folders", () => {
+  it(
+    "does not list a file under node_modules as one `include` selects, even when it is tracked",
+    () => {
+      const dir = project({
+        "tsconfig.json": JSON.stringify({ compilerOptions: { noEmit: true, types: [] } }),
+        "src/a.ts": "export const a = 1;\n",
+        "node_modules/p/x.ts": "export const x = 1;\n",
+      });
+      expect(files(dir, ["src/a.ts", "node_modules/p/x.ts"])).toEqual([]);
+    },
+    REAL_TOOL_TIMEOUT,
+  );
+});

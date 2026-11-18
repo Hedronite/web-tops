@@ -84,7 +84,7 @@ const codeRange = (content: readonly [number, number], attributes: string): Rang
 function scriptBlock(found: RegExpExecArray): ScriptBlock {
   const block = { start: found.index, end: found.index + found[0].length };
   const content = found.indices?.[2];
-  return { block, code: content === undefined ? undefined : codeRange(content, found[1] ?? "") };
+  return { block, code: content === undefined ? undefined : codeRange(content, String(found[1])) };
 }
 
 const scriptBlocks = (text: string): ScriptBlock[] => [...text.matchAll(SCRIPT)].map(scriptBlock);

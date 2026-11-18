@@ -95,9 +95,16 @@ describe("ruleOff: a per-file override that sets a rule off", () => {
     expect(ruleOff(levels({ "a.ts": { r: 2 }, Dockerfile: { r: 0 } }))).toEqual([]);
   });
 
+  it("puts two extensions in one group when they differ only in case, whichever way the case is folded", () => {
+    // The Kelvin sign lowercases to "k" but is its own capital: only folding to lower case puts it with ".k".
+    expect(ruleOff(levels({ "a.k": { r: 2 }, "b.\u212A": { r: 0 } }))).toEqual([
+      { kind: "eslint-rule-off", file: "b.\u212A", rule: "r" },
+    ]);
+  });
+
   it("counts a warning as on, and orders the pairs by file and then rule", () => {
     const found = ruleOff(levels({ "z.ts": { b: 0, a: 0 }, "a.ts": { a: 1, b: 1 } }));
-    expect(found.map((hit) => `${hit.file}:${hit.rule ?? ""}`)).toEqual(["z.ts:a", "z.ts:b"]);
+    expect(found.map((hit) => `${hit.file}:${hit.rule}`)).toEqual(["z.ts:a", "z.ts:b"]);
   });
 
   it("is empty with no files", () => {
@@ -118,5 +125,41 @@ describe("tsconfigExcluded: tracked files the program does not hold", () => {
   it("is empty when the program holds every candidate", () => {
     expect(tsconfigExcluded(["src/ok.ts"], new Set(["src/ok.ts", "src/extra.ts"]))).toEqual([]);
     expect(tsconfigExcluded([], new Set())).toEqual([]);
+  });
+});
+
+describe("the order of the items", () => {
+  it("lists ignored files in file order, whatever order they were asked in", () => {
+    const found = eslintIgnores(
+      new Map([
+        ["d.ts", true],
+        ["b.ts", true],
+        ["c.ts", true],
+        ["a.ts", true],
+      ]),
+    );
+    expect(found.map((hit) => hit.file)).toEqual(["a.ts", "b.ts", "c.ts", "d.ts"]);
+  });
+
+  it("lists excluded files in file order", () => {
+    expect(
+      tsconfigExcluded(["d.ts", "b.ts", "c.ts", "a.ts"], new Set()).map((hit) => hit.file),
+    ).toEqual(["a.ts", "b.ts", "c.ts", "d.ts"]);
+  });
+
+  it("lists rule-off pairs by file, then by rule, whatever order they came in", () => {
+    const found = ruleOff(
+      levels({
+        "b.ts": { z: 0, a: 0 },
+        "a.ts": { z: 0, a: 0, k: 2 },
+        "c.ts": { k: 2, a: 2, z: 2 },
+      }),
+    );
+    expect(found.map((hit) => `${hit.file}:${hit.rule}`)).toEqual([
+      "a.ts:a",
+      "a.ts:z",
+      "b.ts:a",
+      "b.ts:z",
+    ]);
   });
 });

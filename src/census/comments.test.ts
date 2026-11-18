@@ -125,3 +125,156 @@ describe("htmlComments", () => {
     expect(htmlComments("<p>no comment</p>")).toEqual([]);
   });
 });
+
+describe("scriptComments: the edges of the scan", () => {
+  it("reads a line comment at the very end of the text, with no line break after it", () => {
+    expect(script("x; // end")).toEqual([[1, " end"]]);
+  });
+
+  it.each([
+    ["a string", '"abc'],
+    ["a single-quoted string", "'abc"],
+    ["a template literal", "`abc"],
+    ["a template substitution", "`abc ${ x"],
+    ["a regular expression", "x = /abc"],
+    ["a regular expression class", "x = /[abc"],
+  ])(
+    "ends %s that is never closed at the end of the text, and reads no comment",
+    (_name, source) => {
+      expect(script(source)).toEqual([]);
+    },
+  );
+
+  it("reads a block comment that is never closed to the end, and its body", () => {
+    expect(script("/* x")).toEqual([[1, " x"]]);
+    expect(script("/*")).toEqual([[1, ""]]);
+  });
+
+  it("does not end a block comment at its own star: `/*/` is not a whole comment", () => {
+    expect(script("/*/ x */ y(); // real")).toEqual([
+      [1, "/ x "],
+      [1, " real"],
+    ]);
+  });
+
+  it("reads a comment right after a block comment, on the same line", () => {
+    expect(script("/* a */ // real")).toEqual([
+      [1, " a "],
+      [1, " real"],
+    ]);
+    expect(script("/**/ /* b */")).toEqual([
+      [1, ""],
+      [1, " b "],
+    ]);
+  });
+
+  it("reads a comment that follows a string, a template or a regular expression with no space", () => {
+    expect(script('x = "a"// real')).toEqual([[1, " real"]]);
+    expect(script("x = `a`// real")).toEqual([[1, " real"]]);
+    expect(script("x = /a/// real")).toEqual([[1, " real"]]);
+    expect(script("x = 'a'/* real */")).toEqual([[1, " real "]]);
+  });
+
+  it("reads a slash after a string, a template or a regular expression as division", () => {
+    expect(script('const a = "x" / 2; // c')).toEqual([[1, " c"]]);
+    expect(script("const a = `x` / 2; // c")).toEqual([[1, " c"]]);
+    expect(script("const a = /x/ / 2; // c")).toEqual([[1, " c"]]);
+  });
+
+  it("forgets a keyword once a value follows it: `return 'a' / 2` divides", () => {
+    expect(script('function f() { return "a" / 2; } // c')).toEqual([[1, " c"]]);
+  });
+
+  it("reads a regular expression at the very start of the text", () => {
+    expect(script("/[//]/.test(x); // real")).toEqual([[1, " real"]]);
+    expect(script("return /[//]/.test(x); // real")).toEqual([[1, " real"]]);
+  });
+
+  it("counts the line breaks inside a block comment and a string, so the next comment has its line", () => {
+    expect(script("/* a\nb\nc */\n// d")).toEqual([
+      [1, " a\nb\nc "],
+      [4, " d"],
+    ]);
+    expect(script("x = 'a\\\nb';\n// c")).toEqual([[3, " c"]]);
+  });
+});
+
+describe("styleComments: the edges", () => {
+  const style = (text: string, lineComments: boolean): [number, string][] =>
+    styleComments(text, lineComments).map((comment) => [comment.line, comment.body]);
+
+  it("skips a url( whole, with the closing bracket, so a comment right after it is read", () => {
+    expect(style("a { b: url(x)/* real */ }", false)).toEqual([[1, " real "]]);
+    expect(style("a { b: url(a//b)// real\n}", true)).toEqual([[1, " real"]]);
+  });
+
+  it("skips a url( that is never closed to the end of the text", () => {
+    expect(style("a { b: url(x /* gone */", false)).toEqual([]);
+  });
+
+  it("reads `//` comments only when asked to", () => {
+    expect(style("a {} // c", true)).toEqual([[1, " c"]]);
+    expect(style("a {} // c", false)).toEqual([]);
+  });
+
+  it("reads a block comment that is never closed", () => {
+    expect(style("a {} /* open", false)).toEqual([[1, " open"]]);
+  });
+});
+
+describe("htmlComments: the exact text", () => {
+  it("gives the text between the delimiters, untrimmed", () => {
+    expect(htmlComments("<!--x-->").map((comment) => comment.body)).toEqual(["x"]);
+    expect(htmlComments("<!-- a\n b -->").map((comment) => comment.body)).toEqual([" a\n b "]);
+    expect(htmlComments("<!---->").map((comment) => comment.body)).toEqual([""]);
+  });
+});
+
+describe("scriptComments: template substitutions and regular expressions, in detail", () => {
+  it("reads a comment at the very start of a substitution", () => {
+    expect(script("`${/* real */ a}`")).toEqual([[1, " real "]]);
+  });
+
+  it("closes a substitution at its own brace: nested braces inside it do not end it early", () => {
+    expect(script("`${ {a: 1}.a /* real */ }`")).toEqual([[1, " real "]]);
+  });
+
+  it("goes back to template text after the substitution closes, so a comment marker there is text", () => {
+    expect(script("`${a} /* text */ // text`; // real")).toEqual([[1, " real"]]);
+  });
+
+  it("ends the template at the backtick right after a substitution's brace", () => {
+    expect(script("`${a}`; // real")).toEqual([[1, " real"]]);
+    expect(script("`${a}${b}`; // real")).toEqual([[1, " real"]]);
+  });
+
+  it("forgets the word before a value: `x = 'a' in /[//]/` reads the regular expression after `in`", () => {
+    expect(script("x = 'a' in /[//]/; // real")).toEqual([[1, " real"]]);
+  });
+
+  it("keeps a class open until its closing bracket, whatever it holds", () => {
+    expect(script("const r = /[a///]/.test(x); // real")).toEqual([[1, " real"]]);
+    expect(script("const r = /[^/]+[/]/.test(x); // real")).toEqual([[1, " real"]]);
+  });
+
+  it("reads the flags of a regular expression as ordinary letters", () => {
+    expect(script("const r = /a/gi; // real")).toEqual([[1, " real"]]);
+    expect(script("const r = /a/gi / 2; // real")).toEqual([[1, " real"]]);
+  });
+
+  it("skips a url( and then the string that follows it, not reading the comment marker in the string", () => {
+    const found = styleComments("a { b: url(x)'/* no */' } /* real */", false).map(
+      (comment) => comment.body,
+    );
+    expect(found).toEqual([" real "]);
+  });
+});
+
+describe("styleComments: consecutive url( )", () => {
+  it("skips each of two url( ) in a row whole, so the second one's `//` is not a comment", () => {
+    const found = styleComments("a { b: url(a)url(http://x) } // real", true).map(
+      (comment) => comment.body,
+    );
+    expect(found).toEqual([" real"]);
+  });
+});

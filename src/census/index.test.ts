@@ -223,3 +223,39 @@ describe("censusFindings: configuration, read through the project's own tools", 
     expect(await censusFindings(inputFor(dir, ["README.md"]))).toEqual([]);
   });
 });
+
+describe("censusFindings: the words of a finding", () => {
+  it("says the kind's sentence for a file-level item, with no rule in front of it", async () => {
+    const dir = project({
+      "tsconfig.json": JSON.stringify({
+        compilerOptions: { noEmit: true, types: [] },
+        include: ["src"],
+        exclude: ["src/gen/**"],
+      }),
+      "src/a.ts": "export const a = 1;\n",
+      "src/gen/g.ts": "export const g = 1;\n",
+    });
+    const found = await censusFindings(
+      inputFor(dir, ["tsconfig.json", "src/a.ts", "src/gen/g.ts"]),
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]?.message).toBe("the tsconfig exclude leaves this file out of the program");
+  });
+
+  it(
+    "says the kind's sentence for an ignored file",
+    async () => {
+      const dir = project({
+        "eslint.config.js": 'export default [{ ignores: ["src/old/**"] }];',
+        "src/old/a.ts": "export const a = 1;\n",
+      });
+      const found = await censusFindings(
+        inputFor(dir, ["eslint.config.js", "src/old/a.ts"], realExec),
+      );
+      expect(found.map((item) => item.message)).toEqual([
+        "an ESLint ignores entry leaves this file out of linting",
+      ]);
+    },
+    REAL_TOOL_TIMEOUT,
+  );
+});

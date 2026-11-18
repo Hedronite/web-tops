@@ -1,0 +1,44 @@
+# .web-tops/survivors.yaml: mutants a test does not kill and a person has accepted (WEB_TOPS.md 6.4).
+# An entry is keyed by file, function, mutator, original, replacement and occurrence, never by a line.
+# `original` is the exact source text the mutator replaced, as written, so editing that text makes a
+# new key and the old entry stops matching. Add entries with `webtops survivors explain`; every entry
+# needs a reason and an owner, and may carry `expires` (YYYY-MM-DD, UTC, valid through that day).
+version: 1
+survivors:
+  - file: src/census/directives.ts
+    function: src/census/directives.ts::astroTemplate
+    mutator: StringLiteral
+    original: "\" \""
+    replacement: "\"\""
+    occurrence: 1
+    reason: A blanked code character only has to keep the line breaks; leaving it
+      out instead changes columns, and the census reads lines.
+    owner: web-platform
+  - file: src/census/tsconfig.ts
+    function: src/census/tsconfig.ts::readHits
+    mutator: StringLiteral
+    original: "\" \""
+    replacement: "\"\""
+    occurrence: 1
+    reason: The separator only shows in a diagnostic that is a chain of messages;
+      the syntax error tsc reports for a tsconfig.json is a single message.
+    owner: web-platform
+  - file: src/census/tsconfig.ts
+    function: src/census/tsconfig.ts::withoutExclude
+    mutator: ArrayDeclaration
+    original: "[]"
+    replacement: "[\"Stryker was here\"]"
+    occurrence: 1
+    reason: The array only has to be empty; a one-element array holding a pattern
+      that matches nothing empties the exclude just as well, so no test can tell
+      them apart.
+    owner: web-platform
+  - file: src/gate/exec.ts
+    function: src/gate/exec.ts::environmentOf
+    mutator: ConditionalExpression
+    original: "value !== undefined"
+    replacement: "true"
+    occurrence: 1
+    reason: Node drops an environment variable whose value is undefined when it
+      starts a process, so passing one makes no difference to the child.
+    owner: web-platform

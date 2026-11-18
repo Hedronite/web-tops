@@ -7,7 +7,13 @@ import { realExec } from "../gate/exec.ts";
 import { REAL_TOOL_TIMEOUT } from "../gate/test-support-timeouts.ts";
 import { eslintIgnores, ruleOff, tsconfigExcluded } from "./config.ts";
 import type { Levels } from "./config.ts";
-import { CENSUS_RULE_PREFIX, CONFIG_KINDS, SOURCE_KINDS, censusFindings } from "./index.ts";
+import {
+  AXE_KINDS,
+  CENSUS_RULE_PREFIX,
+  CONFIG_KINDS,
+  SOURCE_KINDS,
+  censusFindings,
+} from "./index.ts";
 
 /**
  * R75: each fixtures/probe census case gives its stated count, from the readers this directory holds. The source
@@ -56,7 +62,7 @@ const CASES: Case[] = (() => {
   }));
 })();
 
-const MINE: readonly string[] = [...SOURCE_KINDS, ...CONFIG_KINDS];
+const MINE: readonly string[] = [...SOURCE_KINDS, ...CONFIG_KINDS, ...AXE_KINDS];
 
 /** The cases that state a count of a kind this reader owns. */
 const OWNED = CASES.filter((item) => Object.keys(item.census).some((kind) => MINE.includes(kind)));
@@ -96,6 +102,13 @@ describe("the probe's census cases give their stated counts", () => {
     const stated = new Set(OWNED.flatMap((item) => Object.keys(statedFor(item))));
     for (const kind of MINE) expect(stated, kind).toContain(kind);
     expect(OWNED.length).toBeGreaterThanOrEqual(10);
+  });
+
+  it("owns every census kind the cases state, except the coverage hints (the coverage layer's)", () => {
+    const hints = ["v8-ignore", "istanbul-ignore", "c8-ignore"];
+    const stated = CASES.flatMap((item) => Object.keys(item.census));
+    expect(stated.filter((kind) => !MINE.includes(kind) && !hints.includes(kind))).toEqual([]);
+    expect(stated.length).toBeGreaterThan(MINE.length - 1);
   });
 
   it.each(OWNED.map((item) => [item.id, item] as const))(
