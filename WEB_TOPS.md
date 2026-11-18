@@ -1084,6 +1084,7 @@ The kit is written in TypeScript and is installed and started with Bun, so it ga
 web-tops/
 ├── src/
 │   ├── baseline/            # webtops baseline: the projection from a report, the ratchet comparison, the baseline across a change
+│   ├── census/              # the suppression census readers (§6.7): directive comments, ESLint and tsconfig configuration
 │   ├── cli/                 # webtops entry and one file per command
 │   ├── complexity/          # the section 6.3 counter on the TypeScript AST, and function keys (6.7)
 │   ├── config/              # class table, config validation, semantic checks, report validation
