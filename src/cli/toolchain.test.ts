@@ -245,57 +245,66 @@ async function printConfig(file: string): Promise<unknown> {
   return config;
 }
 
-describe("R24: ignore patterns are anchored, so a source directory of the same name stays in", () => {
-  const ignoredByGit = (path: string): boolean | undefined => {
-    const result = spawnSync("git", ["check-ignore", "-q", "--", path], { cwd: root });
-    return result.status === 0 ? true : result.status === 1 ? false : undefined;
-  };
+/**
+ * Inside a Stryker worker (the kit's own mutation run) the project lies in a sandbox under the ignored `.web-tops/out`,
+ * and its `node_modules` is a link, so git cannot say what it ignores there; these tests hold in the ordinary run.
+ */
+const insideStryker = process.env["STRYKER_MUTATOR_WORKER"] !== undefined;
 
-  const ignoredByPrettier = (path: string): unknown => {
-    const prettier = join(root, "node_modules", "prettier", "bin", "prettier.cjs");
-    const result = spawnSync(process.execPath, [prettier, "--file-info", path], {
-      cwd: root,
-      encoding: "utf8",
+describe.skipIf(insideStryker)(
+  "R24: ignore patterns are anchored, so a source directory of the same name stays in",
+  () => {
+    const ignoredByGit = (path: string): boolean | undefined => {
+      const result = spawnSync("git", ["check-ignore", "-q", "--", path], { cwd: root });
+      return result.status === 0 ? true : result.status === 1 ? false : undefined;
+    };
+
+    const ignoredByPrettier = (path: string): unknown => {
+      const prettier = join(root, "node_modules", "prettier", "bin", "prettier.cjs");
+      const result = spawnSync(process.execPath, [prettier, "--file-info", path], {
+        cwd: root,
+        encoding: "utf8",
+      });
+      const info: unknown = JSON.parse(result.stdout);
+      return get(info, "ignored");
+    };
+
+    it.each(["src/layers/coverage/x.ts", "src/config/x.ts", "src/coverage/x.ts"])(
+      "git does not ignore %s",
+      (path) => {
+        expect(ignoredByGit(path)).toBe(false);
+      },
+    );
+
+    it.each([
+      "coverage/lcov.info",
+      "node_modules/x/index.js",
+      ".web-tops/out/x.json",
+      ".web-tops/report.json",
+    ])("git ignores the output %s", (path) => {
+      expect(ignoredByGit(path)).toBe(true);
     });
-    const info: unknown = JSON.parse(result.stdout);
-    return get(info, "ignored");
-  };
 
-  it.each(["src/layers/coverage/x.ts", "src/config/x.ts", "src/coverage/x.ts"])(
-    "git does not ignore %s",
-    (path) => {
-      expect(ignoredByGit(path)).toBe(false);
-    },
-  );
+    it.each([
+      "src/layers/coverage/x.ts",
+      "src/config/validate.ts",
+      "src/cli/main.ts",
+      "schema/web-tops.schema.json",
+    ])("Prettier checks %s", (path) => {
+      expect(ignoredByPrettier(path)).toBe(false);
+    });
 
-  it.each([
-    "coverage/lcov.info",
-    "node_modules/x/index.js",
-    ".web-tops/out/x.json",
-    ".web-tops/report.json",
-  ])("git ignores the output %s", (path) => {
-    expect(ignoredByGit(path)).toBe(true);
-  });
-
-  it.each([
-    "src/layers/coverage/x.ts",
-    "src/config/validate.ts",
-    "src/cli/main.ts",
-    "schema/web-tops.schema.json",
-  ])("Prettier checks %s", (path) => {
-    expect(ignoredByPrettier(path)).toBe(false);
-  });
-
-  it.each([
-    "coverage/lcov.info",
-    "WEB_TOPS.md",
-    "config/AGENTS.md.tmpl",
-    "fixtures/config/valid/full.yaml",
-    "bun.lock",
-  ])("Prettier skips %s", (path) => {
-    expect(ignoredByPrettier(path)).toBe(true);
-  });
-});
+    it.each([
+      "coverage/lcov.info",
+      "WEB_TOPS.md",
+      "config/AGENTS.md.tmpl",
+      "fixtures/config/valid/full.yaml",
+      "bun.lock",
+    ])("Prettier skips %s", (path) => {
+      expect(ignoredByPrettier(path)).toBe(true);
+    });
+  },
+);
 
 describe("R42: lint skips the output directories the tools write", () => {
   const ignored = (path: string): Promise<boolean> =>

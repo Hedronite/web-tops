@@ -94,7 +94,13 @@ function contextFor(dir: string): LayerContext {
   };
 }
 
-describe("G7c E7 reproduced with the real Stryker", () => {
+/**
+ * Inside a Stryker worker (the kit's own mutation run) this test would start a second Stryker over a copy of the
+ * sandbox, and measure that instead of the probe. The outer run's tests stand for it.
+ */
+const insideStryker = process.env["STRYKER_MUTATOR_WORKER"] !== undefined;
+
+describe.skipIf(insideStryker)("G7c E7 reproduced with the real Stryker", () => {
   it(
     "counts the NoCoverage mutants of a function no test runs as survivors, and the Killed ones not",
     async () => {
