@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { realExec } from "../gate/exec.ts";
@@ -26,6 +27,8 @@ export interface ScopeOptions {
   readonly coverageOf?: CoverageOf;
   /** Reasoned coverage exclusions from `web-tops.yaml`, passed to the default per-file run. */
   readonly exclude?: readonly string[];
+  /** The random part of a merge-base copy's name; a test sets it to know the name. */
+  readonly copyToken?: (() => string) | undefined;
 }
 
 interface Entry {
@@ -132,7 +135,36 @@ async function coveredFunctions(tests: readonly ChangedFile[], run: CoverRun): P
   return { ok: true, refs: uniqueByKey(refs) };
 }
 
-/** The merge-base copy of a test file, written beside the original so its imports resolve, run, and removed. */
+const randomToken = (): string => randomBytes(6).toString("hex");
+
+/**
+ * Where the merge-base copy of a test file goes: beside it, with the token before the `.test` or `.spec` marker
+ * (so the project's test globs still match) or before the extension (so an `__tests__/` file still lives there).
+ * The token is in every name, so a copy's name is never the original's.
+ */
+function copyName(test: string, token: string): string {
+  const name = basename(test);
+  const marked = /\.(test|spec)\./.test(name);
+  const fresh = marked
+    ? name.replace(/\.(test|spec)\./, `.wt-base-${token}.$1.`)
+    : name.replace(/(\.[^.]+)$/, `.wt-base-${token}$1`);
+  return join(dirname(test), fresh);
+}
+
+/** Creates the file, and only if nothing is there: an existing path is refused, so it is never overwritten. */
+function createCopy(path: string, text: string): boolean {
+  try {
+    writeFileSync(path, text, { flag: "wx" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The coverage of the merge-base copy of a test file, written beside the original so its imports resolve, run,
+ * and removed. Only a file this created is removed; a path that is already taken means no run (undefined).
+ */
 async function baseCoverage(
   options: ScopeOptions,
   exec: Exec,
@@ -142,14 +174,23 @@ async function baseCoverage(
 ): Promise<CoverageMap | undefined> {
   const shown = await showAt(exec, options.cwd, mergeBase, test);
   if (!shown.ok) return undefined;
-  const copy = join(dirname(test), basename(test).replace(/\.(test|spec)\./, ".wt-base.$1."));
+  const copy = copyName(test, (options.copyToken ?? randomToken)());
+  const path = join(options.cwd, copy);
+  return createCopy(path, shown.value) ? runCopy(coverageOf, copy, path) : undefined;
+}
+
+/** Runs the coverage of a copy this created, and removes the copy whatever happens. */
+async function runCopy(
+  coverageOf: CoverageOf,
+  copy: string,
+  path: string,
+): Promise<CoverageMap | undefined> {
   try {
-    writeFileSync(join(options.cwd, copy), shown.value);
     return await coverageOf(copy);
   } catch {
     return undefined;
   } finally {
-    rmSync(join(options.cwd, copy), { force: true });
+    rmSync(path, { force: true });
   }
 }
 

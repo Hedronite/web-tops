@@ -45,7 +45,7 @@ describe("G6a: changed ranges and functions against the merge base", () => {
     write(dir, { "other.txt": "x\n" });
     commit(dir, "main moves");
     git(dir, "switch", "-q", "feature");
-    const result = await diffScope({ cwd: dir, base: "main" });
+    const result = await diffScope({ copyToken: () => "tok", cwd: dir, base: "main" });
     expect(result.outcome).toBe("scope");
     if (result.outcome !== "scope") return;
     // git aligns the appended function's closing brace of `two` as part of the change: lines 5 to 8
@@ -64,7 +64,7 @@ describe("G6a: changed ranges and functions against the merge base", () => {
     const headers = [...raw.matchAll(/^@@ -\S+ \+(\d+)(?:,(\d+))? @@/gm)].map(
       (match) => `${match[1] ?? ""}-${String(Number(match[1]) + Number(match[2] ?? 1) - 1)}`,
     );
-    const result = await diffScope({ cwd: dir, base: "main" });
+    const result = await diffScope({ copyToken: () => "tok", cwd: dir, base: "main" });
     expect(get(result, "scope")).toBeDefined();
     expect(at(result, ["scope", "mutate"])).toEqual(headers.map((range) => `src/a.ts:${range}`));
   });
@@ -72,7 +72,7 @@ describe("G6a: changed ranges and functions against the merge base", () => {
   it("includes uncommitted changes to tracked files", async () => {
     const dir = makeRepo({ "src/a.ts": A });
     write(dir, { "src/a.ts": A.replace("a + 1", "a + 2") });
-    const result = await diffScope({ cwd: dir, base: "main" });
+    const result = await diffScope({ copyToken: () => "tok", cwd: dir, base: "main" });
     expect(at(result, ["scope", "mutate"])).toEqual(["src/a.ts:2-2"]);
     expect(keys(scopeOf(result)?.changedFunctions ?? [])).toEqual(["src/a.ts::one"]);
   });
@@ -82,7 +82,7 @@ describe("G6a: changed ranges and functions against the merge base", () => {
       "src/a.ts": A.replace("  return a + 1;", "  const b = a;\n  return a + 1;"),
     });
     write(dir, { "src/a.ts": A });
-    const result = await diffScope({ cwd: dir, base: "main" });
+    const result = await diffScope({ copyToken: () => "tok", cwd: dir, base: "main" });
     expect(result.outcome).toBe("vacuous");
     expect(keys(scopeOf(result)?.changedFunctions ?? [])).toEqual(["src/a.ts::one"]);
     expect(at(result, ["scope", "mutate"])).toEqual([]);
@@ -103,6 +103,7 @@ describe("G6a: changed ranges and functions against the merge base", () => {
       "notes.md": "y\n",
     });
     const result = await diffScope({
+      copyToken: () => "tok",
       cwd: dir,
       base: "main",
       coverageOf: () => Promise.resolve(new Map()),
@@ -122,7 +123,7 @@ describe("G6b: a diff that cannot be taken fails; one with nothing to mutate is 
     git(clone, "remote", "add", "origin", `file://${origin}`);
     git(clone, "fetch", "-q", "--depth", "1", "origin", "main");
     git(clone, "switch", "-q", "-c", "work", "FETCH_HEAD");
-    const result = await diffScope({ cwd: clone, base: "origin/main" });
+    const result = await diffScope({ copyToken: () => "tok", cwd: clone, base: "origin/main" });
     expect(result).toMatchObject({ outcome: "fail" });
     expect(get(result, "reason")).toMatch(/shallow/);
     expect(get(result, "reason")).toMatch(/fetch-depth: 0/);
@@ -130,7 +131,7 @@ describe("G6b: a diff that cannot be taken fails; one with nothing to mutate is 
 
   it("fails when the base does not exist, naming it", async () => {
     const dir = makeRepo({ "src/a.ts": A });
-    const result = await diffScope({ cwd: dir, base: "origin/nowhere" });
+    const result = await diffScope({ copyToken: () => "tok", cwd: dir, base: "origin/nowhere" });
     expect(result).toMatchObject({ outcome: "fail" });
     expect(get(result, "reason")).toContain("origin/nowhere");
   });
@@ -140,20 +141,20 @@ describe("G6b: a diff that cannot be taken fails; one with nothing to mutate is 
     git(dir, "switch", "-q", "--orphan", "island");
     write(dir, { "src/b.ts": "export const b = 1;\n" });
     commit(dir, "island");
-    const result = await diffScope({ cwd: dir, base: "main" });
+    const result = await diffScope({ copyToken: () => "tok", cwd: dir, base: "main" });
     expect(result).toMatchObject({ outcome: "fail" });
     expect(get(result, "reason")).toMatch(/merge base/);
   });
 
   it("fails outside a git work tree", async () => {
-    const result = await diffScope({ cwd: "/", base: "main" });
+    const result = await diffScope({ copyToken: () => "tok", cwd: "/", base: "main" });
     expect(result.outcome).toBe("fail");
   });
 
   it("is vacuous on an empty diff, and says why", async () => {
     const dir = makeRepo({ "src/a.ts": A });
     git(dir, "switch", "-q", "-c", "feature");
-    const result = await diffScope({ cwd: dir, base: "main" });
+    const result = await diffScope({ copyToken: () => "tok", cwd: dir, base: "main" });
     expect(result.outcome).toBe("vacuous");
     expect(get(result, "reason")).toMatch(/no changed source line/);
   });
@@ -161,7 +162,9 @@ describe("G6b: a diff that cannot be taken fails; one with nothing to mutate is 
   it("is vacuous when only non-source files changed", async () => {
     const dir = makeRepo({ "src/a.ts": A, "README.md": "a\n" });
     write(dir, { "README.md": "b\n" });
-    expect((await diffScope({ cwd: dir, base: "main" })).outcome).toBe("vacuous");
+    expect((await diffScope({ copyToken: () => "tok", cwd: dir, base: "main" })).outcome).toBe(
+      "vacuous",
+    );
   });
 });
 
@@ -186,6 +189,7 @@ describe("G6c: a test-only diff maps to the functions its tests cover", () => {
   it("lists sum, as EXPECTED.yaml says, and mutates its whole range", async () => {
     const asked: string[] = [];
     const result = await diffScope({
+      copyToken: () => "tok",
       cwd: weakened(),
       base: "main",
       coverageOf: (testFile) => {
@@ -195,7 +199,7 @@ describe("G6c: a test-only diff maps to the functions its tests cover", () => {
     });
     expect(result.outcome).toBe("scope");
     if (result.outcome !== "scope") return;
-    expect(asked).toEqual(["src/sum.test.ts", "src/sum.wt-base.test.ts"]);
+    expect(asked).toEqual(["src/sum.test.ts", "src/sum.wt-base-tok.test.ts"]);
     expect(result.scope.testFiles).toEqual(["src/sum.test.ts"]);
     expect(result.scope.changedFunctions).toEqual([]);
     expect(keys(result.scope.coveredFunctions)).toEqual(["src/sum.ts::sum"]);
@@ -209,6 +213,7 @@ describe("G6c: a test-only diff maps to the functions its tests cover", () => {
 
   it("is vacuous when the changed test covers nothing", async () => {
     const result = await diffScope({
+      copyToken: () => "tok",
       cwd: weakened(),
       base: "main",
       coverageOf: () => Promise.resolve(new Map()),
@@ -218,6 +223,7 @@ describe("G6c: a test-only diff maps to the functions its tests cover", () => {
 
   it("fails when the changed test could not be run to find what it covers", async () => {
     const result = await diffScope({
+      copyToken: () => "tok",
       cwd: weakened(),
       base: "main",
       coverageOf: () => Promise.resolve(undefined),
@@ -234,7 +240,9 @@ describe("G6c: a test-only diff maps to the functions its tests cover", () => {
     };
     const dir = makeRepo({ "src/sum.ts": sum, "src/sum.test.ts": strong });
     write(dir, { "src/sum.ts": `${sum}// edit\n` });
-    expect((await diffScope({ cwd: dir, base: "main", coverageOf })).outcome).toBe("scope");
+    expect(
+      (await diffScope({ copyToken: () => "tok", cwd: dir, base: "main", coverageOf })).outcome,
+    ).toBe("scope");
     expect(asked).toEqual([]);
   });
 
@@ -245,6 +253,7 @@ describe("G6c: a test-only diff maps to the functions its tests cover", () => {
       "src/sum.test.ts": weak,
     });
     const result = await diffScope({
+      copyToken: () => "tok",
       cwd: dir,
       base: "main",
       coverageOf: () => Promise.resolve(parseCoverage(recorded)),
@@ -282,34 +291,37 @@ describe("G6-3: a weakened test keeps its function in scope (base union head)", 
     const dir = weakened();
     const seen: Record<string, string> = {};
     const result = await diffScope({
+      copyToken: () => "tok",
       cwd: dir,
       base: "main",
       coverageOf: (file) => {
         seen[file] = existsSync(join(dir, file)) ? readFileSync(join(dir, file), "utf8") : "";
-        return Promise.resolve(file.includes(".wt-base.") ? only(F, G) : only(F));
+        return Promise.resolve(file.includes(".wt-base-tok.") ? only(F, G) : only(F));
       },
     });
-    expect(Object.keys(seen)).toEqual(["src/m.test.ts", "src/m.wt-base.test.ts"]);
-    expect(seen["src/m.wt-base.test.ts"]).toBe(STRONG.trim());
+    expect(Object.keys(seen)).toEqual(["src/m.test.ts", "src/m.wt-base-tok.test.ts"]);
+    expect(seen["src/m.wt-base-tok.test.ts"]).toBe(STRONG.trim());
     expect(keys(scopeOf(result)?.coveredFunctions ?? [])).toEqual(["src/m.ts::f", "src/m.ts::g"]);
     expect(scopeOf(result)?.mutate).toEqual(["src/m.ts:1-6"]);
-    expect(existsSync(join(dir, "src/m.wt-base.test.ts"))).toBe(false);
+    expect(existsSync(join(dir, "src/m.wt-base-tok.test.ts"))).toBe(false);
   });
 
   it("without the base version g would be out of scope: the head alone covers f", async () => {
     const result = await diffScope({
+      copyToken: () => "tok",
       cwd: weakened(),
       base: "main",
-      coverageOf: (file) => Promise.resolve(file.includes(".wt-base.") ? undefined : only(F)),
+      coverageOf: (file) => Promise.resolve(file.includes(".wt-base-tok.") ? undefined : only(F)),
     });
     expect(scopeOf(result)?.mutate).toEqual(["src/m.ts:1-3"]);
   });
 
   it("ignores a merge-base version that cannot run against the head, and still judges the head", async () => {
     const result = await diffScope({
+      copyToken: () => "tok",
       cwd: weakened(),
       base: "main",
-      coverageOf: (file) => Promise.resolve(file.includes(".wt-base.") ? undefined : only(F)),
+      coverageOf: (file) => Promise.resolve(file.includes(".wt-base-tok.") ? undefined : only(F)),
     });
     expect(result.outcome).toBe("scope");
   });
@@ -319,6 +331,7 @@ describe("G6-3: a weakened test keeps its function in scope (base union head)", 
     git(dir, "rm", "-q", "src/m.test.ts");
     const asked: string[] = [];
     const result = await diffScope({
+      copyToken: () => "tok",
       cwd: dir,
       base: "main",
       coverageOf: (file) => {
@@ -326,7 +339,7 @@ describe("G6-3: a weakened test keeps its function in scope (base union head)", 
         return Promise.resolve(only(F, G));
       },
     });
-    expect(asked).toEqual(["src/m.wt-base.test.ts"]);
+    expect(asked).toEqual(["src/m.wt-base-tok.test.ts"]);
     expect(result.outcome).toBe("scope");
     expect(scopeOf(result)?.mutate).toEqual(["src/m.ts:1-6"]);
   });
@@ -337,6 +350,7 @@ describe("G6-3: a weakened test keeps its function in scope (base union head)", 
     git(dir, "add", "-A");
     const asked: string[] = [];
     await diffScope({
+      copyToken: () => "tok",
       cwd: dir,
       base: "main",
       coverageOf: (file) => {
@@ -354,14 +368,14 @@ describe("G6-1: a deletion belongs to a function only when both sides of it lie 
   it("goes to <module> when the removed line was between two functions", async () => {
     const dir = makeRepo({ "src/a.ts": B });
     write(dir, { "src/a.ts": A });
-    const result = await diffScope({ cwd: dir, base: "main" });
+    const result = await diffScope({ copyToken: () => "tok", cwd: dir, base: "main" });
     expect(keys(scopeOf(result)?.changedFunctions ?? [])).toEqual(["src/a.ts::<module>"]);
   });
 
   it("goes to <module> when a whole function was removed", async () => {
     const dir = makeRepo({ "src/a.ts": A });
     write(dir, { "src/a.ts": A.slice(0, A.indexOf("export function two")) });
-    const result = await diffScope({ cwd: dir, base: "main" });
+    const result = await diffScope({ copyToken: () => "tok", cwd: dir, base: "main" });
     expect(keys(scopeOf(result)?.changedFunctions ?? [])).toEqual(["src/a.ts::<module>"]);
   });
 
@@ -372,7 +386,93 @@ describe("G6-1: a deletion belongs to a function only when both sides of it lie 
     write(dir, {
       "src/n.ts": nested.replace("  const x = 1;\n", "").replace("inner() + x", "inner()"),
     });
-    const result = await diffScope({ cwd: dir, base: "main" });
+    const result = await diffScope({ copyToken: () => "tok", cwd: dir, base: "main" });
     expect(keys(scopeOf(result)?.changedFunctions ?? [])).toContain("src/n.ts::outer");
+  });
+});
+
+describe("G6-5: the merge-base copy never touches a file that was already there", () => {
+  const SRC = "export function f(a: number): number {\n  return a + 1;\n}\n";
+  const TEST_BODY = 'import { f } from "../m.ts";\nf(1);\n';
+  const only = (): ReturnType<typeof parseCoverage> =>
+    new Map([["src/m.ts", [{ start: 1, end: 3, hits: 1 }]]]);
+
+  it("keeps an __tests__/ test (no .test. in its name) with uncommitted edits, and runs the copy under another name", async () => {
+    const dir = makeRepo({ "src/m.ts": SRC, "src/__tests__/m.ts": TEST_BODY });
+    const edited = `${TEST_BODY}f(2); // an uncommitted edit\n`;
+    write(dir, { "src/__tests__/m.ts": edited });
+    const asked: string[] = [];
+    const result = await diffScope({
+      copyToken: () => "tok",
+      cwd: dir,
+      base: "main",
+      coverageOf: (file) => {
+        asked.push(file);
+        return Promise.resolve(only());
+      },
+    });
+    expect(result.outcome).toBe("scope");
+    expect(readFileSync(join(dir, "src/__tests__/m.ts"), "utf8")).toBe(edited);
+    expect(asked[0]).toBe("src/__tests__/m.ts");
+    expect(asked[1]).toMatch(/^src\/__tests__\/m\.wt-base-tok\.ts$/);
+    expect(asked[1]).not.toBe(asked[0]);
+    expect(existsSync(join(dir, asked[1] ?? "none"))).toBe(false);
+  });
+
+  it("keeps a file that already sits at the copy's name, and does not run the copy", async () => {
+    const dir = makeRepo({ "src/m.ts": SRC, "src/m.test.ts": TEST_BODY });
+    write(dir, {
+      "src/m.test.ts": `${TEST_BODY}f(2);\n`,
+      "src/m.wt-base-tok.test.ts": "// the user's own file\n",
+    });
+    const asked: string[] = [];
+    const result = await diffScope({
+      copyToken: () => "tok",
+      cwd: dir,
+      base: "main",
+      coverageOf: (file) => {
+        asked.push(file);
+        return Promise.resolve(only());
+      },
+    });
+    expect(result.outcome).toBe("scope");
+    expect(asked).toEqual(["src/m.test.ts"]);
+    expect(readFileSync(join(dir, "src/m.wt-base-tok.test.ts"), "utf8")).toBe(
+      "// the user's own file\n",
+    );
+  });
+
+  it("removes its copy even when the run throws", async () => {
+    const dir = makeRepo({ "src/m.ts": SRC, "src/m.test.ts": TEST_BODY });
+    write(dir, { "src/m.test.ts": `${TEST_BODY}f(2);\n` });
+    const result = await diffScope({
+      copyToken: () => "tok",
+      cwd: dir,
+      base: "main",
+      coverageOf: (file) =>
+        file.includes(".wt-base-") ? Promise.reject(new Error("boom")) : Promise.resolve(only()),
+    });
+    expect(result.outcome).toBe("scope");
+    expect(existsSync(join(dir, "src/m.wt-base-tok.test.ts"))).toBe(false);
+  });
+
+  it("names every copy with a random token by default, never the original's name", async () => {
+    const dir = makeRepo({ "src/m.ts": SRC, "src/m.test.ts": TEST_BODY });
+    write(dir, { "src/m.test.ts": `${TEST_BODY}f(2);\n` });
+    const asked: string[] = [];
+    const options = {
+      cwd: dir,
+      base: "main",
+      coverageOf: (file: string): Promise<ReturnType<typeof parseCoverage>> => {
+        asked.push(file);
+        return Promise.resolve(only());
+      },
+    };
+    await diffScope({ ...options, copyToken: undefined });
+    await diffScope({ ...options, copyToken: undefined });
+    const copies = asked.filter((file) => file !== "src/m.test.ts");
+    expect(copies).toHaveLength(2);
+    expect(new Set(copies).size).toBe(2);
+    for (const copy of copies) expect(copy).toMatch(/^src\/m\.wt-base-[0-9a-f]{12}\.test\.ts$/);
   });
 });
