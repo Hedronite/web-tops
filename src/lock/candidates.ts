@@ -9,8 +9,6 @@ export type Candidates =
 type PackageRead =
   { readonly ok: true; readonly doc: unknown } | { readonly ok: false; readonly error: string };
 
-const byName = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
-
 const isAbsent = (error: unknown): boolean =>
   error instanceof Error && Reflect.get(error, "code") === "ENOENT";
 
@@ -48,5 +46,5 @@ export function candidateTools(dir: string): Candidates {
   const names = Object.keys(TOOL_PINS).filter(
     (name) => declared === undefined || declared.has(name),
   );
-  return { ok: true, names: names.sort(byName) };
+  return { ok: true, names };
 }
