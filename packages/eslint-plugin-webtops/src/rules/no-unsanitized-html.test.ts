@@ -1,5 +1,5 @@
 import { RuleTester } from "eslint";
-import { describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import rule from "./no-unsanitized-html.ts";
 
 RuleTester.describe = describe;
@@ -20,6 +20,8 @@ const unsanitized = (sink: string, sanitizers = DEFAULT) => [
 
 tester.run("no-unsanitized-html", rule, {
   valid: [
+    { name: "a member that is not a sink, assigned a variable", code: "a.b = html;" },
+    { name: "an identifier callee named like a sink", code: "insertAdjacentHTML(a, html);" },
     {
       name: "a static HTML object",
       code: '<div dangerouslySetInnerHTML={{ __html: "<b>x</b>" }} />',
@@ -162,4 +164,29 @@ tester.run("no-unsanitized-html", rule, {
       errors: unsanitized("innerHTML", "clean"),
     },
   ],
+});
+
+describe("the rule's own description", () => {
+  it("states what it judges, its option and its message", () => {
+    expect(rule.meta).toEqual({
+      type: "problem",
+      docs: {
+        description:
+          "No set:html, dangerouslySetInnerHTML or innerHTML with unsanitized input (W-36)",
+      },
+      schema: [
+        {
+          type: "object",
+          properties: {
+            sanitizers: { type: "array", items: { type: "string" }, uniqueItems: true },
+          },
+          additionalProperties: false,
+        },
+      ],
+      messages: {
+        unsanitized:
+          "Unsanitized HTML reaches {{ sink }}. Pass a string literal, or the result of a sanitizer ({{ sanitizers }}).",
+      },
+    });
+  });
 });

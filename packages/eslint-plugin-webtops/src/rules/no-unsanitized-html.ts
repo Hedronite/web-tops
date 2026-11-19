@@ -7,6 +7,7 @@ import {
   children,
   dottedName,
   kind,
+  lookup,
   nameOf,
   propertyName,
   staticText,
@@ -28,7 +29,13 @@ interface Sink {
 type Safe = (node: unknown, sanitizers: ReadonlySet<string>) => boolean;
 
 const SAFE = new Map<string, Safe>([
-  ["CallExpression", (node, sanitizers) => sanitizers.has(dottedName(child(node, "callee")) ?? "")],
+  [
+    "CallExpression",
+    (node, sanitizers) => {
+      const callee = dottedName(child(node, "callee"));
+      return callee !== undefined && sanitizers.has(callee);
+    },
+  ],
   [
     "ConditionalExpression",
     (node, sanitizers) =>
@@ -40,31 +47,28 @@ const SAFE = new Map<string, Safe>([
 export const isSafe = (node: unknown, sanitizers: ReadonlySet<string>): boolean =>
   staticText(node) !== undefined || byKind(SAFE, node)?.(node, sanitizers) === true;
 
-/** What `dangerouslySetInnerHTML={{ __html: x }}` sets: `x`; a value that is not an object literal is its own payload. */
-function htmlPayload(value: unknown): unknown {
-  if (kind(value) !== "ObjectExpression") return value;
+/** What `dangerouslySetInnerHTML={{ __html: x }}` sets: `x`. A value that is not an object literal is its own payload, and an object with no `__html` sets nothing. */
+function htmlPayload(value: unknown): { html: unknown } | undefined {
+  if (kind(value) !== "ObjectExpression") return { html: value };
   const entry = children(value, "properties").find(
     (property) => nameOf(child(property, "key")) === "__html",
   );
-  return entry === undefined ? { type: "Literal", value: "" } : child(entry, "value");
+  return entry === undefined ? undefined : { html: child(entry, "value") };
 }
 
-const ATTRIBUTE_SINKS = new Map<string, (value: unknown) => unknown>([
+const ATTRIBUTE_SINKS = new Map<string, (value: unknown) => { html: unknown } | undefined>([
   ["dangerouslySetInnerHTML", htmlPayload],
-  ["set:html", (value) => value],
+  ["set:html", (value) => ({ html: value })],
 ]);
 
 function attributeSink(attribute: unknown): Sink | undefined {
-  const name = attributeName(attribute) ?? "";
-  const payload = ATTRIBUTE_SINKS.get(name);
-  return payload === undefined
-    ? undefined
-    : { sink: name, html: payload(attributeValue(attribute)) };
+  const name = attributeName(attribute);
+  const payload = lookup(ATTRIBUTE_SINKS, name)?.(attributeValue(attribute));
+  return name === undefined || payload === undefined ? undefined : { sink: name, ...payload };
 }
 
 function assignedSink(assignment: unknown): Sink | undefined {
-  const left = child(assignment, "left");
-  const sink = kind(left) === "MemberExpression" ? propertyName(left) : undefined;
+  const sink = propertyName(child(assignment, "left"));
   return sink !== undefined && ASSIGNED_SINKS.has(sink)
     ? { sink, html: child(assignment, "right") }
     : undefined;
@@ -72,8 +76,7 @@ function assignedSink(assignment: unknown): Sink | undefined {
 
 function insertedSink(call: unknown): Sink | undefined {
   const callee = child(call, "callee");
-  const inserts =
-    kind(callee) === "MemberExpression" && propertyName(callee) === "insertAdjacentHTML";
+  const inserts = propertyName(callee) === "insertAdjacentHTML";
   return inserts ? { sink: "insertAdjacentHTML", html: children(call, "arguments")[1] } : undefined;
 }
 

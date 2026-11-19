@@ -9,25 +9,16 @@ const BUILT_IN = ["MODE", "DEV", "PROD", "SSR", "BASE_URL", "SITE"];
 
 /** `process.env` or `import.meta.env`. */
 function isEnvObject(node: unknown): boolean {
-  if (kind(node) !== "MemberExpression") return false;
   const meta = kind(child(node, "object")) === "MetaProperty";
   return dottedName(node) === "process.env" || (meta && propertyName(node) === "env");
 }
 
 /** The key of a pattern property: `{ KEY }` and `{ KEY: alias }`; undefined for a computed or rest entry. */
 const patternKey = (property: unknown): string | undefined =>
-  kind(property) === "Property" && child(property, "computed") !== true
-    ? nameOf(child(property, "key"))
-    : undefined;
+  child(property, "computed") === true ? undefined : nameOf(child(property, "key"));
 
 const isChildOf = (parent: unknown, type: string, field: string, node: unknown): boolean =>
   kind(parent) === type && child(parent, field) === node;
-
-/** How an env object is used: read by member (checked at that member), destructured, or handed over whole. */
-function usage(parent: unknown, node: unknown): "read" | "destructured" | "whole" {
-  if (isChildOf(parent, "MemberExpression", "object", node)) return "read";
-  return isChildOf(parent, "VariableDeclarator", "init", node) ? "destructured" : "whole";
-}
 
 const rule: Rule.RuleModule = {
   meta: {
@@ -72,12 +63,12 @@ const rule: Rule.RuleModule = {
     };
     const inspectEnv = (node: Rule.Node): void => {
       const parent: unknown = node.parent;
-      const use = usage(parent, node);
-      if (use === "whole") context.report({ node, messageId: "whole" });
-      if (use === "destructured") {
-        for (const property of children(child(parent, "id"), "properties")) {
+      if (isChildOf(parent, "VariableDeclarator", "init", node)) {
+        children(child(parent, "id"), "properties").forEach((property) => {
           reportName(node, patternKey(property));
-        }
+        });
+      } else if (!isChildOf(parent, "MemberExpression", "object", node)) {
+        context.report({ node, messageId: "whole" });
       }
     };
     return {

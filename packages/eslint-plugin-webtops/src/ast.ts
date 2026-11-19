@@ -51,6 +51,12 @@ export function byKind<T>(table: ReadonlyMap<string, T>, node: unknown): T | und
   return type === undefined ? undefined : table.get(type);
 }
 
+/** The entry of a table for a name that may be missing. */
+export const lookup = <T>(
+  table: ReadonlyMap<string, T>,
+  name: string | undefined,
+): T | undefined => (name === undefined ? undefined : table.get(name));
+
 /** The text of a string literal or of a template literal with no interpolation; undefined for anything else. */
 export const staticText = (node: unknown): string | undefined => byKind(TEXT, node)?.(node);
 

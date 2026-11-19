@@ -1,5 +1,5 @@
 import { RuleTester } from "eslint";
-import { describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import rule from "./complete-tailwind-classes.ts";
 
 RuleTester.describe = describe;
@@ -17,6 +17,12 @@ const incomplete = [{ messageId: "incomplete" as const }];
 
 tester.run("complete-tailwind-classes", rule, {
   valid: [
+    { name: "a subtraction is not a join", code: '<div className={"bg-" - c} />' },
+    {
+      name: "an object with whole keys beside a plain one",
+      code: 'clsx({ "p-2": big, "m-2": small });',
+    },
+    { name: "a template joined to a template", code: "<div className={`${a} ` + `${b}`} />" },
     { name: "a whole class string", code: '<div className="bg-red-500 text-lg" />' },
     { name: "a lookup of complete strings", code: "<div className={COLORS[color]} />" },
     {
@@ -55,6 +61,56 @@ tester.run("complete-tailwind-classes", rule, {
     { name: "a template in a computed member", code: "<div className={map[`${key}`]} />" },
   ],
   invalid: [
+    { name: "classnames", code: "classnames(`bg-${c}`);", errors: incomplete },
+    { name: "classNames", code: "classNames(`bg-${c}`);", errors: incomplete },
+    { name: "twMerge", code: "twMerge(`bg-${c}`);", errors: incomplete },
+    { name: "twJoin", code: "twJoin(`bg-${c}`);", errors: incomplete },
+    { name: "tv", code: "tv(`bg-${c}`);", errors: incomplete },
+    {
+      name: "one offending interpolation among whole ones",
+      code: "<div className={`flex ${on ? `bg-${c}` : ''} ${other}`} />",
+      errors: incomplete,
+    },
+    {
+      name: "one offending part among whole ones in a sum",
+      code: '<div className={`bg-${c}` + " p-2"} />',
+      errors: incomplete,
+    },
+    {
+      name: "an offending key beside a plain one",
+      code: 'clsx({ [`bg-${c}`]: on, "p-2": off });',
+      errors: incomplete,
+    },
+    {
+      name: "an offending key after a plain one",
+      code: 'clsx({ "p-2": off, [`bg-${c}`]: on });',
+      errors: incomplete,
+    },
+    {
+      name: "a prefix joined with a sum",
+      code: '<div className={"a " + b + "-c"} />',
+      errors: incomplete,
+    },
+    {
+      name: "a glued suffix after an interpolation",
+      code: "<div className={`${a}-4`} />",
+      errors: incomplete,
+    },
+    {
+      name: "an interpolation glued to a later one only",
+      code: "<div className={`${a} x${b}`} />",
+      errors: incomplete,
+    },
+    {
+      name: "three interpolations, the last two glued",
+      code: "<div className={`${a} ${b}${c}`} />",
+      errors: incomplete,
+    },
+    {
+      name: "an interpolation glued to the one before it",
+      code: "<div className={`${a}${b} x`} />",
+      errors: incomplete,
+    },
     {
       name: "interpolation inside a token",
       code: "<div className={`bg-${color}-500`} />",
@@ -166,4 +222,29 @@ tester.run("complete-tailwind-classes", rule, {
     },
     { name: "a conditional argument", code: "cn(on ? `bg-${c}` : null);", errors: incomplete },
   ],
+});
+
+describe("the rule's own description", () => {
+  it("states what it judges, its option and its message", () => {
+    expect(rule.meta).toEqual({
+      type: "problem",
+      docs: {
+        description:
+          "Tailwind class names are complete strings: no class token built by interpolation or concatenation (W-23)",
+      },
+      schema: [
+        {
+          type: "object",
+          properties: {
+            functions: { type: "array", items: { type: "string" }, uniqueItems: true },
+          },
+          additionalProperties: false,
+        },
+      ],
+      messages: {
+        incomplete:
+          "Tailwind never sees a class name built at run time, so its style is missing in production. Write whole class names and choose between them with a lookup table.",
+      },
+    });
+  });
 });

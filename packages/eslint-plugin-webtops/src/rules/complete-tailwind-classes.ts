@@ -7,6 +7,7 @@ import {
   children,
   dottedName,
   kind,
+  lookup,
   propertyName,
   quasisOf,
   staticText,
@@ -22,23 +23,16 @@ const endsInToken = (text: string | undefined): boolean => text !== undefined &&
 const startsInToken = (text: string | undefined): boolean =>
   text !== undefined && /^\S/u.test(text);
 
-/** Text before or after an interpolation touches it: it holds a character, or an interpolation sits on that side. */
-const glued = (text: string, neighbour: boolean, edge: RegExp): boolean =>
-  text === "" ? neighbour : edge.test(text);
-
-/** Whether the interpolation at `index` shares a token with static text, or with another interpolation. */
-function touches(quasis: readonly string[], index: number, count: number): boolean {
-  return (
-    glued(quasis[index] ?? "", index > 0, /\S$/u) ||
-    glued(quasis[index + 1] ?? "", index + 1 < count, /^\S/u)
-  );
-}
-
 function templateBuildsToken(template: unknown): boolean {
   const quasis = quasisOf(template);
   const expressions = children(template, "expressions");
+  const count = expressions.length;
+  // Static text ends in a token character before an interpolation, or starts with one after it,
+  // or two interpolations sit side by side (an empty text between them).
   return (
-    expressions.some((_, index) => touches(quasis, index, expressions.length)) ||
+    quasis.slice(0, count).some(endsInToken) ||
+    quasis.slice(1, count + 1).some(startsInToken) ||
+    quasis.slice(1, count).includes("") ||
     expressions.some(buildsToken)
   );
 }
@@ -73,18 +67,19 @@ const METHODS = new Map<string, (object: unknown, args: readonly unknown[]) => b
 
 function methodBuildsToken(call: unknown): boolean {
   const callee = child(call, "callee");
-  const method = METHODS.get(
-    kind(callee) === "MemberExpression" ? (propertyName(callee) ?? "") : "",
-  );
+  const method = lookup(METHODS, propertyName(callee));
   return method?.(child(callee, "object"), children(call, "arguments")) === true;
 }
 
-const keyBuildsToken = (property: unknown): boolean =>
-  child(property, "computed") === true && buildsToken(child(property, "key"));
+/** A key that is not computed is an identifier or a literal, which cannot build a token. */
+const keyBuildsToken = (property: unknown): boolean => buildsToken(child(property, "key"));
 
 const CHECKS = new Map<string, (node: unknown) => boolean>([
   ["TemplateLiteral", templateBuildsToken],
-  ["BinaryExpression", (node) => partsBuildToken(operands(node))],
+  [
+    "BinaryExpression",
+    (node) => child(node, "operator") === "+" && partsBuildToken(operands(node)),
+  ],
   ["CallExpression", methodBuildsToken],
   [
     "ConditionalExpression",
@@ -132,7 +127,7 @@ const rule: Rule.RuleModule = {
       },
       CallExpression(node) {
         const callee = dottedName(node.callee);
-        if (helpers.has(callee ?? "") && node.arguments.some(buildsToken)) {
+        if (callee !== undefined && helpers.has(callee) && node.arguments.some(buildsToken)) {
           context.report({ node, messageId: "incomplete" });
         }
       },

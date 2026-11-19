@@ -1,5 +1,5 @@
 import { RuleTester } from "eslint";
-import { describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import rule from "./public-env-only.ts";
 
 RuleTester.describe = describe;
@@ -15,6 +15,14 @@ const privateName = (name: string) => [
 
 tester.run("public-env-only", rule, {
   valid: [
+    { name: "import.meta.url handed on", code: "send(import.meta.url);" },
+    { name: "another member handed on", code: "send(other.value);" },
+    { name: "a member of a call result", code: "send(a.env);" },
+    {
+      name: "two prefixes, the second one matching",
+      code: "const a = process.env.B_KEY;",
+      options: [{ prefixes: ["A_", "B_"] }],
+    },
     {
       name: "a public import.meta.env variable",
       code: "const a = import.meta.env.PUBLIC_API_URL;",
@@ -56,6 +64,22 @@ tester.run("public-env-only", rule, {
     },
   ],
   invalid: [
+    {
+      name: "the env object as the init of a for loop",
+      code: "for (process.env; ; ) {}",
+      errors: [{ messageId: "whole" }],
+    },
+    {
+      name: "the env object as a computed key",
+      code: "const a = x[process.env];",
+      errors: [{ messageId: "whole" }],
+    },
+    {
+      name: "two prefixes are listed in the message",
+      code: "const a = process.env.KEY;",
+      options: [{ prefixes: ["A_", "B_"] }],
+      errors: [{ messageId: "private", data: { name: "KEY", prefixes: "A_, B_" } }],
+    },
     {
       name: "a private import.meta.env variable",
       code: "const a = import.meta.env.SECRET_KEY;",
@@ -129,4 +153,31 @@ tester.run("public-env-only", rule, {
       errors: [{ messageId: "private" }, { messageId: "private" }],
     },
   ],
+});
+
+describe("the rule's own description", () => {
+  it("states what it judges, its options and its messages", () => {
+    const list = { type: "array", items: { type: "string" }, uniqueItems: true };
+    expect(rule.meta).toEqual({
+      type: "problem",
+      docs: { description: "Only public env reaches client code (W-37)" },
+      schema: [
+        {
+          type: "object",
+          properties: { prefixes: list, allowed: list },
+          additionalProperties: false,
+        },
+      ],
+      messages: {
+        private:
+          "{{ name }} is not a public variable (prefix {{ prefixes }}), so reading it in client code ships it to every visitor. Read it on the server.",
+        dynamic:
+          "An env variable read by a computed name cannot be checked, and may be private. Read a public variable by name.",
+        whole:
+          "The whole env object reaches client code. Read the public variables you need, by name.",
+        server:
+          "{{ name }} is a server-only module: its fields stay off the client. Use astro:env/client.",
+      },
+    });
+  });
 });
