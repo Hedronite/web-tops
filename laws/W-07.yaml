@@ -1,0 +1,13 @@
+# W-07: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-07
+title: "Derived types (`Pick`, `Omit`, `Partial`, `z.infer`) over duplicated shapes (T-06)"
+family: "Types"
+severity: A
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [at]
+  text: "at"
+rules: []
+judged: no
+rationale: "A copied shape drifts from its source; a derived type follows it."
+fix: "Derive the type with `Pick`, `Omit`, `Partial` or `z.infer`."

@@ -1,0 +1,14 @@
+# W-20: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-20
+title: "Built HTML is valid"
+family: "HTML and accessibility"
+severity: R
+classes: [astro-site, web-app]
+reader:
+  kinds: [tl]
+  text: "tl: `html-validate` on `dist/`"
+rules:
+  - { tool: html-validate, name: "html-validate" }
+judged: v0.1
+rationale: "Invalid HTML is parsed differently by different browsers and tools."
+fix: "Fix what `html-validate` reports in the source of the built page."

@@ -1,0 +1,19 @@
+# W-06: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-06
+title: "External data is validated at the boundary: `response.json()`, `JSON.parse`, `FormData`, storage, `postMessage`, env (T-05)"
+family: "Types"
+severity: R
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [tl, an]
+  text: "tl: `response.json()`, `JSON.parse` and `MessageEvent.data` return `any`, so W-01's `no-unsafe-*` refuses unvalidated use. `FormData.get`, `Storage.getItem`, `URLSearchParams.get` and `process.env` are typed `string | null` or `string | undefined`, not `any`, so no rule sees them: `[review]`. an: env reads only through a schema (`astro:env` or a Zod module)"
+rules:
+  - { tool: eslint, name: "@typescript-eslint/no-unsafe-assignment" }
+  - { tool: eslint, name: "@typescript-eslint/no-unsafe-member-access" }
+  - { tool: eslint, name: "@typescript-eslint/no-unsafe-call" }
+  - { tool: eslint, name: "@typescript-eslint/no-unsafe-return" }
+  - { tool: eslint, name: "@typescript-eslint/no-unsafe-argument" }
+judged: v0.1
+rationale: "Data from outside the program has no type until it is checked; trusting its shape moves a failure far from its cause."
+fix: "Parse at the boundary with a schema (Zod or `astro:env`) and pass the parsed value on; read env only through that module."
+note: "node-service reads this law strictly (WEB_TOPS.md section 5.2): every boundary read goes through a schema."

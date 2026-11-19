@@ -1,0 +1,14 @@
+# W-19: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-19
+title: "Optional peers (React, R3F) are imported only from entries that declare them"
+family: "Modules and boundaries"
+severity: R
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [tl]
+  text: "tl: `dependency-cruiser`"
+rules: []
+judged: v0.1
+rationale: "An optional peer imported from an entry that does not declare it breaks installs that skip the peer."
+fix: "Import the peer only from entries that declare it, or declare it for the entry."
+note: "The dependency-cruiser rule lands with its reader in M3."

@@ -1,0 +1,13 @@
+# W-45: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-45
+title: "Every element reached by keyboard shows a visible focus indicator"
+family: "Rendered interface"
+severity: R
+classes: [astro-site, web-app]
+reader:
+  kinds: [an]
+  text: "an: Tab through the page, read computed outline and box-shadow"
+rules: []
+judged: no
+rationale: "A keyboard user cannot tell where focus is without a visible indicator."
+fix: "Keep outlines, and style `:focus-visible`."

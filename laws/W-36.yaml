@@ -1,0 +1,14 @@
+# W-36: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-36
+title: "No `set:html`, `dangerouslySetInnerHTML` or `innerHTML` with unsanitized input"
+family: "Tests, suppressions, security, build"
+severity: R
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [an]
+  text: "an"
+rules:
+  - { tool: eslint, name: "webtops/no-unsanitized-html" }
+judged: m3
+rationale: "Unsanitized HTML in `set:html`, `dangerouslySetInnerHTML` or `innerHTML` is cross-site scripting."
+fix: "Render text through the framework, or sanitize with a vetted library first."

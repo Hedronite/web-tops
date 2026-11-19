@@ -1,0 +1,14 @@
+# W-12: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-12
+title: "Concurrency is bounded: no `Promise.all` over input of unbounded size; independent awaits are not serialized in a loop"
+family: "Async and errors"
+severity: A
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [tl, an]
+  text: "tl: `no-await-in-loop`; an"
+rules:
+  - { tool: eslint, name: "no-await-in-loop" }
+judged: no
+rationale: "Unbounded parallel work exhausts sockets and memory, and awaiting independent work in a loop wastes time."
+fix: "Bound concurrency with a pool or batches, and run a fixed set of independent awaits through `Promise.all`."

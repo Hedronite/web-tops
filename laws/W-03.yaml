@@ -1,0 +1,13 @@
+# W-03: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-03
+title: "User-defined type guards and assertion functions (`x is T`, `asserts x is T`) are derived from a schema or covered by a property test. The compiler trusts them like an `as`"
+family: "Types"
+severity: A
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [an]
+  text: "an"
+rules: []
+judged: no
+rationale: "A type guard or assertion function is trusted like an `as`: a wrong body makes every caller wrong."
+fix: "Derive the guard from a schema, or cover it with a property test; acknowledge the law where neither fits."

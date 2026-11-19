@@ -1,0 +1,15 @@
+# W-34: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-34
+title: "No focused or skipped tests committed"
+family: "Tests, suppressions, security, build"
+severity: R
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [tl]
+  text: "tl: `@vitest/eslint-plugin` (1.6) `no-focused-tests`, `no-disabled-tests`"
+rules:
+  - { tool: eslint, name: "vitest/no-focused-tests" }
+  - { tool: eslint, name: "vitest/no-disabled-tests" }
+judged: v0.1
+rationale: "A committed `.only` or `.skip` silently narrows the suite."
+fix: "Remove it, or fix the test."
