@@ -50,8 +50,10 @@ module.exports = {
   ],
   options: {
     doNotFollow: { path: "node_modules" },
-    // Reserved: the W-22 proof package and the deliberate cheats are not this kit's code.
-    exclude: { path: "^(probes|fixtures/probe|fixtures/complexity)/" },
+    // Reserved: the W-22 proof package, the deliberate cheats and the M3 law fixtures are not this kit's code; examples/node-service gates itself.
+    exclude: {
+      path: "^(probes|fixtures/probe|fixtures/complexity|fixtures/laws|examples/node-service)/",
+    },
     tsPreCompilationDeps: true,
     tsConfig: { fileName: "tsconfig.json" },
     enhancedResolveOptions: {
