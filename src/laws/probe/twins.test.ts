@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { cleanTemp, put, tempDir } from "./testkit.ts";
-import { listTwins, materialize } from "./twins.ts";
+import { STYLELINT_IGNORE, listTwins, materialize } from "./twins.ts";
 import type { ProbeLaw } from "./types.ts";
 
 afterAll(cleanTemp);
@@ -19,6 +19,7 @@ function fixtures(): string {
     "W-01/bad/nested/b.tsx": "export const b = 1;\n",
     "W-01/bad/_support.ts": "export const s = 1;\n",
     "W-01/bad/notes.md": "not a source file\n",
+    "W-02/bad/style.css": "a { color: red; }\n",
     "W-01/clean/c.mts": "export const c = 1;\n",
     "W-02/clean/d.cts": "export const d = 1;\n",
     "W-03/bad/e.ts": "export const e = 1;\n",
@@ -35,6 +36,7 @@ describe("G3a twins: fixtures/laws/W-NN/{bad,clean}/", () => {
       "W-01 bad W-01/bad/a.ts",
       "W-01 bad W-01/bad/nested/b.tsx",
       "W-01 clean W-01/clean/c.mts",
+      "W-02 bad W-02/bad/style.css",
       "W-02 clean W-02/clean/d.cts",
     ]);
   });
@@ -65,6 +67,13 @@ describe("G3a twins: fixtures/laws/W-NN/{bad,clean}/", () => {
     materialize(fixtures(), scratch, [...LAWS, { id: "W-99", proofs: [] }], "/p/tsconfig.json");
     expect(existsSync(join(scratch, "stale"))).toBe(false);
     expect(existsSync(join(scratch, "W-99"))).toBe(false);
+  });
+
+  it("writes an empty ignore file for Stylelint beside the tsconfig", () => {
+    const scratch = join(tempDir(), "scratch");
+    materialize(fixtures(), scratch, LAWS, "/project/tsconfig.json");
+    expect(readFileSync(join(scratch, STYLELINT_IGNORE), "utf8")).toBe("");
+    expect(STYLELINT_IGNORE).toBe("stylelint.ignore");
   });
 
   it("writes the tsconfig both tools find: it extends the project's, names every file and excludes none", () => {

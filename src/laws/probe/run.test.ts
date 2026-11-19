@@ -18,6 +18,7 @@ const FIXTURES = {
 const STUBS = {
   eslint: { package: "eslint", command: "eslint", bin: "bin/eslint.js" },
   tsc: { package: "typescript", command: "tsc", bin: "bin/tsc" },
+  stylelint: { package: "stylelint", command: "stylelint", bin: "bin/stylelint.mjs" },
 } as const;
 
 type Stub = (typeof STUBS)[keyof typeof STUBS];
@@ -31,7 +32,7 @@ function install(dir: string, stub: Stub): void {
 }
 
 /** A project with the tools installed as stubs, so `runTool` finds them; the fake `exec` stands in for `node`. */
-function project(stubs: readonly Stub[] = [STUBS.eslint, STUBS.tsc]): string {
+function project(stubs: readonly Stub[] = Object.values(STUBS)): string {
   const dir = tempDir();
   stubs.forEach((stub) => {
     install(dir, stub);
@@ -50,6 +51,9 @@ interface Script {
   /** What ESLint writes to its --output-file. */
   readonly eslintOutput?: string;
   readonly tsc?: ExecResult;
+  readonly stylelint?: ExecResult;
+  /** What Stylelint writes to its --output-file. */
+  readonly stylelintOutput?: string;
 }
 
 const OK: ExecResult = { code: 0, stdout: "", stderr: "" };
@@ -59,17 +63,34 @@ function writeOutput(args: readonly string[], text: string): void {
   writeFileSync(args[args.indexOf("--output-file") + 1] ?? "", text);
 }
 
-const isTsc = (args: readonly string[]): boolean => (args[0] ?? "").endsWith("tsc");
+type Tool = "eslint" | "tsc" | "stylelint";
+
+/** Which tool a call is for, by the entry it is run with. */
+function toolOf(args: readonly string[]): Tool {
+  const entry = args[0] ?? "";
+  if (entry.endsWith("tsc")) {
+    return "tsc";
+  }
+  return entry.endsWith("stylelint.mjs") ? "stylelint" : "eslint";
+}
+
+function outputFor(script: Script, tool: Tool): string | undefined {
+  if (tool === "eslint") {
+    return script.eslintOutput;
+  }
+  return tool === "stylelint" ? script.stylelintOutput : undefined;
+}
 
 function emit(script: Script, args: readonly string[]): void {
-  if (!isTsc(args) && script.eslintOutput !== undefined) {
-    writeOutput(args, script.eslintOutput);
+  const text = outputFor(script, toolOf(args));
+  if (text !== undefined) {
+    writeOutput(args, text);
   }
 }
 
 function respond(script: Script, args: readonly string[]): ExecResult {
   emit(script, args);
-  return (isTsc(args) ? script.tsc : script.eslint) ?? OK;
+  return script[toolOf(args)] ?? OK;
 }
 
 function fake(script: Script, calls: Call[]): Exec {
@@ -250,5 +271,85 @@ describe("G3b the runner lints the twins once and compiles them once, then judge
     const long: ExecResult = { code: 2, stdout: "", stderr: `${"a".repeat(700)}END` };
     const outcome = await runProbe(request(project(), fake({ eslint: long }, [])));
     expect(!outcome.ok && outcome.problem).toBe(`eslint exited 2: ${"a".repeat(597)}END`);
+  });
+});
+
+const CSS_LAW: ProbeLaw = { id: "W-98", proofs: ["block-no-empty"] };
+
+function cssFixtures(): string {
+  const dir = tempDir();
+  put(dir, {
+    "W-98/bad/a.css": "a {} /* expect: block-no-empty */\n",
+    "W-98/clean/a.css": "a { color: red; }\n",
+  });
+  return dir;
+}
+
+const stylelintJson = (cwd: string, rule: string): string =>
+  JSON.stringify([
+    {
+      source: join(realpathSync(cwd), ".web-tops/out/laws-probe/W-98/bad/a.css"),
+      warnings: [{ rule, line: 1, text: "m" }],
+    },
+  ]);
+
+function cssRequest(cwd: string, exec: Exec): ProbeRequest {
+  return request(cwd, exec, { laws: [CSS_LAW], fixtures: cssFixtures() });
+}
+
+describe("G3b the runner reads CSS twins with Stylelint, and only then", () => {
+  it("runs Stylelint alone over the CSS twins, ignoring the project's ignores, and judges the law", async () => {
+    const cwd = project();
+    const calls: Call[] = [];
+    const script = { stylelintOutput: stylelintJson(cwd, "block-no-empty") };
+    const outcome = await runProbe(cssRequest(cwd, fake(script, calls)));
+    expect(calls).toHaveLength(1);
+    const call = nth(calls, 0);
+    expect(call.args.slice(1, 4)).toEqual(["--formatter", "json", "--output-file"]);
+    expect(call.args).toContain("--ignore-path");
+    expect(call.args.at(-1)).toBe(join(".web-tops", "out", "laws-probe", "**", "*.css"));
+    expect(call.cwd).toBe(realpathSync(cwd));
+    expect(outcome).toMatchObject({
+      ok: true,
+      report: { laws: [{ id: "W-98", verdict: "pass" }] },
+    });
+  });
+
+  it("a rule that did not report is silent, and Stylelint exiting 2 means findings and is fine", async () => {
+    const cwd = project();
+    const found: ExecResult = { code: 2, stdout: "", stderr: "" };
+    const script = { stylelint: found, stylelintOutput: "[]" };
+    const outcome = await runProbe(cssRequest(cwd, fake(script, [])));
+    const kinds = outcome.ok ? outcome.report.laws[0]?.failures.map((failure) => failure.kind) : [];
+    expect(kinds).toEqual(["silent"]);
+  });
+
+  it("runs ESLint, tsc and Stylelint, in that order, when the twins are both", async () => {
+    const cwd = project();
+    const calls: Call[] = [];
+    const fixtures = cssFixtures();
+    put(fixtures, FIXTURES);
+    const script = { eslintOutput: "[]", stylelintOutput: "[]" };
+    await runProbe(request(cwd, fake(script, calls), { laws: [LAW, CSS_LAW], fixtures }));
+    expect(calls.map((call) => toolOf(call.args))).toEqual(["eslint", "tsc", "stylelint"]);
+  });
+
+  it("Stylelint exiting 1 is a problem, and a missing Stylelint is an environment problem", async () => {
+    const cwd = project();
+    const crashed: ExecResult = { code: 1, stdout: "", stderr: "bad config" };
+    const failed = await runProbe(cssRequest(cwd, fake({ stylelint: crashed }, [])));
+    expect(!failed.ok && failed.problem).toBe("stylelint exited 1: bad config");
+    const bare = project([STUBS.eslint, STUBS.tsc]);
+    const missing = await runProbe(cssRequest(bare, fake({}, [])));
+    expect(missing).toEqual({
+      ok: false,
+      code: 3,
+      problem: "stylelint did not run: tool-missing. stylelint is not installed in node_modules",
+    });
+  });
+
+  it("Stylelint output it cannot read is a problem that quotes the output", async () => {
+    const outcome = await runProbe(cssRequest(project(), fake({ stylelintOutput: "{}" }, [])));
+    expect(!outcome.ok && outcome.problem).toBe("stylelint wrote output the probe cannot read: {}");
   });
 });

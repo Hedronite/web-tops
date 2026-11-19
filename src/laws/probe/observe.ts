@@ -31,18 +31,46 @@ function messageFinding(root: string, file: unknown, message: Record<string, unk
   };
 }
 
-/** The findings in ESLint's JSON formatter output (`[{ filePath, messages: [{ ruleId, line, message }] }]`). */
-export function readEslint(root: string, json: unknown): Reading {
+type Item = Record<string, unknown>;
+
+/** The items under `key` of each file result in a formatter's JSON, as findings; undefined when it is no array. */
+function collect(
+  json: unknown,
+  key: string,
+  build: (entry: Item, item: Item) => Observed,
+): Reading {
   if (!Array.isArray(json)) {
     return undefined;
   }
   return json
     .filter(isRecord)
     .flatMap((entry) =>
-      (Array.isArray(entry["messages"]) ? entry["messages"] : [])
+      (Array.isArray(entry[key]) ? entry[key] : [])
         .filter(isRecord)
-        .map((message) => messageFinding(root, entry["filePath"], message)),
+        .map((item) => build(entry, item)),
     );
+}
+
+/** The findings in ESLint's JSON formatter output (`[{ filePath, messages: [{ ruleId, line, message }] }]`). */
+export function readEslint(root: string, json: unknown): Reading {
+  return collect(json, "messages", (entry, message) =>
+    messageFinding(root, entry["filePath"], message),
+  );
+}
+
+/** A Stylelint warning's own rule, or `stylelint-fatal` for one with none (a file it could not read). */
+const warningRule = (warning: Item): string =>
+  typeof warning["rule"] === "string" && warning["rule"] !== ""
+    ? warning["rule"]
+    : "stylelint-fatal";
+
+/** The findings in Stylelint's JSON formatter output (`[{ source, warnings: [{ rule, line, text }] }]`). */
+export function readStylelint(root: string, json: unknown): Reading {
+  return collect(json, "warnings", (entry, warning) => ({
+    file: underRoot(root, String(entry["source"])),
+    line: typeof warning["line"] === "number" ? warning["line"] : 0,
+    rule: warningRule(warning),
+  }));
 }
 
 /** `src/a.ts(3,19): error TS7006: ...` as `tsc --pretty false` prints it. */

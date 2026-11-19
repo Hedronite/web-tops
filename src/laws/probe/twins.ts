@@ -3,9 +3,12 @@ import { join } from "node:path";
 import type { ProbeLaw, Twin, TwinKind } from "./types.ts";
 
 /** The files of a twin the tools read. Anything else in a twin directory is copied beside them and left alone. */
-const TWIN_FILE = /\.(?:[cm]?ts|tsx)$/u;
+const TWIN_FILE = /\.(?:[cm]?ts|tsx|css)$/u;
 
 const KINDS: readonly TwinKind[] = ["bad", "clean"];
+
+/** An empty ignore file for Stylelint: the project's own ignores may skip `.web-tops/`, where the twins are read. */
+export const STYLELINT_IGNORE = "stylelint.ignore";
 
 /** Every file under a directory, as paths relative to it with `/` separators. */
 function filesUnder(directory: string, prefix = ""): string[] {
@@ -31,8 +34,8 @@ export function listTwins(fixtures: string, laws: readonly ProbeLaw[]): Twin[] {
 }
 
 /**
- * The scratch project: a copy of each probed law's directory, and the one tsconfig the compiler and the type-aware lint
- * rules both find. It extends the project's own, so a flag the project turns off is off for the twins too, and it
+ * The scratch project: a copy of each probed law's directory, the one tsconfig the compiler and the type-aware lint
+ * rules both find, and an empty ignore file for Stylelint. It extends the project's own, so a flag the project turns off is off for the twins too, and it
  * names every file, so no `include` or `exclude` of the project's keeps a twin out.
  */
 export function materialize(
@@ -56,4 +59,5 @@ export function materialize(
     exclude: [],
   };
   writeFileSync(join(scratch, "tsconfig.json"), `${JSON.stringify(config, null, 2)}\n`);
+  writeFileSync(join(scratch, STYLELINT_IGNORE), "");
 }

@@ -1,47 +1,16 @@
-import { cpSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { cpSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { realExec } from "../gate/exec.ts";
 import { REAL_TOOL_TIMEOUT } from "../gate/test-support-timeouts.ts";
-import type { Exec } from "../gate/types.ts";
-import { interimLaws } from "../laws/probe/catalog.ts";
+import { interimLaws, lawsOfClass } from "../laws/probe/catalog.ts";
 import { cleanTemp, put, tempDir } from "../laws/probe/testkit.ts";
-import type { LawSource, ProbeReport } from "../laws/probe/types.ts";
-import type { Io } from "./io.ts";
-import { runLawsProbeCli, type ProbeDeps } from "./laws-probe.ts";
+import type { LawSource } from "../laws/probe/types.ts";
+import { adopter, cli, KIT, messages, probeOf, verdicts } from "./test-support-probe.ts";
 
 afterAll(cleanTemp);
 
-const KIT = resolve(import.meta.dirname, "../..");
-
-interface Captured {
-  readonly io: Io;
-  readonly out: string[];
-  readonly err: string[];
-}
-
-function capture(cwd: string): Captured {
-  const out: string[] = [];
-  const err: string[] = [];
-  const io: Io = { out: (t) => out.push(t), err: (t) => err.push(t), cwd, env: process.env };
-  return { io, out, err };
-}
-
-const NO_EXEC: Exec = () => Promise.reject(new Error("no tool should run"));
-
-function deps(over: Partial<ProbeDeps> = {}): ProbeDeps {
-  return { exec: NO_EXEC, laws: interimLaws, fixtures: join(KIT, "fixtures/laws"), ...over };
-}
-
-async function cli(
-  argv: readonly string[],
-  cwd: string,
-  over: Partial<ProbeDeps> = {},
-): Promise<{ code: number; out: string; err: string }> {
-  const seen = capture(cwd);
-  const code = await runLawsProbeCli(argv, seen.io, deps(over));
-  return { code, out: seen.out.join(""), err: seen.err.join("") };
-}
+const KIT_LAWS = lawsOfClass(interimLaws(), "ts-library").length;
 
 describe("G3b `laws probe`: arguments and problems", () => {
   it("rejects an argument it does not know, and a flag with no value, with the usage", async () => {
@@ -74,41 +43,6 @@ describe("G3b `laws probe`: arguments and problems", () => {
   });
 });
 
-/** A project that is not the kit: its own copy of the kit's config, and the kit's tools through a symlink. */
-function adopter(edit: (name: string, text: string) => string = (_name, text) => text): string {
-  const dir = tempDir();
-  symlinkSync(join(KIT, "node_modules"), join(dir, "node_modules"));
-  for (const name of ["eslint.config.js", "tsconfig.json"]) {
-    writeFileSync(join(dir, name), edit(name, readFileSync(join(KIT, name), "utf8")));
-  }
-  put(dir, { "package.json": '{ "type": "module" }\n', "src/index.ts": "export const a = 1;\n" });
-  return dir;
-}
-
-function isReport(value: unknown): value is ProbeReport {
-  return typeof value === "object" && value !== null && Array.isArray(Reflect.get(value, "laws"));
-}
-
-/** The probe's JSON report on a project, with the exit code. */
-async function probeOf(
-  cwd: string,
-  ...argv: string[]
-): Promise<{ code: number; report: ProbeReport }> {
-  const run = await cli(["--json", ...argv], cwd, { exec: realExec });
-  expect(run.err).toBe("");
-  const report: unknown = JSON.parse(run.out);
-  if (!isReport(report)) {
-    throw new Error("the probe printed no report");
-  }
-  return { code: run.code, report };
-}
-
-const messages = (report: ProbeReport): string[] =>
-  report.laws.flatMap((law) => law.failures.map((failure) => failure.message));
-
-const verdicts = (report: ProbeReport): string[] =>
-  report.laws.map((law) => `${law.id} ${law.verdict}`);
-
 describe("G3b `laws probe` on a project's own config", () => {
   let kitLike: Awaited<ReturnType<typeof probeOf>>;
   let kitText: string;
@@ -120,14 +54,18 @@ describe("G3b `laws probe` on a project's own config", () => {
 
   it("passes every law under a config that is the kit's, with no finding left unexplained", () => {
     expect(kitLike.code).toBe(0);
-    expect(verdicts(kitLike.report)).toEqual(interimLaws().map((law) => `${law.id} pass`));
+    expect(verdicts(kitLike.report)).toEqual(
+      lawsOfClass(interimLaws(), "ts-library").map((law) => `${law.id} pass`),
+    );
     expect(kitLike.report.laws.flatMap((law) => law.unrelated)).toEqual([]);
   });
 
   it("prints a line for each law and how many pass, in text", () => {
     expect(kitText).toContain("W-01  pass\n");
     expect(kitText).toContain("W-35  pass\n");
-    expect(kitText.endsWith("12 of 12 laws probed pass\n")).toBe(true);
+    expect(kitText.endsWith(`${String(KIT_LAWS)} of ${String(KIT_LAWS)} laws probed pass\n`)).toBe(
+      true,
+    );
   });
 
   it(

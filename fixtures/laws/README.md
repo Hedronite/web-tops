@@ -52,8 +52,19 @@ A finding on a twin that no rule of the law explains and no marker names is coun
 The twins are data. The kit's own lint, type and format checks skip this directory, because a bad twin is broken on
 purpose, and the probe copies the twins into `.web-tops/out/laws-probe/` and reads them there with `--no-ignore`.
 
-## Not here yet
+## Classes, and the tools a twin needs
 
-W-22 (`eslint-plugin-jsx-a11y-x`) and W-26 (Stylelint) are ticked, but the kit installs neither tool, so their twins
-come with the presets that enable them. The laws that no lint rule or flag judges (dependency-cruiser, `publint`,
-`attw`, the audit, the secrets scanner, the lock, `knip`) are proven by their own planted violations, not by twins.
+`webtops laws probe` proves the laws the project's class maps (`--class`, else `class` in `web-tops.yaml`, else
+`ts-library`), or the one law `--law W-NN` names, whatever the class. W-22 and W-26 are mapped by `ui-components`,
+`astro-site` and `web-app`, so a `ts-library` does not probe them: their rules live in `eslint-plugin-jsx-a11y-x` and
+Stylelint, which that class does not run.
+
+- A `.ts` or `.tsx` twin is linted and compiled once, with the whole probe. ESLint is told to ignore nothing
+  (`--no-ignore`), so a project's own `ignores` do not hide a twin.
+- A `.css` twin is read by Stylelint under the project's own config, with an empty ignore file. Its marker is a block
+  comment: `/* expect: block-no-empty */`.
+- A `.tsx` twin is compiled under the project's tsconfig. A project with no JSX types reports the elements as compiler
+  findings that no rule of W-22 explains; the probe counts them as unrelated and never fails the law for them.
+
+The laws that no lint rule or flag judges (dependency-cruiser, `publint`, `attw`, the audit, the secrets scanner, the
+lock, `knip`) are proven by their own planted violations, not by twins; the Astro rules have `.astro` twins in G5.

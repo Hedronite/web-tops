@@ -1,11 +1,15 @@
 import type { LawSource, ProbeLaw } from "./types.ts";
 
+/** The classes with JSX and CSS: they map W-22 and W-26 (section 5.2). */
+const UI_CLASSES = ["ui-components", "astro-site", "web-app"];
+
 /**
  * The laws the probe proves, with what each maps (WEB_TOPS.md section 8.2, the laws judged by a lint rule or a compiler
  * flag). This is the interim source: `laws/W-NN.yaml` replaces it, and the probe reads that through `LawSource`.
  *
- * W-22 and W-26 are ticked but have no twin yet: their rules live in `eslint-plugin-jsx-a11y-x` and Stylelint, which
- * the kit does not install, so they join when the presets that enable them land.
+ * W-22 and W-26 are mapped by the classes that have JSX and CSS (section 5.2): their rules live in
+ * `eslint-plugin-jsx-a11y-x` and Stylelint, which a `ts-library` does not run, so the probe proves them under a class
+ * that maps them (`--class`).
  */
 const TABLE: readonly ProbeLaw[] = [
   {
@@ -48,6 +52,31 @@ const TABLE: readonly ProbeLaw[] = [
   },
   { id: "W-14", proofs: ["only-throw-error", "prefer-promise-reject-errors"] },
   { id: "W-15", proofs: ["verbatimModuleSyntax", "consistent-type-imports"] },
+  {
+    id: "W-22",
+    classes: UI_CLASSES,
+    proofs: [
+      "alt-text",
+      "click-events-have-key-events",
+      "no-static-element-interactions",
+      "label-has-associated-control",
+      "anchor-is-valid",
+    ],
+  },
+  {
+    id: "W-26",
+    classes: UI_CLASSES,
+    proofs: [
+      "at-rule-no-unknown",
+      "property-no-unknown",
+      "block-no-empty",
+      "color-no-invalid-hex",
+      "unit-no-unknown",
+      "declaration-block-no-duplicate-properties",
+      "no-duplicate-selectors",
+      "selector-pseudo-class-no-unknown",
+    ],
+  },
   { id: "W-34", proofs: ["no-focused-tests", "no-disabled-tests"] },
   {
     id: "W-35",
@@ -61,3 +90,7 @@ const TABLE: readonly ProbeLaw[] = [
 ];
 
 export const interimLaws: LawSource = () => TABLE;
+
+/** The laws a class maps: those with no class list are mapped by every class. */
+export const lawsOfClass = (laws: readonly ProbeLaw[], className: string): ProbeLaw[] =>
+  laws.filter((law) => law.classes === undefined || law.classes.includes(className));

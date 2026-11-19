@@ -11,6 +11,8 @@
 export interface ProbeLaw {
   readonly id: string;
   readonly proofs: readonly string[];
+  /** The classes that map the law (WEB_TOPS.md section 5.2); absent for a law every class maps. */
+  readonly classes?: readonly string[];
 }
 
 /** Where the laws come from. `laws/W-NN.yaml` is the source once it lands; until then, the interim table. */

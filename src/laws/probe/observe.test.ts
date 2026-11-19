@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readEslint, readTsc, underRoot } from "./observe.ts";
+import { readEslint, readStylelint, readTsc, underRoot } from "./observe.ts";
 
 const ROOT = "/project/.web-tops/out/laws-probe";
 
@@ -57,6 +57,34 @@ describe("G3b observe: what ESLint and tsc reported on the twins", () => {
     expect(readEslint(ROOT, undefined)).toBeUndefined();
     expect(
       readEslint(ROOT, [null, "text", { filePath: "a.ts" }, { filePath: "a.ts", messages: 3 }]),
+    ).toEqual([]);
+  });
+
+  it("reads each warning of Stylelint's JSON as a rule on a line of a file, with its own words for none", () => {
+    const json = [
+      {
+        source: `${ROOT}/W-26/bad/rules.css`,
+        warnings: [
+          { rule: "block-no-empty", line: 3, text: "Unexpected empty block" },
+          { rule: "", line: 4, text: "x" },
+          { line: 9 },
+          { rule: "unit-no-unknown" },
+        ],
+      },
+      { source: `${ROOT}/W-26/clean/rules.css`, warnings: [] },
+    ];
+    expect(readStylelint(ROOT, json)).toEqual([
+      { file: "W-26/bad/rules.css", line: 3, rule: "block-no-empty" },
+      { file: "W-26/bad/rules.css", line: 4, rule: "stylelint-fatal" },
+      { file: "W-26/bad/rules.css", line: 9, rule: "stylelint-fatal" },
+      { file: "W-26/bad/rules.css", line: 0, rule: "unit-no-unknown" },
+    ]);
+  });
+
+  it("is undefined for Stylelint output that is not an array, and skips an entry with no warnings", () => {
+    expect(readStylelint(ROOT, { warnings: [] })).toBeUndefined();
+    expect(
+      readStylelint(ROOT, [null, { source: "a.css" }, { source: "a.css", warnings: 1 }]),
     ).toEqual([]);
   });
 

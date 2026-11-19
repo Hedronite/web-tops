@@ -4,8 +4,8 @@ import type { Exec, ExecResult } from "../../gate/types.ts";
 import { TOOLS, parseJson, readOutput, resolveTool } from "../../layers/hygiene/tooling.ts";
 import { judgeLaw } from "./judge.ts";
 import { parseMarkers } from "./markers.ts";
-import { readEslint, readTsc, type Reading } from "./observe.ts";
-import { listTwins, materialize } from "./twins.ts";
+import { readEslint, readStylelint, readTsc, type Reading } from "./observe.ts";
+import { STYLELINT_IGNORE, listTwins, materialize } from "./twins.ts";
 import type { Expectation, Observed, ProbeLaw, ProbeReport, Twin } from "./types.ts";
 
 export interface ProbeRequest {
@@ -84,6 +84,12 @@ function passOf(name: string, reading: Reading, shown: string): Pass {
     : { ok: true, seen: reading };
 }
 
+/** What a tool has nothing to read in: a probe of CSS twins only has no TypeScript to lint or compile. */
+const NOTHING: Pass = { ok: true, seen: [] };
+
+const hasSource = (twins: readonly Twin[]): boolean =>
+  twins.some((twin) => !twin.file.endsWith(".css"));
+
 async function eslintPass(request: ProbeRequest): Promise<Pass> {
   const output = join(request.scratch, "eslint.json");
   const config = request.eslintConfig === undefined ? [] : ["--config", request.eslintConfig];
@@ -105,6 +111,30 @@ async function tscPass(request: ProbeRequest): Promise<Pass> {
   const failed = stopped("tsc", result, [0, 1, 2]);
   return (
     failed ?? passOf("tsc", readTsc(request.scratch, request.cwd, result.stdout), result.stdout)
+  );
+}
+
+const lint = (request: ProbeRequest, twins: readonly Twin[]): Promise<Pass> =>
+  hasSource(twins) ? eslintPass(request) : Promise.resolve(NOTHING);
+
+const compile = (request: ProbeRequest, twins: readonly Twin[]): Promise<Pass> =>
+  hasSource(twins) ? tscPass(request) : Promise.resolve(NOTHING);
+
+/** Stylelint runs only when a probed law has a CSS twin: a TypeScript-only class has no Stylelint to prove. */
+async function stylelintPass(request: ProbeRequest, twins: readonly Twin[]): Promise<Pass> {
+  if (!twins.some((twin) => twin.file.endsWith(".css"))) {
+    return NOTHING;
+  }
+  const output = join(request.scratch, "stylelint.json");
+  const ignore = join(request.scratch, STYLELINT_IGNORE);
+  const glob = `${relative(request.cwd, request.scratch)}/**/*.css`;
+  const args = ["--formatter", "json", "--output-file", output, "--ignore-path", ignore, glob];
+  const result = await runTool(request, "stylelint", args);
+  const failed = stopped("stylelint", result, [0, 2]);
+  const text = readOutput(output);
+  return (
+    failed ??
+    passOf("stylelint", readStylelint(request.scratch, parseJson(text)), text ?? result.stderr)
   );
 }
 
@@ -139,19 +169,26 @@ const real = (request: ProbeRequest): ProbeRequest => ({
 
 /**
  * Proves the readers of the given laws: copies the twins into the scratch project, lints them once and compiles them
- * once, under the project's own ESLint config and tsconfig, and judges each law from what the tools reported.
+ * once, under the project's own ESLint config and tsconfig, runs Stylelint over the CSS twins, and judges each law from
+ * what the tools reported.
  */
 export async function runProbe(given: ProbeRequest): Promise<ProbeOutcome> {
   const twins = listTwins(given.fixtures, given.laws);
   materialize(given.fixtures, given.scratch, given.laws, given.tsconfig);
   const request = real(given);
-  const linted = await eslintPass(request);
+  const linted = await lint(request, twins);
   if (!linted.ok) {
     return linted;
   }
-  const compiled = await tscPass(request);
+  const compiled = await compile(request, twins);
   if (!compiled.ok) {
     return compiled;
   }
-  return { ok: true, report: report(request, twins, [...linted.seen, ...compiled.seen]) };
+  const styled = await stylelintPass(request, twins);
+  return styled.ok
+    ? {
+        ok: true,
+        report: report(request, twins, [...linted.seen, ...compiled.seen, ...styled.seen]),
+      }
+    : styled;
 }

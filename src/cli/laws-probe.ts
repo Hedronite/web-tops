@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { realExec } from "../gate/exec.ts";
 import type { Exec } from "../gate/types.ts";
-import { interimLaws } from "../laws/probe/catalog.ts";
+import { interimLaws, lawsOfClass } from "../laws/probe/catalog.ts";
 import { probeExit, probeText } from "../laws/probe/format.ts";
 import { runProbe, type ProbeOutcome, type ProbeRequest } from "../laws/probe/run.ts";
 import type { LawSource, ProbeLaw, ProbeReport } from "../laws/probe/types.ts";
@@ -11,9 +11,12 @@ import { field, readConfigDoc } from "../lock/config.ts";
 import type { Io } from "./io.ts";
 
 const USAGE =
-  "usage: webtops laws probe [--law W-NN] [--fixtures <dir>] [--config <eslint config>] [--tsconfig <file>] [--json]\n";
+  "usage: webtops laws probe [--law W-NN] [--class <class>] [--fixtures <dir>] [--config <eslint config>] [--tsconfig <file>] [--json]\n";
 
 /** The twins the kit ships, beside `src/`. */
+/** The class of a project with no `web-tops.yaml` (WEB_TOPS.md section 5.1). */
+const DEFAULT_CLASS = "ts-library";
+
 const SHIPPED_FIXTURES = fileURLToPath(new URL("../../fixtures/laws", import.meta.url));
 
 /** What a run reads that a test replaces: how a tool runs, and where the laws come from. */
@@ -27,6 +30,7 @@ const DEFAULTS: ProbeDeps = { exec: realExec, laws: interimLaws, fixtures: SHIPP
 
 interface Flags {
   readonly law?: string | undefined;
+  readonly class?: string | undefined;
   readonly fixtures?: string | undefined;
   readonly config?: string | undefined;
   readonly tsconfig?: string | undefined;
@@ -42,6 +46,7 @@ function parseFlags(argv: readonly string[]): Parsed {
       allowPositionals: false,
       options: {
         law: { type: "string" },
+        class: { type: "string" },
         fixtures: { type: "string" },
         config: { type: "string" },
         tsconfig: { type: "string" },
@@ -59,12 +64,17 @@ const fail = (io: Io, message: string, code: number): number => {
   return code;
 };
 
-/** The ESLint config `web-tops.yaml` names in `gates.hygiene.eslint.config`, when the project has one. */
-function projectEslintConfig(cwd: string): string | undefined {
+/** A string `web-tops.yaml` holds at a key path, when the project has one. */
+function projectString(cwd: string, ...path: readonly string[]): string | undefined {
   const read = readConfigDoc(cwd);
-  const named =
-    read.state === "ok" ? field(read.doc, "gates", "hygiene", "eslint", "config") : undefined;
-  return typeof named === "string" ? resolve(cwd, named) : undefined;
+  const named = read.state === "ok" ? field(read.doc, ...path) : undefined;
+  return typeof named === "string" ? named : undefined;
+}
+
+/** The ESLint config `web-tops.yaml` names in `gates.hygiene.eslint.config`, resolved from the project. */
+function projectEslintConfig(cwd: string): string | undefined {
+  const named = projectString(cwd, "gates", "hygiene", "eslint", "config");
+  return named === undefined ? undefined : resolve(cwd, named);
 }
 
 const absolute = (cwd: string, path: string): string =>
@@ -73,8 +83,14 @@ const absolute = (cwd: string, path: string): string =>
 const noLaws = (law: string | undefined): string =>
   law === undefined ? "no law to probe" : `no law ${law} to probe`;
 
-const lawsFor = (deps: ProbeDeps, flags: Flags): ProbeLaw[] =>
-  deps.laws().filter((law) => flags.law === undefined || law.id === flags.law);
+/** The one law asked for, or the laws the project's class maps: `--class`, else `web-tops.yaml`, else `ts-library`. */
+function lawsFor(io: Io, deps: ProbeDeps, flags: Flags): ProbeLaw[] {
+  const laws = deps.laws();
+  if (flags.law !== undefined) {
+    return laws.filter((law) => law.id === flags.law);
+  }
+  return lawsOfClass(laws, flags.class ?? projectString(io.cwd, "class") ?? DEFAULT_CLASS);
+}
 
 /** What to probe and where: the flags over the project's own files. */
 function requestOf(io: Io, deps: ProbeDeps, flags: Flags, laws: readonly ProbeLaw[]): ProbeRequest {
@@ -114,7 +130,7 @@ export async function runLawsProbeCli(
   if ("error" in parsed) {
     return fail(io, `${parsed.error}\n${USAGE.trimEnd()}`, 2);
   }
-  const laws = lawsFor(deps, parsed.flags);
+  const laws = lawsFor(io, deps, parsed.flags);
   if (laws.length === 0) {
     return fail(io, noLaws(parsed.flags.law), 2);
   }

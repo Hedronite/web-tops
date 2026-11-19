@@ -39,9 +39,18 @@ describe("G3a markers: `// expect: <rule>` names what a line must report", () =>
     expect(
       parseMarkers(
         "f.ts",
-        "a; // expect:\nb; // expect: ,\nc; // expects: r\nd; /* expect: r */\n",
+        "a; // expect:\nb; // expect: ,\nc; // expects: r\nd; /* expects: r */\n",
       ),
     ).toEqual([]);
+  });
+
+  it("reads a marker in a block comment, for a CSS twin, without its closing", () => {
+    const text =
+      ".a { colour: red; } /* expect: property-no-unknown */\n/* expect: r1, r2 */\n.b {}\n";
+    expect(parseMarkers("f.css", text)).toEqual([
+      { file: "f.css", line: 1, rules: ["property-no-unknown"] },
+      { file: "f.css", line: 3, rules: ["r1", "r2"] },
+    ]);
   });
 
   it("a file with no marker has no expectation", () => {

@@ -1,7 +1,7 @@
 import type { Expectation } from "./types.ts";
 
-/** `// expect: a, b` at the end of a line. */
-const MARKER = /\/\/ expect:\s*(\S.*?)\s*$/u;
+/** `// expect: a, b` at the end of a line; a CSS twin writes the same as a block comment. */
+const MARKER = /(?:\/\/|\/\*) expect:\s*(\S.*?)\s*(?:\*\/)?\s*$/u;
 
 /** The rule ids a marker names: comma-separated, blanks dropped. */
 const rulesOf = (text: string): string[] =>
@@ -33,7 +33,7 @@ function targetOf(line: string, markerAt: number, lineNumber: number): number {
   return line.slice(0, markerAt).trim() === "" ? lineNumber + 1 : lineNumber;
 }
 
-/** The expectations of one twin file: a `// expect: <rule>` marker names the rules its line must report. */
+/** The expectations of one twin file: an `// expect: <rule>` marker names the rules its line must report. */
 export function parseMarkers(file: string, text: string): Expectation[] {
   return text.split("\n").flatMap((line, index) => {
     const marker = markerOf(line);
