@@ -71,6 +71,43 @@ survivors:
     reason: toolProblems visits the keys of the lock, so lock[tool] is never
       undefined; the fallback is a dead branch the types require.
     owner: web-platform
+  - file: src/cli/main.ts
+    function: src/cli/main.ts::<module>
+    mutator: BlockStatement
+    original: "{
+
+      \  process.exitCode = await main(process.argv, stdio);
+
+      }"
+    replacement: "{}"
+    occurrence: 1
+    reason: "The mutation runner cannot mutate a spawned process, and only a spawned
+      bun reaches the import.meta.main guard (an import under test never
+      satisfies it). The spawn tests in main.test.ts (bun src/cli/main.ts: an
+      unknown command exits 2, and check exits 0 and 2) cover it."
+    owner: web-platform
+  - file: src/cli/main.ts
+    function: src/cli/main.ts::<module>
+    mutator: ConditionalExpression
+    original: "import.meta.main"
+    replacement: "false"
+    occurrence: 1
+    reason: "The mutation runner cannot mutate a spawned process, and only a spawned
+      bun reaches the import.meta.main guard (an import under test never
+      satisfies it). The spawn tests in main.test.ts (bun src/cli/main.ts: an
+      unknown command exits 2, and check exits 0 and 2) cover it."
+    owner: web-platform
+  - file: src/cli/main.ts
+    function: src/cli/main.ts::<module>
+    mutator: ConditionalExpression
+    original: "import.meta.main"
+    replacement: "true"
+    occurrence: 1
+    reason: "The mutation runner cannot mutate a spawned process, and only a spawned
+      bun reaches the import.meta.main guard (an import under test never
+      satisfies it). The spawn tests in main.test.ts (bun src/cli/main.ts: an
+      unknown command exits 2, and check exits 0 and 2) cover it."
+    owner: web-platform
   - file: src/config/profiles.ts
     function: src/config/profiles.ts::lawIds
     mutator: StringLiteral
