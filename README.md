@@ -42,8 +42,8 @@ The `webtops` CLI in this tree runs from source on Bun and gates this repository
 | Plane | Pin | Where |
 | --- | --- | --- |
 | Protocol | 0.3.0 | [`WEB_TOPS.md`](WEB_TOPS.md) and `PROTOCOL` in [`src/config/protocol.ts`](src/config/protocol.ts) |
-| Package | 0.2.0, private | [`package.json`](package.json). Not published to npm |
-| GitHub release | v0.1.0 | Implements protocol 0.2.1. Current `main` is ahead of that tag |
+| Package | 0.3.0, private | [`package.json`](package.json). Not published to npm |
+| GitHub release | v0.3.0 | Implements protocol 0.3.0 |
 | Runtime | Bun >= 1.4.0; Node 22.23.4, 24.15.0, or 26 and later | [`package.json`](package.json) `engines` |
 | TypeScript | 6.0.x | Pinned because `typescript-eslint` and `@astrojs/check` do not yet accept TypeScript 7. See [§2](WEB_TOPS.md#2-pins) |
 
@@ -98,7 +98,7 @@ The gate judges what ships: the browser receives HTML, CSS, and JavaScript, not 
 
 ## Status
 
-Draft. Protocol **0.3.0**; this tree implements it: one verdict set, the report shape, required layers and laws per class, and the protocol id checked by range. The package is version 0.2.0 (the 0.1.0 release implements 0.2.1): a GitHub release, private, not published to npm. Current `main` is ahead of that tag.
+Draft. Protocol **0.3.0**; this tree implements it: one verdict set, the report shape, required layers and laws per class, and the protocol id checked by range. The package is version 0.3.0 (the 0.1.0 release implements 0.2.1): a GitHub release, private, not published to npm.
 
 This repository has shipped milestones M1 and M2: the `webtops` CLI (`init`, `check`, `gate`, `report`, `lock`, `doctor`, `version`, `survivors`, `baseline`) runs from source on Bun and gates this repo on itself at tier 1, under `enforce: hard`, with native CRAP at cap 4 and StrykerJS mutation on the diff, no unexplained survivors, in the one `gate` job on Ubuntu and macOS. The laws layer and the build-output layers are off in [`web-tops.yaml`](web-tops.yaml), each with the milestone that turns it on. The package is not published to npm.
 
