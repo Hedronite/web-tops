@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { cleanTemp, put, tempDir } from "./testkit.ts";
-import { STYLELINT_IGNORE, isAstro, isCss, isScript, listTwins, materialize } from "./twins.ts";
+import { isAstro, isCss, isScript, listTwins, materialize, stylelintIgnore } from "./twins.ts";
 import type { ProbeLaw } from "./types.ts";
 
 afterAll(cleanTemp);
@@ -89,8 +89,8 @@ describe("G3a twins: fixtures/laws/W-NN/{bad,clean}/", () => {
   it("writes an empty ignore file for Stylelint beside the tsconfig", () => {
     const scratch = join(tempDir(), "scratch");
     materialize(fixtures(), scratch, LAWS, "/project/tsconfig.json");
-    expect(readFileSync(join(scratch, STYLELINT_IGNORE), "utf8")).toBe("");
-    expect(STYLELINT_IGNORE).toBe("stylelint.ignore");
+    expect(readFileSync(join(scratch, stylelintIgnore()), "utf8")).toBe("");
+    expect(stylelintIgnore()).toBe("stylelint.ignore");
   });
 
   it("writes the tsconfig both tools find: it extends the project's, names every file and excludes none", () => {

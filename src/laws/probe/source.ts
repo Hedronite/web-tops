@@ -9,7 +9,9 @@ export interface LawRecord {
 }
 
 /** The tools whose rules a twin can fire: a lint config, the compiler's flags, and Stylelint. */
-const PROBED_TOOLS: readonly string[] = ["eslint", "tsc", "stylelint"];
+function probedTools(): readonly string[] {
+  return ["eslint", "tsc", "stylelint"];
+}
 
 /**
  * The rules of the custom plugin (`webtops/…`) are proven in its own package with ESLint's `RuleTester`, and by the
@@ -17,7 +19,7 @@ const PROBED_TOOLS: readonly string[] = ["eslint", "tsc", "stylelint"];
  */
 const isCustom = (name: string): boolean => name.startsWith("webtops/");
 
-const probed = (rule: LawRecord["rules"][number]): boolean => PROBED_TOOLS.includes(rule.tool);
+const probed = (rule: LawRecord["rules"][number]): boolean => probedTools().includes(rule.tool);
 
 /**
  * Whether the probe proves a law: it is ticked (`judged: v0.1`, section 8.2), a lint rule or a compiler flag judges it,

@@ -16,10 +16,13 @@ import type { FlagSpec, Flags } from "../survivors/flags.ts";
 import type { Io } from "./io.ts";
 import { runLawsProbeCli } from "./laws-probe.ts";
 
-const USAGE =
-  "usage: webtops laws [list [--class <class>] [--required] [--json] | explain <W-NN> [--json] | sync [--check]]\n";
+function usage(): string {
+  return "usage: webtops laws [list [--class <class>] [--required] [--json] | explain <W-NN> [--json] | sync [--check]]\n";
+}
 
-const PROTOCOL_FILE = "WEB_TOPS.md";
+function protocolFile(): string {
+  return "WEB_TOPS.md";
+}
 
 const failure = (io: Io, message: string): number => {
   io.err(`webtops laws: ${message}\n`);
@@ -27,7 +30,7 @@ const failure = (io: Io, message: string): number => {
 };
 
 const usageFailure = (io: Io, message: string): number =>
-  failure(io, `${message}\n${USAGE.trimEnd()}`);
+  failure(io, `${message}\n${usage().trimEnd()}`);
 
 const json = (value: unknown): string => `${JSON.stringify(value, null, 2)}\n`;
 
@@ -81,10 +84,10 @@ type Checked =
 
 /** WEB_TOPS.md in the project, and what its section 8.2 should read as, from the catalog. */
 function checkProtocol(io: Io, laws: readonly Law[]): Checked {
-  const path = join(io.cwd, PROTOCOL_FILE);
+  const path = join(io.cwd, protocolFile());
   const text = readText(path);
   if (text === undefined)
-    return { ok: false, message: `cannot read ${PROTOCOL_FILE} in ${io.cwd}` };
+    return { ok: false, message: `cannot read ${protocolFile()} in ${io.cwd}` };
   const synced = syncTables(text, laws);
   return synced.ok
     ? { ok: true, path, text, markdown: synced.markdown }
@@ -92,13 +95,13 @@ function checkProtocol(io: Io, laws: readonly Law[]): Checked {
 }
 
 const drift = (io: Io): number => {
-  io.err(`${PROTOCOL_FILE} section 8.2 differs from laws/: run webtops laws sync\n`);
+  io.err(`${protocolFile()} section 8.2 differs from laws/: run webtops laws sync\n`);
   return 1;
 };
 
 const rewrite = (io: Io, path: string, markdown: string): number => {
   writeFileSync(path, markdown);
-  io.out(`${PROTOCOL_FILE} section 8.2 rewritten from laws/\n`);
+  io.out(`${protocolFile()} section 8.2 rewritten from laws/\n`);
   return 0;
 };
 
@@ -107,7 +110,7 @@ function sync(flags: Flags, io: Io, laws: readonly Law[]): number {
   const found = checkProtocol(io, laws);
   if (!found.ok) return failure(io, found.message);
   if (found.markdown === found.text) {
-    io.out(`${PROTOCOL_FILE} section 8.2 matches laws/\n`);
+    io.out(`${protocolFile()} section 8.2 matches laws/\n`);
     return 0;
   }
   return flags.switches.has("--check") ? drift(io) : rewrite(io, found.path, found.markdown);
@@ -121,19 +124,21 @@ interface Sub {
   readonly run: Handler;
 }
 
-const SUBS: ReadonlyMap<string, Sub> = new Map([
-  [
-    "list",
-    {
-      spec: { values: ["--class"], switches: ["--required", "--json"] },
-      takes: "no words",
-      words: 0,
-      run: list,
-    },
-  ],
-  ["explain", { spec: { switches: ["--json"] }, takes: "one law id", words: 1, run: explain }],
-  ["sync", { spec: { switches: ["--check"] }, takes: "no words", words: 0, run: sync }],
-]);
+function subs(): ReadonlyMap<string, Sub> {
+  return new Map([
+    [
+      "list",
+      {
+        spec: { values: ["--class"], switches: ["--required", "--json"] },
+        takes: "no words",
+        words: 0,
+        run: list,
+      },
+    ],
+    ["explain", { spec: { switches: ["--json"] }, takes: "one law id", words: 1, run: explain }],
+    ["sync", { spec: { switches: ["--check"] }, takes: "no words", words: 0, run: sync }],
+  ]);
+}
 
 interface Parsed {
   readonly sub: Sub;
@@ -143,7 +148,7 @@ interface Parsed {
 /** The subcommand and its flags, or the exit code after saying what is wrong. */
 function parse(argv: readonly string[], io: Io): Parsed | number {
   const [name, ...rest] = argv;
-  const sub = SUBS.get(String(name));
+  const sub = subs().get(String(name));
   if (sub === undefined) return usageFailure(io, "expected list, explain or sync");
   const flags = parseFlags(rest, sub.spec);
   if (typeof flags === "string") return usageFailure(io, flags);

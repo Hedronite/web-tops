@@ -5,7 +5,7 @@ import { TOOLS, parseJson, readOutput, resolveTool } from "../../layers/hygiene/
 import { judgeLaw } from "./judge.ts";
 import { parseMarkers } from "./markers.ts";
 import { readEslint, readStylelint, readTsc, type Reading } from "./observe.ts";
-import { STYLELINT_IGNORE, isAstro, isCss, isScript, listTwins, materialize } from "./twins.ts";
+import { isAstro, isCss, isScript, listTwins, materialize, stylelintIgnore } from "./twins.ts";
 import type { Expectation, Observed, ProbeLaw, ProbeReport, Twin } from "./types.ts";
 
 export interface ProbeRequest {
@@ -34,8 +34,10 @@ export type ProbeOutcome = { readonly ok: true; readonly report: ProbeReport } |
 
 type Pass = { readonly ok: true; readonly seen: readonly Observed[] } | ProbeProblem;
 
-const TAIL = 600;
-const tail = (text: string): string => text.trim().slice(-TAIL);
+function tailLength(): number {
+  return 600;
+}
+const tail = (text: string): string => text.trim().slice(-tailLength());
 
 const problem = (text: string, code: 2 | 3 = 2): ProbeProblem => ({
   ok: false,
@@ -85,7 +87,9 @@ function passOf(name: string, reading: Reading, shown: string): Pass {
 }
 
 /** What a tool has nothing to read in: a probe of CSS twins only has no TypeScript to lint or compile. */
-const NOTHING: Pass = { ok: true, seen: [] };
+function nothing(): Pass {
+  return { ok: true, seen: [] };
+}
 
 const hasFile = (twins: readonly Twin[], kind: (file: string) => boolean): boolean =>
   twins.some((twin) => kind(twin.file));
@@ -124,18 +128,18 @@ async function tscPass(request: ProbeRequest): Promise<Pass> {
 }
 
 const lint = (request: ProbeRequest, twins: readonly Twin[]): Promise<Pass> =>
-  hasFile(twins, (file) => !isCss(file)) ? eslintPass(request, twins) : Promise.resolve(NOTHING);
+  hasFile(twins, (file) => !isCss(file)) ? eslintPass(request, twins) : Promise.resolve(nothing());
 
 const compile = (request: ProbeRequest, twins: readonly Twin[]): Promise<Pass> =>
-  hasFile(twins, isScript) ? tscPass(request) : Promise.resolve(NOTHING);
+  hasFile(twins, isScript) ? tscPass(request) : Promise.resolve(nothing());
 
 /** Stylelint runs only when a probed law has a CSS twin: a TypeScript-only class has no Stylelint to prove. */
 async function stylelintPass(request: ProbeRequest, twins: readonly Twin[]): Promise<Pass> {
   if (!hasFile(twins, isCss)) {
-    return NOTHING;
+    return nothing();
   }
   const output = join(request.scratch, "stylelint.json");
-  const ignore = join(request.scratch, STYLELINT_IGNORE);
+  const ignore = join(request.scratch, stylelintIgnore());
   const glob = `${relative(request.cwd, request.scratch)}/**/*.css`;
   const args = ["--formatter", "json", "--output-file", output, "--ignore-path", ignore, glob];
   const result = await runTool(request, "stylelint", args);

@@ -4,7 +4,9 @@ import type { Expectation } from "./types.ts";
  * `// expect: a, b` at the end of a line, which is also how an Astro frontmatter marks one; a CSS twin writes the same as
  * a block comment, and an Astro template as an HTML comment.
  */
-const MARKER = /(?:\/\/|\/\*|<!--) expect:\s*(?!\*\/|-->)(\S.*?)\s*(?:\*\/|-->)?\s*$/u;
+function markerLine(): RegExp {
+  return /(?:\/\/|\/\*|<!--) expect:\s*(?!\*\/|-->)(\S.*?)\s*(?:\*\/|-->)?\s*$/u;
+}
 
 /** The rule ids a marker names: comma-separated, blanks dropped. */
 const rulesOf = (text: string): string[] =>
@@ -20,7 +22,7 @@ interface Marker {
 
 /** The marker on a line, if it names at least one rule. */
 function markerOf(line: string): Marker | undefined {
-  const found = MARKER.exec(line);
+  const found = markerLine().exec(line);
   if (found === null) {
     return undefined;
   }

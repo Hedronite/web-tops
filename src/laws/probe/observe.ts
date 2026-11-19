@@ -24,10 +24,12 @@ function ruleOf(message: Record<string, unknown>): string {
 }
 
 /** The rule a finding gets when its tool could not evaluate the file: it did not parse, or no config reaches it. */
-const NOT_EVALUATED: readonly string[] = ["eslint-fatal", "stylelint-fatal"];
+function notEvaluated(): readonly string[] {
+  return ["eslint-fatal", "stylelint-fatal"];
+}
 
 /** Whether a finding says its file was not evaluated, rather than that a rule fired on it. */
-export const isNotEvaluated = (rule: string): boolean => NOT_EVALUATED.includes(rule);
+export const isNotEvaluated = (rule: string): boolean => notEvaluated().includes(rule);
 
 function messageFinding(root: string, file: unknown, message: Record<string, unknown>): Observed {
   return {
@@ -80,15 +82,19 @@ export function readStylelint(root: string, json: unknown): Reading {
 }
 
 /** `src/a.ts(3,19): error TS7006: ...` as `tsc --pretty false` prints it. */
-const DIAGNOSTIC = /^(.+?)\((\d+),\d+\): error (TS\d+):/u;
+function diagnosticLine(): RegExp {
+  return /^(.+?)\((\d+),\d+\): error (TS\d+):/u;
+}
 
 /** A diagnostic with no file, such as a config error: the run cannot be trusted to have read the twins. */
-const FILELESS = /^error TS\d+:/mu;
+function filelessError(): RegExp {
+  return /^error TS\d+:/mu;
+}
 
 const group = (match: RegExpExecArray, index: number): string => match[index] ?? "";
 
 function diagnosticOf(root: string, cwd: string, line: string): Observed[] {
-  const found = DIAGNOSTIC.exec(line);
+  const found = diagnosticLine().exec(line);
   return found === null
     ? []
     : [
@@ -102,7 +108,7 @@ function diagnosticOf(root: string, cwd: string, line: string): Observed[] {
 
 /** The diagnostics of `tsc --pretty false` that name a file, or undefined when one does not (a config error). */
 export function readTsc(root: string, cwd: string, text: string): Reading {
-  return FILELESS.test(text)
+  return filelessError().test(text)
     ? undefined
     : text.split("\n").flatMap((line) => diagnosticOf(root, cwd, line));
 }

@@ -27,13 +27,15 @@ function filesOf(twins: readonly Twin[], kind: TwinKind): Set<string> {
   return new Set(twins.filter((twin) => twin.kind === kind).map((twin) => twin.file));
 }
 
-const NO_TWIN = { bad: "no-bad-twin", clean: "no-clean-twin" } as const;
+function noTwin(): { readonly bad: "no-bad-twin"; readonly clean: "no-clean-twin" } {
+  return { bad: "no-bad-twin", clean: "no-clean-twin" } as const;
+}
 
 /** A law with no file on one side has no twin there: nothing proves its reader. */
 function missingTwin(law: ProbeLaw, twins: readonly Twin[], kind: TwinKind): ProbeFailure[] {
   return filesOf(twins, kind).size > 0
     ? []
-    : [{ kind: NO_TWIN[kind], message: `${law.id} has no ${kind} twin under ${law.id}/${kind}/` }];
+    : [{ kind: noTwin()[kind], message: `${law.id} has no ${kind} twin under ${law.id}/${kind}/` }];
 }
 
 /** A file that starts with `_` only supports the twins beside it (a type to import): it carries no marker, and is judged. */

@@ -3,43 +3,47 @@
  * the compiler reports it. Several flags raise the same code (`TS18048` is both `strictNullChecks` and
  * `noUncheckedIndexedAccess`), so a twin is written to break one flag only: it compiles with the other on.
  */
-const FLAG_CODES: ReadonlyMap<string, readonly string[]> = new Map([
-  ["noImplicitAny", ["TS7006"]],
-  ["strictNullChecks", ["TS18047", "TS18048"]],
-  ["strictFunctionTypes", ["TS2322"]],
-  ["strictBindCallApply", ["TS2345"]],
-  ["strictPropertyInitialization", ["TS2564"]],
-  ["noImplicitThis", ["TS2683"]],
-  ["useUnknownInCatchVariables", ["TS18046"]],
-  ["noUncheckedIndexedAccess", ["TS18048"]],
-  ["exactOptionalPropertyTypes", ["TS2375", "TS2379"]],
-  ["noImplicitOverride", ["TS4114"]],
-  ["noFallthroughCasesInSwitch", ["TS7029"]],
-  ["verbatimModuleSyntax", ["TS1484"]],
-  ["isolatedModules", ["TS1205"]],
-  ["erasableSyntaxOnly", ["TS1294"]],
-]);
+function flagCodes(): ReadonlyMap<string, readonly string[]> {
+  return new Map([
+    ["noImplicitAny", ["TS7006"]],
+    ["strictNullChecks", ["TS18047", "TS18048"]],
+    ["strictFunctionTypes", ["TS2322"]],
+    ["strictBindCallApply", ["TS2345"]],
+    ["strictPropertyInitialization", ["TS2564"]],
+    ["noImplicitThis", ["TS2683"]],
+    ["useUnknownInCatchVariables", ["TS18046"]],
+    ["noUncheckedIndexedAccess", ["TS18048"]],
+    ["exactOptionalPropertyTypes", ["TS2375", "TS2379"]],
+    ["noImplicitOverride", ["TS4114"]],
+    ["noFallthroughCasesInSwitch", ["TS7029"]],
+    ["verbatimModuleSyntax", ["TS1484"]],
+    ["isolatedModules", ["TS1205"]],
+    ["erasableSyntaxOnly", ["TS1294"]],
+  ]);
+}
 
 /**
  * `strict` turns the family on as one, so it is proven by any member's code. `alwaysStrict` and
  * `strictBuiltinIteratorReturn` have no twin: an ES module is always strict, and the second is read from the config.
  */
-const STRICT_FAMILY: readonly string[] = [
-  "noImplicitAny",
-  "strictNullChecks",
-  "strictFunctionTypes",
-  "strictBindCallApply",
-  "strictPropertyInitialization",
-  "noImplicitThis",
-  "useUnknownInCatchVariables",
-];
+function strictFamily(): readonly string[] {
+  return [
+    "noImplicitAny",
+    "strictNullChecks",
+    "strictFunctionTypes",
+    "strictBindCallApply",
+    "strictPropertyInitialization",
+    "noImplicitThis",
+    "useUnknownInCatchVariables",
+  ];
+}
 
 /** The codes a flag raises: none for a name that is not a flag. */
 export function codesOf(flag: string): readonly string[] {
   if (flag === "strict") {
-    return STRICT_FAMILY.flatMap(codesOf);
+    return strictFamily().flatMap(codesOf);
   }
-  return FLAG_CODES.get(flag) ?? [];
+  return flagCodes().get(flag) ?? [];
 }
 
 /**
@@ -58,4 +62,4 @@ export function proves(proof: string, id: string): boolean {
 export const provenBy = (proof: string, named: string): boolean =>
   proves(proof, named) ||
   proof.endsWith(`/${named}`) ||
-  (proof === "strict" && STRICT_FAMILY.includes(named));
+  (proof === "strict" && strictFamily().includes(named));

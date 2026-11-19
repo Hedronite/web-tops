@@ -10,14 +10,19 @@ import type { LawSource, ProbeLaw, ProbeReport } from "../laws/probe/types.ts";
 import { field, readConfigDoc } from "../lock/config.ts";
 import type { Io } from "./io.ts";
 
-const USAGE =
-  "usage: webtops laws probe [--law W-NN] [--class <class>] [--fixtures <dir>] [--config <eslint config>] [--tsconfig <file>] [--json]\n";
+function usage(): string {
+  return "usage: webtops laws probe [--law W-NN] [--class <class>] [--fixtures <dir>] [--config <eslint config>] [--tsconfig <file>] [--json]\n";
+}
 
 /** The twins the kit ships, beside `src/`. */
 /** The class of a project with no `web-tops.yaml` (WEB_TOPS.md section 5.1). */
-const DEFAULT_CLASS = "ts-library";
+function defaultClass(): string {
+  return "ts-library";
+}
 
-const SHIPPED_FIXTURES = fileURLToPath(new URL("../../fixtures/laws", import.meta.url));
+function shippedFixtures(): string {
+  return fileURLToPath(new URL("../../fixtures/laws", import.meta.url));
+}
 
 /** What a run reads that a test replaces: how a tool runs, and where the laws come from. */
 export interface ProbeDeps {
@@ -26,7 +31,9 @@ export interface ProbeDeps {
   readonly fixtures: string;
 }
 
-const DEFAULTS: ProbeDeps = { exec: realExec, laws: catalogLaws, fixtures: SHIPPED_FIXTURES };
+function defaults(): ProbeDeps {
+  return { exec: realExec, laws: catalogLaws, fixtures: shippedFixtures() };
+}
 
 interface Flags {
   readonly law?: string | undefined;
@@ -89,7 +96,7 @@ function lawsFor(io: Io, deps: ProbeDeps, flags: Flags): ProbeLaw[] {
   if (flags.law !== undefined) {
     return laws.filter((law) => law.id === flags.law);
   }
-  return lawsOfClass(laws, flags.class ?? projectString(io.cwd, "class") ?? DEFAULT_CLASS);
+  return lawsOfClass(laws, flags.class ?? projectString(io.cwd, "class") ?? defaultClass());
 }
 
 /** The laws to probe, or what is wrong: the catalog cannot be read, or the flags choose no law. */
@@ -137,11 +144,11 @@ const finish = (io: Io, json: boolean, outcome: ProbeOutcome): number =>
 export async function runLawsProbeCli(
   argv: readonly string[],
   io: Io,
-  deps: ProbeDeps = DEFAULTS,
+  deps: ProbeDeps = defaults(),
 ): Promise<number> {
   const parsed = parseFlags(argv);
   if ("error" in parsed) {
-    return fail(io, `${parsed.error}\n${USAGE.trimEnd()}`, 2);
+    return fail(io, `${parsed.error}\n${usage().trimEnd()}`, 2);
   }
   const laws = chosen(io, deps, parsed.flags);
   if (typeof laws === "string") {
