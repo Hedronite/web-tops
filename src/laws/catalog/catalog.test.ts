@@ -215,12 +215,9 @@ describe("the rules a law names, for the law probe", () => {
       ?.rules.filter((rule) => rule.tool === tool)
       .map((rule) => rule.name) ?? [];
 
-  it("lists, for W-26, each rule of the stylelint template, and W-24 the one the template keeps for it", () => {
-    const template = readFileSync(
-      join(ROOT, "config/templates/stylelint.config.js.template"),
-      "utf8",
-    );
-    const named = [...template.matchAll(/^ {4}"([a-z-]+)": /gmu)].map((found) => String(found[1]));
+  it("lists, for W-26, each rule of the stylelint preset, and W-24 the one the preset keeps for it", () => {
+    const preset = readFileSync(join(ROOT, "src/presets/stylelint.js"), "utf8");
+    const named = [...preset.matchAll(/^ {4}"([a-z-]+)": /gmu)].map((found) => String(found[1]));
     expect(named).toHaveLength(9);
     expect([...rulesOf("W-26", "stylelint"), ...rulesOf("W-24", "stylelint")].sort()).toEqual(
       [...named].sort(),
