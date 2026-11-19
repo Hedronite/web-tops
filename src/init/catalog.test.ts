@@ -4,8 +4,7 @@ import js from "@eslint/js";
 import { describe, expect, it } from "vitest";
 import { TOOL_PINS } from "../lock/pins.ts";
 import { LAUNCH_CLASSES, loadProfile } from "./profile.ts";
-import { PACKAGES } from "../presets/eslint.js";
-import { presetOf } from "../presets/test-support.ts";
+import { PACKAGES, eslintPreset } from "../presets/eslint.js";
 import { agentsSection } from "./render.ts";
 
 // The oracle for P3 G8, written from SPEC-p3 G8: the text of sections 7, 8 and 13, and the template,
@@ -211,7 +210,7 @@ describe("G8c: the drop-in ESLint config rests on the pinned tools", () => {
       const react = className === "web-app" || className === "ui-components";
       expect(PACKAGES[variant].includes("eslint-plugin-react-hooks")).toBe(react);
       expect(PACKAGES[variant]).not.toContain("eslint-plugin-jsx-a11y");
-      const config = await presetOf(variant);
+      const config = await eslintPreset({ variant, tsconfigRootDir: "<project>" });
       expect(config).toContainEqual(
         expect.objectContaining({ rules: js.configs.recommended.rules }),
       );

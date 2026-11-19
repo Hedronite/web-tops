@@ -1,20 +1,55 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import type { Linter } from "eslint";
 import { afterAll, describe, expect, it } from "vitest";
 import { REAL_TOOL_TIMEOUT } from "../gate/test-support-timeouts.ts";
 import { PACKAGES, VARIANTS, eslintPreset } from "./eslint.js";
-import {
-  ROOT,
-  errorRules,
-  pluginNames,
-  presetOf,
-  scratchDirs,
-  scratchProject,
-} from "./test-support.ts";
+import type { EslintVariant } from "./eslint.js";
+
+const ROOT = resolve(import.meta.dirname, "../..");
+const scratches: string[] = [];
+
+/**
+ * A project outside the kit that reaches it only as `node_modules/web-tops`, the way an inited
+ * project does. `files` are written relative to the project; it is an ES module project.
+ */
+function scratchProject(files: Readonly<Record<string, string>> = {}): string {
+  const dir = mkdtempSync(join(tmpdir(), "wt-preset-"));
+  scratches.push(dir);
+  mkdirSync(join(dir, "node_modules"));
+  symlinkSync(ROOT, join(dir, "node_modules", "web-tops"));
+  const all = { "package.json": '{ "type": "module" }\n', ...files };
+  for (const [path, text] of Object.entries(all)) {
+    mkdirSync(dirname(join(dir, path)), { recursive: true });
+    writeFileSync(join(dir, path), text);
+  }
+  return dir;
+}
+
+const presetOf = (variant: EslintVariant): Promise<Linter.Config[]> =>
+  eslintPreset({ variant, tsconfigRootDir: "<project>" });
+
+const levelOf = (setting: unknown): unknown => (Array.isArray(setting) ? setting[0] : setting);
+
+/** The rules a config sets to error. */
+function errorRules(config: readonly Linter.Config[]): ReadonlySet<string> {
+  return new Set(
+    config.flatMap((entry) =>
+      Object.entries(entry.rules ?? {})
+        .filter(([, setting]) => levelOf(setting) === "error")
+        .map(([rule]) => rule),
+    ),
+  );
+}
+
+/** The plugin names a config registers. */
+const pluginNames = (config: readonly Linter.Config[]): ReadonlySet<string> =>
+  new Set(config.flatMap((entry) => Object.keys(entry.plugins ?? {})));
 
 afterAll(() => {
-  for (const dir of scratchDirs()) rmSync(dir, { recursive: true, force: true });
+  for (const dir of scratches) rmSync(dir, { recursive: true, force: true });
 });
 
 const PRESET_SOURCE = readFileSync(join(ROOT, "src/presets/eslint.js"), "utf8");

@@ -168,7 +168,7 @@ function writeAll(plan: Plan, dir: string): string | undefined {
     }
     return undefined;
   } catch (error) {
-    return `could not write: ${error instanceof Error ? error.message : "unknown error"}`;
+    return `could not write: ${String(error)}`;
   }
 }
 

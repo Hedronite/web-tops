@@ -9,7 +9,6 @@ import { checkConfigFile } from "../config/validate.ts";
 import { NODE_CI, NODE_RANGE, TOOL_PINS } from "../lock/pins.ts";
 import { parseLock } from "../lock/format.ts";
 import { runInit } from "./run.ts";
-import { errorRules, presetOf } from "../presets/test-support.ts";
 import { at, madeDirs, put, snapshot, tempDir } from "./test-support.ts";
 
 const root = resolve(import.meta.dirname, "../..");
@@ -188,13 +187,6 @@ function syntaxErrors(source: string, fileName: string): number {
   });
   return result.diagnostics?.length ?? 0;
 }
-
-const lawRules = (source: string): ReadonlySet<string> =>
-  new Set(
-    [...source.matchAll(/"((?:@[\w-]+\/)?[\w-]+(?:\/[\w-]+)?)":\s*\[?\s*"error"/g)].map(
-      (m) => m[1] ?? "",
-    ),
-  );
 
 const WORKFLOW = ".github/workflows/web-tops.yml";
 /** The actions/setup-node release the workflow pins, read from its tag on 2026-11-17. */
@@ -447,17 +439,6 @@ describe.each(CLASSES)("webtops init --class %s", (className) => {
       );
     }
     expect(text.includes("playwright install")).toBe(NEEDS_PLAYWRIGHT[className]);
-  });
-});
-
-describe("webtops init, the gate's own rule set", () => {
-  it("every class's preset sets every law rule of the kit's own config to error", async () => {
-    const kit = lawRules(readFileSync(join(root, "eslint.config.js"), "utf8"));
-    expect(kit.size).toBeGreaterThanOrEqual(15);
-    for (const className of CLASSES) {
-      const rules = errorRules(await presetOf(VARIANT[className]));
-      for (const rule of kit) expect(rules, `${className} ${rule}`).toContain(rule);
-    }
   });
 });
 

@@ -68,9 +68,9 @@ const VERIFIED: readonly (readonly [string, string])[] = [
   ["laws", "the laws"],
 ];
 
+/** `a, b, and c`; what the gate verifies is always at least three things (type checks, lint and tests). */
 function joinList(items: readonly string[]): string {
-  const last = items.at(-1) ?? "";
-  return items.length < 2 ? last : `${items.slice(0, -1).join(", ")}, and ${last}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items.slice(-1).join()}`;
 }
 
 function verifies(profile: DropIn, astroCheck: AstroCheck): string {
