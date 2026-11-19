@@ -14,6 +14,6 @@ export const described: any = 1;
 // eslint-disable-next-line
 export const unlimited: any = 1;
 
-// expect: unused-disable-directive, require-description
+// expect: reportUnusedDisableDirectives, require-description
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const unused = 1;

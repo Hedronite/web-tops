@@ -50,6 +50,12 @@ export function proves(proof: string, id: string): boolean {
   return proof === id || id.endsWith(`/${proof}`) || codesOf(proof).includes(id);
 }
 
-/** Whether a marker's rule is evidence for a law's proof: a flag's own name, or `strict` for any member of its family. */
+/**
+ * Whether a marker's name is evidence for a law's proof: the proof itself, a marker that drops the plugin prefix of a
+ * proof that has one (`no-explicit-any` for `@typescript-eslint/no-explicit-any`), a flag's own name or code, or any
+ * member of the strict family for `strict`.
+ */
 export const provenBy = (proof: string, named: string): boolean =>
-  proves(proof, named) || (proof === "strict" && STRICT_FAMILY.includes(named));
+  proves(proof, named) ||
+  proof.endsWith(`/${named}`) ||
+  (proof === "strict" && STRICT_FAMILY.includes(named));

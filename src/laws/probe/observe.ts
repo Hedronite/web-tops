@@ -19,7 +19,7 @@ function ruleOf(message: Record<string, unknown>): string {
   }
   const text = message["message"];
   return typeof text === "string" && text.startsWith("Unused eslint-disable directive")
-    ? "unused-disable-directive"
+    ? "reportUnusedDisableDirectives"
     : "eslint-fatal";
 }
 

@@ -35,6 +35,16 @@ describe("G3b proofs: what a finding or a marker must name to prove a rule or a 
     expect(proves("strict", "TS7029")).toBe(false);
   });
 
+  it("a marker may drop the plugin prefix of a proof that has one, and no more than the prefix", () => {
+    const proof = "@typescript-eslint/no-explicit-any";
+    expect(provenBy(proof, "no-explicit-any")).toBe(true);
+    expect(provenBy(proof, proof)).toBe(true);
+    expect(provenBy(proof, "explicit-any")).toBe(false);
+    expect(provenBy(proof, "no-unsafe-any")).toBe(false);
+    expect(provenBy("vitest/no-focused-tests", "no-focused-tests")).toBe(true);
+    expect(proves(proof, "@typescript-eslint/no-explicit-any")).toBe(true);
+  });
+
   it("a marker proves strict by naming a member of the family, and a flag by naming it", () => {
     expect(provenBy("strict", "strictNullChecks")).toBe(true);
     expect(provenBy("strict", "noImplicitAny")).toBe(true);

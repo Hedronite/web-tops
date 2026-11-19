@@ -39,7 +39,16 @@ const TABLE: readonly ProbeLaw[] = [
     ],
   },
   { id: "W-05", proofs: ["erasableSyntaxOnly"] },
-  { id: "W-06", proofs: ["no-unsafe-assignment", "no-unsafe-member-access"] },
+  {
+    id: "W-06",
+    proofs: [
+      "no-unsafe-assignment",
+      "no-unsafe-member-access",
+      "no-unsafe-call",
+      "no-unsafe-return",
+      "no-unsafe-argument",
+    ],
+  },
   { id: "W-10", proofs: ["switch-exhaustiveness-check"] },
   { id: "W-11", proofs: ["no-floating-promises", "no-misused-promises", "await-thenable"] },
   {
@@ -84,7 +93,7 @@ const TABLE: readonly ProbeLaw[] = [
       "require-description",
       "no-unlimited-disable",
       "ban-ts-comment",
-      "unused-disable-directive",
+      "reportUnusedDisableDirectives",
     ],
   },
 ];

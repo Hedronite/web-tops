@@ -41,7 +41,7 @@ describe("G3b observe: what ESLint and tsc reported on the twins", () => {
       ]),
     ];
     expect(readEslint(ROOT, json)?.map((found) => [found.line, found.rule])).toEqual([
-      [2, "unused-disable-directive"],
+      [2, "reportUnusedDisableDirectives"],
       [1, "eslint-fatal"],
       [5, "eslint-fatal"],
     ]);

@@ -23,7 +23,8 @@ A name is one of:
   `require-description` for `@eslint-community/eslint-comments/require-description`, `no-fallthrough` for the core rule;
 - a compiler flag, such as `erasableSyntaxOnly` or `noUncheckedIndexedAccess`: the line must report a diagnostic that
   flag raises (`src/laws/probe/proofs.ts` has the codes);
-- `unused-disable-directive`, for ESLint's report of a directive nobody needs (W-35).
+- `reportUnusedDisableDirectives`, for ESLint's report of a directive nobody needs (W-35): it is a linter option, not a
+  rule, and reports with no rule id.
 
 A file whose name starts with `_` only supports the twins beside it (a type to import). It carries no marker and is
 judged like the rest: it must report nothing of the law.
