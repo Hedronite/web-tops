@@ -61,3 +61,14 @@ describe("chromiumState: no browsers.json", () => {
     expect(chromiumState(cwd, env, "linux", tempDir())).toBe("missing");
   });
 });
+
+describe("compareVersions: what is read from the text", () => {
+  it.each([
+    ["a leading v", "v1.2", "1.2", 0],
+    ["a v that is not leading", "1.v2.3", "1.0.3", 0],
+    ["a prerelease tag", "1.2.3-beta.4", "1.2.3", 0],
+    ["a tag that runs to the end of a line only", "1.2-3.4\n5", "1.2.4", 0],
+  ])("%s", (_, a, b, sign) => {
+    expect(Math.sign(compareVersions(a, b))).toBe(sign);
+  });
+});
