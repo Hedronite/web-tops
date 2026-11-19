@@ -3,7 +3,7 @@ import { join, resolve } from "node:path";
 import { expect } from "vitest";
 import { realExec } from "../gate/exec.ts";
 import type { Exec } from "../gate/types.ts";
-import { interimLaws } from "../laws/probe/catalog.ts";
+import { catalogLaws } from "../laws/probe/catalog.ts";
 import { put, tempDir } from "../laws/probe/testkit.ts";
 import type { ProbeReport } from "../laws/probe/types.ts";
 import type { Io } from "./io.ts";
@@ -16,7 +16,7 @@ export const KIT = resolve(import.meta.dirname, "../..");
 export const NO_EXEC: Exec = () => Promise.reject(new Error("no tool should run"));
 
 function deps(over: Partial<ProbeDeps>): ProbeDeps {
-  return { exec: NO_EXEC, laws: interimLaws, fixtures: join(KIT, "fixtures/laws"), ...over };
+  return { exec: NO_EXEC, laws: catalogLaws, fixtures: join(KIT, "fixtures/laws"), ...over };
 }
 
 export async function cli(

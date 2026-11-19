@@ -14,6 +14,7 @@ import type { Law, LawClass } from "../laws/catalog/index.ts";
 import { parseFlags } from "../survivors/flags.ts";
 import type { FlagSpec, Flags } from "../survivors/flags.ts";
 import type { Io } from "./io.ts";
+import { runLawsProbeCli } from "./laws-probe.ts";
 
 const USAGE =
   "usage: webtops laws [list [--class <class>] [--required] [--json] | explain <W-NN> [--json] | sync [--check]]\n";
@@ -161,15 +162,19 @@ function lawsOf(io: Io, catalog: string): readonly Law[] | number {
   return failure(io, `the catalog is invalid\n${lines.join("").trimEnd()}`);
 }
 
-/** `webtops laws`: the law catalog (WEB_TOPS.md section 8): `list`, `explain` and `sync`. */
-export function runLawsCli(
-  argv: readonly string[],
-  io: Io,
-  catalog = CATALOG_DIR,
-): Promise<number> {
+/** `list`, `explain` and `sync`: the law catalog (WEB_TOPS.md section 8). */
+function runCatalogCli(argv: readonly string[], io: Io, catalog = CATALOG_DIR): Promise<number> {
   const parsed = parse(argv, io);
   if (typeof parsed === "number") return Promise.resolve(parsed);
   const laws = lawsOf(io, catalog);
   if (typeof laws === "number") return Promise.resolve(laws);
   return Promise.resolve(parsed.sub.run(parsed.flags, io, laws));
 }
+
+/** `webtops laws`: the law catalog (section 8) and `probe`, which proves the readers of the laws (G3). */
+export const runLawsCli = (
+  argv: readonly string[],
+  io: Io,
+  catalog = CATALOG_DIR,
+): Promise<number> =>
+  argv[0] === "probe" ? runLawsProbeCli(argv.slice(1), io) : runCatalogCli(argv, io, catalog);

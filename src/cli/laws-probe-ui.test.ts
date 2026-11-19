@@ -1,13 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { REAL_TOOL_TIMEOUT } from "../gate/test-support-timeouts.ts";
-import { interimLaws, lawsOfClass } from "../laws/probe/catalog.ts";
+import { catalogLaws, lawsOfClass } from "../laws/probe/catalog.ts";
 import { cleanTemp, put } from "../laws/probe/testkit.ts";
 import { adopter, failing, messages, probeOf, verdicts } from "./test-support-probe.ts";
 
 afterAll(cleanTemp);
 
-const ALL = interimLaws().map((law) => law.id);
-const TS_ONLY = lawsOfClass(interimLaws(), "ts-library").map((law) => law.id);
+const ALL = catalogLaws().map((law) => law.id);
+const TS_ONLY = lawsOfClass(catalogLaws(), "ts-library").map((law) => law.id);
 
 /** Replaces one line of a config, as an adopter that did not enable a rule would have it. */
 const without =
@@ -18,7 +18,7 @@ const without =
 describe("G3c `laws probe` under a class with JSX and CSS: W-22 and W-26", () => {
   let ui: Awaited<ReturnType<typeof probeOf>>;
   beforeAll(async () => {
-    ui = await probeOf(adopter(undefined, true), "--class", "ui-components");
+    ui = await probeOf(adopter(undefined, true), "--class", "web-app");
   }, REAL_TOOL_TIMEOUT);
 
   it("proves W-22 and W-26 beside the laws every class maps, and every law passes", () => {
@@ -60,7 +60,7 @@ describe("G3c `laws probe` under a class with JSX and CSS: W-22 and W-26", () =>
       const result = await probeOf(
         adopter(without("eslint.config.js", line), true),
         "--class",
-        "ui-components",
+        "web-app",
       );
       expect(failing(result.report)).toEqual(["W-22 fail"]);
       expect(messages(result.report)).toEqual([
@@ -77,7 +77,7 @@ describe("G3c `laws probe` under a class with JSX and CSS: W-22 and W-26", () =>
       const result = await probeOf(
         adopter(without("stylelint.config.js", line), true),
         "--class",
-        "ui-components",
+        "web-app",
       );
       expect(failing(result.report)).toEqual(["W-26 fail"]);
       expect(messages(result.report)).toEqual([
@@ -94,7 +94,7 @@ describe("G3c `laws probe` under a class with JSX and CSS: W-22 and W-26", () =>
       const result = await probeOf(
         adopter(without("stylelint.config.js", line), true),
         "--class",
-        "ui-components",
+        "web-app",
       );
       expect(failing(result.report)).toEqual(["W-26 fail"]);
       expect(messages(result.report)).toEqual([

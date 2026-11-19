@@ -3,14 +3,16 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { realExec } from "../gate/exec.ts";
 import { REAL_TOOL_TIMEOUT } from "../gate/test-support-timeouts.ts";
-import { interimLaws, lawsOfClass } from "../laws/probe/catalog.ts";
+import { catalogLaws, lawsOfClass } from "../laws/probe/catalog.ts";
 import { cleanTemp, put, tempDir } from "../laws/probe/testkit.ts";
 import type { LawSource } from "../laws/probe/types.ts";
+import { runLawsCli } from "./laws.ts";
+import { CatalogError } from "../laws/probe/catalog.ts";
 import { adopter, cli, KIT, messages, probeOf, verdicts } from "./test-support-probe.ts";
 
 afterAll(cleanTemp);
 
-const KIT_LAWS = lawsOfClass(interimLaws(), "ts-library").length;
+const KIT_LAWS = lawsOfClass(catalogLaws(), "ts-library").length;
 
 describe("G3b `laws probe`: arguments and problems", () => {
   it("rejects an argument it does not know, and a flag with no value, with the usage", async () => {
@@ -25,6 +27,33 @@ describe("G3b `laws probe`: arguments and problems", () => {
   it("names a law the catalog does not have", async () => {
     const result = await cli(["--law", "W-98"], tempDir());
     expect(result).toMatchObject({ code: 2, err: "webtops laws probe: no law W-98 to probe\n" });
+  });
+
+  it("is routed from `webtops laws probe`, with the probe's own messages", async () => {
+    const out: string[] = [];
+    const err: string[] = [];
+    const io = {
+      out: (t: string) => out.push(t),
+      err: (t: string) => err.push(t),
+      cwd: tempDir(),
+      env: {},
+    };
+    const code = await runLawsCli(["probe", "--law", "W-98"], io);
+    expect({ code, err: err.join("") }).toEqual({
+      code: 2,
+      err: "webtops laws probe: no law W-98 to probe\n",
+    });
+  });
+
+  it("a catalog that cannot be read is exit 2 with its problems, never an empty probe", async () => {
+    const broken: LawSource = () => {
+      throw new CatalogError("the catalog is invalid: laws/W-01.yaml/id: is required");
+    };
+    const result = await cli([], tempDir(), { laws: broken });
+    expect(result).toMatchObject({
+      code: 2,
+      err: "webtops laws probe: the catalog is invalid: laws/W-01.yaml/id: is required\n",
+    });
   });
 
   it("says so when the catalog has no law at all", async () => {
@@ -55,7 +84,7 @@ describe("G3b `laws probe` on a project's own config", () => {
   it("passes every law under a config that is the kit's, with no finding left unexplained", () => {
     expect(kitLike.code).toBe(0);
     expect(verdicts(kitLike.report)).toEqual(
-      lawsOfClass(interimLaws(), "ts-library").map((law) => `${law.id} pass`),
+      lawsOfClass(catalogLaws(), "ts-library").map((law) => `${law.id} pass`),
     );
     expect(kitLike.report.laws.flatMap((law) => law.unrelated)).toEqual([]);
   });
@@ -142,7 +171,7 @@ describe("G3b `laws probe` on a project's own config", () => {
       expect(messages(result.report)).toEqual([
         "W-14/bad/throws.ts:2 stayed quiet: only-throw-error did not fire on its bad twin",
         "W-14/clean/throws.ts:2 fired @typescript-eslint/only-throw-error on its clean twin",
-        "W-14 maps prefer-promise-reject-errors, and no bad twin proves it fires",
+        "W-14 maps @typescript-eslint/prefer-promise-reject-errors, and no bad twin proves it fires",
       ]);
     },
     REAL_TOOL_TIMEOUT,

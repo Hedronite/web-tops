@@ -1,12 +1,12 @@
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { REAL_TOOL_TIMEOUT } from "../gate/test-support-timeouts.ts";
-import { interimLaws, lawsOfClass } from "../laws/probe/catalog.ts";
+import { catalogLaws, lawsOfClass } from "../laws/probe/catalog.ts";
 import type { Io } from "./io.ts";
 import { runLawsProbeCli } from "./laws-probe.ts";
 
 const KIT = resolve(import.meta.dirname, "../..");
-const kitLaws = lawsOfClass(interimLaws(), "ts-library").length;
+const kitLaws = lawsOfClass(catalogLaws(), "ts-library").length;
 
 /** The probe on this repository, under its own eslint.config.js and tsconfig.json, with the twins it ships. */
 describe("G3c `laws probe` on the kit itself", () => {

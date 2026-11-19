@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { realExec } from "../gate/exec.ts";
 import type { Exec } from "../gate/types.ts";
-import { interimLaws, lawsOfClass } from "../laws/probe/catalog.ts";
+import { CatalogError, catalogLaws, lawsOfClass } from "../laws/probe/catalog.ts";
 import { probeExit, probeText } from "../laws/probe/format.ts";
 import { runProbe, type ProbeOutcome, type ProbeRequest } from "../laws/probe/run.ts";
 import type { LawSource, ProbeLaw, ProbeReport } from "../laws/probe/types.ts";
@@ -26,7 +26,7 @@ export interface ProbeDeps {
   readonly fixtures: string;
 }
 
-const DEFAULTS: ProbeDeps = { exec: realExec, laws: interimLaws, fixtures: SHIPPED_FIXTURES };
+const DEFAULTS: ProbeDeps = { exec: realExec, laws: catalogLaws, fixtures: SHIPPED_FIXTURES };
 
 interface Flags {
   readonly law?: string | undefined;
@@ -92,6 +92,19 @@ function lawsFor(io: Io, deps: ProbeDeps, flags: Flags): ProbeLaw[] {
   return lawsOfClass(laws, flags.class ?? projectString(io.cwd, "class") ?? DEFAULT_CLASS);
 }
 
+/** The laws to probe, or what is wrong: the catalog cannot be read, or the flags choose no law. */
+function chosen(io: Io, deps: ProbeDeps, flags: Flags): ProbeLaw[] | string {
+  try {
+    const laws = lawsFor(io, deps, flags);
+    return laws.length === 0 ? noLaws(flags.law) : laws;
+  } catch (error) {
+    if (error instanceof CatalogError) {
+      return error.message;
+    }
+    throw error;
+  }
+}
+
 /** What to probe and where: the flags over the project's own files. */
 function requestOf(io: Io, deps: ProbeDeps, flags: Flags, laws: readonly ProbeLaw[]): ProbeRequest {
   return {
@@ -130,9 +143,9 @@ export async function runLawsProbeCli(
   if ("error" in parsed) {
     return fail(io, `${parsed.error}\n${USAGE.trimEnd()}`, 2);
   }
-  const laws = lawsFor(io, deps, parsed.flags);
-  if (laws.length === 0) {
-    return fail(io, noLaws(parsed.flags.law), 2);
+  const laws = chosen(io, deps, parsed.flags);
+  if (typeof laws === "string") {
+    return fail(io, laws, 2);
   }
   return finish(io, parsed.flags.json, await runProbe(requestOf(io, deps, parsed.flags, laws)));
 }

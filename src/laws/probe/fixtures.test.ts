@@ -1,13 +1,13 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { interimLaws } from "./catalog.ts";
+import { catalogLaws } from "./catalog.ts";
 import { parseMarkers } from "./markers.ts";
 import { provenBy } from "./proofs.ts";
 import { listTwins } from "./twins.ts";
 
 const FIXTURES = resolve(import.meta.dirname, "../../../fixtures/laws");
-const LAWS = interimLaws();
+const LAWS = catalogLaws();
 const TWINS = listTwins(FIXTURES, LAWS);
 
 const text = (file: string): string => readFileSync(join(FIXTURES, file), "utf8");
