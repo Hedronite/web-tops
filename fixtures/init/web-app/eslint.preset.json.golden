@@ -403,7 +403,9 @@
   {
     "files": [
       "**/*.jsx",
-      "**/*.tsx"
+      "**/*.tsx",
+      "**/*.astro/*.ts",
+      "**/*.astro/*.js"
     ],
     "plugins": [
       "webtops"
@@ -418,6 +420,17 @@
     ],
     "rules": {
       "webtops/complete-tailwind-classes": "error"
+    }
+  },
+  {
+    "files": [
+      "**/*.astro"
+    ],
+    "plugins": [
+      "webtops"
+    ],
+    "rules": {
+      "webtops/astro-client-load-ack": "error"
     }
   },
   {

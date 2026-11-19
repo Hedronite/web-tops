@@ -18,10 +18,12 @@ function need<T>(value: T | undefined): T {
   return value;
 }
 
-const RULES = ["complete-tailwind-classes", "no-unsanitized-html", "public-env-only"];
+const JSX_RULES = ["complete-tailwind-classes", "no-unsanitized-html", "public-env-only"];
+const ASTRO_RULES = ["astro-assets-image", "astro-client-load-ack", "astro-frontmatter-size"];
+const RULES = [...ASTRO_RULES, ...JSX_RULES];
 
 describe("G6a: eslint-plugin-webtops", () => {
-  it("names itself and holds the three rules of W-23, W-36 and W-37", () => {
+  it("names itself and holds the rules of W-23, W-28, W-30, W-31, W-36 and W-37", () => {
     expect(plugin.meta).toEqual({ name: "eslint-plugin-webtops" });
     expect(Object.keys(plugin.rules ?? {}).sort()).toEqual(RULES);
   });
@@ -63,7 +65,7 @@ describe("G6a: eslint-plugin-webtops", () => {
     ].join("\n");
     const [result] = await eslint.lintText(code, { filePath: "a.jsx" });
     expect(result?.messages.map((message) => message.ruleId).sort()).toEqual(
-      RULES.map((name) => `webtops/${name}`),
+      JSX_RULES.map((name) => `webtops/${name}`),
     );
   });
 

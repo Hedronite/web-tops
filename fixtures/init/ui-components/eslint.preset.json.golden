@@ -403,7 +403,9 @@
   {
     "files": [
       "**/*.jsx",
-      "**/*.tsx"
+      "**/*.tsx",
+      "**/*.astro/*.ts",
+      "**/*.astro/*.js"
     ],
     "plugins": [
       "webtops"
