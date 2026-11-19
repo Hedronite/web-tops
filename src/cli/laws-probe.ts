@@ -1,0 +1,122 @@
+import { isAbsolute, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
+import { realExec } from "../gate/exec.ts";
+import type { Exec } from "../gate/types.ts";
+import { interimLaws } from "../laws/probe/catalog.ts";
+import { probeExit, probeText } from "../laws/probe/format.ts";
+import { runProbe, type ProbeOutcome, type ProbeRequest } from "../laws/probe/run.ts";
+import type { LawSource, ProbeLaw, ProbeReport } from "../laws/probe/types.ts";
+import { field, readConfigDoc } from "../lock/config.ts";
+import type { Io } from "./io.ts";
+
+const USAGE =
+  "usage: webtops laws probe [--law W-NN] [--fixtures <dir>] [--config <eslint config>] [--tsconfig <file>] [--json]\n";
+
+/** The twins the kit ships, beside `src/`. */
+const SHIPPED_FIXTURES = fileURLToPath(new URL("../../fixtures/laws", import.meta.url));
+
+/** What a run reads that a test replaces: how a tool runs, and where the laws come from. */
+export interface ProbeDeps {
+  readonly exec: Exec;
+  readonly laws: LawSource;
+  readonly fixtures: string;
+}
+
+const DEFAULTS: ProbeDeps = { exec: realExec, laws: interimLaws, fixtures: SHIPPED_FIXTURES };
+
+interface Flags {
+  readonly law?: string | undefined;
+  readonly fixtures?: string | undefined;
+  readonly config?: string | undefined;
+  readonly tsconfig?: string | undefined;
+  readonly json: boolean;
+}
+
+type Parsed = { readonly flags: Flags } | { readonly error: string };
+
+function parseFlags(argv: readonly string[]): Parsed {
+  try {
+    const { values } = parseArgs({
+      args: [...argv],
+      allowPositionals: false,
+      options: {
+        law: { type: "string" },
+        fixtures: { type: "string" },
+        config: { type: "string" },
+        tsconfig: { type: "string" },
+        json: { type: "boolean" },
+      },
+    });
+    return { flags: { ...values, json: values.json === true } };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "unreadable arguments" };
+  }
+}
+
+const fail = (io: Io, message: string, code: number): number => {
+  io.err(`webtops laws probe: ${message}\n`);
+  return code;
+};
+
+/** The ESLint config `web-tops.yaml` names in `gates.hygiene.eslint.config`, when the project has one. */
+function projectEslintConfig(cwd: string): string | undefined {
+  const read = readConfigDoc(cwd);
+  const named =
+    read.state === "ok" ? field(read.doc, "gates", "hygiene", "eslint", "config") : undefined;
+  return typeof named === "string" ? resolve(cwd, named) : undefined;
+}
+
+const absolute = (cwd: string, path: string): string =>
+  isAbsolute(path) ? path : resolve(cwd, path);
+
+const noLaws = (law: string | undefined): string =>
+  law === undefined ? "no law to probe" : `no law ${law} to probe`;
+
+const lawsFor = (deps: ProbeDeps, flags: Flags): ProbeLaw[] =>
+  deps.laws().filter((law) => flags.law === undefined || law.id === flags.law);
+
+/** What to probe and where: the flags over the project's own files. */
+function requestOf(io: Io, deps: ProbeDeps, flags: Flags, laws: readonly ProbeLaw[]): ProbeRequest {
+  return {
+    cwd: io.cwd,
+    env: io.env,
+    exec: deps.exec,
+    fixtures: absolute(io.cwd, flags.fixtures ?? deps.fixtures),
+    scratch: join(io.cwd, ".web-tops", "out", "laws-probe"),
+    laws,
+    eslintConfig:
+      flags.config === undefined ? projectEslintConfig(io.cwd) : absolute(io.cwd, flags.config),
+    tsconfig: absolute(io.cwd, flags.tsconfig ?? "tsconfig.json"),
+  };
+}
+
+function print(io: Io, report: ProbeReport, json: boolean): number {
+  io.out(json ? `${JSON.stringify(report, null, 2)}\n` : probeText(report));
+  return probeExit(report);
+}
+
+const finish = (io: Io, json: boolean, outcome: ProbeOutcome): number =>
+  outcome.ok ? print(io, outcome.report, json) : fail(io, outcome.problem, outcome.code);
+
+/**
+ * `webtops laws probe`: proves the readers of the laws that a lint rule or a compiler flag judges. It runs the bad and
+ * clean twins under this project's own ESLint config and tsconfig, so an adopter's config is proven the way the kit's is.
+ * Exit 0 when every law's reader fires on its bad twin and stays quiet on its clean one, 1 when one does not, 2 for a
+ * usage or config problem, 3 when a tool is missing.
+ */
+export async function runLawsProbeCli(
+  argv: readonly string[],
+  io: Io,
+  deps: ProbeDeps = DEFAULTS,
+): Promise<number> {
+  const parsed = parseFlags(argv);
+  if ("error" in parsed) {
+    return fail(io, `${parsed.error}\n${USAGE.trimEnd()}`, 2);
+  }
+  const laws = lawsFor(deps, parsed.flags);
+  if (laws.length === 0) {
+    return fail(io, noLaws(parsed.flags.law), 2);
+  }
+  return finish(io, parsed.flags.json, await runProbe(requestOf(io, deps, parsed.flags, laws)));
+}
