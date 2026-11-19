@@ -33,6 +33,111 @@ survivors:
       that matches nothing empties the exclude just as well, so no test can tell
       them apart.
     owner: web-platform
+  - file: src/cli/doctor.ts
+    function: src/cli/doctor.ts::playwrightCheck
+    mutator: StringLiteral
+    original: "\"?\""
+    replacement: "\"\""
+    occurrence: 1
+    reason: playwrightCheck returns before this line when the class is undefined, so
+      className is always a string here; the fallback is a dead branch the types
+      require.
+    owner: web-platform
+  - file: src/cli/lock.ts
+    function: src/cli/lock.ts::confirm
+    mutator: StringLiteral
+    original: "\"?\""
+    replacement: "\"\""
+    occurrence: 1
+    reason: confirm runs only when verify found no problem, which needs a Node on
+      the PATH inside the lock's range; the fallback is a dead branch the types
+      require.
+    owner: web-platform
+  - file: src/cli/lock.ts
+    function: src/cli/lock.ts::parseMode
+    mutator: StringLiteral
+    original: "\"\""
+    replacement: "\"Stryker was here!\""
+    occurrence: 1
+    reason: parseMode reads argv[0] only when argv.length is 1, so it is never
+      undefined; the fallback is a dead branch the types require.
+    owner: web-platform
+  - file: src/cli/lock.ts
+    function: src/cli/lock.ts::toolProblems
+    mutator: StringLiteral
+    original: "\"?\""
+    replacement: "\"\""
+    occurrence: 1
+    reason: toolProblems visits the keys of the lock, so lock[tool] is never
+      undefined; the fallback is a dead branch the types require.
+    owner: web-platform
+  - file: src/config/profiles.ts
+    function: src/config/profiles.ts::lawIds
+    mutator: StringLiteral
+    original: "\"0\""
+    replacement: "\"\""
+    occurrence: 1
+    reason: lawIds is called with ids of two digits (20 to 31, 42 to 46), where
+      padStart has nothing to pad; the pad character cannot show.
+    owner: web-platform
+  - file: src/config/validate.ts
+    function: src/config/validate.ts::loadConfig
+    mutator: StringLiteral
+    original: "\"unknown error\""
+    replacement: "\"\""
+    occurrence: 1
+    reason: readFileSync throws only Error instances, so the fallback text is a dead
+      branch.
+    owner: web-platform
+  - file: src/config/validate.ts
+    function: src/config/validate.ts::parseYaml
+    mutator: StringLiteral
+    original: "\"cannot read the YAML document\""
+    replacement: "\"\""
+    occurrence: 1
+    reason: document.toJS throws only Error instances (the YAML library), so the
+      fallback text is a dead branch.
+    owner: web-platform
+  - file: src/gate/adapter.ts
+    function: src/gate/adapter.ts::classCap
+    mutator: StringLiteral
+    original: "`class ${config.class} has no launch profile`"
+    replacement: "``"
+    occurrence: 1
+    reason: classCap is reached only after floorFor, which already throws the same
+      message for a class with no launch profile; the second throw is a dead
+      branch the types require.
+    owner: web-platform
+  - file: src/gate/adapter.ts
+    function: src/gate/adapter.ts::isConditional
+    mutator: BooleanLiteral
+    original: "false"
+    replacement: "true"
+    occurrence: 1
+    reason: isConditional gets an undefined profile only for a class with no launch
+      profile; toGateConfig then throws at the coverage floor and discards the
+      hygiene steps, so the value is never seen.
+    owner: web-platform
+  - file: src/gate/adapter.ts
+    function: src/gate/adapter.ts::isMapped
+    mutator: BooleanLiteral
+    original: "false"
+    replacement: "true"
+    occurrence: 1
+    reason: isMapped gets an undefined profile only for a class with no launch
+      profile; toGateConfig then throws at the coverage floor and discards the
+      hygiene steps, so the value is never seen.
+    owner: web-platform
+  - file: src/gate/adapter.ts
+    function: src/gate/adapter.ts::profileOf
+    mutator: StringLiteral
+    original: "`class ${config.class} has no launch profile`"
+    replacement: "``"
+    occurrence: 1
+    reason: profileOf is reached only after floorFor, which already throws the same
+      message for a class with no launch profile; the second throw is a dead
+      branch the types require.
+    owner: web-platform
   - file: src/gate/exec.ts
     function: src/gate/exec.ts::environmentOf
     mutator: ConditionalExpression
@@ -41,4 +146,60 @@ survivors:
     occurrence: 1
     reason: Node drops an environment variable whose value is undefined when it
       starts a process, so passing one makes no difference to the child.
+    owner: web-platform
+  - file: src/lock/candidates.ts
+    function: src/lock/candidates.ts::readPackage
+    mutator: StringLiteral
+    original: "\"unreadable\""
+    replacement: "\"\""
+    occurrence: 1
+    reason: JSON.parse and readFileSync throw only Error instances, so the fallback
+      text is a dead branch.
+    owner: web-platform
+  - file: src/lock/config.ts
+    function: src/lock/config.ts::firstMessage
+    mutator: StringLiteral
+    original: "\"unreadable\""
+    replacement: "\"\""
+    occurrence: 1
+    reason: firstMessage is called with a problem list that schema validation made
+      non-empty, so the fallback is a dead branch the types require.
+    owner: web-platform
+  - file: src/lock/format.ts
+    function: src/lock/format.ts::readYaml
+    mutator: StringLiteral
+    original: "\"unreadable\""
+    replacement: "\"\""
+    occurrence: 1
+    reason: The YAML parser throws only Error instances, so the fallback text is a
+      dead branch.
+    owner: web-platform
+  - file: src/lock/installed.ts
+    function: src/lock/installed.ts::parts
+    mutator: StringLiteral
+    original: "\"\""
+    replacement: "\"Stryker was here!\""
+    occurrence: 2
+    reason: The replacement text is appended to the last segment before the dash,
+      and parseInt reads only its leading digits, so any text after them is
+      ignored; a segment with no digits gives NaN, which reads as 0 for an empty
+      segment too. The same compared value results.
+    owner: web-platform
+  - file: src/lock/node.ts
+    function: src/lock/node.ts::atLeast
+    mutator: EqualityOperator
+    original: "a > x"
+    replacement: "a >= x"
+    occurrence: 1
+    reason: The branch runs only when a !== x, so a > x and a >= x give the same
+      answer.
+    owner: web-platform
+  - file: src/lock/node.ts
+    function: src/lock/node.ts::atLeast
+    mutator: EqualityOperator
+    original: "b > y"
+    replacement: "b >= y"
+    occurrence: 1
+    reason: The branch runs only when b !== y, so b > y and b >= y give the same
+      answer.
     owner: web-platform
