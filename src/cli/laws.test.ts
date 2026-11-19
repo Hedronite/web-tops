@@ -10,6 +10,7 @@ import { loadCatalog, syncTables } from "../laws/catalog/index.ts";
 import type { Law } from "../laws/catalog/index.ts";
 import type { Io } from "./io.ts";
 import { runLawsCli } from "./laws.ts";
+import { run } from "./main.ts";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 /** The kit's own catalog, loaded: a test that needs the real laws fails here if the catalog is invalid. */
@@ -279,5 +280,13 @@ describe("bun src/cli/main.ts laws: the registered command, in a real process", 
 
   it("checks the section 8.2 of the kit against its catalog, exit 0", () => {
     expect(spawnCli("sync", "--check").status).toBe(0);
+  });
+});
+
+describe("laws is registered with the command dispatcher", () => {
+  it("run hands `laws list` to the laws command, in this process", async () => {
+    const { io, out } = capture();
+    expect(await run(["laws", "list", "--class", "ts-library", "--required"], io)).toBe(0);
+    expect(out().split("\n")[0]).toBe("22 of 48 laws (class ts-library, required)");
   });
 });
