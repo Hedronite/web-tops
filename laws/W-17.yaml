@@ -1,0 +1,14 @@
+# W-17: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-17
+title: "No deep imports into another package's internals (`pkg/dist/…`); imports go through `exports`"
+family: "Modules and boundaries"
+severity: R
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [tl]
+  text: "tl: `dependency-cruiser`"
+rules:
+  - { tool: dependency-cruiser, name: "no-unresolvable" }
+judged: v0.1
+rationale: "A deep import reaches past the public surface, so an internal move breaks callers."
+fix: "Import from the package's `exports` entry, and export what callers need."

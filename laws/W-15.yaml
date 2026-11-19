@@ -1,0 +1,15 @@
+# W-15: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-15
+title: "Type-only imports are `import type` or inline `type` (T-09 and T-12, merged: `verbatimModuleSyntax` makes them the same check)"
+family: "Modules and boundaries"
+severity: R
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [tl]
+  text: "tl: `verbatimModuleSyntax`, `consistent-type-imports`"
+rules:
+  - { tool: tsc, name: "verbatimModuleSyntax" }
+  - { tool: eslint, name: "@typescript-eslint/consistent-type-imports" }
+judged: v0.1
+rationale: "A type-only import without `type` leaves a runtime import that a type-stripper cannot drop."
+fix: "Write `import type`, or an inline `type` modifier."

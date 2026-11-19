@@ -1,0 +1,20 @@
+# W-01: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-01
+title: "No `any`, explicit or implicit, and no unchecked flow of an `any` value (T-01)"
+family: "Types"
+severity: R
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [tl]
+  text: "tl: `no-explicit-any`, `no-unsafe-assignment`, `-member-access`, `-call`, `-return`, `-argument`; `noImplicitAny`"
+rules:
+  - { tool: eslint, name: "@typescript-eslint/no-explicit-any" }
+  - { tool: eslint, name: "@typescript-eslint/no-unsafe-assignment" }
+  - { tool: eslint, name: "@typescript-eslint/no-unsafe-member-access" }
+  - { tool: eslint, name: "@typescript-eslint/no-unsafe-call" }
+  - { tool: eslint, name: "@typescript-eslint/no-unsafe-return" }
+  - { tool: eslint, name: "@typescript-eslint/no-unsafe-argument" }
+  - { tool: tsc, name: "noImplicitAny" }
+judged: v0.1
+rationale: "An `any` switches the type checker off for everything it touches, so a type error becomes a runtime error."
+fix: "Type the value as `unknown` and narrow it, or parse it with a schema; do not assert."

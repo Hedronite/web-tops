@@ -16,6 +16,7 @@
     "./schema/gate-report.schema.json": "./schema/gate-report.schema.json",
     "./schema/baseline.schema.json": "./schema/baseline.schema.json",
     "./schema/core.schema.json": "./schema/core.schema.json",
+    "./schema/law.schema.json": "./schema/law.schema.json",
     "./eslint": {
       "types": "./src/presets/eslint.d.ts",
       "default": "./src/presets/eslint.js"
@@ -39,6 +40,7 @@
     "!src/**/*.test.ts",
     "!src/**/test-support*.ts",
     "schema",
+    "laws",
     "config",
     "profiles"
   ],

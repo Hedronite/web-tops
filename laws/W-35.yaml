@@ -1,0 +1,17 @@
+# W-35: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-35
+title: "Every suppression names its rule and says why: `eslint-disable` with a description, `@ts-expect-error` with a description, no `@ts-ignore` or `@ts-nocheck`; unused directives fail"
+family: "Tests, suppressions, security, build"
+severity: R
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [tl]
+  text: 'tl: `eslint-comments/require-description`, `no-unlimited-disable`; `ban-ts-comment` (`allow-with-description`); `reportUnusedDisableDirectives: "error"`. The suppression census in §6.7 lists every kind that is counted and ratcheted'
+rules:
+  - { tool: eslint, name: "@eslint-community/eslint-comments/require-description" }
+  - { tool: eslint, name: "@eslint-community/eslint-comments/no-unlimited-disable" }
+  - { tool: eslint, name: "@typescript-eslint/ban-ts-comment" }
+  - { tool: eslint, name: "reportUnusedDisableDirectives" }
+judged: v0.1
+rationale: "A suppression with no reason cannot be reviewed, and an unused one misleads."
+fix: "Name the rule, say why, and delete suppressions that no longer fire."

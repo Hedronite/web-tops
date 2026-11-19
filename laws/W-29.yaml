@@ -1,0 +1,13 @@
+# W-29: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-29
+title: "Each page or route stays within its JS and CSS byte budget"
+family: "Astro"
+severity: R
+classes: [astro-site, web-app]
+reader:
+  kinds: [an]
+  text: "an: `dist/` reader"
+rules: []
+judged: v0.1
+rationale: "A page over its byte budget is slow where it matters."
+fix: "Remove, split or defer the code the budget report names."

@@ -1,0 +1,14 @@
+# W-28: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-28
+title: "Islands ship JavaScript only when needed: `client:load` needs an ack; prefer `client:visible`, `client:idle`, or no directive"
+family: "Astro"
+severity: A
+classes: [astro-site, web-app]
+reader:
+  kinds: [an]
+  text: "an"
+rules:
+  - { tool: eslint, name: "webtops/astro-client-load-ack" }
+judged: m3
+rationale: "`client:load` ships and runs JavaScript on every page view."
+fix: "Prefer `client:visible`, `client:idle` or no directive; keep `client:load` only with an acknowledgement that says why."

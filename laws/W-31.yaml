@@ -1,0 +1,14 @@
+# W-31: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-31
+title: "Frontmatter logic beyond 10 statements moves to a `.ts` module, where it can be tested"
+family: "Astro"
+severity: A
+classes: [astro-site]
+reader:
+  kinds: [an]
+  text: "an"
+rules:
+  - { tool: eslint, name: "webtops/astro-frontmatter-size" }
+judged: m3
+rationale: "Logic in frontmatter cannot be unit-tested in place."
+fix: "Move it into a `.ts` module and import it."

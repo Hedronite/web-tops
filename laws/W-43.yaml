@@ -1,0 +1,13 @@
+# W-43: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-43
+title: "Motion honors `prefers-reduced-motion`: with reduce emulated, no canvas keeps rendering frames on its own and no CSS animation keeps running unless essential; anything that moves for more than 5 s has a visible pause (WCAG 2.2.2)"
+family: "Rendered interface"
+severity: R
+classes: [astro-site, web-app]
+reader:
+  kinds: [an]
+  text: "an: Playwright emulation, canvas frame counters, `document.getAnimations()`"
+rules: []
+judged: no
+rationale: "Motion that ignores `prefers-reduced-motion` harms users who ask for none."
+fix: "Stop or slow motion when reduce is set, and give anything long a pause control."

@@ -1,0 +1,13 @@
+# W-08: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-08
+title: "`satisfies` for literal config and route tables (T-07)"
+family: "Types"
+severity: A
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [at]
+  text: "at"
+rules: []
+judged: no
+rationale: "`satisfies` checks a literal against its contract without widening it, which an annotation does."
+fix: "Write config and route tables as `satisfies Type`."

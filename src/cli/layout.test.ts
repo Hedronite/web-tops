@@ -60,7 +60,6 @@ describe("G10a: section 17 matches the tree", () => {
       expect.arrayContaining([
         "src/budgets/",
         "packages/eslint-plugin-webtops/",
-        "laws/",
         "fixtures/laws/W-NN/{bad,clean}/",
         "examples/node-service/",
       ]),

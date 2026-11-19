@@ -1,0 +1,14 @@
+# W-09: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-09
+title: "No unnecessary type parameters; no conditional-type chains deeper than 2 (T-08)"
+family: "Types"
+severity: A
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [tl, an]
+  text: "tl: `no-unnecessary-type-parameters`; an"
+rules:
+  - { tool: eslint, name: "@typescript-eslint/no-unnecessary-type-parameters" }
+judged: no
+rationale: "A type parameter used once, or a deep conditional chain, makes errors unreadable and adds no safety."
+fix: "Replace the parameter with its constraint; split a deep conditional into named helpers."
