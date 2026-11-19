@@ -80,7 +80,8 @@ Schema (`schema/web-tops.schema.json` plus a gate-report schema), and per-class 
 | Runtime | Bun ≥ 1.4 installs and runs `webtops`; Node `^22.23.4 \|\| ^24.15.0 \|\| >=26` runs the tools, in every class (where the pinned tools' engine ranges meet). The range is recorded in `web-tops.lock` (§10) and in `engines` of the kit's `package.json`, beside Bun |
 | Tool lock | `web-tops.lock`; dependency lock `bun.lock`, installed with `--frozen-lockfile` |
 | Lint | `eslint` **10.15**, `@eslint/js` 10.0, `typescript-eslint` 8.73, `eslint-plugin-astro` **3.2**, `eslint-plugin-jsx-a11y-x` 0.2, `@eslint-community/eslint-plugin-eslint-comments` 4.8 |
-| Law readers | Beyond the lint row: `@vitest/eslint-plugin` 1.6 (W-34), `fast-check` 4.10 (property tests, §7), `eslint-plugin-react-hooks` 7.1 (W-47), `knip` 6.45 (W-48, chosen in M3); the secrets scanner (W-39) and the internal link checker (§7) are chosen in M3 |
+| Law readers | Beyond the lint row: `@vitest/eslint-plugin` 1.6 (W-34), `fast-check` 4.10 (property tests, §7), `eslint-plugin-react-hooks` 7.1.1 (W-47), `knip` 6.45.1 (W-48); the secrets scanner (W-39) is `secretlint` 14.0.1 with `@secretlint/secretlint-rule-preset-recommend` 13.1.0; the internal link checker (§7) is chosen in M3 |
+| Rule tests | ESLint's own `RuleTester`, exported by `eslint` (no extra pin), run under Vitest for the custom rules of `eslint-plugin-webtops` (§8.1) |
 | Tests and coverage | Vitest 5.1, `@vitest/coverage-v8` 5.1 |
 | Mutation | StrykerJS 10.1 (`@stryker-mutator/core`, `vitest-runner`, `typescript-checker`) |
 | Astro, Tailwind, validation | Astro 7.4, `@astrojs/check` 0.9, Tailwind CSS 4.3, Zod 4.6 |
@@ -93,6 +94,8 @@ But `typescript-eslint` 8.73 declares `typescript >=4.8.4 <6.1.0`, and `@astrojs
 declares `^5.0.0 || ^6.0.0`. The laws layer depends on type-aware lint, so the gate's type
 checker is the pinned 6.0.x. A TypeScript 7 `tsc --noEmit` leg may be added as advisory for
 speed (§16, open). The pin moves when both peers accept 7.
+
+**Why secretlint.** W-39 needs a secrets scanner that installs from npm, so `web-tops.lock` can pin it, and that runs under Bun and under the Node range on both CI legs. `secretlint` 14.0.1 (`node >=22`) with `@secretlint/secretlint-rule-preset-recommend` 13.1.0 carries its rules in one JavaScript package: no binary download and no network. The kit's tests run it under Node and under Bun: it exits 1 on a secret, exits 0 on clean text, and masks the secret in its output. Its test patterns are documented fakes, never real secrets: the sample secret access key of the AWS documentation (the same page's `AKIAIOSFODNN7EXAMPLE` pair is on the rule's allow list, so it is not a probe). `gitleaks` and `trufflehog` are Go binaries outside npm: the lock cannot pin them, and Bun does not run them.
 
 **Why ESLint 10.** ESLint 10.15 is npm `latest`. 0.1.0 pinned it beside `eslint-plugin-jsx-a11y` 6.10
 and `eslint-plugin-astro` 3.2, and that set cannot install: `jsx-a11y` 6.10.2, still its latest,
@@ -695,9 +698,10 @@ Readers:
 - **`at`** (attested): judged by review; `not-evaluated` until attested.
 - **`tbd`**: not yet implemented; `not-evaluated`.
 
-Every delegated rule is proven to fire. `fixtures/lints/` breaks each enabled rule on purpose,
-with an `// expect: <rule>` marker on the line. A test fails if a marked rule stays quiet or an
-unmarked one fires. Custom ESLint rules are tested with ESLint's `RuleTester`.
+Every delegated rule is proven to fire. `fixtures/laws/W-NN/{bad,clean}/` holds a pair of twins per
+law: the bad twin breaks each enabled rule on purpose, with an `// expect: <rule>` marker on the
+line, and the clean twin stays quiet. A test fails if a marked rule stays quiet on the bad twin or
+an unmarked one fires. Custom ESLint rules are tested with ESLint's `RuleTester`.
 
 ### 8.2 Law catalog (draft: 48 laws, W-01…W-48)
 
@@ -1135,7 +1139,7 @@ web-tops/
 └── LICENSE · LICENSE-MIT · LICENSE-APACHE
 ```
 
-Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4), `packages/eslint-plugin-webtops/` and `fixtures/lints/` (M3).
+Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4) and the M3 paths: `fixtures/laws/W-NN/{bad,clean}/` (a bad and a clean twin per law), `packages/eslint-plugin-webtops/`, `examples/node-service/`, `src/layers/laws/`, `src/presets/`, `src/acks/` and `src/lawdiff/`. The kit's tools already cover them: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
 
 Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any release.
 

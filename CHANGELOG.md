@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The protocol version and th
 
 ## [Unreleased]
 
+- Milestone M3 opens: `knip`, `secretlint` with its recommended preset and `eslint-plugin-react-hooks` are pinned exactly in §2, `package.json` and the lock, and the M3 paths are in every tool scope. §8.1 and §17 name the law fixtures `fixtures/laws/W-NN/{bad,clean}/`. (G0)
+
 ## [0.3.0] - 2026-11-19
 
 The `webtops` CLI in this release implements protocol 0.3.0, and adds the risk engine of milestone M2. It measures CRAP and mutation survival natively, holds a baseline under `ratchet`, and gates this repo on itself with both at `hard`. The protocol stays 0.3.0; `report_version` is 2.2.0.

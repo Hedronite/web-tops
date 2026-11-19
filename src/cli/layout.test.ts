@@ -60,7 +60,8 @@ describe("G10a: section 17 matches the tree", () => {
       expect.arrayContaining([
         "src/budgets/",
         "packages/eslint-plugin-webtops/",
-        "fixtures/lints/",
+        "fixtures/laws/W-NN/{bad,clean}/",
+        "examples/node-service/",
       ]),
     );
     for (const path of paths) expect(existsSync(join(root, path)), path).toBe(false);
