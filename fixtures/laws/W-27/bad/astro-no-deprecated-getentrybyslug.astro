@@ -1,0 +1,6 @@
+---
+// expect: astro/no-deprecated-getentrybyslug
+import { getEntryBySlug } from "astro:content";
+const entry = await getEntryBySlug("blog", "a");
+---
+<p>{entry}</p>
