@@ -64,7 +64,8 @@ function files(ui: boolean): Record<string, string> {
         ...base,
         "kit.config.js": fromKit("eslint.config.js"),
         "eslint.config.js": UI_ESLINT,
-        "stylelint.config.js": fromKit("config/templates/stylelint.config.js.template"),
+        // The preset is a plain object: an adopter that has no `web-tops` package to import keeps a copy of it.
+        "stylelint.config.js": fromKit("src/presets/stylelint.js"),
       }
     : { ...base, "eslint.config.js": fromKit("eslint.config.js") };
 }
