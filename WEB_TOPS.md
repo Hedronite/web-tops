@@ -1130,6 +1130,7 @@ web-tops/
 │   ├── report/              # report writing, text and JSON rendering
 │   └── survivors/           # the survivor key (section 6.4), and the ledger when it lands
 ├── profiles/                # one profile per launch class: the data init renders from
+├── packages/                # eslint-plugin-webtops: the custom ESLint rules behind W-23, W-36 and W-37
 ├── laws/                    # one W-NN.yaml per law (§8.3): the source of the §8.2 tables
 ├── schema/                  # web-tops, gate-report, baseline, core (verdicts, modes) and law schemas
 ├── config/                  # drop-in templates, AGENTS.md.tmpl
@@ -1143,7 +1144,7 @@ web-tops/
 └── LICENSE · LICENSE-MIT · LICENSE-APACHE
 ```
 
-Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4) and the M3 paths: `fixtures/laws/W-NN/{bad,clean}/` (a bad and a clean twin per law), `packages/eslint-plugin-webtops/`, `examples/node-service/`, `src/layers/laws/`, `src/acks/` and `src/lawdiff/`. The kit's tools already cover them: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
+Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4) and the M3 paths: `fixtures/laws/W-NN/{bad,clean}/` (a bad and a clean twin per law), `examples/node-service/`, `src/layers/laws/`, `src/acks/` and `src/lawdiff/`. The kit's tools already cover them: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
 
 Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any release.
 
