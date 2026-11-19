@@ -124,7 +124,7 @@ export const PROFILES: readonly Profile[] = [
     layers: ["html_validate", "axe", "rendered", "themes"],
     steps: [...CORE_STEPS, "astro_check", "stylelint"],
     conditionalSteps: [],
-    extraLaws: [...lawIds(20, 31), "W-37", ...RENDERED_LAWS, "W-47"],
+    extraLaws: [...lawIds(20, 31), "W-37", ...RENDERED_LAWS, "W-47", "W-49"],
     conditionalLaws: [],
   },
   {

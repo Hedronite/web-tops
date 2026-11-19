@@ -272,7 +272,7 @@ have different budgets.
 | `size-limit` per entry | required | required | no | no | no |
 | HTML validity, axe, links | no | on fixture pages | required | required | no |
 | JS per page or route (brotli) | n/a | n/a | 0 KB unless the page has islands; ≤ 50 KB with | ≤ 170 KB per route | n/a |
-| Extra laws | W-18 | W-18, W-22, W-37, W-47; W-27 when Astro | W-20–W-31, W-37, W-42–W-46, W-47 | W-20–W-29, W-37, W-42–W-46, W-47; W-27 when Astro | W-06 strict |
+| Extra laws | W-18 | W-18, W-22, W-37, W-47; W-27 when Astro | W-20–W-31, W-37, W-42–W-46, W-47, W-49 | W-20–W-29, W-37, W-42–W-46, W-47; W-27 when Astro | W-06 strict |
 | Required layers | hygiene, tests, coverage, crap, mutation, build-output, laws | hygiene, tests, coverage, crap, mutation, build-output, laws | hygiene, tests, coverage, crap, mutation, build-output, laws | hygiene, tests, coverage, crap, mutation, build-output, laws | hygiene, tests, coverage, crap, mutation, laws |
 
 There is one CRAP cap per class, the same for every author; there is no per-author cap. The cap
@@ -703,7 +703,7 @@ law: the bad twin breaks each enabled rule on purpose, with an `// expect: <rule
 line, and the clean twin stays quiet. A test fails if a marked rule stays quiet on the bad twin or
 an unmarked one fires. Custom ESLint rules are tested with ESLint's `RuleTester`.
 
-### 8.2 Law catalog (draft: 48 laws, W-01…W-48)
+### 8.2 Law catalog (draft: 49 laws, W-01…W-49)
 
 Severity: **R** = a break is `refuse`, **A** = a break needs an acknowledgement or is `ack-missing`. ✓ = judged in v0.1. Law IDs from the TS-TOPS sketch
 (T-NN) are noted where they map. Laws added after W-46 take the next number; ids are not renumbered by
@@ -774,6 +774,7 @@ These tables are generated from `laws/W-NN.yaml` (§8.3). Edit the file, not the
 | W-29 | Each page or route stays within its JS and CSS byte budget | R | an: `dist/` reader | ✓ |
 | W-30 | Images go through `astro:assets` (`<Image>`, `<Picture>`) with dimensions | A | an | |
 | W-31 | Frontmatter logic beyond 10 statements moves to a `.ts` module, where it can be tested | A | an | |
+| W-49 | Astro components use the Astro API correctly: no deprecated APIs, conflicting directives or exports from components | R | tl: `eslint-plugin-astro` `recommended` | |
 
 **Tests, suppressions, security, build**
 
@@ -810,7 +811,7 @@ the readers.
 | W-47 | React hooks follow the rules of hooks: called only at the top level of a component or custom hook, with complete dependency arrays | R | tl: `eslint-plugin-react-hooks` `rules-of-hooks`, `exhaustive-deps` | |
 | W-48 | No unused exports, files or dependencies | A | tbd: `knip` over all three (M3) | |
 
-**v0.1 target:** 26 of 48 laws judged. Most are delegated, because the TypeScript and web
+**v0.1 target:** 26 of 49 laws judged. Most are delegated, because the TypeScript and web
 ecosystem already ships the checks. Class-specific laws are `skip` for other classes.
 
 ### 8.3 Law metadata
