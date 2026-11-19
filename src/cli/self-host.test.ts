@@ -129,21 +129,23 @@ describe("G7: the lint config holds every function to complexity 4", () => {
   });
 });
 
-describe("R57: the 0.2.0 release", () => {
+describe("R57: the current release", () => {
+  const version = pkg.version;
   const text = (name: string): string => readFileSync(join(root, name), "utf8");
 
-  it("is version 0.2.0 in package.json, web-tops.yaml and web-tops.lock, and stays private", () => {
-    expect(pkg.version).toBe("0.2.0");
-    expect(get(yamlOf("web-tops.yaml"), "version")).toBe("0.2.0");
-    expect(get(yamlOf("web-tops.lock"), "webtops")).toBe("0.2.0");
+  it("has one version in package.json, web-tops.yaml, web-tops.lock and the spec, and stays private", () => {
+    expect(get(yamlOf("web-tops.yaml"), "version")).toBe(version);
+    expect(get(yamlOf("web-tops.lock"), "webtops")).toBe(version);
     expect(get(pkg, "private")).toBe(true);
-    expect(text("WEB_TOPS.md")).toContain("| Package version | 0.2.0 (");
+    expect(text("WEB_TOPS.md")).toContain(`| Package version | ${version} (`);
   });
 
   it("dates the changelog entry, with the Unreleased section above it and the protocol line first", () => {
     const changelog = text("CHANGELOG.md");
     const unreleased = changelog.indexOf("## [Unreleased]");
-    const release = changelog.indexOf("## [0.2.0] - 2026-11-17");
+    const release = changelog.search(
+      new RegExp(`^## \\[${version}\\] - \\d{4}-\\d{2}-\\d{2}$`, "m"),
+    );
     expect(unreleased).toBeGreaterThan(-1);
     expect(release).toBeGreaterThan(unreleased);
     const first = changelog
@@ -164,12 +166,12 @@ describe("R57: the 0.2.0 release", () => {
     expect(first).toMatch(/implements protocol 0\.2\.1/);
   });
 
-  it("says in the README and AGENTS.md that 0.2.0 implements protocol 0.3.0 and 0.1.0 implemented 0.2.1", () => {
+  it("says in the README and AGENTS.md that the current version implements protocol 0.3.0 and 0.1.0 implemented 0.2.1", () => {
     expect(text("README.md")).toMatch(/this tree implements it/);
-    expect(text("README.md")).toMatch(/version 0\.2\.0 \(the 0\.1\.0 release implements 0\.2\.1\)/);
+    expect(text("README.md")).toContain(`version ${version} (the 0.1.0 release implements 0.2.1)`);
     expect(text("README.md")).not.toContain("unreleased (0.0.0)");
-    expect(text("AGENTS.md")).toMatch(
-      /Version 0\.2\.0 implements protocol 0\.3\.0 \(the 0\.1\.0 release implements 0\.2\.1\)/,
+    expect(text("AGENTS.md")).toContain(
+      `Version ${version} implements protocol 0.3.0 (the 0.1.0 release implements 0.2.1)`,
     );
     expect(text("AGENTS.md")).not.toContain("not yet implemented");
   });
