@@ -8,7 +8,7 @@ import { runGateCli } from "./gate.ts";
 import { runInitCli } from "./init.ts";
 import { stdio, type Io } from "./io.ts";
 import { runLockCli } from "./lock.ts";
-import { run } from "./main.ts";
+import { main, run } from "./main.ts";
 import { runReportCli } from "./report.ts";
 import { runVersionCli } from "./version.ts";
 
@@ -99,6 +99,29 @@ describe("each command routes to its module", () => {
     const { io, err } = capture();
     expect(await run(["check", "--json"], io)).toBe(2);
     expect(err()).toContain("usage: webtops check [path]");
+  });
+});
+
+describe("main", () => {
+  it("drops the runtime and script names and gives the exit code of the command", async () => {
+    const viaMain = capture();
+    const viaRun = capture();
+    expect(await main(["bun", "src/cli/main.ts", "version"], viaMain.io)).toBe(0);
+    expect(await run(["version"], viaRun.io)).toBe(0);
+    expect(viaMain.out()).toBe(viaRun.out());
+    expect(viaMain.out()).not.toBe("");
+  });
+
+  it("passes the rest of the arguments on, and exits 2 for an unknown command", async () => {
+    const { io, err } = capture();
+    expect(await main(["bun", "main.ts", "frobnicate", "x"], io)).toBe(2);
+    expect(err()).toContain('unknown command "frobnicate"');
+  });
+
+  it("exits 2 with the usage line when only the two process names are given", async () => {
+    const { io, err } = capture();
+    expect(await main(["bun", "main.ts"], io)).toBe(2);
+    expect(err()).toContain("usage: webtops <command>");
   });
 });
 
