@@ -67,11 +67,11 @@ describe("G6a: eslint-plugin-webtops", () => {
     );
   });
 
-  it("builds with tsc, and the built package loads under Node with the same three rules", () => {
+  it("builds with tsc (types are checked by the gate's own tsc run), and the built package loads under Node", () => {
     const out = mkdtempSync(join(tmpdir(), "wt-plugin-"));
     made.push(out);
     const tsc = resolve(root, "../../node_modules/.bin/tsc");
-    const build = spawnSync(tsc, ["-p", "tsconfig.build.json", "--outDir", out], {
+    const build = spawnSync(tsc, ["-p", "tsconfig.build.json", "--noCheck", "--outDir", out], {
       cwd: root,
       encoding: "utf8",
     });
