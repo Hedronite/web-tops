@@ -262,6 +262,7 @@ describe("M3 G0b: the kit's Vitest config, exactly", () => {
     expect(vitestConfig).toEqual({
       test: {
         testTimeout: 30_000,
+        globalSetup: ["./vitest.global-setup.js"],
         include: ["src/**/*.test.ts", "packages/**/*.test.ts"],
         exclude: [
           ...configDefaults.exclude,

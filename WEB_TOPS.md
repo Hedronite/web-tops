@@ -295,7 +295,7 @@ A second adopter, an `astro-site` with tests or a `node-service` reopens the que
 and `laws`, and build output only where the class maps a build-output layer. It requires the judged
 laws it maps (§8.2, the tick column): the laws no class gates, plus its "Extra laws" row, with
 W-27 only when the project depends on Astro. `W-06 strict` for `node-service` is a reading of W-06,
-which every class maps, as it does W-48 (unused exports, files and dependencies). A law a class maps but that has no reader yet (W-37, W-42 to W-48) is
+which every class maps, as it does W-48 (unused exports, files and dependencies). A law a class maps but that has no reader yet (W-42 to W-48) is
 required when it is judged. Under `hard`, `check` refuses a coverage floor below, and a CRAP cap or
 `unexplained_survivors_max` above, the class's value in this table (§9, §12).
 
@@ -788,7 +788,7 @@ These tables are generated from `laws/W-NN.yaml` (§8.3). Edit the file, not the
 | W-34 | No focused or skipped tests committed | R | tl: `@vitest/eslint-plugin` (1.6) `no-focused-tests`, `no-disabled-tests` | ✓ |
 | W-35 | Every suppression names its rule and says why: `eslint-disable` with a description, `@ts-expect-error` with a description, no `@ts-ignore` or `@ts-nocheck`; unused directives fail | R | tl: `eslint-comments/require-description`, `no-unlimited-disable`; `ban-ts-comment` (`allow-with-description`); `reportUnusedDisableDirectives: "error"`. The suppression census in §6.7 lists every kind that is counted and ratcheted | ✓ |
 | W-36 | No `set:html`, `dangerouslySetInnerHTML` or `innerHTML` with unsanitized input | R | an | |
-| W-37 | Only public env reaches client code (`PUBLIC_` vars, `astro:env` client fields) | R | an | |
+| W-37 | Only public env reaches client code (`PUBLIC_` vars, `astro:env` client fields) | R | an: custom ESLint rule, on `**/*.{jsx,tsx}` and `.astro` client script blocks (frontmatter is server code) | |
 | W-38 | No high or critical advisories in production dependencies | R | tl: dependency audit **[verify `bun audit` output]** | ✓ |
 | W-39 | No secrets in source or fixtures | R | tl: secrets scanner **[verify]** | |
 | W-40 | `bun.lock` is committed and installs with `--frozen-lockfile` | R | tl | ✓ |
@@ -1131,7 +1131,7 @@ web-tops/
 │   ├── report/              # report writing, text and JSON rendering
 │   └── survivors/           # the survivor key (section 6.4), and the ledger when it lands
 ├── profiles/                # one profile per launch class: the data init renders from
-├── packages/                # eslint-plugin-webtops: the custom ESLint rules behind W-23, W-36 and W-37
+├── packages/                # eslint-plugin-webtops: the custom ESLint rules behind W-23, W-36 and W-37, built into the web-tops package
 ├── laws/                    # one W-NN.yaml per law (§8.3): the source of the §8.2 tables
 ├── schema/                  # web-tops, gate-report, baseline, core (verdicts, modes) and law schemas
 ├── config/                  # drop-in templates, AGENTS.md.tmpl

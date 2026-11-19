@@ -3,6 +3,7 @@ import js from "@eslint/js";
 import vitest from "@vitest/eslint-plugin";
 import { defineConfig } from "eslint/config";
 import tseslint from "typescript-eslint";
+import webtops from "../../packages/eslint-plugin-webtops/dist/index.js";
 
 // The ESLint preset behind `web-tops/eslint` (WEB_TOPS.md section 8.2). Every rule below is the reader
 // behind a judged law and stays at "error"; weaken one only through a protocol-change PR. A project's
@@ -50,9 +51,23 @@ const LAW_RULES = {
   ],
   "@eslint-community/eslint-comments/require-description": "error",
   "@eslint-community/eslint-comments/no-unlimited-disable": "error",
+  // W-36 no unsanitized HTML in `set:html`, `dangerouslySetInnerHTML`, `innerHTML` and the like
+  "webtops/no-unsanitized-html": "error",
 };
 
 const TSX = ["**/*.jsx", "**/*.tsx"];
+
+/**
+ * The rules of `eslint-plugin-webtops` that only a project with a UI maps. The plugin ships inside
+ * this package (its build is in `files`), so an adopter has one dependency and no separate pin.
+ */
+const WEBTOPS_UI = [
+  // W-23 Tailwind class names are complete strings, in every file
+  { plugins: { webtops }, rules: { "webtops/complete-tailwind-classes": "error" } },
+  // W-37 only public env reaches client code: the scope is the client modules, not .astro
+  // frontmatter, which is server code (an Astro client script block is read in the Astro rules)
+  { files: TSX, plugins: { webtops }, rules: { "webtops/public-env-only": "error" } },
+];
 
 const BASE_PACKAGES = [
   "@eslint-community/eslint-plugin-eslint-comments",
@@ -76,6 +91,7 @@ async function reactConfigs() {
   return [
     // W-22 semantic elements, alt text, labels
     { files: TSX, ...a11y.configs.strict },
+    ...WEBTOPS_UI,
     {
       // W-47 rules of hooks
       files: TSX,
@@ -98,6 +114,7 @@ async function astroConfigs() {
     ...astro.configs["flat/recommended"],
     ...astro.configs["flat/jsx-a11y-strict"],
     { files: TSX, ...a11y.configs.strict },
+    ...WEBTOPS_UI,
   ];
 }
 
@@ -130,7 +147,7 @@ export async function eslintPreset({ variant, tsconfigRootDir }) {
       languageOptions: { parserOptions: { projectService: true, tsconfigRootDir } },
       // W-35: an unused suppression fails.
       linterOptions: { reportUnusedDisableDirectives: "error" },
-      plugins: { "@eslint-community/eslint-comments": eslintComments },
+      plugins: { "@eslint-community/eslint-comments": eslintComments, webtops },
       rules: LAW_RULES,
     },
     {

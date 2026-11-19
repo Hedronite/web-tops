@@ -6,7 +6,7 @@ severity: R
 classes: [ui-components, astro-site, web-app]
 reader:
   kinds: [an]
-  text: "an"
+  text: "an: custom ESLint rule, on `**/*.{jsx,tsx}` and `.astro` client script blocks (frontmatter is server code)"
 rules:
   - { tool: eslint, name: "webtops/public-env-only" }
 judged: m3

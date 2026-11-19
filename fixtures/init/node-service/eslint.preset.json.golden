@@ -231,7 +231,8 @@
   },
   {
     "plugins": [
-      "@eslint-community/eslint-comments"
+      "@eslint-community/eslint-comments",
+      "webtops"
     ],
     "rules": {
       "@typescript-eslint/no-explicit-any": "error",
@@ -266,7 +267,8 @@
         }
       ],
       "@eslint-community/eslint-comments/require-description": "error",
-      "@eslint-community/eslint-comments/no-unlimited-disable": "error"
+      "@eslint-community/eslint-comments/no-unlimited-disable": "error",
+      "webtops/no-unsanitized-html": "error"
     },
     "linterOptions": {
       "reportUnusedDisableDirectives": "error"

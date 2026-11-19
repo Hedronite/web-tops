@@ -4,6 +4,8 @@ export default defineConfig({
   test: {
     // Real git, bun and ESLint processes run in the gate, src/cli and src/diff tests; the macOS runner is slow.
     testTimeout: 30_000,
+    // Builds eslint-plugin-webtops, which the web-tops/eslint preset imports from its build.
+    globalSetup: ["./vitest.global-setup.js"],
     include: ["src/**/*.test.ts", "packages/**/*.test.ts"],
     // Reserved: probes and the deliberate cheats are data, never collected as this kit's tests.
     exclude: [
