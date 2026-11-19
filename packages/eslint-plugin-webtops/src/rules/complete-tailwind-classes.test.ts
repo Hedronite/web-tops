@@ -66,6 +66,11 @@ tester.run("complete-tailwind-classes", rule, {
   ],
   invalid: [
     {
+      name: "a prefix joined with a non-plus operand",
+      code: '<div className={"a-" + (x - y)} />',
+      errors: incomplete,
+    },
+    {
       name: "a glue after the last interpolation only",
       code: "<div className={`${a} ${b}-4`} />",
       errors: incomplete,
