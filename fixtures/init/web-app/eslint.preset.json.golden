@@ -401,14 +401,6 @@
     }
   },
   {
-    "plugins": [
-      "webtops"
-    ],
-    "rules": {
-      "webtops/complete-tailwind-classes": "error"
-    }
-  },
-  {
     "files": [
       "**/*.jsx",
       "**/*.tsx"
@@ -418,6 +410,14 @@
     ],
     "rules": {
       "webtops/public-env-only": "error"
+    }
+  },
+  {
+    "plugins": [
+      "webtops"
+    ],
+    "rules": {
+      "webtops/complete-tailwind-classes": "error"
     }
   },
   {

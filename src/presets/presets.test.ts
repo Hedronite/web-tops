@@ -95,7 +95,7 @@ describe("G2a: each preset imports from a scratch project", () => {
       expect(result.status, result.output).toBe(0);
       const seen: unknown = JSON.parse(result.output);
       expect(seen).toEqual({
-        variants: ["base", "react", "astro"],
+        variants: ["base", "react", "react-app", "astro"],
         configs: 9,
         stylelint: 9,
         depcruise: ["no-circular", "no-unresolvable"],
@@ -161,7 +161,7 @@ describe("G2a: each preset imports from a scratch project", () => {
     () => {
       const dir = scratchProject({
         "eslint.config.js":
-          'import { eslintPreset } from "web-tops/eslint";\nexport default await eslintPreset({\n  variant: "react",\n  tsconfigRootDir: import.meta.dirname,\n});\n',
+          'import { eslintPreset } from "web-tops/eslint";\nexport default await eslintPreset({\n  variant: "react-app",\n  tsconfigRootDir: import.meta.dirname,\n});\n',
         "tsconfig.json":
           '{ "extends": "web-tops/tsconfig/strict.json", "compilerOptions": { "noEmit": true, "jsx": "preserve" } }\n',
         "client.tsx":
@@ -203,11 +203,11 @@ describe("G2a: each preset imports from a scratch project", () => {
 
 describe("the ESLint preset", () => {
   it("names its variants, and refuses one it does not have", async () => {
-    expect(VARIANTS).toEqual(["base", "react", "astro"]);
+    expect(VARIANTS).toEqual(["base", "react", "react-app", "astro"]);
     // @ts-expect-error: a variant the preset does not have
     const refused = eslintPreset({ variant: "vue", tsconfigRootDir: "." });
     await expect(refused).rejects.toThrow(
-      'web-tops/eslint has no variant "vue"; use base, react, astro',
+      'web-tops/eslint has no variant "vue"; use base, react, react-app, astro',
     );
   });
 
@@ -222,6 +222,7 @@ describe("the ESLint preset", () => {
   it.each([
     ["base", ["@typescript-eslint", "vitest"], ["react-hooks", "jsx-a11y-x", "astro"]],
     ["react", ["react-hooks", "jsx-a11y-x"], ["astro"]],
+    ["react-app", ["react-hooks", "jsx-a11y-x"], ["astro"]],
     ["astro", ["astro", "jsx-a11y-x"], ["react-hooks"]],
   ] as const)("%s registers its plugins and no other class's", async (variant, has, hasNot) => {
     const plugins = pluginNames(await presetOf(variant));
@@ -246,7 +247,8 @@ describe("the ESLint preset", () => {
 
   it.each([
     ["base", ["webtops/no-unsanitized-html"], ["webtops/complete-tailwind-classes"]],
-    ["react", ["webtops/no-unsanitized-html", "webtops/complete-tailwind-classes"], []],
+    ["react", ["webtops/no-unsanitized-html"], ["webtops/complete-tailwind-classes"]],
+    ["react-app", ["webtops/no-unsanitized-html", "webtops/complete-tailwind-classes"], []],
     ["astro", ["webtops/no-unsanitized-html", "webtops/complete-tailwind-classes"], []],
   ] as const)("%s enables the plugin's rules at error: %j", async (variant, has, hasNot) => {
     const config = await presetOf(variant);
@@ -256,13 +258,14 @@ describe("the ESLint preset", () => {
     expect(pluginNames(config)).toContain("webtops");
   });
 
-  it("scopes public-env-only (W-37) to the client modules, in the react and astro variants only", async () => {
+  it("scopes public-env-only (W-37) to the client modules, in the variants with a UI only", async () => {
     const scopes = async (variant: EslintVariant): Promise<unknown[]> =>
       (await presetOf(variant))
         .filter((entry) => Object.hasOwn(entry.rules ?? {}, "webtops/public-env-only"))
         .map((entry) => entry.files);
     expect(await scopes("base")).toEqual([]);
     expect(await scopes("react")).toEqual([["**/*.jsx", "**/*.tsx"]]);
+    expect(await scopes("react-app")).toEqual([["**/*.jsx", "**/*.tsx"]]);
     expect(await scopes("astro")).toEqual([["**/*.jsx", "**/*.tsx"]]);
   });
 

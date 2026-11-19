@@ -135,7 +135,7 @@ export function agentsSection(profile: DropIn, subject: Subject, astroCheck: Ast
       "rendered",
       `- JS per page or route ≤ \`${profile.js_budget}\` (brotli, from the build output), where the class ships pages`,
     ),
-    HOOKS_LINE: profile.eslint === "react" ? HOOKS_LINE : "",
+    HOOKS_LINE: profile.eslint.startsWith("react") ? HOOKS_LINE : "",
     RENDERED_SECTION: renderedSection(profile),
     VERIFIES: verifies(profile, astroCheck),
     LAWS_NOTE: enabled(profile, "laws") ? "" : LAWS_NOTE,

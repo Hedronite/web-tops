@@ -6,7 +6,7 @@ crap_cap: 6
 survivors_max: 2
 js_budget: "170 KB per route"
 playwright: true
-eslint: react
+eslint: react-app
 tools:
   - "@eslint-community/eslint-plugin-eslint-comments"
   - "@eslint/js"

@@ -3,6 +3,6 @@
 import { eslintPreset } from "web-tops/eslint";
 
 export default await eslintPreset({
-  variant: "react",
+  variant: "react-app",
   tsconfigRootDir: import.meta.dirname,
 });

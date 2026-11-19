@@ -1,7 +1,7 @@
 import type { Linter } from "eslint";
 
 /** The plugin set a class adds on top of the base law rules. */
-export type EslintVariant = "base" | "react" | "astro";
+export type EslintVariant = "base" | "react" | "react-app" | "astro";
 
 export interface EslintPresetOptions {
   readonly variant: EslintVariant;

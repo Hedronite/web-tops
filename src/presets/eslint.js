@@ -57,16 +57,20 @@ const LAW_RULES = {
 
 const TSX = ["**/*.jsx", "**/*.tsx"];
 
-/**
- * The rules of `eslint-plugin-webtops` that only a project with a UI maps. The plugin ships inside
- * this package (its build is in `files`), so an adopter has one dependency and no separate pin.
- */
-const WEBTOPS_UI = [
-  // W-23 Tailwind class names are complete strings, in every file
-  { plugins: { webtops }, rules: { "webtops/complete-tailwind-classes": "error" } },
-  // W-37 only public env reaches client code: the scope is the client modules, not .astro
-  // frontmatter, which is server code (an Astro client script block is read in the Astro rules)
+// The rules of `eslint-plugin-webtops` beyond W-36. The plugin ships inside this package (its build
+// is in `files`), so an adopter has one dependency and no separate pin. A preset enables exactly the
+// rules of the laws its class maps (the class-rules test), which is why there are two groups.
+
+/** W-37 only public env reaches client code, for the classes with a UI (ui-components, astro-site, web-app). */
+const WEBTOPS_CLIENT = [
+  // The scope is the client modules, not .astro frontmatter, which is server code (an Astro client
+  // script block is read in the Astro rules)
   { files: TSX, plugins: { webtops }, rules: { "webtops/public-env-only": "error" } },
+];
+
+/** W-23 Tailwind class names are complete strings, in every file, for astro-site and web-app. */
+const WEBTOPS_TAILWIND = [
+  { plugins: { webtops }, rules: { "webtops/complete-tailwind-classes": "error" } },
 ];
 
 const BASE_PACKAGES = [
@@ -83,7 +87,8 @@ async function load(name) {
   return loaded.default;
 }
 
-async function reactConfigs() {
+/** The React plugin set; the web-app variant adds the Tailwind rule on top of the library's. */
+const reactConfigs = (extra) => async () => {
   const [a11y, hooks] = await Promise.all([
     load("eslint-plugin-jsx-a11y-x"),
     load("eslint-plugin-react-hooks"),
@@ -91,7 +96,7 @@ async function reactConfigs() {
   return [
     // W-22 semantic elements, alt text, labels
     { files: TSX, ...a11y.configs.strict },
-    ...WEBTOPS_UI,
+    ...extra,
     {
       // W-47 rules of hooks
       files: TSX,
@@ -102,7 +107,7 @@ async function reactConfigs() {
       },
     },
   ];
-}
+};
 
 async function astroConfigs() {
   const [astro, a11y] = await Promise.all([
@@ -114,19 +119,28 @@ async function astroConfigs() {
     ...astro.configs["flat/recommended"],
     ...astro.configs["flat/jsx-a11y-strict"],
     { files: TSX, ...a11y.configs.strict },
-    ...WEBTOPS_UI,
+    ...WEBTOPS_CLIENT,
+    ...WEBTOPS_TAILWIND,
   ];
 }
 
-const PLUGIN_CONFIGS = { base: async () => [], react: reactConfigs, astro: astroConfigs };
+const PLUGIN_CONFIGS = {
+  base: async () => [],
+  react: reactConfigs(WEBTOPS_CLIENT),
+  "react-app": reactConfigs([...WEBTOPS_CLIENT, ...WEBTOPS_TAILWIND]),
+  astro: astroConfigs,
+};
 
 /** The variants a class can name: the plugin set added on top of the base law rules. */
 export const VARIANTS = Object.keys(PLUGIN_CONFIGS);
 
+const REACT_PACKAGES = [...BASE_PACKAGES, "eslint-plugin-jsx-a11y-x", "eslint-plugin-react-hooks"];
+
 /** Every package a variant imports, so a class's tool list can be checked against it. */
 export const PACKAGES = {
   base: BASE_PACKAGES,
-  react: [...BASE_PACKAGES, "eslint-plugin-jsx-a11y-x", "eslint-plugin-react-hooks"],
+  react: REACT_PACKAGES,
+  "react-app": REACT_PACKAGES,
   astro: [...BASE_PACKAGES, "eslint-plugin-astro", "eslint-plugin-jsx-a11y-x"],
 };
 
