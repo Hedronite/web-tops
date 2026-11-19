@@ -91,13 +91,13 @@ function astroCheckFor(table: Profile, dir: string): AstroCheck {
   };
 }
 
-/** The lock's tool pins and the install line for them, or the tool that has no pin. */
+/** The lock's tool pins and the install line for them (web-tops first, for the presets the importers name), or the tool that has no pin. */
 function pinTools(
   profile: DropIn,
   astro: boolean,
 ): { lock: Record<string, string>; install: string[] } | string {
   const lock: Record<string, string> = { webtops: pkg.version, node: NODE_RANGE };
-  const install: string[] = [];
+  const install: string[] = [`web-tops@${pkg.version}`];
   for (const tool of [...profile.tools, ...(astro ? ASTRO_TOOLS : [])]) {
     const version: unknown = Reflect.get(TOOL_PINS, tool);
     if (typeof version !== "string")

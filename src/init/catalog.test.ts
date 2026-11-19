@@ -4,7 +4,9 @@ import js from "@eslint/js";
 import { describe, expect, it } from "vitest";
 import { TOOL_PINS } from "../lock/pins.ts";
 import { LAUNCH_CLASSES, loadProfile } from "./profile.ts";
-import { agentsSection, eslintConfig } from "./render.ts";
+import { PACKAGES } from "../presets/eslint.js";
+import { presetOf } from "../presets/test-support.ts";
+import { agentsSection } from "./render.ts";
 
 // The oracle for P3 G8, written from SPEC-p3 G8: the text of sections 7, 8 and 13, and the template,
 // say what the briefs say, and the claims about the pinned tools are checked on the pinned tools.
@@ -63,26 +65,6 @@ function lawsNamedFor(className: string): string[] {
     { mapped: true, reason: "" },
   );
   return [...text.matchAll(/W-\d+/g)].map((match) => match[0]);
-}
-
-/** The npm package a module specifier names: `eslint/config` is `eslint`, `@eslint/js` stays whole. */
-function packageOf(specifier: string): string {
-  const parts = specifier.split("/");
-  return specifier.startsWith("@") ? parts.slice(0, 2).join("/") : (parts[0] ?? "");
-}
-
-function importedPackages(className: string): { tools: readonly string[]; names: string[] } {
-  const loaded = loadProfile(className);
-  if (!loaded.ok) throw new Error(loaded.error);
-  const config = eslintConfig(loaded.profile);
-  const names = [...config.matchAll(/from "([^"]+)"/g)].map((match) => packageOf(match[1] ?? ""));
-  return { tools: loaded.profile.tools, names };
-}
-
-function configOf(className: string): string {
-  const loaded = loadProfile(className);
-  if (!loaded.ok) throw new Error(loaded.error);
-  return eslintConfig(loaded.profile);
 }
 
 describe("G8a: section 7 names the presets, page JavaScript and axe's settings", () => {
@@ -210,22 +192,29 @@ describe("G8c: section 13 and the template cite section 3.4 and keep no copy of 
 
 describe("G8c: the drop-in ESLint config rests on the pinned tools", () => {
   it.each(LAUNCH_CLASSES)(
-    "%s: every package the written config imports is in its tool list",
+    "%s: every package the preset imports for its variant is in its tool list",
     (className) => {
-      const { tools, names } = importedPackages(className);
+      const loaded = loadProfile(className);
+      if (!loaded.ok) throw new Error(loaded.error);
+      const names = PACKAGES[loaded.profile.eslint];
       expect(names.length).toBeGreaterThan(0);
-      for (const name of names) expect(tools, name).toContain(name);
+      for (const name of names) expect(loaded.profile.tools, name).toContain(name);
     },
   );
 
   it.each(LAUNCH_CLASSES)(
     "%s: lints hooks only as a react class, and never imports the retired jsx-a11y",
-    (className) => {
-      const config = configOf(className);
+    async (className) => {
+      const loaded = loadProfile(className);
+      if (!loaded.ok) throw new Error(loaded.error);
+      const variant = loaded.profile.eslint;
       const react = className === "web-app" || className === "ui-components";
-      expect(config.includes("eslint-plugin-react-hooks")).toBe(react);
-      expect(config).not.toContain('"eslint-plugin-jsx-a11y"');
-      expect(config).toContain("js.configs.recommended");
+      expect(PACKAGES[variant].includes("eslint-plugin-react-hooks")).toBe(react);
+      expect(PACKAGES[variant]).not.toContain("eslint-plugin-jsx-a11y");
+      const config = await presetOf(variant);
+      expect(config).toContainEqual(
+        expect.objectContaining({ rules: js.configs.recommended.rules }),
+      );
     },
   );
 
