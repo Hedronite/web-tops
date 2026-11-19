@@ -312,6 +312,10 @@ describe("publint's output is read for the numbered lines under its Errors headi
     expect(await errorsOf("Warnings:\n1. a warning\n")).toEqual([]);
   });
 
+  it("reads no error from numbered lines that no Errors heading introduces", async () => {
+    expect(await errorsOf("1. a stray item\nSuggestions:\n1. a suggestion\n")).toEqual([]);
+  });
+
   it("reads an Errors section that runs to the end of the output, with no heading after it", async () => {
     expect(await errorsOf("Errors:\n1. only")).toEqual(["only"]);
   });
