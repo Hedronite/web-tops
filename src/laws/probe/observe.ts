@@ -23,6 +23,12 @@ function ruleOf(message: Record<string, unknown>): string {
     : "eslint-fatal";
 }
 
+/** The rule a finding gets when its tool could not evaluate the file: it did not parse, or no config reaches it. */
+const NOT_EVALUATED: readonly string[] = ["eslint-fatal", "stylelint-fatal"];
+
+/** Whether a finding says its file was not evaluated, rather than that a rule fired on it. */
+export const isNotEvaluated = (rule: string): boolean => NOT_EVALUATED.includes(rule);
+
 function messageFinding(root: string, file: unknown, message: Record<string, unknown>): Observed {
   return {
     file: underRoot(root, String(file)),

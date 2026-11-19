@@ -3,7 +3,14 @@ import { join } from "node:path";
 import type { ProbeLaw, Twin, TwinKind } from "./types.ts";
 
 /** The files of a twin the tools read. Anything else in a twin directory is copied beside them and left alone. */
-const TWIN_FILE = /\.(?:[cm]?ts|tsx|css)$/u;
+const TWIN_FILE = /\.(?:[cm]?ts|tsx|css|astro)$/u;
+
+/** TypeScript the compiler reads. An Astro file is linted under the project's own config, never compiled here. */
+const SCRIPT_FILE = /\.(?:[cm]?ts|tsx)$/u;
+
+export const isCss = (file: string): boolean => file.endsWith(".css");
+export const isAstro = (file: string): boolean => file.endsWith(".astro");
+export const isScript = (file: string): boolean => SCRIPT_FILE.test(file);
 
 const KINDS: readonly TwinKind[] = ["bad", "clean"];
 

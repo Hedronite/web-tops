@@ -1,3 +1,4 @@
+import { isNotEvaluated } from "./observe.ts";
 import { provenBy, proves } from "./proofs.ts";
 import type {
   Expectation,
@@ -64,6 +65,20 @@ function silent(marks: readonly Expectation[], seen: readonly Observed[]): Probe
         message: `${at(mark)} stayed quiet: ${rule} did not fire on its bad twin`,
       })),
   );
+}
+
+/**
+ * A twin its tool could not evaluate (it did not parse, or no config reaches it, as an Astro twin with no Astro config)
+ * proves nothing either way, and a clean twin would otherwise pass for want of findings.
+ */
+function notEvaluated(own: ReadonlySet<string>, seen: readonly Observed[]): ProbeFailure[] {
+  return seen
+    .filter((found) => own.has(found.file) && isNotEvaluated(found.rule))
+    .map((found) => ({
+      kind: "not-evaluated",
+      file: found.file,
+      message: `${found.file} was not evaluated: ${found.rule} (it did not parse, or no config applies to it)`,
+    }));
 }
 
 const marked = (marks: readonly Expectation[], found: Observed): boolean =>
@@ -145,6 +160,7 @@ export function judgeLaw(evidence: LawEvidence): LawProbe {
     ...missingTwin(law, twins, "bad"),
     ...missingTwin(law, twins, "clean"),
     ...unmarked(bad, badMarks),
+    ...notEvaluated(own, seen),
     ...silent(badMarks, seen),
     ...unexpected(law, bad, badMarks, seen),
     ...marksInClean(clean, marks),
@@ -152,7 +168,7 @@ export function judgeLaw(evidence: LawEvidence): LawProbe {
     ...unproven(law, badMarks),
   ];
   const unrelated = inFiles(seen, own).filter(
-    (found) => !explains(law, found.rule) && !marked(marks, found),
+    (found) => !explains(law, found.rule) && !marked(marks, found) && !isNotEvaluated(found.rule),
   );
   return { id: law.id, verdict: failures.length === 0 ? "pass" : "fail", failures, unrelated };
 }

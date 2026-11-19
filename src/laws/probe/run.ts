@@ -5,7 +5,7 @@ import { TOOLS, parseJson, readOutput, resolveTool } from "../../layers/hygiene/
 import { judgeLaw } from "./judge.ts";
 import { parseMarkers } from "./markers.ts";
 import { readEslint, readStylelint, readTsc, type Reading } from "./observe.ts";
-import { STYLELINT_IGNORE, listTwins, materialize } from "./twins.ts";
+import { STYLELINT_IGNORE, isAstro, isCss, isScript, listTwins, materialize } from "./twins.ts";
 import type { Expectation, Observed, ProbeLaw, ProbeReport, Twin } from "./types.ts";
 
 export interface ProbeRequest {
@@ -87,17 +87,26 @@ function passOf(name: string, reading: Reading, shown: string): Pass {
 /** What a tool has nothing to read in: a probe of CSS twins only has no TypeScript to lint or compile. */
 const NOTHING: Pass = { ok: true, seen: [] };
 
-const hasSource = (twins: readonly Twin[]): boolean =>
-  twins.some((twin) => !twin.file.endsWith(".css"));
+const hasFile = (twins: readonly Twin[], kind: (file: string) => boolean): boolean =>
+  twins.some((twin) => kind(twin.file));
 
-async function eslintPass(request: ProbeRequest): Promise<Pass> {
+/**
+ * The scratch directory, then each Astro twin by name. A directory is linted only where the config has a pattern for
+ * the file, so an Astro twin under a config with no Astro files would be skipped without a word; named, ESLint says
+ * it ignored the file, and the judge fails the law as not evaluated.
+ */
+function lintTargets(request: ProbeRequest, twins: readonly Twin[]): string[] {
+  const astro = twins
+    .filter((twin) => isAstro(twin.file))
+    .map((twin) => relative(request.cwd, join(request.scratch, twin.file)));
+  return [relative(request.cwd, request.scratch), ...astro];
+}
+
+async function eslintPass(request: ProbeRequest, twins: readonly Twin[]): Promise<Pass> {
   const output = join(request.scratch, "eslint.json");
   const config = request.eslintConfig === undefined ? [] : ["--config", request.eslintConfig];
   const args = ["--no-ignore", "--format", "json", "--output-file", output, ...config];
-  const result = await runTool(request, "eslint", [
-    ...args,
-    relative(request.cwd, request.scratch),
-  ]);
+  const result = await runTool(request, "eslint", [...args, ...lintTargets(request, twins)]);
   const failed = stopped("eslint", result, [0, 1]);
   const text = readOutput(output);
   return (
@@ -115,14 +124,14 @@ async function tscPass(request: ProbeRequest): Promise<Pass> {
 }
 
 const lint = (request: ProbeRequest, twins: readonly Twin[]): Promise<Pass> =>
-  hasSource(twins) ? eslintPass(request) : Promise.resolve(NOTHING);
+  hasFile(twins, (file) => !isCss(file)) ? eslintPass(request, twins) : Promise.resolve(NOTHING);
 
 const compile = (request: ProbeRequest, twins: readonly Twin[]): Promise<Pass> =>
-  hasSource(twins) ? tscPass(request) : Promise.resolve(NOTHING);
+  hasFile(twins, isScript) ? tscPass(request) : Promise.resolve(NOTHING);
 
 /** Stylelint runs only when a probed law has a CSS twin: a TypeScript-only class has no Stylelint to prove. */
 async function stylelintPass(request: ProbeRequest, twins: readonly Twin[]): Promise<Pass> {
-  if (!twins.some((twin) => twin.file.endsWith(".css"))) {
+  if (!hasFile(twins, isCss)) {
     return NOTHING;
   }
   const output = join(request.scratch, "stylelint.json");

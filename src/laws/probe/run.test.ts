@@ -353,3 +353,77 @@ describe("G3b the runner reads CSS twins with Stylelint, and only then", () => {
     expect(!outcome.ok && outcome.problem).toBe("stylelint wrote output the probe cannot read: {}");
   });
 });
+
+const ASTRO_LAW: ProbeLaw = { id: "W-97", proofs: ["no-thing"] };
+
+function astroFixtures(): string {
+  const dir = tempDir();
+  put(dir, {
+    "W-97/bad/page.astro": "<p /> <!-- expect: no-thing -->\n",
+    "W-97/clean/page.astro": "<p />\n",
+  });
+  return dir;
+}
+
+const astroRequest = (cwd: string, exec: Exec): ProbeRequest =>
+  request(cwd, exec, { laws: [ASTRO_LAW], fixtures: astroFixtures() });
+
+const astroFinding = (cwd: string, message: Record<string, unknown>): string =>
+  JSON.stringify([
+    {
+      filePath: join(realpathSync(cwd), ".web-tops/out/laws-probe/W-97/bad/page.astro"),
+      messages: [message],
+    },
+  ]);
+
+describe("G3b the runner lints Astro twins under the project's own ESLint config", () => {
+  it("names each Astro twin after the scratch directory, hardcodes no parser, and does not compile them", async () => {
+    const cwd = project();
+    const calls: Call[] = [];
+    const found = astroFinding(cwd, { ruleId: "astro/no-thing", line: 1, message: "m" });
+    const outcome = await runProbe(astroRequest(cwd, fake({ eslintOutput: found }, calls)));
+    const scratch = join(".web-tops", "out", "laws-probe");
+    expect(nth(calls, 0).args.slice(-3)).toEqual([
+      scratch,
+      join(scratch, "W-97/bad/page.astro"),
+      join(scratch, "W-97/clean/page.astro"),
+    ]);
+    expect(nth(calls, 0).args).not.toContain("--parser");
+    expect(calls.map((call) => toolOf(call.args))).toEqual(["eslint"]);
+    expect(outcome).toMatchObject({
+      ok: true,
+      report: { laws: [{ id: "W-97", verdict: "pass" }] },
+    });
+  });
+
+  it("an Astro twin with no Astro config is never a silent pass: ESLint ignores it, and the law fails as not evaluated", async () => {
+    const cwd = project();
+    const ignored = {
+      ruleId: null,
+      line: 0,
+      message: "File ignored because no matching configuration was supplied.",
+    };
+    const outcome = await runProbe(
+      astroRequest(cwd, fake({ eslintOutput: astroFinding(cwd, ignored) }, [])),
+    );
+    const kinds = outcome.ok ? outcome.report.laws[0]?.failures.map((failure) => failure.kind) : [];
+    expect(kinds).toEqual(["not-evaluated", "silent"]);
+    expect(outcome).toMatchObject({ ok: true, report: { laws: [{ verdict: "fail" }] } });
+  });
+
+  it("an Astro twin that ESLint did not list at all fails as silent, not as a pass", async () => {
+    const outcome = await runProbe(astroRequest(project(), fake({ eslintOutput: "[]" }, [])));
+    expect(outcome.ok && outcome.report.laws[0]?.verdict).toBe("fail");
+  });
+
+  it("compiles the TypeScript twins beside Astro ones, and only those", async () => {
+    const cwd = project();
+    const calls: Call[] = [];
+    const fixtures = astroFixtures();
+    put(fixtures, FIXTURES);
+    await runProbe(
+      request(cwd, fake({ eslintOutput: "[]" }, calls), { laws: [LAW, ASTRO_LAW], fixtures }),
+    );
+    expect(calls.map((call) => toolOf(call.args))).toEqual(["eslint", "tsc"]);
+  });
+});

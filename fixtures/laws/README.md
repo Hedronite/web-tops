@@ -38,6 +38,7 @@ judged like the rest: it must report nothing of the law.
 | `noisy` | a rule of the law reported on a clean twin: the reader is too loud |
 | `unproven` | the law maps a rule or flag that no bad twin marks |
 | `no-bad-twin`, `no-clean-twin`, `no-marker`, `marker-in-clean` | the pair is incomplete or mis-marked |
+| `not-evaluated` | a tool could not read a twin (it did not parse, or no config reaches it), so it proves nothing |
 
 A finding on a twin that no rule of the law explains and no marker names is counted, and never fails the law.
 
@@ -64,6 +65,10 @@ Stylelint, which that class does not run.
   (`--no-ignore`), so a project's own `ignores` do not hide a twin.
 - A `.css` twin is read by Stylelint under the project's own config, with an empty ignore file. Its marker is a block
   comment: `/* expect: block-no-empty */`.
+- An `.astro` twin is linted by ESLint under the project's own config, which supplies the parser, and is never compiled.
+  Its marker is `// expect: <rule>` in the frontmatter, or `<!-- expect: <rule> -->` in the template (alone on a line
+  for the line below it, or after the markup). A project whose config has no Astro files reports the twin as ignored,
+  and the law fails as `not-evaluated`.
 - A `.tsx` twin is compiled under the project's tsconfig. A project with no JSX types reports the elements as compiler
   findings that no rule of W-22 explains; the probe counts them as unrelated and never fails the law for them.
 

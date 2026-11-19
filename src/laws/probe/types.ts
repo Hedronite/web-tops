@@ -45,6 +45,7 @@ export const FAILURE_KINDS = [
   "no-bad-twin",
   "no-clean-twin",
   "no-marker",
+  "not-evaluated",
   "marker-in-clean",
   "silent",
   "unexpected",

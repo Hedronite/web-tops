@@ -84,6 +84,23 @@ describe("G3b the judge: a reader that is silent on its bad twin, or noisy on it
     expect(kinds({ ...GOOD, seen: [...GOOD.seen, seen(CLEAN, 1, "TS7006")] })).toEqual(["noisy"]);
   });
 
+  it("a twin its tool could not evaluate fails the law, bad or clean, and is not an unrelated finding", () => {
+    const clean = seen(CLEAN, 0, "eslint-fatal");
+    const bad = seen(BAD, 0, "stylelint-fatal");
+    for (const fatal of [clean, bad]) {
+      const probe = judgeLaw({ ...GOOD, seen: [...GOOD.seen, fatal] });
+      expect(probe.failures.map((failure) => failure.kind)).toEqual(["not-evaluated"]);
+      expect(probe.failures[0]?.message).toContain(`${fatal.file} was not evaluated`);
+      expect(probe.unrelated).toEqual([]);
+    }
+  });
+
+  it("a not-evaluated finding on a file that is not the law's twin does not fail it", () => {
+    expect(
+      kinds({ ...GOOD, seen: [...GOOD.seen, seen("W-98/bad/a.ts", 0, "eslint-fatal")] }),
+    ).toEqual([]);
+  });
+
   it("a finding no proof of the law explains is unrelated, and never fails the law", () => {
     const stray = seen(CLEAN, 1, "elsewhere/some-rule");
     const probe = judgeLaw({ ...GOOD, seen: [...GOOD.seen, stray] });

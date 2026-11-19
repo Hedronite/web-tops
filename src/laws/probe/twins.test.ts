@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { cleanTemp, put, tempDir } from "./testkit.ts";
-import { STYLELINT_IGNORE, listTwins, materialize } from "./twins.ts";
+import { STYLELINT_IGNORE, isAstro, isCss, isScript, listTwins, materialize } from "./twins.ts";
 import type { ProbeLaw } from "./types.ts";
 
 afterAll(cleanTemp);
@@ -39,6 +39,23 @@ describe("G3a twins: fixtures/laws/W-NN/{bad,clean}/", () => {
       "W-02 bad W-02/bad/style.css",
       "W-02 clean W-02/clean/d.cts",
     ]);
+  });
+
+  it("lists an Astro file as a twin, and tells the kinds of file apart", () => {
+    const dir = tempDir();
+    put(dir, { "W-01/bad/page.astro": "<p />\n", "W-01/clean/page.astro": "<p />\n" });
+    expect(listTwins(dir, LAWS).map((twin) => twin.file)).toEqual([
+      "W-01/bad/page.astro",
+      "W-01/clean/page.astro",
+    ]);
+    expect([isAstro("a.astro"), isAstro("a.ts"), isCss("a.css"), isCss("a.astro")]).toEqual([
+      true,
+      false,
+      true,
+      false,
+    ]);
+    expect(["a.ts", "a.tsx", "a.mts", "a.cts"].every(isScript)).toBe(true);
+    expect(isScript("a.astro") || isScript("a.css")).toBe(false);
   });
 
   it("reads only the laws it is given: another law's directory is not a twin", () => {
