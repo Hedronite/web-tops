@@ -297,3 +297,70 @@ describe("packageExports: publint-json and attw-json", () => {
     expect(outcome.findings[0]?.message).toContain("bun pm pack exited 0 and left no tarball");
   });
 });
+
+describe("publint's output is read for the numbered lines under its Errors heading only", () => {
+  const errorsOf = async (stdout: string, code = 1) => {
+    const outcome = await packageExports(stepOf(packing(result(code, stdout), result(0))).step);
+    const report = json(outcome.artifacts?.["publint-json"]);
+    return isReport(report) ? report.errors : undefined;
+  };
+
+  const isReport = (value: unknown): value is { errors: string[] } =>
+    typeof value === "object" && value !== null && "errors" in value;
+
+  it("reads no error from output with no Errors heading", async () => {
+    expect(await errorsOf("Warnings:\n1. a warning\n")).toEqual([]);
+  });
+
+  it("reads an Errors section that runs to the end of the output, with no heading after it", async () => {
+    expect(await errorsOf("Errors:\n1. only")).toEqual(["only"]);
+  });
+
+  it("reads items of two digits, and skips lines in the section that are not items", async () => {
+    const stdout = [
+      "Errors:",
+      "10. ten",
+      "   a continuation of ten",
+      "see 3. something",
+      "see Warnings:",
+      "Note: this is no heading",
+      "11. eleven",
+      "Suggestions:",
+      "1. a suggestion",
+    ].join("\n");
+    expect(await errorsOf(stdout)).toEqual(["ten", "eleven"]);
+  });
+
+  it("reads no error from a publint that exited 0, whatever it printed", async () => {
+    expect(await errorsOf("Errors:\n1. a\n", 0)).toEqual([]);
+  });
+});
+
+describe("attw's output is read only when it failed", () => {
+  it("reads no problem from an attw that exited 0, whatever it printed", async () => {
+    const attw = result(0, JSON.stringify({ problems: { FalseCJS: [{ entrypoint: "." }] } }));
+    const outcome = await packageExports(stepOf(packing(result(0), attw)).step);
+    expect(json(outcome.artifacts?.["attw-json"])).toEqual({ code: 0, problems: [] });
+  });
+
+  it("reads no problem from entries that are not a list", async () => {
+    const attw = result(1, JSON.stringify({ problems: { Odd: "x" } }));
+    const outcome = await packageExports(stepOf(packing(result(0), attw)).step);
+    expect(json(outcome.artifacts?.["attw-json"])).toEqual({ code: 1, problems: [] });
+    expect(outcome.findings[1]?.rule).toBe("attw-failed");
+  });
+});
+
+describe("pack", () => {
+  it("fails when bun exits non-zero even though a tarball is there", async () => {
+    const run = stepOf((tool, _args, dir) => {
+      writeFileSync(join(dir, "pkg-1.0.0.tgz"), "tarball");
+      return tool === "bun" ? result(1, "", "half done\n") : result(0);
+    });
+    const outcome = await packageExports(run.step);
+    expect(outcome.findings[0]?.message).toBe(
+      "bun pm pack exited 1 and left no tarball: half done",
+    );
+    expect(outcome.artifacts).toBeUndefined();
+  });
+});
