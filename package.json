@@ -27,7 +27,8 @@
     "!src/**/test-support*.ts",
     "schema",
     "config",
-    "profiles"
+    "profiles",
+    "fixtures/laws"
   ],
   "engines": {
     "bun": ">=1.4.0",
