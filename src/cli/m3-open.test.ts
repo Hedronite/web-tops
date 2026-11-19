@@ -5,6 +5,7 @@ import { dirname, join, matchesGlob, resolve } from "node:path";
 import { ESLint, RuleTester, type Rule } from "eslint";
 import ts from "typescript";
 import { afterEach, describe, expect, it } from "vitest";
+import { configDefaults } from "vitest/config";
 import pkg from "../../package.json" with { type: "json" };
 import vitestConfig from "../../vitest.config.ts";
 import { TOOL_PINS } from "../lock/pins.ts";
@@ -242,6 +243,38 @@ describe("M3 G0b: the M3 paths are in every tool's scope", () => {
       },
       30_000,
     );
+  });
+});
+
+describe("M3 G0b: the kit's Vitest config, exactly", () => {
+  it("times tests out at 30 s, collects src and packages, and skips the data paths", () => {
+    expect(vitestConfig).toEqual({
+      test: {
+        testTimeout: 30_000,
+        include: ["src/**/*.test.ts", "packages/**/*.test.ts"],
+        exclude: [
+          ...configDefaults.exclude,
+          "probes/**",
+          "fixtures/probe/**",
+          "fixtures/complexity/**",
+          "fixtures/laws/**",
+          "examples/node-service/**",
+        ],
+        coverage: {
+          provider: "v8",
+          reporter: ["text", "json", "lcov"],
+          reportsDirectory: "coverage",
+          include: ["src/**/*.ts", "packages/**/*.ts"],
+          exclude: [
+            "src/**/*.test.ts",
+            "src/**/test-support*.ts",
+            "src/**/*.d.ts",
+            "packages/**/*.test.ts",
+            "packages/**/*.d.ts",
+          ],
+        },
+      },
+    });
   });
 });
 

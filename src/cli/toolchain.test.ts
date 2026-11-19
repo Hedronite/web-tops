@@ -14,6 +14,7 @@ import { ESLint } from "eslint";
 import ts from "typescript";
 import { afterEach, describe, expect, it } from "vitest";
 import pkg from "../../package.json" with { type: "json" };
+import vitestConfig from "../../vitest.config.ts";
 import { TOOL_PINS } from "../lock/pins.ts";
 
 const root = resolve(import.meta.dirname, "../..");
@@ -436,9 +437,9 @@ describe("G0d: probes/** and fixtures/probe/** are reserved in every tool scope"
   });
 
   it("vitest.config.ts excludes both from the tests it collects", () => {
-    const text = readFileSync(join(root, "vitest.config.ts"), "utf8");
-    expect(text).toMatch(/exclude: \[[^\]]*"probes\/\*\*"[^\]]*"fixtures\/probe\/\*\*"/);
-    expect(text).toContain('include: ["src/**/*.test.ts", "packages/**/*.test.ts"]');
+    expect(vitestConfig.test?.exclude).toEqual(
+      expect.arrayContaining(["probes/**", "fixtures/probe/**"]),
+    );
   });
 });
 
@@ -584,8 +585,7 @@ describe("M2 G0b: the M2 source paths are in every tool's scope", () => {
     expect(await eslint.isPathIgnored(join(root, `${fixtures}/x.ts`))).toBe(true);
     expect(await eslint.isPathIgnored(join(root, `${fixtures}/x.tsx`))).toBe(true);
     expect(ignoredByPrettier(`${fixtures}/x.ts`)).toBe(true);
-    const text = readFileSync(join(root, "vitest.config.ts"), "utf8");
-    expect(text).toContain('"fixtures/complexity/**"');
+    expect(vitestConfig.test?.exclude).toContain("fixtures/complexity/**");
     expect(readFileSync(join(root, "tsconfig.json"), "utf8")).toContain('"fixtures/complexity"');
     expect(readFileSync(join(root, ".dependency-cruiser.cjs"), "utf8")).toContain(
       "fixtures/complexity",
