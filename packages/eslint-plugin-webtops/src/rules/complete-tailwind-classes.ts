@@ -6,7 +6,6 @@ import {
   child,
   children,
   dottedName,
-  kind,
   lookup,
   propertyName,
   quasisOf,
@@ -46,10 +45,19 @@ function pairGlued(left: unknown, right: unknown): boolean {
   );
 }
 
-/** The operands of a chain of `+`, left to right. */
+const PLUS_CHAIN = new Map<string, (node: unknown) => readonly unknown[]>([
+  [
+    "BinaryExpression",
+    (node) =>
+      child(node, "operator") === "+"
+        ? [...operands(child(node, "left")), ...operands(child(node, "right"))]
+        : [node],
+  ],
+]);
+
+/** The operands of a chain of `+`, left to right; any other node is one operand. */
 function operands(node: unknown): readonly unknown[] {
-  const plus = kind(node) === "BinaryExpression" && child(node, "operator") === "+";
-  return plus ? [...operands(child(node, "left")), ...operands(child(node, "right"))] : [node];
+  return byKind(PLUS_CHAIN, node)?.(node) ?? [node];
 }
 
 function partsBuildToken(parts: readonly unknown[]): boolean {

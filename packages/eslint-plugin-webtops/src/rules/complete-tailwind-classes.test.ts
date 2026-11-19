@@ -17,6 +17,10 @@ const incomplete = [{ messageId: "incomplete" as const }];
 
 tester.run("complete-tailwind-classes", rule, {
   valid: [
+    {
+      name: "a non-plus operand inside a sum stays one operand",
+      code: '<div className={"a " + ("b-" - c)} />',
+    },
     { name: "a subtraction is not a join", code: '<div className={"bg-" - c} />' },
     {
       name: "an object with whole keys beside a plain one",
@@ -61,6 +65,11 @@ tester.run("complete-tailwind-classes", rule, {
     { name: "a template in a computed member", code: "<div className={map[`${key}`]} />" },
   ],
   invalid: [
+    {
+      name: "a glue after the last interpolation only",
+      code: "<div className={`${a} ${b}-4`} />",
+      errors: incomplete,
+    },
     { name: "classnames", code: "classnames(`bg-${c}`);", errors: incomplete },
     { name: "classNames", code: "classNames(`bg-${c}`);", errors: incomplete },
     { name: "twMerge", code: "twMerge(`bg-${c}`);", errors: incomplete },
