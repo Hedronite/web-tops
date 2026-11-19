@@ -221,6 +221,23 @@ describe("R87 hygiene tsc: tsc-diagnostics.json", () => {
     ]);
   });
 
+  it("quotes the last eight lines of stdout first when it has no diagnostic to read", async () => {
+    const lines = Array.from({ length: 10 }, (_, index) => `line ${String(index + 1)}`);
+    const { findings } = await runTsc({
+      code: 2,
+      stdout: `${lines.join("\n")}\n`,
+      stderr: "never quoted first",
+    });
+    expect(findings).toEqual([
+      {
+        tool: "tsc",
+        rule: "tsc-failed",
+        verdict: "fail",
+        message: `tsc exited 2: ${lines.slice(2).join("\n")}`,
+      },
+    ]);
+  });
+
   it.each([
     ["tool-missing", " tsc is gone \n", "tool-missing", "tsc is gone"],
     ["tool-missing", "", "tool-missing", "tsc is not installed or not on PATH"],
