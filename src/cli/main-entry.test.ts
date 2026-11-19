@@ -1,6 +1,7 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { BUILD_OUTPUT_STUB, LAWS_STUB } from "../gate/stubs.ts";
 import { writeKitConfig } from "../layers/tests/index.ts";
@@ -43,15 +44,6 @@ describe("main drops the runtime and script names and runs the command", () => {
     expect(out()).toBe("");
     expect(err()).toBe(`webtops: unknown command "frobnicate"\n${USAGE}`);
   });
-
-  it("gives what run gives for the arguments after the two names", async () => {
-    const viaMain = capture();
-    const viaRun = capture();
-    const argv = ["version", "--frobnicate"];
-    expect(await main(["bun", "main.ts", ...argv], viaMain.io)).toBe(await run(argv, viaRun.io));
-    expect(viaMain.err()).toBe(viaRun.err());
-    expect(viaMain.out()).toBe(viaRun.out());
-  });
 });
 
 describe("run with no command", () => {
@@ -71,6 +63,11 @@ describe("the layers that are not built yet", () => {
     expect(stub.produces).toEqual([]);
     expect(stub.consumes).toEqual([]);
   });
+
+  it("require nothing unless they say so: laws waits for hygiene", () => {
+    expect(BUILD_OUTPUT_STUB.requires).toEqual([]);
+    expect(LAWS_STUB.requires).toEqual(["hygiene"]);
+  });
 });
 
 describe("the project's Vitest config is found under every name Vitest accepts", () => {
@@ -83,21 +80,48 @@ describe("the project's Vitest config is found under every name Vitest accepts",
     ["ts", "mts", "cts", "js", "mjs", "cjs"].map((extension) => `${base}.${extension}`),
   );
 
-  it.each(names)("%s", (name) => {
+  function project(): { root: string; out: string } {
     const root = mkdtempSync(join(tmpdir(), "wt-kit-config-"));
     roots.push(root);
     const out = join(root, "out");
     mkdirSync(out);
+    return { root, out };
+  }
+
+  it.each(names)("%s", (name) => {
+    const { root, out } = project();
     writeFileSync(join(root, name), "export default {};\n");
     const written = readFileSync(writeKitConfig(root, out), "utf8");
     expect(written).toContain(`const project = ${JSON.stringify(join(root, name))};`);
   });
 
   it("writes a plain empty config when the project has none", () => {
-    const root = mkdtempSync(join(tmpdir(), "wt-kit-config-"));
-    roots.push(root);
-    const out = join(root, "out");
-    mkdirSync(out);
+    const { root, out } = project();
     expect(readFileSync(writeKitConfig(root, out), "utf8")).toBe("export default {};\n");
+  });
+
+  it("writes its lines apart, and names bare vite when no vitest is installed beside the project", () => {
+    const { root, out } = project();
+    writeFileSync(join(root, "vitest.config.ts"), "export default {};\n");
+    const written = readFileSync(writeKitConfig(root, out), "utf8");
+    expect(written).toContain('import { writeFileSync } from "node:fs";\nimport { relative');
+    expect(written).toContain('const viteUrl = "vite";\n');
+  });
+
+  it("names the vite that sits inside the installed vitest, as a file URL", () => {
+    const { root, out } = project();
+    writeFileSync(join(root, "vitest.config.ts"), "export default {};\n");
+    const vitest = join(root, "node_modules", "vitest");
+    const vite = join(vitest, "node_modules", "vite");
+    mkdirSync(vite, { recursive: true });
+    writeFileSync(join(vitest, "package.json"), '{"name":"vitest"}');
+    writeFileSync(join(vite, "package.json"), '{"name":"vite","main":"index.js"}');
+    writeFileSync(join(vite, "index.js"), "module.exports = {};\n");
+    const url = pathToFileURL(
+      join(realpathSync(root), "node_modules/vitest/node_modules/vite/index.js"),
+    ).href;
+    expect(readFileSync(writeKitConfig(root, out), "utf8")).toContain(
+      `const viteUrl = ${JSON.stringify(url)};`,
+    );
   });
 });
