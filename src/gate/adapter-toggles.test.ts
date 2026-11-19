@@ -38,8 +38,8 @@ describe("toGateConfig: a switch turned off with no reason", () => {
     const silent = { enabled: false };
     const said = { enabled: false, reason: "no build in this repository" };
     const layers = {
-      size_limit: silent,
-      html_validate: said,
+      html_validate: silent,
+      size_limit: said,
       axe: said,
       rendered: said,
       themes: said,

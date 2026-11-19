@@ -139,3 +139,68 @@ describe("validateReport: a failed count that disagrees with the layers", () => 
     });
   });
 });
+
+describe("validateReport: the other messages", () => {
+  const messages = (report: unknown): readonly { pointer: string; message: string }[] => {
+    const result = validateReport(report);
+    return result.ok ? [] : result.problems;
+  };
+
+  it("says how many not-evaluated layers were claimed and held", () => {
+    expect(messages(edit(buildReport(), ["counts", "not_evaluated"], 4))).toEqual([
+      {
+        pointer: "/counts/not_evaluated",
+        message: "counts 4 not-evaluated layers, the layers hold 0",
+      },
+    ]);
+    expect(messages(edit(buildReport(), ["counts", "required_not_evaluated"], 4))).toEqual([
+      {
+        pointer: "/counts/required_not_evaluated",
+        message: "counts 4 required not-evaluated layers, the layers hold 0",
+      },
+    ]);
+  });
+
+  it("says more layers ran than are in range", () => {
+    const report = edit(edit(buildReport(), ["counts", "ran"], 99), ["counts", "in_range"], 5);
+    expect(messages(report)).toContainEqual({
+      pointer: "/counts/ran",
+      message: "more layers ran than are in range",
+    });
+  });
+
+  it("says enforced is false exactly when enforce is advisory", () => {
+    expect(messages(edit(buildReport(), ["enforced"], false))).toEqual([
+      { pointer: "/enforced", message: "enforced is false exactly when enforce is advisory" },
+    ]);
+  });
+
+  it("says a layer's finding counts are not those of its findings", () => {
+    const wrong = [{ rule: "r", file: "f", count: 3 }];
+    expect(messages(edit(buildReport(), ["layers", "0", "metrics", "findings"], wrong))).toEqual([
+      {
+        pointer: "/layers/0/metrics/findings",
+        message: "counts per rule per file are not those of the layer's findings",
+      },
+    ]);
+  });
+
+  it("names a layer id that appears twice", () => {
+    const report = buildReport();
+    const twice = { ...report, layers: [...report.layers, ...report.layers.slice(0, 1)] };
+    expect(messages(twice)).toContainEqual({
+      pointer: "/layers",
+      message: 'layer "hygiene" appears more than once',
+    });
+  });
+});
+
+describe("the semantic checks: an exemption date that is not a date", () => {
+  it("says so, with the text", () => {
+    const body =
+      'class: ts-library\nenforce: advisory\nexemption: { until: "2026-02-30", reason: r }\n';
+    expect(problems(body)).toEqual([
+      { pointer: "/exemption/until", message: "2026-02-30 is not a calendar date" },
+    ]);
+  });
+});
