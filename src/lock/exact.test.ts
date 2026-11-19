@@ -3,6 +3,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { madeDirs, put, tempDir } from "../init/test-support.ts";
 import { candidateTools } from "./candidates.ts";
 import { parseLock } from "./format.ts";
+import { chromiumState } from "./environment.ts";
 import { compareVersions } from "./installed.ts";
 import { TOOL_PINS } from "./pins.ts";
 
@@ -47,5 +48,16 @@ describe("compareVersions: the longer version decides when the shorter is a pref
     ["1.4", "1.4.0", 0],
   ])("%s against %s has the sign %i", (a, b, sign) => {
     expect(Math.sign(compareVersions(a, b))).toBe(sign);
+  });
+});
+
+describe("chromiumState: no browsers.json", () => {
+  it("is missing, even when a directory named for no revision is there", () => {
+    const cwd = tempDir();
+    put(cwd, "node_modules/@playwright/test/package.json", JSON.stringify({ version: "1.65.1" }));
+    const browsers = tempDir();
+    put(browsers, "chromium-undefined/INSTALLATION_COMPLETE", "");
+    const env = { PLAYWRIGHT_BROWSERS_PATH: browsers };
+    expect(chromiumState(cwd, env, "linux", tempDir())).toBe("missing");
   });
 });

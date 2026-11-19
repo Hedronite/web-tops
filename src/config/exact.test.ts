@@ -204,3 +204,47 @@ describe("the semantic checks: an exemption date that is not a date", () => {
     ]);
   });
 });
+
+describe("validateReport: a passed flag that disagrees with the layers", () => {
+  const messages = (report: unknown): readonly { pointer: string; message: string }[] => {
+    const result = validateReport(report);
+    return result.ok ? [] : result.problems;
+  };
+  const every = (verdict: "skip" | "pass"): Parameters<typeof buildReport>[0] => ({
+    hygiene: verdict,
+    tests: verdict,
+    coverage: verdict,
+    crap: verdict,
+    mutation: verdict,
+    "build-output": verdict,
+    laws: verdict,
+  });
+
+  it("says a clean run passed", () => {
+    expect(messages(edit(buildReport(), ["passed"], false))).toEqual([
+      {
+        pointer: "/passed",
+        message: "no layer failed and every layer in range ran, so the run passed",
+      },
+    ]);
+  });
+
+  it("says an empty run is not a pass", () => {
+    expect(messages(edit(buildReport(every("skip")), ["passed"], true))).toEqual([
+      {
+        pointer: "/passed",
+        message: "no layer was in range, so the run did not pass: an empty run is not a pass",
+      },
+    ]);
+  });
+
+  it("says a failed layer means the run did not pass", () => {
+    expect(messages(edit(buildReport({ crap: "fail" }), ["passed"], true))).toEqual([
+      {
+        pointer: "/passed",
+        message:
+          "a layer failed or was not evaluated, or fewer layers ran than are in range, so the run did not pass",
+      },
+    ]);
+  });
+});
