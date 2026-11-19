@@ -46,6 +46,17 @@ describe("M3 G0a: knip, the secrets scanner and react-hooks are pinned exactly",
   });
 });
 
+describe("R85: the twins' lint tools are exact kit devDependencies", () => {
+  it.each(["eslint-plugin-jsx-a11y-x", "stylelint"] as const)(
+    "%s is installed at its pin, and the lock records it",
+    (name) => {
+      expect(get(pkg.devDependencies, name)).toBe(TOOL_PINS[name]);
+      const line = new RegExp(`^${name}: ${TOOL_PINS[name].replaceAll(".", "\\.")}$`, "m");
+      expect(readFileSync(join(root, "web-tops.lock"), "utf8")).toMatch(line);
+    },
+  );
+});
+
 describe("M3 G0a: the secrets scanner runs under Node and Bun", () => {
   const made: string[] = [];
   afterEach(() => {
