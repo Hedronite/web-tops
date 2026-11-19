@@ -420,10 +420,11 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
   mutator, original and replacement within that function. Never by Stryker's mutant id, which is a
   run ordinal, and never by a line number, so a ledger entry survives edits elsewhere in the file.
   A ledger entry carries those six fields beside `reason`, `owner` and `expires`.
-- **Time budget.** `gates.mutation.time_budget_minutes`, 30 by default (provisional, until the first
-  adopter runs confirm it). A run that passes it is stopped, with the processes it started, and the
-  layer is `not-evaluated`, with the budget in the reason: a stopped run writes no report, so it
-  names no count of mutants judged. A run cut short is never a pass.
+- **Time budget.** `gates.mutation.time_budget_minutes`, 30 by default: the largest M2 diff, about 1,330
+  mutants, fit on both CI legs, and the budget sits under the 45 minute macOS job limit, so an over-budget run
+  reports `not-evaluated` and does not become a cancelled job. A run that passes it is stopped, with the
+  processes it started, and the layer is `not-evaluated`, with the budget in the reason: a stopped run writes no
+  report, so it names no count of mutants judged. A run cut short is never a pass.
 
 ### 6.5 Law verdicts
 
