@@ -1,0 +1,14 @@
+# W-30: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-30
+title: "Images go through `astro:assets` (`<Image>`, `<Picture>`) with dimensions"
+family: "Astro"
+severity: A
+classes: [astro-site]
+reader:
+  kinds: [an]
+  text: "an"
+rules:
+  - { tool: eslint, name: "webtops/astro-assets-image" }
+judged: m3
+rationale: "An image outside `astro:assets` is not optimized, and without dimensions it shifts the layout."
+fix: "Use `<Image>` or `<Picture>` with `width` and `height`."

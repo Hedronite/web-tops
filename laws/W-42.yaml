@@ -1,0 +1,13 @@
+# W-42: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-42
+title: "Text and non-text contrast hold in **every** theme and color scheme the project ships: 4.5:1 for text, 3:1 for large text and for UI parts and focus indicators. Each pair is measured against its nearest painted background"
+family: "Rendered interface"
+severity: R
+classes: [astro-site, web-app]
+reader:
+  kinds: [an]
+  text: "an: theme reader over the token source and the class pairs in markup"
+rules: []
+judged: no
+rationale: "Text that fails contrast in one theme is unreadable there."
+fix: "Adjust the token pair until each meets its ratio in every theme."

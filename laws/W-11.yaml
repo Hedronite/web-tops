@@ -1,0 +1,16 @@
+# W-11: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-11
+title: "No floating or misused promises; `await` only thenables (T-11)"
+family: "Async and errors"
+severity: R
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [tl]
+  text: "tl: `no-floating-promises`, `no-misused-promises`, `await-thenable`"
+rules:
+  - { tool: eslint, name: "@typescript-eslint/no-floating-promises" }
+  - { tool: eslint, name: "@typescript-eslint/no-misused-promises" }
+  - { tool: eslint, name: "@typescript-eslint/await-thenable" }
+judged: v0.1
+rationale: "A floating promise loses its error, and a promise in a boolean position is always truthy."
+fix: "`await` it, return it or `void` it with a comment; pass an async function only where a promise is expected."

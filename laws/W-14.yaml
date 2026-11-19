@@ -1,0 +1,15 @@
+# W-14: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-14
+title: "Only `Error` objects are thrown or used as rejections"
+family: "Async and errors"
+severity: R
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [tl]
+  text: "tl: `only-throw-error`, `prefer-promise-reject-errors`"
+rules:
+  - { tool: eslint, name: "@typescript-eslint/only-throw-error" }
+  - { tool: eslint, name: "@typescript-eslint/prefer-promise-reject-errors" }
+judged: v0.1
+rationale: "A thrown string or object has no stack and breaks `instanceof` handling."
+fix: "Throw an `Error` or a subclass, and reject with one."

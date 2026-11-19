@@ -1,0 +1,15 @@
+# W-02: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-02
+title: "No type assertions (`as`, `<T>x`) and no non-null `!`; `as const` is allowed (T-02)"
+family: "Types"
+severity: R
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [tl]
+  text: 'tl: `consistent-type-assertions` (`assertionStyle: "never"`), `no-non-null-assertion`'
+rules:
+  - { tool: eslint, name: "@typescript-eslint/consistent-type-assertions" }
+  - { tool: eslint, name: "@typescript-eslint/no-non-null-assertion" }
+judged: v0.1
+rationale: "An assertion states a claim the compiler cannot check; a wrong one passes type-checking and fails at run time."
+fix: "Narrow with a guard or parse with a schema; keep `as const` for literals only."

@@ -1,0 +1,15 @@
+# W-47: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-47
+title: "React hooks follow the rules of hooks: called only at the top level of a component or custom hook, with complete dependency arrays"
+family: "React and dead code"
+severity: R
+classes: [ui-components, astro-site, web-app]
+reader:
+  kinds: [tl]
+  text: "tl: `eslint-plugin-react-hooks` `rules-of-hooks`, `exhaustive-deps`"
+rules:
+  - { tool: eslint, name: "react-hooks/rules-of-hooks" }
+  - { tool: eslint, name: "react-hooks/exhaustive-deps" }
+judged: no
+rationale: "A hook called conditionally, or with stale dependencies, gives bugs that depend on render order."
+fix: "Call hooks at the top level, and list every dependency or move the value inside."

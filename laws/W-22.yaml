@@ -1,0 +1,20 @@
+# W-22: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-22
+title: "Interactive elements are semantic, images have `alt`, and a `<label>` is tied to its control"
+family: "HTML and accessibility"
+severity: R
+classes: [ui-components, astro-site, web-app]
+reader:
+  kinds: [tl]
+  text: "tl: `eslint-plugin-jsx-a11y-x` and `eslint-plugin-astro` a11y rules (§2; proof in `probes/w22/`); on built pages, `html-validate:a11y` and axe"
+rules:
+  - { tool: eslint, name: "jsx-a11y-x/alt-text" }
+  - { tool: eslint, name: "jsx-a11y-x/label-has-associated-control" }
+  - { tool: eslint, name: "jsx-a11y-x/no-static-element-interactions" }
+  - { tool: eslint, name: "jsx-a11y-x/click-events-have-key-events" }
+  - { tool: eslint, name: "jsx-a11y-x/anchor-is-valid" }
+  - { tool: html-validate, name: "a11y" }
+  - { tool: axe, name: "axe" }
+judged: v0.1
+rationale: "Semantic elements, alt text and tied labels are what assistive technology reads."
+fix: "Use `button` and `a` for interaction, give every image `alt`, and tie each `label` to its control."

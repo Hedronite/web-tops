@@ -5,6 +5,7 @@ import { runDoctorCli } from "./doctor.ts";
 import { runGateCli } from "./gate.ts";
 import { runInitCli } from "./init.ts";
 import { stdio, type Io } from "./io.ts";
+import { runLawsCli } from "./laws.ts";
 import { runLockCli } from "./lock.ts";
 import { runReportCli } from "./report.ts";
 import { runSurvivorsCli } from "./survivors.ts";
@@ -24,6 +25,7 @@ const COMMANDS: ReadonlyMap<string, Command> = new Map<string, Command>([
   ["report", runReportCli],
   ["survivors", runSurvivorsCli],
   ["version", runVersionCli],
+  ["laws", runLawsCli],
 ]);
 
 const USAGE = `usage: webtops <command>\ncommands: ${[...COMMANDS.keys()].join(", ")}\n`;
@@ -40,6 +42,15 @@ export function run(argv: readonly string[], io: Io): number | Promise<number> {
   return 2;
 }
 
+/**
+ * The entry point's body: drops the runtime and script names from `processArgv` (what
+ * `process.argv` holds), runs the command and returns its exit code, so a test can call it
+ * in-process. Only the `import.meta.main` guard below stays out of reach of such a test.
+ */
+export async function main(processArgv: readonly string[], io: Io): Promise<number> {
+  return await run(processArgv.slice(2), io);
+}
+
 if (import.meta.main) {
-  process.exitCode = await run(process.argv.slice(2), stdio);
+  process.exitCode = await main(process.argv, stdio);
 }

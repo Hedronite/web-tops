@@ -1,0 +1,14 @@
+# W-40: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-40
+title: "`bun.lock` is committed and installs with `--frozen-lockfile`"
+family: "Tests, suppressions, security, build"
+severity: R
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [tl]
+  text: "tl"
+rules:
+  - { tool: bun, name: "install --frozen-lockfile" }
+judged: v0.1
+rationale: "Without a committed lockfile that installs frozen, builds are not reproducible."
+fix: "Commit `bun.lock` and install with `--frozen-lockfile`."

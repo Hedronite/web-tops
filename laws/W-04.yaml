@@ -1,0 +1,21 @@
+# W-04: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-04
+title: "Strict tsconfig: `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch`, `verbatimModuleSyntax`, `isolatedModules`, `erasableSyntaxOnly` (T-03). `strict: true` beside a strict member set to `false` is `refuse`"
+family: "Types"
+severity: R
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [an]
+  text: "an: reads every flag's resolved value through the `extends` chain, not `strict` alone; `tsc --showConfig` omits defaults and keeps `strict: true` beside a disabled member"
+rules:
+  - { tool: tsc, name: "strict" }
+  - { tool: tsc, name: "noUncheckedIndexedAccess" }
+  - { tool: tsc, name: "exactOptionalPropertyTypes" }
+  - { tool: tsc, name: "noImplicitOverride" }
+  - { tool: tsc, name: "noFallthroughCasesInSwitch" }
+  - { tool: tsc, name: "verbatimModuleSyntax" }
+  - { tool: tsc, name: "isolatedModules" }
+  - { tool: tsc, name: "erasableSyntaxOnly" }
+judged: v0.1
+rationale: "A strict tsconfig is the floor the other type laws stand on; one member set to `false` quietly undoes it."
+fix: "Set `strict` and each listed flag in the tsconfig the project checks, and remove any override that turns one off."

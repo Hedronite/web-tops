@@ -1,0 +1,13 @@
+# W-46: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-46
+title: "Pages reflow at 320 CSS px with no horizontal scroll (WCAG 1.4.10); tables, code and maps exempt"
+family: "Rendered interface"
+severity: R
+classes: [astro-site, web-app]
+reader:
+  kinds: [an]
+  text: "an: rendered"
+rules: []
+judged: no
+rationale: "Content that forces horizontal scrolling at 320 px fails users who zoom."
+fix: "Let the layout reflow; only tables, code and maps may scroll sideways."
