@@ -46,7 +46,7 @@ export interface Profile {
   /** One CRAP cap per class (section 5.2). */
   readonly crapCap: number;
   readonly unexplainedSurvivorsMax: number;
-  /** The time budget of one mutation run, in minutes; provisional until confirmed (section 6.4). */
+  /** The time budget of one mutation run, in minutes (section 6.4). */
   readonly mutationBudgetMinutes: number;
   /** Layers this class maps. Every other `layers.*` key is written `enabled: false` with a reason. */
   readonly layers: readonly LayerKey[];
