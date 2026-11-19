@@ -6,7 +6,7 @@ import { serializeLock } from "../lock/format.ts";
 import { BEGIN_MARKER, END_MARKER, mergeAgentsSection } from "./agents.ts";
 import { readPackageMeta } from "./meta.ts";
 import { PROFILES_DIR, loadProfile } from "./profile.ts";
-import { agentsSection, fill } from "./render.ts";
+import { agentsSection, fill, webTopsYaml } from "./render.ts";
 import { runInit } from "./run.ts";
 import { madeDirs, put, tempDir } from "./test-support.ts";
 
@@ -146,6 +146,20 @@ describe("the AGENTS.md section", () => {
     ]) {
       expect(text, line).toContain(line);
     }
+  });
+});
+
+describe("webTopsYaml", () => {
+  it("keeps a long reason on one line", () => {
+    const loaded = loadProfile("ts-library");
+    if (!loaded.ok) throw new Error(loaded.error);
+    const reason = Array.from({ length: 30 }, () => "reason").join(" ");
+    const text = webTopsYaml(
+      { ...loaded.profile, disabled: { crap: reason } },
+      { name: "demo", version: "1.0.0" },
+      { mapped: false, reason: "" },
+    );
+    expect(text).toContain(`reason: ${reason}\n`);
   });
 });
 
