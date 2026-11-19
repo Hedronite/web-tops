@@ -15,6 +15,15 @@ const root = resolve(import.meta.dirname, "../..");
 const CLASSES = ["ts-library", "ui-components", "astro-site", "web-app", "node-service"] as const;
 type Class = (typeof CLASSES)[number];
 
+// From WEB_TOPS.md section 4: which plugin set each class adds to the base law rules.
+const VARIANT: Record<Class, "base" | "react" | "astro"> = {
+  "ts-library": "base",
+  "node-service": "base",
+  "ui-components": "react",
+  "web-app": "react",
+  "astro-site": "astro",
+};
+
 afterAll(() => {
   for (const dir of madeDirs()) rmSync(dir, { recursive: true, force: true });
 });
@@ -179,13 +188,6 @@ function syntaxErrors(source: string, fileName: string): number {
   return result.diagnostics?.length ?? 0;
 }
 
-const lawRules = (source: string): ReadonlySet<string> =>
-  new Set(
-    [...source.matchAll(/"((?:@[\w-]+\/)?[\w-]+(?:\/[\w-]+)?)":\s*\[?\s*"error"/g)].map(
-      (m) => m[1] ?? "",
-    ),
-  );
-
 const WORKFLOW = ".github/workflows/web-tops.yml";
 /** The actions/setup-node release the workflow pins, read from its tag on 2026-11-17. */
 const SETUP_NODE = "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1";
@@ -335,8 +337,13 @@ describe.each(CLASSES)("webtops init --class %s", (className) => {
     expect(sentence.includes("astro check")).toBe(className === "astro-site");
   });
 
-  it("carries every W-04 flag in tsconfig.strict.json", () => {
-    const tsconfig: unknown = JSON.parse(read(dir, "tsconfig.strict.json"));
+  it("writes a tsconfig.strict.json that only extends the preset, which carries every W-04 flag", () => {
+    expect(JSON.parse(read(dir, "tsconfig.strict.json"))).toEqual({
+      extends: "web-tops/tsconfig/strict.json",
+    });
+    const tsconfig: unknown = JSON.parse(
+      readFileSync(join(root, "src/presets/tsconfig/strict.json"), "utf8"),
+    );
     for (const flag of [
       "strict",
       "noUncheckedIndexedAccess",
@@ -351,30 +358,26 @@ describe.each(CLASSES)("webtops init --class %s", (className) => {
     }
   });
 
-  it("writes an eslint.config.js that parses, with the astro and a11y plugins only where mapped", () => {
+  it("writes an eslint.config.js that parses and only names this class's variant", () => {
     const source = read(dir, "eslint.config.js");
     expect(syntaxErrors(source, "eslint.config.js")).toBe(0);
-    const a11y =
-      className === "ui-components" || className === "web-app" || className === "astro-site";
-    expect(source.includes("eslint-plugin-jsx-a11y-x")).toBe(a11y);
-    expect(source.includes("eslint-plugin-react-hooks")).toBe(
-      className === "ui-components" || className === "web-app",
-    );
-    expect(source).toContain("js.configs.recommended");
-    expect(source.includes("eslint-plugin-astro")).toBe(className === "astro-site");
-    expect(source).toContain("strictTypeChecked");
-    expect(source).toContain('reportUnusedDisableDirectives: "error"');
+    expect(source).toContain('from "web-tops/eslint"');
+    expect(source).toContain(`variant: "${VARIANT[className]}"`);
+    expect(source).not.toContain("eslint-plugin-");
+    expect(source).not.toContain("strictTypeChecked");
   });
 
-  it("writes a dependency-cruiser config that parses and forbids cycles and unresolvable imports", () => {
+  it("writes a dependency-cruiser config that parses and takes its rules from the preset", () => {
     const source = read(dir, ".dependency-cruiser.cjs");
     expect(syntaxErrors(source, ".dependency-cruiser.cjs")).toBe(0);
-    expect(source).toContain("no-circular");
-    expect(source).toContain("no-unresolvable");
+    expect(source).toContain('require("web-tops/depcruise")');
+    expect(source).not.toContain("no-circular");
   });
 
-  it("writes a stylelint config that parses", () => {
-    expect(syntaxErrors(read(dir, "stylelint.config.js"), "stylelint.config.js")).toBe(0);
+  it("writes a stylelint config that parses and takes its rules from the preset", () => {
+    const source = read(dir, "stylelint.config.js");
+    expect(syntaxErrors(source, "stylelint.config.js")).toBe(0);
+    expect(source).toContain('from "web-tops/stylelint"');
   });
 
   it("writes web-tops.lock with exactly this class's tools at the kit's exact versions", () => {
@@ -439,25 +442,6 @@ describe.each(CLASSES)("webtops init --class %s", (className) => {
   });
 });
 
-describe("webtops init, the gate's own rule set", () => {
-  it("ts-library's eslint config enables the same law rules as the kit's own config", () => {
-    const { dir } = initInto("ts-library");
-    expect(lawRules(read(dir, "eslint.config.js"))).toEqual(
-      lawRules(readFileSync(join(root, "eslint.config.js"), "utf8")),
-    );
-  });
-
-  it("every class's eslint config sets every mapped law rule to error", () => {
-    const kit = lawRules(readFileSync(join(root, "eslint.config.js"), "utf8"));
-    expect(kit.size).toBeGreaterThanOrEqual(15);
-    for (const className of CLASSES) {
-      const { dir } = initInto(className);
-      for (const rule of kit)
-        expect(lawRules(read(dir, "eslint.config.js")), `${className} ${rule}`).toContain(rule);
-    }
-  });
-});
-
 describe("webtops init, inputs", () => {
   it("falls back to the directory name and version 0.0.0 without a package.json", () => {
     const { dir } = initInto("ts-library");
@@ -508,7 +492,7 @@ describe("webtops init, refusals", () => {
     put(dir, "eslint.config.js", "// edited\n");
     const forced = runInit({ className: "ts-library", dir, force: true });
     expect(forced.code).toBe(0);
-    expect(read(dir, "eslint.config.js")).toContain("strictTypeChecked");
+    expect(read(dir, "eslint.config.js")).toContain("eslintPreset");
   });
 
   it.each(["cli", "workspace-root", "config-only", "bogus", ""])(

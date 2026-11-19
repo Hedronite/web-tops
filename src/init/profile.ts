@@ -63,15 +63,11 @@ export type ProfileLoad =
 type Read =
   { readonly ok: true; readonly doc: unknown } | { readonly ok: false; readonly error: string };
 
-function readProfileFile(className: string): Read {
+function readProfileFile(dir: string, className: string): Read {
   try {
-    return {
-      ok: true,
-      doc: parse(readFileSync(resolve(PROFILES_DIR, `${className}.yaml`), "utf8")),
-    };
+    return { ok: true, doc: parse(readFileSync(resolve(dir, `${className}.yaml`), "utf8")) };
   } catch (error) {
-    const why = error instanceof Error ? error.message : "?";
-    return { ok: false, error: `profiles/${className}.yaml is unreadable: ${why}` };
+    return { ok: false, error: `profiles/${className}.yaml is unreadable: ${String(error)}` };
   }
 }
 
@@ -88,15 +84,24 @@ function checkProfile(className: string, table: Profile, doc: unknown): ProfileL
   return { ok: true, profile: doc, table };
 }
 
+const tableFor = (className: string | undefined): Profile | undefined =>
+  className === undefined ? undefined : profileFor(className);
+
 const noProfile = (className: string | undefined): string =>
   className === undefined || className === ""
     ? "no class given"
     : `no launch profile for class "${className}"`;
 
-/** Loads `profiles/<className>.yaml` with the class's row of the one class table; only a launch class has both. */
-export function loadProfile(className: string | undefined): ProfileLoad {
-  const table = profileFor(className ?? "");
+/**
+ * Loads `profiles/<className>.yaml` from `dir` with the class's row of the one class table; only a
+ * launch class has both.
+ */
+export function loadProfile(
+  className: string | undefined,
+  dir: string = PROFILES_DIR,
+): ProfileLoad {
+  const table = tableFor(className);
   if (table === undefined) return { ok: false, error: noProfile(className) };
-  const read = readProfileFile(table.class);
+  const read = readProfileFile(dir, table.class);
   return read.ok ? checkProfile(table.class, table, read.doc) : read;
 }

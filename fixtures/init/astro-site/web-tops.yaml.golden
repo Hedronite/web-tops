@@ -1,0 +1,70 @@
+# Written by `webtops init` (WEB_TOPS.md sections 4 and 9). Under `hard`, only crap, mutation, build
+# output and laws may be off for a class that maps them: they are `enabled: false` with the milestone
+# that adds them. A layer the class does not map is off with the class as the reason.
+protocol: <protocol>
+version: 1.2.3
+package: demo
+class: astro-site
+enforce: hard
+baseline: .web-tops/baseline.json
+toolchain:
+  typescript: 6.0.3
+  runtime: bun
+gates:
+  hygiene:
+    eslint:
+      config: eslint.config.js
+    format:
+      tool: prettier
+    stylelint: {}
+    audit:
+      fail_on: high
+  tests:
+    runner: vitest
+    shuffle: true
+  coverage:
+    lines_floor: 70
+  crap:
+    cap: 6
+    scope: diff
+    complexity:
+      nullish_discount: true
+    enabled: false
+    reason: "milestone M2: native CRAP lands in M2"
+  mutation:
+    engine: stryker
+    scope: diff
+    base: origin/main
+    unexplained_survivors_max: 2
+    ledger: .web-tops/survivors.yaml
+    enabled: false
+    reason: "milestone M2: mutation testing lands in M2"
+layers:
+  size_limit:
+    tier: 1
+    enabled: false
+    reason: "not mapped for class: a site publishes no package entries"
+  package_exports:
+    tier: 1
+    enabled: false
+    reason: "not mapped for class: a site publishes no package exports"
+  html_validate:
+    enabled: false
+    reason: "milestone M4: build-output layers land in M4"
+  axe:
+    enabled: false
+    reason: "milestone M4: build-output layers land in M4"
+  rendered:
+    enabled: false
+    reason: "milestone M4: rendered checks land in M4"
+  themes:
+    enabled: false
+    reason: "milestone M4: the theme reader lands in M4"
+  custom: []
+laws:
+  select: default
+  ack_ledger: .web-tops/acks.yaml
+  enabled: false
+  reason: "milestone M3: the laws layer lands in M3"
+report:
+  path: .web-tops/report.json

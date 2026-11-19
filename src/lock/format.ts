@@ -70,7 +70,9 @@ export function parseLock(text: string): LockParse {
 /** Writes a lock file: header comment, keys sorted, one final newline, same bytes for the same map. */
 export function serializeLock(lock: Lock): string {
   const sorted = Object.fromEntries(
-    Object.entries(lock).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+    Object.keys(lock)
+      .sort()
+      .map((tool) => [tool, lock[tool]]),
   );
   return HEADER + stringify(sorted, { defaultStringType: "PLAIN", lineWidth: 0 });
 }

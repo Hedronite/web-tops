@@ -1,0 +1,92 @@
+<!-- web-tops:begin -->
+
+# AGENTS.md — Web-TOPS Agent Contract
+
+This section is the contract between this repository and any AI coding agents (or human reviewers) working on it. `webtops init` replaces only the text between the `web-tops` markers.
+
+**Class:** `ui-components`
+**Protocol:** Web-TOPS <protocol>
+**Package:** `demo`
+**Enforce:** `hard`
+
+## Commands
+
+```bash
+bunx webtops check          # validate config
+bunx webtops gate           # the merge gate (tier ≤ 1): the definition of done
+bunx webtops report --format text
+```
+
+## Floors (this class)
+
+- Line coverage ≥ `80%`
+- Other layers: see `web-tops.yaml`
+
+## Policies
+
+The rules every change is held to are Web-TOPS §3.4, "Stated rules" ([WEB_TOPS.md](https://github.com/Hedronite/web-tops/blob/main/WEB_TOPS.md#34-stated-rules)). This section keeps no copy of them: read them there and follow them as written.
+
+## Standards, with the check behind each
+
+**[review]** means no tool catches it; the reviewer must. Law IDs name the rule; while laws is disabled, these are checked in review, not by the gate.
+
+### Types
+
+- **Never use `any`, `as`, or `!`.** Take `unknown` and narrow it, or parse it with a schema. `as const` is fine. **[W-01, W-02]**
+- **A type guard is an assertion too.** `x is T` and `asserts x is T` are trusted without proof: derive them from a schema or cover them with a property test. **[W-03]**
+- **Only erasable syntax:** no `enum`, `namespace`, or parameter properties. Use an `as const` object and a derived union. **[W-05, `erasableSyntaxOnly`]**
+- **Guard indexed access.** `arr[0]` and `record[key]` may be `undefined`. Compare with `=== undefined`, not truthiness, so `""` and `0` are not treated as missing. **[`noUncheckedIndexedAccess`, W-04]**
+- **Derive types, don't duplicate them:** `Pick`, `Omit`, `Partial`, `z.infer`. **[review, W-07]**
+- **Use `satisfies`** for config objects and route tables, to keep literal types. **[review, W-08]**
+- **Keep generics simple:** no unused type parameters, no deep conditional-type chains. **[W-09]**
+- **Make `switch` over a union exhaustive.** **[W-10]**
+
+### Data at the boundary
+
+- **Validate external data where it enters.** `response.json()`, `JSON.parse` and message `data` return `any`, so unvalidated use fails lint **[W-06, W-01]**. `FormData` and storage reads, `URLSearchParams` and `process.env` are typed `string` or `null`, which no rule checks: parse them with a schema before use. **[review, W-06]**
+- **Read env through a schema** (`astro:env` or a Zod module), never raw `process.env` / `import.meta.env` in logic. Only `PUBLIC_` values reach client code. **[W-06, W-37]**
+
+### Async and errors
+
+- **No floating promises:** every promise is awaited, returned, or explicitly handled. **[W-11]**
+- **Bound concurrency.** `Promise.all` over input of unbounded size starts everything at once; use a limit. Don't serialize independent awaits in a loop either. **[W-12]**
+- **Caught values are `unknown`:** narrow them, and rethrow with `{ cause: error }`. **[W-13, `preserve-caught-error`]**
+- **Throw and reject only `Error` objects.** **[W-14]**
+
+### Modules
+
+- **Type-only imports use `import type` or inline `type`.** **[W-15, `verbatimModuleSyntax`]**
+- **Import through a package's `exports`**, never `pkg/dist/…`. No cycles, and respect the declared package boundaries. **[W-16, W-17]**
+- **Optional peers** (React, R3F) are imported only from entries that declare them. **[W-19]**
+- **Follow the rules of hooks:** call hooks only at the top level of a component or custom hook, and list every dependency. **[W-47]**
+- **Delete dead code:** no unused exports, files or dependencies. **[review, W-48]**
+
+### HTML, CSS, Tailwind, Astro
+
+- **Semantic HTML:** a `<button>` for actions, never a clickable `<div>`; `alt` on images; a `<label>` tied to its control. Lint cannot tell whether a control has a name; axe judges that on the built page. **[W-22, W-21]**
+- **Built pages must validate** and pass axe with no serious or critical violations. **[W-20, W-21]**
+- **Write Tailwind classes as complete strings.** `` `bg-${color}-500` `` is never generated. Map values to whole class names instead. **[W-23]**
+- **Use theme tokens** (`@theme`) instead of raw hex values and arbitrary sizes. **[W-24, W-25]**
+- **Ship no JavaScript you don't need.** Astro pages are static by default; add an island only when needed, and prefer `client:visible` or `client:idle` over `client:load`. **[W-28, W-29]**
+- **Use `astro:assets`** (`<Image>`, `<Picture>`) with dimensions. **[W-30]**
+- **Keep frontmatter thin.** Move logic into a `.ts` module, where it can be tested. **[W-31]**
+- **No `set:html`, `dangerouslySetInnerHTML`, or `innerHTML`** with unsanitized input. **[W-36]**
+
+### Tests
+
+- **Table-driven where it fits; property tests (`fast-check`) for parsers, schemas, and guards.** **[review]**
+- **Deterministic:** fake timers, no live network, seeded randomness. **[W-33]**
+- **No `.only` or `.skip` committed.** **[W-34]**
+
+## Verification (before finishing any task)
+
+```bash
+bunx webtops gate
+```
+
+It runs type checks, lint, tests with coverage, and package export checks. Running `tsc` or `eslint` by hand is not done. A green gate is.
+
+---
+
+_Generated by `webtops init`. Change laws or floors only through the protocol change process._
+<!-- web-tops:end -->

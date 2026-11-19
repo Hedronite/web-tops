@@ -26,9 +26,8 @@ function appendTo(existing: string, rendered: string): string {
 function pairProblem(existing: string): string | undefined {
   const begins = occurrences(existing, BEGIN_MARKER);
   const ends = occurrences(existing, END_MARKER);
-  if (begins === 1 && ends === 1 && existing.indexOf(END_MARKER) > existing.indexOf(BEGIN_MARKER)) {
-    return undefined;
-  }
+  const fromBegin = existing.slice(existing.indexOf(BEGIN_MARKER));
+  if (begins === 1 && ends === 1 && fromBegin.includes(END_MARKER)) return undefined;
   return (
     `AGENTS.md has ${String(begins)} begin and ${String(ends)} end markers, or they are out of order ` +
     "(markers inside fenced code blocks count too, so a file that quotes them cannot be inited)"
