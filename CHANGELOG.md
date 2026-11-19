@@ -4,7 +4,9 @@ All notable changes to this project are listed here. The protocol version and th
 
 ## [Unreleased]
 
-The risk engine of milestone M2. The `webtops` CLI measures CRAP and mutation survival natively, holds a baseline under `ratchet`, and gates this repo on itself with both at `hard`. The protocol stays 0.3.0; `report_version` is 2.2.0.
+## [0.3.0] - 2026-11-19
+
+The `webtops` CLI in this release implements protocol 0.3.0, and adds the risk engine of milestone M2. It measures CRAP and mutation survival natively, holds a baseline under `ratchet`, and gates this repo on itself with both at `hard`. The protocol stays 0.3.0; `report_version` is 2.2.0.
 
 - StrykerJS is pinned exactly at the §2 versions, and the M2 source paths are in every tool scope. (G0)
 - Findings have one shape (`tool`, `rule`, `law`, `fingerprint`), with `fp1` fingerprints that survive unrelated edits. Counts per rule per file derive from them. (G1)
@@ -16,8 +18,10 @@ The risk engine of milestone M2. The `webtops` CLI measures CRAP and mutation su
 - The mutation layer runs StrykerJS on the diff's functions (or all of them, with `--all`) on the gate's own Vitest config, keys each survivor, and is `not-evaluated` past its time budget. (G7)
 - The survivor key has six fields, and the survivor ledger `.web-tops/survivors.yaml` explains a survivor with a reason, an owner and an expiry; `webtops survivors` checks the ledger and counts the unexplained survivors of the last report. (G8)
 - `webtops baseline` is the only writer of `.web-tops/baseline.json`, projected from the last report: CRAP per function, coverage per package, finding counts per rule per file, suppression counts by census kind and page bytes. Under `ratchet`, a rise in any count is refused, and deleting the file is not a reset. A first baseline takes legacy debt from a run that failed only on what a baseline holds, and the report says `crap_scope` (`report_version` 2.2.0). (G9)
-- The suppression census reads eight directive comments (`eslint-disable`, `ts-expect-error`, `ts-ignore`, `ts-nocheck`, `stylelint-disable`, `biome-ignore`, `stryker-disable`, `html-validate-disable`) and three config-level kinds (`eslint-rule-off`, `eslint-ignores`, `tsconfig-exclude`), reports each as a `census/<kind>` finding, and the baseline counts them by kind. The two axe kinds wait for the axe layer in M4. (R75)
+- The suppression census reads eight directive comments (`eslint-disable`, `ts-expect-error`, `ts-ignore`, `ts-nocheck`, `stylelint-disable`, `biome-ignore`, `stryker-disable`, `html-validate-disable`) and three config-level kinds (`eslint-rule-off`, `eslint-ignores`, `tsconfig-exclude`), reports each as a `census/<kind>` finding, and the baseline counts them by kind. The two axe kinds, `axe-disable-rules` and `axe-exclude`, are read from the TypeScript syntax of each script that names `AxeBuilder`; an argument that is not a literal string (or an array of them) is a failing `census-axe-unreadable` finding, never a zero. (R75, PR 50)
 - The mutation summary line counts each Stryker status (killed, timeout, survived, no-coverage, runtime-error, compile-error, ignored). Stryker's workers follow the CPUs the process can use and its timeout factor is 3, and a run in which more than a tenth of the judged mutants (and more than two) timed out is `not-evaluated`, because a timeout counts as killed and a loaded runner could hide a weak test. (R77, R78)
+- The text report folds the passing census findings into one count for each kind. (PR 49)
+- Protocol §6.4 makes the mutation time budget final: 30 minutes by default (`gates.mutation.time_budget_minutes`), no longer provisional. (PR 51)
 - `webtops lock --update` adds the pinned tools that are installed. (PR 32)
 - The survivor ledger keeps the leading whitespace of a key. (PR 42)
 - The kit's own gate runs CRAP and mutation at `hard` in the one `gate` job on both operating systems; the Stryker config keeps the checker's own type-check setting so that fixtures are read as they are; the kit's tests have a 30 s timeout for real-tool runs. (G10)
@@ -84,3 +88,8 @@ The `webtops` CLI in this release implements protocol 0.2.1; the 0.3.0 text is m
 - `AGENTS.md` and `CLAUDE.md`: standing orders for agents working on this repo.
 - `docs/brand/web-tops-logo.jpg`.
 - Dual license, MIT OR Apache-2.0.
+
+[Unreleased]: https://github.com/Hedronite/web-tops/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/Hedronite/web-tops/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/Hedronite/web-tops/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/Hedronite/web-tops/releases/tag/v0.1.0
