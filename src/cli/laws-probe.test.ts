@@ -56,6 +56,13 @@ describe("G3b `laws probe`: arguments and problems", () => {
     });
   });
 
+  it("an error that is not the catalog's is not hidden as a usage problem: it is thrown", async () => {
+    const crashed: LawSource = () => {
+      throw new Error("disk on fire");
+    };
+    await expect(cli([], tempDir(), { laws: crashed })).rejects.toThrow("disk on fire");
+  });
+
   it("says so when the catalog has no law at all", async () => {
     const empty: LawSource = () => [];
     const result = await cli([], tempDir(), { laws: empty });
