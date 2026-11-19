@@ -174,6 +174,17 @@ survivors:
     reason: The YAML parser throws only Error instances, so the fallback text is a
       dead branch.
     owner: web-platform
+  - file: src/lock/installed.ts
+    function: src/lock/installed.ts::parts
+    mutator: StringLiteral
+    original: "\"\""
+    replacement: "\"Stryker was here!\""
+    occurrence: 2
+    reason: The replacement text is appended to the last segment before the dash,
+      and parseInt reads only its leading digits, so any text after them is
+      ignored; a segment with no digits gives NaN, which reads as 0 for an empty
+      segment too. The same compared value results.
+    owner: web-platform
   - file: src/lock/node.ts
     function: src/lock/node.ts::atLeast
     mutator: EqualityOperator
