@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { RawFinding } from "../../report/findings.ts";
 import type { ExecResult } from "../../gate/types.ts";
@@ -65,16 +65,25 @@ async function pack(
   return { file: join(step.dir, tarball) };
 }
 
-async function publintFindings(step: StepContext, file: string): Promise<RawFinding[]> {
-  const outcome = await ran(step, "publint", ["run", file]);
-  if ("failed" in outcome) {
-    return [...outcome.failed.findings];
-  }
-  const { result } = outcome;
-  if (result.code === 0) {
-    return [];
-  }
-  const items = publintErrors(result.stdout);
+/** What publint said: its exit code and the errors it listed. The laws layer reads this as `publint-json`. */
+export interface PublintReport {
+  readonly code: number | null;
+  readonly errors: readonly string[];
+}
+
+/** What attw said: its exit code and each problem with the entry point it names. The laws layer reads this as `attw-json`. */
+export interface AttwReport {
+  readonly code: number | null;
+  readonly problems: readonly { readonly kind: string; readonly entrypoint: string }[];
+}
+
+interface Part<T> {
+  readonly findings: RawFinding[];
+  readonly report?: T;
+}
+
+/** What a publint that exited non-zero is reported as: each error it listed, or the one finding that says what it printed. */
+function publintFailures(result: ExecResult, items: readonly string[]): RawFinding[] {
   const shown =
     items.length > 0
       ? items
@@ -82,18 +91,27 @@ async function publintFindings(step: StepContext, file: string): Promise<RawFind
   return shown.map((item) => failFinding("publint", "publint", item));
 }
 
+async function publintPart(step: StepContext, file: string): Promise<Part<PublintReport>> {
+  const outcome = await ran(step, "publint", ["run", file]);
+  if ("failed" in outcome) {
+    return { findings: [...outcome.failed.findings] };
+  }
+  const { result } = outcome;
+  const items = result.code === 0 ? [] : publintErrors(result.stdout);
+  const findings = result.code === 0 ? [] : publintFailures(result, items);
+  return { findings, report: { code: result.code, errors: items } };
+}
+
 function entrypointOf(entry: unknown): string {
   return isRecord(entry) ? str(entry["entrypoint"], "?") : "?";
 }
 
-function attwEntries(problems: unknown): RawFinding[] {
+function attwProblemList(problems: unknown): AttwReport["problems"] {
   if (!isRecord(problems)) {
     return [];
   }
   return Object.entries(problems).flatMap(([kind, entries]) =>
-    arrayOf(entries).map((entry) =>
-      failFinding("attw", `attw:${kind}`, `entrypoint ${entrypointOf(entry)}`),
-    ),
+    arrayOf(entries).map((entry) => ({ kind, entrypoint: entrypointOf(entry) })),
   );
 }
 
@@ -102,7 +120,9 @@ function attwProblems(result: ExecResult): RawFinding[] {
   if (value === undefined) {
     return [exitFinding("attw", "attw-failed", "attw", result, "stderr")];
   }
-  const found = attwEntries(isRecord(value) ? value["problems"] : undefined);
+  const found = attwProblemList(isRecord(value) ? value["problems"] : undefined).map((problem) =>
+    failFinding("attw", `attw:${problem.kind}`, `entrypoint ${problem.entrypoint}`),
+  );
   return found.length > 0
     ? found
     : [
@@ -125,15 +145,39 @@ function attwProfile(esmOnly: boolean): RawFinding {
   };
 }
 
-async function attwFindings(step: StepContext, file: string): Promise<RawFinding[]> {
+function attwReport(result: ExecResult): AttwReport {
+  const value = result.code === 0 ? undefined : parseJson(result.stdout);
+  return {
+    code: result.code,
+    problems: attwProblemList(isRecord(value) ? value["problems"] : undefined),
+  };
+}
+
+async function attwPart(step: StepContext, file: string): Promise<Part<AttwReport>> {
   const esmOnly = isEsmOnly(step);
   const profile = esmOnly ? ["--profile", "esm-only"] : [];
   const head = attwProfile(esmOnly);
   const outcome = await ran(step, "attw", [file, "--format", "json", ...profile]);
   if ("failed" in outcome) {
-    return [head, ...outcome.failed.findings];
+    return { findings: [head, ...outcome.failed.findings] };
   }
-  return [head, ...(outcome.result.code === 0 ? [] : attwProblems(outcome.result))];
+  const { result } = outcome;
+  const found = result.code === 0 ? [] : attwProblems(result);
+  return { findings: [head, ...found], report: attwReport(result) };
+}
+
+/** Writes a tool's report beside the other artifacts of the layer, and names it, or names nothing when the tool gave none. */
+function keepReport(
+  step: StepContext,
+  name: string,
+  report: PublintReport | AttwReport | undefined,
+): Record<string, string> {
+  if (report === undefined) {
+    return {};
+  }
+  const path = step.out(`${name}.json`);
+  writeFileSync(path, `${JSON.stringify(report, null, 2)}\n`);
+  return { [`${name}-json`]: path };
 }
 
 export async function packageExports(step: StepContext): Promise<StepResult> {
@@ -141,9 +185,13 @@ export async function packageExports(step: StepContext): Promise<StepResult> {
   if ("failed" in packed) {
     return packed.failed;
   }
-  const findings = [
-    ...(await publintFindings(step, packed.file)),
-    ...(await attwFindings(step, packed.file)),
-  ];
-  return { findings };
+  const publint = await publintPart(step, packed.file);
+  const attw = await attwPart(step, packed.file);
+  return {
+    findings: [...publint.findings, ...attw.findings],
+    artifacts: {
+      ...keepReport(step, "publint", publint.report),
+      ...keepReport(step, "attw", attw.report),
+    },
+  };
 }

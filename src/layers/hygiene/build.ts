@@ -37,14 +37,24 @@ async function exitStep(step: StepContext, spec: ExitStep): Promise<StepResult> 
   };
 }
 
-export function install(step: StepContext): Promise<StepResult> {
-  return exitStep(step, {
-    tool: "bun",
-    args: ["install", "--frozen-lockfile"],
-    rule: "install-failed",
-    label: "bun install --frozen-lockfile",
-    first: "stderr",
-  });
+/** `bun install --frozen-lockfile`; its exit code is kept as `install-json` for the laws layer (W-40). */
+export async function install(step: StepContext): Promise<StepResult> {
+  const outcome = await ran(step, "bun", ["install", "--frozen-lockfile"]);
+  if ("failed" in outcome) {
+    return outcome.failed;
+  }
+  const { result } = outcome;
+  const path = step.out("install.json");
+  writeFileSync(
+    path,
+    `${JSON.stringify({ command: "bun install --frozen-lockfile", code: result.code })}\n`,
+  );
+  const label = "bun install --frozen-lockfile";
+  return {
+    findings:
+      result.code === 0 ? [] : [exitFinding("bun", "install-failed", label, result, "stderr")],
+    artifacts: { "install-json": path },
+  };
 }
 
 export function astroCheck(step: StepContext): Promise<StepResult> {
