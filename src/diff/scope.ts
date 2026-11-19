@@ -47,12 +47,6 @@ const TEST = /\.(test|spec)\.[cm]?tsx?$|(^|\/)__tests__\//;
 const SOURCE = /\.[cm]?tsx?$/;
 const DECLARATION = /\.d\.[cm]?ts$/;
 
-/**
- * The data trees of section 17: fixtures and probes break rules on purpose (a bad twin of W-34 is a focused test), so a
- * changed file under them is neither source to mutate nor a test to run.
- */
-const DATA_TREE = /^(?:fixtures|probes)\//u;
-
 export const isTestFile = (path: string): boolean => TEST.test(path) && SOURCE.test(path);
 export const isSourceFile = (path: string): boolean =>
   SOURCE.test(path) && !DECLARATION.test(path) && !TEST.test(path);
@@ -279,10 +273,5 @@ export async function diffScope(options: ScopeOptions): Promise<ScopeResult> {
   if (!base.ok) return { outcome: "fail", reason: base.reason };
   const text = await diffText(exec, options.cwd, base.value);
   if (!text.ok) return { outcome: "fail", reason: text.reason };
-  return assemble(
-    options,
-    exec,
-    base.value,
-    parseDiff(text.value).filter((file) => !DATA_TREE.test(file.path)),
-  );
+  return assemble(options, exec, base.value, parseDiff(text.value));
 }

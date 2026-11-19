@@ -114,41 +114,6 @@ describe("G6a: changed ranges and functions against the merge base", () => {
   });
 });
 
-describe("G6a: the data trees are not part of the diff", () => {
-  it("leaves out a changed twin under fixtures/ or probes/: it is not mutated, and a test twin is not run", async () => {
-    const dir = makeRepo({ "src/a.ts": A });
-    git(dir, "switch", "-q", "-c", "feature");
-    write(dir, {
-      "src/a.ts": A.replace("a * 2", "a * 3"),
-      "fixtures/laws/W-01/bad/a.ts": "export const a: any = 1;\n",
-      "fixtures/laws/W-34/bad/focused.test.ts": "it.only('x', () => undefined);\n",
-      "probes/w22/b.tsx": "export const b = <img src='x' />;\n",
-    });
-    commit(dir, "change");
-    const result = await diffScope({ copyToken: () => "tok", cwd: dir, base: "main" });
-    expect(result.outcome).toBe("scope");
-    if (result.outcome !== "scope") return;
-    expect(result.scope.mutate).toEqual(["src/a.ts:5-5"]);
-    expect(result.scope.files.map((file) => file.path)).toEqual(["src/a.ts"]);
-    expect(result.scope.testFiles).toEqual([]);
-  });
-
-  it("only the two trees at the top: a test under src/fixtures/ is still a test", async () => {
-    const dir = makeRepo({ "src/a.ts": A });
-    git(dir, "switch", "-q", "-c", "feature");
-    write(dir, { "src/fixtures/a.test.ts": "export {};\n" });
-    commit(dir, "change");
-    const result = await diffScope({
-      copyToken: () => "tok",
-      cwd: dir,
-      base: "main",
-      coverageOf: () => Promise.resolve(new Map()),
-    });
-    const scope = scopeOf(result);
-    expect(scope?.testFiles).toEqual(["src/fixtures/a.test.ts"]);
-  });
-});
-
 describe("G6b: a diff that cannot be taken fails; one with nothing to mutate is vacuous", () => {
   it("fails on a shallow clone, with the reason", async () => {
     const origin = makeRepo({ "src/a.ts": A });
