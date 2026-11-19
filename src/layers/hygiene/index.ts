@@ -27,6 +27,9 @@ const ARTIFACTS = [
   "stylelint-json",
   "dependency-cruiser-json",
   "tsc-diagnostics",
+  "install-json",
+  "publint-json",
+  "attw-json",
 ];
 
 const WORST_FIRST: readonly Verdict[] = ["fail", "not-run", "not-evaluated", "ack-missing"];
