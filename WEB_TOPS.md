@@ -397,7 +397,8 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
   cannot run is `fail`; a merge-base version that cannot run against HEAD adds nothing. The diff is
   taken without rename detection, so a renamed file counts as new and every function in it is
   judged. A pure deletion belongs to the smallest function that holds the lines on both sides of
-  it, else to the file's `<module>` (§6.7).
+  it, else to the file's `<module>` (§6.7). The data trees of §17, `fixtures/` and `probes/` at the top of the tree, are
+  not part of the diff: a file changed under them is neither mutated nor run, because it breaks rules on purpose.
 - **Statuses.** Stryker's status of each mutant decides what counts:
 
 | Status | Counts as |

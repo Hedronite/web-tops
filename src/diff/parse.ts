@@ -32,7 +32,7 @@ function unquote(text: string): string {
 
 /** The path after `---` or `+++`: without git's trailing tab and a/ b/ prefix; null for /dev/null. */
 function pathOf(raw: string): string | null {
-  const text = raw.replace(/\t.*$/, "");
+  const text = raw.replace(/\t.*/, "");
   if (text === "/dev/null") return null;
   const bare = text.startsWith('"') ? unquote(text) : text;
   return bare.replace(/^[ab]\//, "");
@@ -43,12 +43,23 @@ function statusOf(oldPath: string | null | undefined, newPath: string | null): C
   return newPath === null ? "deleted" : "modified";
 }
 
+/**
+ * The data trees of section 17: fixtures and probes break rules on purpose (a bad twin of W-34 is a focused test), so a
+ * file changed under them is neither source to mutate nor a test to run, and it is not listed.
+ */
+const DATA_TREE = /^(?:fixtures|probes)\//;
+
+/** Makes the file current, and lists it, unless it is in a data tree: its hunks then belong to no file. */
+function register(state: State, path: string, status: ChangeStatus): void {
+  state.file = DATA_TREE.test(path) ? undefined : { path, status, ranges: [], removedAfter: [] };
+  if (state.file !== undefined) state.files.push(state.file);
+}
+
 function openFile(state: State, raw: string): void {
   const newPath = pathOf(raw);
   const path = newPath ?? state.oldPath;
   if (path === null || path === undefined) return;
-  state.file = { path, status: statusOf(state.oldPath, newPath), ranges: [], removedAfter: [] };
-  state.files.push(state.file);
+  register(state, path, statusOf(state.oldPath, newPath));
 }
 
 function startOf(match: RegExpExecArray): number {
@@ -127,7 +138,7 @@ function inHunk(state: State, hunk: Hunk, line: string): void {
 function header(state: State, line: string): void {
   if (line.startsWith("--- ")) state.oldPath = pathOf(line.slice(4));
   else if (line.startsWith("+++ ")) openFile(state, line.slice(4));
-  else if (line.startsWith("@@ ")) openHunk(state, line);
+  else openHunk(state, line);
 }
 
 function feed(state: State, line: string): void {
