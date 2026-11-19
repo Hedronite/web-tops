@@ -7,7 +7,8 @@ classes: [ts-library, ui-components, astro-site, web-app, node-service]
 reader:
   kinds: [tl]
   text: "tl: `dependency-cruiser`"
-rules: []
+rules:
+  - { tool: depcruise, name: "no-optional-peer-outside-entry" }
 judged: v0.1
 rationale: "An optional peer imported from an entry that does not declare it breaks installs that skip the peer."
 fix: "Import the peer only from entries that declare it, or declare it for the entry."
