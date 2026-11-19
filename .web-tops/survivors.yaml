@@ -71,6 +71,70 @@ survivors:
     reason: toolProblems visits the keys of the lock, so lock[tool] is never
       undefined; the fallback is a dead branch the types require.
     owner: web-platform
+  - file: src/cli/main.ts
+    function: src/cli/main.ts::<module>
+    mutator: BlockStatement
+    original: "{
+
+      \  process.exitCode = await run(process.argv.slice(2), stdio);
+
+      }"
+    replacement: "{}"
+    occurrence: 1
+    reason: The entry guard runs only when main.ts is the process entry point.
+      Real-process tests (src/cli/main.test.ts, src/cli/laws.test.ts) exercise
+      it, but the mutation runner switches a mutant on inside its own worker, so
+      the bun process a test spawns runs the file unmutated and no test it can
+      see fails.
+    owner: web-platform
+  - file: src/cli/main.ts
+    function: src/cli/main.ts::<module>
+    mutator: ConditionalExpression
+    original: "import.meta.main"
+    replacement: "false"
+    occurrence: 1
+    reason: The entry guard runs only when main.ts is the process entry point.
+      Real-process tests (src/cli/main.test.ts, src/cli/laws.test.ts) exercise
+      it, but the mutation runner switches a mutant on inside its own worker, so
+      the bun process a test spawns runs the file unmutated and no test it can
+      see fails.
+    owner: web-platform
+  - file: src/cli/main.ts
+    function: src/cli/main.ts::<module>
+    mutator: ConditionalExpression
+    original: "import.meta.main"
+    replacement: "true"
+    occurrence: 1
+    reason: The entry guard runs only when main.ts is the process entry point.
+      Real-process tests (src/cli/main.test.ts, src/cli/laws.test.ts) exercise
+      it, but the mutation runner switches a mutant on inside its own worker, so
+      the bun process a test spawns runs the file unmutated and no test it can
+      see fails.
+    owner: web-platform
+  - file: src/cli/main.ts
+    function: src/cli/main.ts::<module>
+    mutator: MethodExpression
+    original: "process.argv.slice(2)"
+    replacement: "process.argv"
+    occurrence: 1
+    reason: The entry guard runs only when main.ts is the process entry point.
+      Real-process tests (src/cli/main.test.ts, src/cli/laws.test.ts) exercise
+      it, but the mutation runner switches a mutant on inside its own worker, so
+      the bun process a test spawns runs the file unmutated and no test it can
+      see fails.
+    owner: web-platform
+  - file: src/cli/main.ts
+    function: src/cli/main.ts::<module>
+    mutator: StringLiteral
+    original: "\"laws\""
+    replacement: "\"\""
+    occurrence: 1
+    reason: The registration of laws is checked by a real-process test
+      (src/cli/laws.test.ts runs bun src/cli/main.ts laws list), which the
+      runner cannot mutate. The only in-process route to it is a test that
+      imports main.ts, and that puts every command module's top-level code into
+      mutation scope (R82).
+    owner: web-platform
   - file: src/config/profiles.ts
     function: src/config/profiles.ts::lawIds
     mutator: StringLiteral

@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
@@ -257,5 +258,26 @@ describe("webtops laws sync (G1c)", () => {
 
   it("produces from the catalog what the library function produces", () => {
     expect(syncTables(drifted, realLaws())).toEqual({ ok: true, markdown: protocol });
+  });
+});
+
+describe("bun src/cli/main.ts laws: the registered command, in a real process", () => {
+  const spawnCli = (...args: string[]) =>
+    spawnSync("bun", ["src/cli/main.ts", "laws", ...args], { cwd: ROOT, encoding: "utf8" });
+
+  it("lists the laws a class requires, exit 0", () => {
+    const { status, stdout } = spawnCli("list", "--class", "ts-library", "--required");
+    expect(status).toBe(0);
+    expect(stdout.split("\n")[0]).toBe("22 of 48 laws (class ts-library, required)");
+  });
+
+  it("exits 2 for a law that is not in the catalog, and names it", () => {
+    const { status, stderr } = spawnCli("explain", "W-99");
+    expect(status).toBe(2);
+    expect(stderr).toContain('no law "W-99"');
+  });
+
+  it("checks the section 8.2 of the kit against its catalog, exit 0", () => {
+    expect(spawnCli("sync", "--check").status).toBe(0);
   });
 });
