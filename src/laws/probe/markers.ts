@@ -26,7 +26,7 @@ function markerOf(line: string): Marker | undefined {
   if (found === null) {
     return undefined;
   }
-  const rules = rulesOf(found[1] ?? "");
+  const rules = rulesOf(String(found[1]));
   return rules.length === 0 ? undefined : { at: found.index, rules };
 }
 

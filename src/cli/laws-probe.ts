@@ -31,7 +31,8 @@ export interface ProbeDeps {
   readonly fixtures: string;
 }
 
-function defaults(): ProbeDeps {
+/** What a run reads that a test replaces, as the command has it: the gate's own exec, the catalog, the shipped twins. */
+export function defaults(): ProbeDeps {
   return { exec: realExec, laws: catalogLaws, fixtures: shippedFixtures() };
 }
 
@@ -62,7 +63,7 @@ function parseFlags(argv: readonly string[]): Parsed {
     });
     return { flags: { ...values, json: values.json === true } };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : "unreadable arguments" };
+    return { error: String(error) };
   }
 }
 

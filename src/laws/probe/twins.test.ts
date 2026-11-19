@@ -105,3 +105,22 @@ describe("G3a twins: fixtures/laws/W-NN/{bad,clean}/", () => {
     });
   });
 });
+
+describe("G3a twins: the files a twin has", () => {
+  it("a file that only contains an extension is not a twin: a backup, a map, a text copy", () => {
+    const dir = tempDir();
+    put(dir, {
+      "W-01/bad/a.ts": "export const a = 1;\n",
+      "W-01/bad/a.ts.bak": "x\n",
+      "W-01/bad/s.css.map": "x\n",
+      "W-01/bad/p.astro.txt": "x\n",
+      "W-01/bad/b.tsx.orig": "x\n",
+    });
+    expect(listTwins(dir, LAWS).map((found) => found.file)).toEqual(["W-01/bad/a.ts"]);
+    expect([isScript("a.ts.bak"), isScript("a.tsx.map"), isScript("a.mts")]).toEqual([
+      false,
+      false,
+      true,
+    ]);
+  });
+});

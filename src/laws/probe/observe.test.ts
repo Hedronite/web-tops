@@ -111,3 +111,27 @@ describe("G3b observe: what ESLint and tsc reported on the twins", () => {
     expect(readTsc(ROOT, "/project", `a.ts(1,1): error TS1:\n${text}`)).toBeUndefined();
   });
 });
+
+describe("G3a observe: what a tool's JSON may hold", () => {
+  it("lists nothing for a file result with no array under its key, and skips an item that is not a record", () => {
+    const json = [
+      { filePath: "/r/a.ts" },
+      { filePath: "/r/b.ts", messages: "not an array" },
+      { filePath: "/r/c.ts", messages: ["junk", 3, null, { ruleId: "x", line: 2 }] },
+    ];
+    expect(readEslint("/r", json)).toEqual([{ file: "c.ts", line: 2, rule: "x" }]);
+    const css = [
+      { source: "/r/a.css", warnings: ["junk", { rule: "y", line: 1 }] },
+      { source: "/r/b.css" },
+    ];
+    expect(readStylelint("/r", css)).toEqual([{ file: "a.css", line: 1, rule: "y" }]);
+  });
+
+  it("reads a tsc diagnostic with the code and the file as the line names them", () => {
+    const text = "src/a b.ts(3,4): error TS7006: x\nnoise\nsrc/c.ts(5,1): error TS2322: y\n";
+    expect(readTsc("/r", "/r", text)).toEqual([
+      { file: "src/a b.ts", line: 3, rule: "TS7006" },
+      { file: "src/c.ts", line: 5, rule: "TS2322" },
+    ]);
+  });
+});

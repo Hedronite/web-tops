@@ -6,8 +6,8 @@ import type { LawSource, ProbeLaw } from "./types.ts";
 export class CatalogError extends Error {}
 
 /** The kit's laws, from `laws/W-NN.yaml` (G1): a catalog with a file that is not valid is an error, never an empty list. */
-function readCatalog() {
-  const loaded = loadCatalog(CATALOG_DIR);
+export function readCatalog(dir: string = CATALOG_DIR) {
+  const loaded = loadCatalog(dir);
   if (!loaded.ok) {
     const lines = loaded.problems.map((found) => `${found.file}${found.pointer}: ${found.message}`);
     throw new CatalogError(`the catalog is invalid: ${lines.join("; ")}`);

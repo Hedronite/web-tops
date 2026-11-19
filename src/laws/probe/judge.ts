@@ -39,7 +39,7 @@ function missingTwin(law: ProbeLaw, twins: readonly Twin[], kind: TwinKind): Pro
 }
 
 /** A file that starts with `_` only supports the twins beside it (a type to import): it carries no marker, and is judged. */
-const isSupport = (file: string): boolean => (file.split("/").at(-1) ?? "").startsWith("_");
+const isSupport = (file: string): boolean => String(file.split("/").at(-1)).startsWith("_");
 
 /** Every bad twin carries a marker: a file with none proves nothing. */
 function unmarked(bad: ReadonlySet<string>, marks: readonly Expectation[]): ProbeFailure[] {

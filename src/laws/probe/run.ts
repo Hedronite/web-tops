@@ -71,7 +71,10 @@ function stopped(
   fine: readonly number[],
 ): ProbeProblem | undefined {
   if (result.failure !== undefined) {
-    return problem(`${name} did not run: ${result.failure}. ${tail(result.stderr)}`, 3);
+    return problem(
+      `${name} did not run: ${result.failure}. ${tail(`${result.stderr}\n${result.stdout}`)}`,
+      3,
+    );
   }
   return result.code !== null && fine.includes(result.code)
     ? undefined

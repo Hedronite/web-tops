@@ -76,3 +76,10 @@ describe("G3a markers: `// expect: <rule>` names what a line must report", () =>
     expect(parseMarkers("f.ts", "")).toEqual([]);
   });
 });
+
+describe("G3a markers: the shape of a marker", () => {
+  it("reads a rule that follows the colon with no space, and one after any number of spaces", () => {
+    expect(parseMarkers("f.ts", "x(); // expect:rule\n")[0]?.rules).toEqual(["rule"]);
+    expect(parseMarkers("f.ts", "x(); // expect:     rule\n")[0]?.rules).toEqual(["rule"]);
+  });
+});

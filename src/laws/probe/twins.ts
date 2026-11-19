@@ -27,10 +27,8 @@ export function stylelintIgnore(): string {
 
 /** Every file under a directory, as paths relative to it with `/` separators. */
 function filesUnder(directory: string, prefix = ""): string[] {
-  if (!existsSync(directory)) {
-    return [];
-  }
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) =>
+  const entries = existsSync(directory) ? readdirSync(directory, { withFileTypes: true }) : [];
+  return entries.flatMap((entry) =>
     entry.isDirectory()
       ? filesUnder(join(directory, entry.name), `${prefix}${entry.name}/`)
       : [`${prefix}${entry.name}`],

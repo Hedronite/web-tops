@@ -27,8 +27,11 @@ export function probeProcess(
     encoding: "utf8",
     maxBuffer: 1 << 26,
   });
-  return { code: run.status ?? -1, out: run.stdout, err: run.stderr };
+  return { code: statusOf(run.status), out: run.stdout, err: run.stderr };
 }
+
+/** The exit code of a process that was spawned, or -1 for one a signal ended before it gave one. */
+export const statusOf = (status: number | null): number => status ?? -1;
 
 export const NO_EXEC: Exec = () => Promise.reject(new Error("no tool should run"));
 
@@ -41,11 +44,20 @@ export async function cli(
   cwd: string,
   over: Partial<ProbeDeps> = {},
 ): Promise<{ code: number; out: string; err: string }> {
-  const out: string[] = [];
-  const err: string[] = [];
-  const io: Io = { out: (t) => out.push(t), err: (t) => err.push(t), cwd, env: process.env };
+  let out = "";
+  let err = "";
+  const io: Io = {
+    out: (text) => {
+      out += text;
+    },
+    err: (text) => {
+      err += text;
+    },
+    cwd,
+    env: process.env,
+  };
   const code = await runLawsProbeCli(argv, io, deps(over));
-  return { code, out: out.join(""), err: err.join("") };
+  return { code, out, err };
 }
 
 type Edit = (name: string, text: string) => string;
@@ -105,18 +117,29 @@ function isReport(value: unknown): value is ProbeReport {
   return typeof value === "object" && value !== null && Array.isArray(Reflect.get(value, "laws"));
 }
 
-/** The probe's JSON report on a project, with the exit code. */
-export function probeOf(
-  cwd: string,
-  ...argv: string[]
-): Promise<{ code: number; report: ProbeReport }> {
-  const run = probeProcess(cwd, "--json", ...argv);
+/** What `webtops laws probe --json` printed, read: it printed nothing to stderr, and its JSON is a report. */
+export function probeFrom(run: {
+  readonly code: number;
+  readonly out: string;
+  readonly err: string;
+}): {
+  code: number;
+  report: ProbeReport;
+} {
   expect(run.err).toBe("");
   const report: unknown = JSON.parse(run.out);
   if (!isReport(report)) {
     throw new Error("the probe printed no report");
   }
-  return Promise.resolve({ code: run.code, report });
+  return { code: run.code, report };
+}
+
+/** The probe's JSON report on a project, with the exit code, from a real process. */
+export function probeOf(
+  cwd: string,
+  ...argv: string[]
+): Promise<{ code: number; report: ProbeReport }> {
+  return Promise.resolve(probeFrom(probeProcess(cwd, "--json", ...argv)));
 }
 
 export const messages = (report: ProbeReport): string[] =>

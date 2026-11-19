@@ -427,3 +427,63 @@ describe("G3b the runner lints Astro twins under the project's own ESLint config
     expect(calls.map((call) => toolOf(call.args))).toEqual(["eslint", "tsc"]);
   });
 });
+
+describe("G3b the runner's exact calls, and each law judged on its own twins", () => {
+  it("runs ESLint with no config flag at all when the project names none: the flags, the output file, the scratch directory", async () => {
+    const cwd = project();
+    const calls: Call[] = [];
+    await runProbe(request(cwd, fake({ eslintOutput: "[]" }, calls)));
+    const output = join(realpathSync(cwd), ".web-tops", "out", "laws-probe", "eslint.json");
+    expect(nth(calls, 0).args.slice(1)).toEqual([
+      "--no-ignore",
+      "--format",
+      "json",
+      "--output-file",
+      output,
+      join(".web-tops", "out", "laws-probe"),
+    ]);
+  });
+
+  it("a law's twins are its own: another law's clean twin does not stand in for one it lacks", async () => {
+    const cwd = project();
+    const other: ProbeLaw = { id: "W-98", proofs: ["no-thing"] };
+    const fixtures = tempDir();
+    put(fixtures, {
+      "W-99/bad/a.ts": "export const a = 1; // expect: no-thing\n",
+      "W-98/bad/a.ts": "export const a = 1; // expect: no-thing\n",
+      "W-98/clean/a.ts": "export const a = 1;\n",
+    });
+    const output = JSON.stringify([
+      {
+        filePath: join(realpathSync(cwd), ".web-tops/out/laws-probe/W-99/bad/a.ts"),
+        messages: [{ ruleId: "p/no-thing", line: 1, message: "m" }],
+      },
+      {
+        filePath: join(realpathSync(cwd), ".web-tops/out/laws-probe/W-98/bad/a.ts"),
+        messages: [{ ruleId: "p/no-thing", line: 1, message: "m" }],
+      },
+    ]);
+    const outcome = await runProbe(
+      request(cwd, fake({ eslintOutput: output }, []), { laws: [LAW, other], fixtures }),
+    );
+    const kinds = (id: string): string[] =>
+      outcome.ok
+        ? (outcome.report.laws
+            .find((law) => law.id === id)
+            ?.failures.map((failure) => failure.kind) ?? [])
+        : [];
+    expect(kinds("W-99")).toEqual(["no-clean-twin"]);
+    expect(kinds("W-98")).toEqual([]);
+  });
+
+  it("a tool that did not run says what it printed, stdout beside stderr", async () => {
+    const timeout: ExecResult = {
+      code: null,
+      stdout: "partial",
+      stderr: "late",
+      failure: "tool-timeout",
+    };
+    const outcome = await runProbe(request(project(), fake({ eslint: timeout }, [])));
+    expect(!outcome.ok && outcome.problem).toBe("eslint did not run: tool-timeout. late\npartial");
+  });
+});

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { catalogLaws, lawsOfClass } from "./catalog.ts";
+import { afterAll } from "vitest";
+import { CatalogError, catalogLaws, lawsOfClass, readCatalog } from "./catalog.ts";
+import { cleanTemp, put, tempDir } from "./testkit.ts";
+
+afterAll(cleanTemp);
 
 const ids = (className: string): string[] =>
   lawsOfClass(catalogLaws(), className).map((law) => law.id);
@@ -44,5 +48,28 @@ describe("G3a the laws the probe proves are the catalog's ticked lint and compil
     expect(ids("cli")).toEqual([]);
     expect(lawsOfClass([], "ts-library")).toEqual([]);
     expect(lawsOfClass([{ id: "W-99", proofs: [] }], "anything")).toHaveLength(1);
+  });
+});
+
+describe("G3a a catalog that cannot be read is an error with its problems", () => {
+  it("names each problem file and pointer, joined by semicolons, and is a CatalogError", () => {
+    const dir = tempDir();
+    put(dir, { "W-01.yaml": "id: W-01\n", "W-02.yaml": "id: W-02\n" });
+    let caught: unknown;
+    try {
+      readCatalog(dir);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(CatalogError);
+    const message = caught instanceof Error ? caught.message : "";
+    expect(message.startsWith("the catalog is invalid: ")).toBe(true);
+    expect(message).toContain("W-01.yaml");
+    expect(message).toContain("W-02.yaml");
+    expect(message).toContain("; ");
+  });
+
+  it("reads the kit's catalog when it is given no directory", () => {
+    expect(readCatalog().length).toBeGreaterThan(40);
   });
 });

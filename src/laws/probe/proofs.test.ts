@@ -54,3 +54,47 @@ describe("G3b proofs: what a finding or a marker must name to prove a rule or a 
     expect(provenBy("noImplicitOverride", "noFallthroughCasesInSwitch")).toBe(false);
   });
 });
+
+describe("G3b proofs: the whole table of codes", () => {
+  it("lists exactly the codes each flag raises", () => {
+    const table: Record<string, string[]> = {
+      noImplicitAny: ["TS7006"],
+      strictNullChecks: ["TS18047", "TS18048"],
+      strictFunctionTypes: ["TS2322"],
+      strictBindCallApply: ["TS2345"],
+      strictPropertyInitialization: ["TS2564"],
+      noImplicitThis: ["TS2683"],
+      useUnknownInCatchVariables: ["TS18046"],
+      noUncheckedIndexedAccess: ["TS18048"],
+      exactOptionalPropertyTypes: ["TS2375", "TS2379"],
+      noImplicitOverride: ["TS4114"],
+      noFallthroughCasesInSwitch: ["TS7029"],
+      verbatimModuleSyntax: ["TS1484"],
+      isolatedModules: ["TS1205"],
+      erasableSyntaxOnly: ["TS1294"],
+    };
+    for (const [flag, codes] of Object.entries(table)) {
+      expect(codesOf(flag), flag).toEqual(codes);
+    }
+  });
+
+  it("strict has the codes of the seven members of its family, in order", () => {
+    expect(codesOf("strict")).toEqual([
+      "TS7006",
+      "TS18047",
+      "TS18048",
+      "TS2322",
+      "TS2345",
+      "TS2564",
+      "TS2683",
+      "TS18046",
+    ]);
+  });
+
+  it("only strict is proven by a member of the family: another flag is proven by its own name", () => {
+    expect(provenBy("strict", "strictNullChecks")).toBe(true);
+    expect(provenBy("noImplicitAny", "strictNullChecks")).toBe(false);
+    expect(provenBy("noUncheckedIndexedAccess", "noImplicitThis")).toBe(false);
+    expect(provenBy("strict", "noUncheckedIndexedAccess")).toBe(false);
+  });
+});

@@ -201,3 +201,13 @@ describe("G3b the judge: a reader that is silent on its bad twin, or noisy on it
     expect(kinds(evidence)).toEqual(["silent", "noisy", "unproven"]);
   });
 });
+
+describe("G3b the judge says each failure in a sentence", () => {
+  it("names the bad twin that has no marker", () => {
+    const loose = twin("bad", "W-99/bad/b.ts");
+    const probe = judgeLaw({ ...GOOD, twins: [...TWINS, loose] });
+    expect(probe.failures.map((failure) => failure.message)).toEqual([
+      "W-99/bad/b.ts has no // expect: marker",
+    ]);
+  });
+});
