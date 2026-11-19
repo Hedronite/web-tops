@@ -53,6 +53,24 @@ describe("G3a markers: `// expect: <rule>` names what a line must report", () =>
     ]);
   });
 
+  it("reads a marker in an HTML comment, for an Astro template, alone on its line or after the markup", () => {
+    const text =
+      '---\nconst a = 1;\n---\n<!-- expect: alt-text -->\n<img src="a.png" />\n<a href="#">go</a> <!-- expect: anchor-is-valid, r2 -->\n';
+    expect(parseMarkers("W-22/bad/page.astro", text)).toEqual([
+      { file: "W-22/bad/page.astro", line: 5, rules: ["alt-text"] },
+      { file: "W-22/bad/page.astro", line: 6, rules: ["anchor-is-valid", "r2"] },
+    ]);
+  });
+
+  it("reads a line marker in an Astro frontmatter as in any script, and not one it only looks like", () => {
+    const text =
+      "---\nconst a: any = 1; // expect: no-explicit-any\n// expect: ban-ts-comment\n// @ts-expect-error\n---\n<!-- expects: r -->\n<!-- expect: -->\n/* expect: */\n";
+    expect(parseMarkers("page.astro", text)).toEqual([
+      { file: "page.astro", line: 2, rules: ["no-explicit-any"] },
+      { file: "page.astro", line: 4, rules: ["ban-ts-comment"] },
+    ]);
+  });
+
   it("a file with no marker has no expectation", () => {
     expect(parseMarkers("f.ts", "export const a = 1;\n")).toEqual([]);
     expect(parseMarkers("f.ts", "")).toEqual([]);

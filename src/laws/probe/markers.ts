@@ -1,7 +1,10 @@
 import type { Expectation } from "./types.ts";
 
-/** `// expect: a, b` at the end of a line; a CSS twin writes the same as a block comment. */
-const MARKER = /(?:\/\/|\/\*) expect:\s*(\S.*?)\s*(?:\*\/)?\s*$/u;
+/**
+ * `// expect: a, b` at the end of a line, which is also how an Astro frontmatter marks one; a CSS twin writes the same as
+ * a block comment, and an Astro template as an HTML comment.
+ */
+const MARKER = /(?:\/\/|\/\*|<!--) expect:\s*(?!\*\/|-->)(\S.*?)\s*(?:\*\/|-->)?\s*$/u;
 
 /** The rule ids a marker names: comma-separated, blanks dropped. */
 const rulesOf = (text: string): string[] =>
