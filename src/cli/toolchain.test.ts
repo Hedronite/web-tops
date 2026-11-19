@@ -438,7 +438,7 @@ describe("G0d: probes/** and fixtures/probe/** are reserved in every tool scope"
   it("vitest.config.ts excludes both from the tests it collects", () => {
     const text = readFileSync(join(root, "vitest.config.ts"), "utf8");
     expect(text).toMatch(/exclude: \[[^\]]*"probes\/\*\*"[^\]]*"fixtures\/probe\/\*\*"/);
-    expect(text).toContain('include: ["src/**/*.test.ts"]');
+    expect(text).toContain('include: ["src/**/*.test.ts", "packages/**/*.test.ts"]');
   });
 });
 

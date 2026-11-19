@@ -23,6 +23,12 @@
     "noUnusedParameters": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src", "vitest.config.ts"],
-  "exclude": ["probes", "fixtures/probe", "fixtures/complexity"]
+  "include": ["src", "packages", "vitest.config.ts"],
+  "exclude": [
+    "probes",
+    "fixtures/probe",
+    "fixtures/complexity",
+    "fixtures/laws",
+    "examples/node-service"
+  ]
 }
