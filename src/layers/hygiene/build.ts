@@ -69,11 +69,7 @@ export interface TscDiagnostic {
   readonly message: string;
 }
 
-const TSC_DIAGNOSTIC = /^(?:(.+?)\((\d+),(\d+)\): )?error (TS\d+): (.*)$/u;
-
-function group(match: RegExpExecArray, index: number): string {
-  return match[index] ?? "";
-}
+const TSC_DIAGNOSTIC = /^(?:(.+?)\((\d+),(\d+)\): )?error (TS\d+): (.*)/u;
 
 function optional<T>(text: string | undefined, make: (text: string) => T): T | null {
   return text === undefined ? null : make(text);
@@ -89,8 +85,8 @@ function diagnosticOf(text: string): TscDiagnostic | undefined {
     file: optional(match[1], (name) => name.replaceAll("\\", "/")),
     line: optional(match[2], count),
     column: optional(match[3], count),
-    code: group(match, 4),
-    message: group(match, 5),
+    code: String(match[4]),
+    message: String(match[5]),
   };
 }
 

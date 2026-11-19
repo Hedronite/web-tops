@@ -1,61 +1,106 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { cfg, noExec } from "../../gate/testkit.ts";
+import type { ExecResult, LayerContext } from "../../gate/types.ts";
+import { tsc } from "./build.ts";
 import { hygieneLayer } from "./index.ts";
-import { failures, fakeExec, prepare, recorded, runHygiene, type Prepared } from "./testkit.ts";
+import { recorded } from "./testkit.ts";
+import type { StepContext } from "./tooling.ts";
 
 // The hygiene tsc step keeps every diagnostic of `tsc -b --noEmit` in a run artifact that the laws
-// layer reads; what the layer reports as findings and as a verdict is unchanged by it.
+// layer reads; what the step reports as findings, and so the layer's verdict, is unchanged by it.
 
-const prepared: Prepared[] = [];
+const roots: string[] = [];
 
 afterEach(() => {
-  for (const item of prepared.splice(0)) {
-    item.project.cleanup();
+  for (const root of roots.splice(0)) {
+    rmSync(root, { recursive: true, force: true });
   }
 });
 
-const PACKAGE = JSON.stringify({
-  name: "pkg",
-  version: "1.0.0",
-  type: "module",
-  exports: { ".": "./dist/index.js" },
-});
-
-function setup(): Prepared {
-  const item = prepare({ "package.json": PACKAGE });
-  prepared.push(item);
-  return item;
+interface Outcome {
+  readonly findings: readonly unknown[];
+  readonly artifacts: Readonly<Record<string, string>> | undefined;
+  readonly path: string;
+  readonly written: unknown;
 }
 
-async function runTsc(code: number, stdout: string) {
-  const item = setup();
-  const fake = fakeExec(item.project.dir, { tsc: () => ({ code, stdout, stderr: "" }) });
-  const result = await runHygiene(item, fake.exec);
-  const path = join(item.outDir, "hygiene", "tsc-diagnostics.json");
+function layerContext(dir: string): LayerContext {
+  return {
+    cwd: dir,
+    config: cfg(),
+    base: "origin/main",
+    enforce: "hard",
+    env: {},
+    exec: noExec,
+    outDir: dir,
+    artifacts: new Map(),
+  };
+}
+
+async function runTsc(result: ExecResult): Promise<Outcome> {
+  const dir = mkdtempSync(join(tmpdir(), "wt-tsc-"));
+  roots.push(dir);
+  const calls: (readonly [string, readonly string[]])[] = [];
+  const step: StepContext = {
+    ctx: layerContext(dir),
+    settings: cfg().hygiene,
+    run: (tool, args) => {
+      calls.push([tool, args]);
+      return Promise.resolve(result);
+    },
+    dir,
+    out: (name) => join(dir, name),
+    pkg: { name: "", version: "", exportsText: "" },
+  };
+  const outcome = await tsc(step);
+  expect(calls).toEqual([["tsc", ["-b", "--noEmit"]]]);
+  const path = join(dir, "tsc-diagnostics.json");
   const written: unknown = existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : undefined;
-  return { result, path, written };
+  return { findings: outcome.findings, artifacts: outcome.artifacts, path, written };
 }
+
+const exited = (code: number, stdout: string): ExecResult => ({ code, stdout, stderr: "" });
 
 describe("R87 hygiene tsc: tsc-diagnostics.json", () => {
-  it("is declared as an artifact of the hygiene layer", () => {
-    expect(hygieneLayer.produces).toContain("tsc-diagnostics");
+  it("is declared by the hygiene layer, whose other declarations are as they were", () => {
+    expect(hygieneLayer.produces).toEqual([
+      "audit-json",
+      "eslint-json",
+      "stylelint-json",
+      "dependency-cruiser-json",
+      "tsc-diagnostics",
+    ]);
+    expect(hygieneLayer.classes).toEqual([
+      "ts-library",
+      "ui-components",
+      "astro-site",
+      "web-app",
+      "node-service",
+    ]);
+    expect(hygieneLayer.requires).toEqual([]);
+    expect(hygieneLayer.consumes).toEqual([]);
   });
 
-  it("holds an empty array when the compile was clean, and is listed as the artifact", async () => {
-    const { result, path, written } = await runTsc(0, "");
+  it("holds an empty array when the compile was clean, and names the file as the artifact", async () => {
+    const { findings, artifacts, path, written } = await runTsc(exited(0, ""));
     expect(written).toEqual([]);
-    expect(result.artifacts["tsc-diagnostics"]).toBe(path);
-    expect(result.verdict).toBe("pass");
+    expect(artifacts).toEqual({ "tsc-diagnostics": path });
+    expect(findings).toEqual([]);
   });
 
   it("holds an empty array on exit 0 whatever the output says", async () => {
-    const { written } = await runTsc(0, "src/a.ts(1,2): error TS1005: ';' expected.\n");
+    const { written, findings } = await runTsc(
+      exited(0, "src/a.ts(1,2): error TS1005: ';' expected.\n"),
+    );
     expect(written).toEqual([]);
+    expect(findings).toEqual([]);
   });
 
-  it("holds one entry per diagnostic, with file, line, column, code and message", async () => {
-    const { result, written } = await runTsc(1, recorded("tsc-errors.txt"));
+  it("holds one entry per diagnostic, and reports a finding for each exactly as before", async () => {
+    const { findings, written } = await runTsc(exited(1, recorded("tsc-errors.txt")));
     expect(written).toEqual([
       {
         file: "src/z.ts",
@@ -72,13 +117,36 @@ describe("R87 hygiene tsc: tsc-diagnostics.json", () => {
         message: "Type 'number' is not assignable to type 'string'.",
       },
     ]);
-    expect(failures(result)).toEqual(["TS2322", "TS2322"]);
-    expect(result.verdict).toBe("fail");
+    expect(findings).toEqual([
+      {
+        tool: "tsc",
+        rule: "TS2322",
+        verdict: "fail",
+        message: "Type 'string' is not assignable to type 'number'.",
+        file: "src/z.ts",
+        line: 1,
+      },
+      {
+        tool: "tsc",
+        rule: "TS2322",
+        verdict: "fail",
+        message: "Type 'number' is not assignable to type 'string'.",
+        file: "src/z.ts",
+        line: 2,
+      },
+    ]);
   });
 
-  it("gives a diagnostic with no file null file, line and column, and keeps the verdict as it was", async () => {
+  it("reads a line and a column of more than one digit", async () => {
+    const { written } = await runTsc(exited(1, "src/a.ts(120,345): error TS2345: Wrong.\n"));
+    expect(written).toEqual([
+      { file: "src/a.ts", line: 120, column: 345, code: "TS2345", message: "Wrong." },
+    ]);
+  });
+
+  it("gives a diagnostic with no file null file, line and column, and fails the step as it did", async () => {
     const stdout = "error TS5058: The specified path does not exist: 'src/missing'.\n";
-    const { result, written } = await runTsc(1, stdout);
+    const { findings, written } = await runTsc(exited(1, stdout));
     expect(written).toEqual([
       {
         file: null,
@@ -88,8 +156,14 @@ describe("R87 hygiene tsc: tsc-diagnostics.json", () => {
         message: "The specified path does not exist: 'src/missing'.",
       },
     ]);
-    expect(failures(result)).toEqual(["tsc-failed"]);
-    expect(result.verdict).toBe("fail");
+    expect(findings).toEqual([
+      {
+        tool: "tsc",
+        rule: "tsc-failed",
+        verdict: "fail",
+        message: `tsc exited 1: ${stdout.trim()}`,
+      },
+    ]);
   });
 
   it("keeps a file-less diagnostic beside the others, in order, and reports only the ones with a file", async () => {
@@ -98,43 +172,71 @@ describe("R87 hygiene tsc: tsc-diagnostics.json", () => {
       "src/a.ts(3,7): error TS7006: Parameter 'x' implicitly has an 'any' type.",
       "",
     ].join("\n");
-    const { result, written } = await runTsc(1, stdout);
+    const { findings, written } = await runTsc(exited(1, stdout));
     expect(written).toEqual([
       expect.objectContaining({ file: null, code: "TS5058" }),
       expect.objectContaining({ file: "src/a.ts", line: 3, column: 7, code: "TS7006" }),
     ]);
-    expect(failures(result)).toEqual(["TS7006"]);
+    expect(findings).toEqual([expect.objectContaining({ rule: "TS7006", file: "src/a.ts" })]);
   });
 
   it("keeps the first line of a message, not the lines that continue it", async () => {
     const stdout = "src/a.ts(3,7): error TS2345: Argument is wrong.\n  Type 'a' is not 'b'.\n";
-    const { written } = await runTsc(1, stdout);
+    const { written } = await runTsc(exited(1, stdout));
     expect(written).toEqual([
       { file: "src/a.ts", line: 3, column: 7, code: "TS2345", message: "Argument is wrong." },
     ]);
   });
 
+  it("does not read a diagnostic out of the middle of a line", async () => {
+    const { written, artifacts } = await runTsc(
+      exited(1, "a note quoting error TS2322: nothing\n"),
+    );
+    expect(written).toBeUndefined();
+    expect(artifacts).toEqual({});
+  });
+
   it("writes a project-relative path with forward slashes", async () => {
-    const { written } = await runTsc(1, "src\\deep\\a.ts(3,7): error TS2345: Wrong.\n");
+    const { written } = await runTsc(exited(1, "src\\deep\\a.ts(3,7): error TS2345: Wrong.\n"));
     expect(written).toEqual([
       { file: "src/deep/a.ts", line: 3, column: 7, code: "TS2345", message: "Wrong." },
     ]);
   });
 
   it("writes nothing when tsc failed with no diagnostic to read, so a missing file means no answer", async () => {
-    const { result, written } = await runTsc(2, "something went wrong\n");
+    const { findings, written, artifacts } = await runTsc({
+      code: 2,
+      stdout: "something went wrong\n",
+      stderr: "",
+    });
     expect(written).toBeUndefined();
-    expect(result.artifacts["tsc-diagnostics"]).toBeUndefined();
-    expect(failures(result)).toEqual(["tsc-failed"]);
+    expect(artifacts).toEqual({});
+    expect(findings).toEqual([
+      {
+        tool: "tsc",
+        rule: "tsc-failed",
+        verdict: "fail",
+        message: "tsc exited 2: something went wrong",
+      },
+    ]);
   });
 
-  it("writes nothing when the step is switched off", async () => {
-    const item = setup();
-    const fake = fakeExec(item.project.dir);
-    const result = await runHygiene(item, fake.exec, {
-      steps: { tsc: { enabled: false, reason: "not under test" } },
-    });
-    expect(existsSync(join(item.outDir, "hygiene", "tsc-diagnostics.json"))).toBe(false);
-    expect(result.artifacts["tsc-diagnostics"]).toBeUndefined();
-  });
+  it.each([
+    ["tool-missing", " tsc is gone \n", "tool-missing", "tsc is gone"],
+    ["tool-missing", "", "tool-missing", "tsc is not installed or not on PATH"],
+    ["tool-timeout", "", "tool-timeout", "tsc did not finish in time and was killed"],
+  ] as const)(
+    "writes nothing when tsc could not run (%s)",
+    async (failure, stderr, rule, message) => {
+      const { findings, written, artifacts } = await runTsc({
+        code: null,
+        stdout: "",
+        stderr,
+        failure,
+      });
+      expect(written).toBeUndefined();
+      expect(artifacts).toBeUndefined();
+      expect(findings).toEqual([{ tool: "tsc", rule, verdict: "fail", message }]);
+    },
+  );
 });
