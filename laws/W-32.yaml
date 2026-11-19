@@ -1,0 +1,13 @@
+# W-32: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-32
+title: "Oracle-first: tests derive from the contract, not the function body"
+family: "Tests, suppressions, security, build"
+severity: A
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [at]
+  text: "at"
+rules: []
+judged: no
+rationale: "Tests derived from the function body prove what the code does, not what it should do."
+fix: "Write the test from the contract before the code."

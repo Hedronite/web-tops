@@ -1,0 +1,14 @@
+# W-37: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-37
+title: "Only public env reaches client code (`PUBLIC_` vars, `astro:env` client fields)"
+family: "Tests, suppressions, security, build"
+severity: R
+classes: [ui-components, astro-site, web-app]
+reader:
+  kinds: [an]
+  text: "an"
+rules:
+  - { tool: eslint, name: "webtops/public-env-only" }
+judged: m3
+rationale: "A non-public env var in client code ships a secret to every visitor."
+fix: "Read only `PUBLIC_` vars or `astro:env` client fields in client code, and keep the rest on the server."

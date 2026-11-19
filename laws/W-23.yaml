@@ -1,0 +1,14 @@
+# W-23: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-23
+title: "Tailwind class names are complete strings. No class token built by interpolation (`` `bg-${c}-500` ``): Tailwind never sees it, and it is missing in production"
+family: "CSS and Tailwind"
+severity: R
+classes: [astro-site, web-app]
+reader:
+  kinds: [an]
+  text: "an: custom ESLint rule"
+rules:
+  - { tool: eslint, name: "webtops/complete-tailwind-classes" }
+judged: v0.1
+rationale: "Tailwind scans source text for complete class names; a name built at run time is never generated, so its style is missing in production."
+fix: "Write whole class names, and choose between them with a lookup table of complete strings."

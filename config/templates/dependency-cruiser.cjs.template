@@ -1,34 +1,4 @@
-/* global module -- a CommonJS config file */
-// Written by `webtops init` (WEB_TOPS.md sections 3.1 and 8.2). W-16: no import cycles.
-// W-17: no deep imports into another package's internals; imports go through `exports`. The
-// resolver reads each package's `exports`, so an import through a path it does not expose cannot be
-// resolved and fails at no-unresolvable. A rule on the resolved path would flag every normal import,
-// because a package's own types resolve into its dist.
-/** @type {import("dependency-cruiser").IConfiguration} */
-module.exports = {
-  forbidden: [
-    {
-      name: "no-circular",
-      comment: "W-16: no import cycles.",
-      severity: "error",
-      from: {},
-      to: { circular: true },
-    },
-    {
-      name: "no-unresolvable",
-      comment: "W-17: an unresolvable import is broken, deep ones too.",
-      severity: "error",
-      from: {},
-      to: { couldNotResolve: true },
-    },
-  ],
-  options: {
-    doNotFollow: { path: "node_modules" },
-    tsPreCompilationDeps: true,
-    tsConfig: { fileName: "tsconfig.json" },
-    enhancedResolveOptions: {
-      exportsFields: ["exports"],
-      conditionNames: ["import", "require", "node", "default", "types"],
-    },
-  },
-};
+/* global module, require -- a CommonJS config file */
+// Written by `webtops init` (WEB_TOPS.md sections 3.1 and 8.2). The rules live in web-tops/depcruise.
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- a CommonJS file can only require
+module.exports = require("web-tops/depcruise");

@@ -1,0 +1,14 @@
+# W-05: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-05
+title: "No `enum`, `namespace` or parameter properties: only erasable syntax (T-04, now mechanical)"
+family: "Types"
+severity: R
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [tl]
+  text: "tl: `erasableSyntaxOnly`"
+rules:
+  - { tool: tsc, name: "erasableSyntaxOnly" }
+judged: v0.1
+rationale: "Enums, namespaces and parameter properties emit code a type-stripping runtime cannot erase."
+fix: "Use a union of literals or a const object for an enum, a module for a namespace and a plain field for a parameter property."

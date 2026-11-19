@@ -1,0 +1,14 @@
+# W-16: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-16
+title: "No import cycles; declared package boundaries hold"
+family: "Modules and boundaries"
+severity: R
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [tl]
+  text: "tl: `dependency-cruiser`"
+rules:
+  - { tool: dependency-cruiser, name: "no-circular" }
+judged: v0.1
+rationale: "A cycle makes load order matter and hides coupling."
+fix: "Move the shared part into a module both import, or invert one dependency."

@@ -16,6 +16,20 @@
     "./schema/gate-report.schema.json": "./schema/gate-report.schema.json",
     "./schema/baseline.schema.json": "./schema/baseline.schema.json",
     "./schema/core.schema.json": "./schema/core.schema.json",
+    "./schema/law.schema.json": "./schema/law.schema.json",
+    "./eslint": {
+      "types": "./src/presets/eslint.d.ts",
+      "default": "./src/presets/eslint.js"
+    },
+    "./stylelint": {
+      "types": "./src/presets/stylelint.d.ts",
+      "default": "./src/presets/stylelint.js"
+    },
+    "./depcruise": {
+      "types": "./src/presets/depcruise.d.cts",
+      "default": "./src/presets/depcruise.cjs"
+    },
+    "./tsconfig/strict.json": "./src/presets/tsconfig/strict.json",
     "./package.json": "./package.json"
   },
   "bin": {
@@ -26,6 +40,7 @@
     "!src/**/*.test.ts",
     "!src/**/test-support*.ts",
     "schema",
+    "laws",
     "config",
     "profiles"
   ],

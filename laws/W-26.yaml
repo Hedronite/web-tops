@@ -1,0 +1,21 @@
+# W-26: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-26
+title: "Raw CSS passes Stylelint, with Tailwind 4 at-rules allowed"
+family: "CSS and Tailwind"
+severity: R
+classes: [astro-site, web-app]
+reader:
+  kinds: [tl]
+  text: "tl: Stylelint"
+rules:
+  - { tool: stylelint, name: "at-rule-no-unknown" }
+  - { tool: stylelint, name: "property-no-unknown" }
+  - { tool: stylelint, name: "block-no-empty" }
+  - { tool: stylelint, name: "color-no-invalid-hex" }
+  - { tool: stylelint, name: "unit-no-unknown" }
+  - { tool: stylelint, name: "declaration-block-no-duplicate-properties" }
+  - { tool: stylelint, name: "no-duplicate-selectors" }
+  - { tool: stylelint, name: "selector-pseudo-class-no-unknown" }
+judged: v0.1
+rationale: "CSS that fails Stylelint is a style-layer error that surfaces late and differently by browser."
+fix: "Fix what Stylelint reports."
