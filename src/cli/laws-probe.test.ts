@@ -7,7 +7,15 @@ import { cleanTemp, put, tempDir } from "../laws/probe/testkit.ts";
 import type { LawSource } from "../laws/probe/types.ts";
 import { runLawsCli } from "./laws.ts";
 import { CatalogError } from "../laws/probe/catalog.ts";
-import { adopter, cli, KIT, messages, probeOf, toolExec, verdicts } from "./test-support-probe.ts";
+import {
+  adopter,
+  cli,
+  KIT,
+  messages,
+  probeOf,
+  probeProcess,
+  verdicts,
+} from "./test-support-probe.ts";
 
 afterAll(cleanTemp);
 
@@ -84,7 +92,7 @@ describe("G3b `laws probe` on a project's own config", () => {
   beforeAll(async () => {
     const dir = adopter();
     kitLike = await probeOf(dir);
-    kitText = (await cli([], dir, { exec: toolExec })).out;
+    kitText = probeProcess(dir).out;
   }, REAL_TOOL_TIMEOUT);
 
   it("passes every law under a config that is the kit's, with no finding left unexplained", () => {

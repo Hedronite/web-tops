@@ -1,8 +1,8 @@
 import { readFileSync, symlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { expect } from "vitest";
-import { execFile, type ExecException } from "node:child_process";
-import type { Exec, ExecResult } from "../gate/types.ts";
+import { spawnSync } from "node:child_process";
+import type { Exec } from "../gate/types.ts";
 import { catalogLaws } from "../laws/probe/catalog.ts";
 import { put, tempDir } from "../laws/probe/testkit.ts";
 import type { ProbeReport } from "../laws/probe/types.ts";
@@ -13,31 +13,22 @@ import { runLawsProbeCli, type ProbeDeps } from "./laws-probe.ts";
 
 export const KIT = resolve(import.meta.dirname, "../..");
 
-/** What a finished `execFile` says about the process: the exit code it gave, or what stopped it from giving one. */
-const resultOf = (error: ExecException | null, stdout: string, stderr: string): ExecResult => {
-  if (error === null) return { code: 0, stdout, stderr };
-  if (typeof error.code === "number") return { code: error.code, stdout, stderr };
-  const failure = error.code === "ENOENT" ? ({ failure: "tool-missing" } as const) : {};
-  return { code: null, stdout, stderr: `${stderr}${error.message}`, ...failure };
-};
-
 /**
- * Runs a tool for a test, as a plain real process: its exit code, stdout and stderr come back as they were, a tool that
- * is not there is `tool-missing`, and any other error is added to stderr. The gate's own `realExec` (timeouts, process
- * groups) is what `webtops laws probe` runs by default, and `laws-probe-real.test.ts` proves that end to end.
+ * `webtops laws probe` as a real process: `bun src/cli/main.ts laws probe`, through the production exec, in a directory.
+ * The tests that run the real ESLint, tsc and Stylelint go through it, so they prove the command end to end and the
+ * mutation run does not count them as covering the probe's own code, which the fake-linter tests judge.
  */
-export const toolExec: Exec = (command, args, options) =>
-  new Promise((resolve) => {
-    const settings = {
-      cwd: options?.cwd,
-      env: options?.env,
-      encoding: "utf8",
-      maxBuffer: 1 << 26,
-    } as const;
-    execFile(command, [...args], settings, (error, stdout, stderr) => {
-      resolve(resultOf(error, stdout, stderr));
-    });
+export function probeProcess(
+  cwd: string,
+  ...argv: string[]
+): { readonly code: number; readonly out: string; readonly err: string } {
+  const run = spawnSync("bun", [join(KIT, "src/cli/main.ts"), "laws", "probe", ...argv], {
+    cwd,
+    encoding: "utf8",
+    maxBuffer: 1 << 26,
   });
+  return { code: run.status ?? -1, out: run.stdout, err: run.stderr };
+}
 
 export const NO_EXEC: Exec = () => Promise.reject(new Error("no tool should run"));
 
@@ -115,17 +106,17 @@ function isReport(value: unknown): value is ProbeReport {
 }
 
 /** The probe's JSON report on a project, with the exit code. */
-export async function probeOf(
+export function probeOf(
   cwd: string,
   ...argv: string[]
 ): Promise<{ code: number; report: ProbeReport }> {
-  const run = await cli(["--json", ...argv], cwd, { exec: toolExec });
+  const run = probeProcess(cwd, "--json", ...argv);
   expect(run.err).toBe("");
   const report: unknown = JSON.parse(run.out);
   if (!isReport(report)) {
     throw new Error("the probe printed no report");
   }
-  return { code: run.code, report };
+  return Promise.resolve({ code: run.code, report });
 }
 
 export const messages = (report: ProbeReport): string[] =>
