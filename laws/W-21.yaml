@@ -1,0 +1,14 @@
+# W-21: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-21
+title: "No serious or critical axe violations on built pages"
+family: "HTML and accessibility"
+severity: R
+classes: [astro-site, web-app]
+reader:
+  kinds: [tl]
+  text: "tl: axe via Playwright"
+rules:
+  - { tool: axe, name: "axe" }
+judged: v0.1
+rationale: "A serious or critical axe violation is a barrier for real users."
+fix: "Fix the markup or styles the violation names, and rebuild."

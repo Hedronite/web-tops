@@ -1,0 +1,15 @@
+# W-18: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-18
+title: "Published packages resolve and type every `exports` entry, including dual entries such as `.` and `./react`"
+family: "Modules and boundaries"
+severity: R
+classes: [ts-library, ui-components]
+reader:
+  kinds: [tl]
+  text: "tl: `publint`, `attw`"
+rules:
+  - { tool: publint, name: "publint" }
+  - { tool: attw, name: "attw" }
+judged: v0.1
+rationale: "A published package whose `exports` entry does not resolve or type correctly breaks its consumers."
+fix: "Fix the entry `publint` or `attw` names: point `exports` at files that exist, with matching types and formats."

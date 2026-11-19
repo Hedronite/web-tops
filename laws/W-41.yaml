@@ -1,0 +1,13 @@
+# W-41: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-41
+title: "Installed tool versions match `web-tops.lock`"
+family: "Tests, suppressions, security, build"
+severity: R
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [an]
+  text: "an"
+rules: []
+judged: v0.1
+rationale: "A tool version that differs from the lock makes a gate result mean something else on another machine."
+fix: "Run `webtops lock --update` after a deliberate change, or reinstall the locked version."

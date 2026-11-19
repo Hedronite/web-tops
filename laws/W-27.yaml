@@ -1,0 +1,16 @@
+# W-27: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-27
+title: "`.astro` files type-check"
+family: "Astro"
+severity: R
+classes: [ui-components, astro-site, web-app]
+conditional_classes: [ui-components, web-app]
+reader:
+  kinds: [tl]
+  text: "tl: `astro check`"
+rules:
+  - { tool: astro-check, name: "astro check" }
+judged: v0.1
+rationale: "A type error in an `.astro` file shows only at build or run time otherwise."
+fix: "Fix what `astro check` reports."
+note: "Conditional: ui-components and web-app map this law only when the project depends on Astro."

@@ -1,0 +1,13 @@
+# W-33: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-33
+title: "Tests are deterministic: fake timers, no live network, seeded randomness"
+family: "Tests, suppressions, security, build"
+severity: R
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [an]
+  text: "an (heuristic)"
+rules: []
+judged: no
+rationale: "A test that depends on time, network or chance fails for reasons unrelated to the code."
+fix: "Use fake timers, a stubbed network and a seeded generator."

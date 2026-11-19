@@ -1,0 +1,16 @@
+# W-13: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-13
+title: "Caught values are `unknown` and narrowed, including `.catch` callbacks; a rethrow keeps `{ cause }` (T-10)"
+family: "Async and errors"
+severity: R
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [tl]
+  text: "tl: `useUnknownInCatchVariables` (in `strict`), `use-unknown-in-catch-callback-variable`; `preserve-caught-error`, a core rule that `@eslint/js` 10 recommends at `error`"
+rules:
+  - { tool: tsc, name: "useUnknownInCatchVariables" }
+  - { tool: eslint, name: "@typescript-eslint/use-unknown-in-catch-callback-variable" }
+  - { tool: eslint, name: "preserve-caught-error" }
+judged: v0.1
+rationale: "A caught value can be anything, and a rethrow without `cause` loses where it came from."
+fix: "Narrow the caught `unknown` before reading it, and rethrow with `new Error(message, { cause })`."

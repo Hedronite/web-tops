@@ -1,0 +1,14 @@
+# W-25: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-25
+title: "Colors and spacing come from theme tokens (`@theme`), not raw hex in markup or CSS"
+family: "CSS and Tailwind"
+severity: A
+classes: [astro-site, web-app]
+reader:
+  kinds: [an, tl]
+  text: "an; Stylelint `color-no-hex`"
+rules:
+  - { tool: stylelint, name: "color-no-hex" }
+judged: no
+rationale: "Raw hex colors and ad hoc spacing drift from the theme and break theming."
+fix: "Use a `@theme` token."

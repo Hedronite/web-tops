@@ -1,0 +1,14 @@
+# W-48: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-48
+title: "No unused exports, files or dependencies"
+family: "React and dead code"
+severity: A
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [tbd]
+  text: "tbd: `knip` over all three (M3)"
+rules:
+  - { tool: knip, name: "knip" }
+judged: m3
+rationale: "Unused code and dependencies are carried cost and hide the real structure."
+fix: "Delete the export, file or dependency, or make it used."

@@ -705,6 +705,9 @@ Severity: **R** = a break is `refuse`, **A** = a break needs an acknowledgement 
 (T-NN) are noted where they map. Laws added after W-46 take the next number; ids are not renumbered by
 family before the 1.0 freeze.
 
+These tables are generated from `laws/W-NN.yaml` (§8.3). Edit the file, not the table, then run
+`webtops laws sync`; `webtops laws sync --check` and the kit's tests fail when they differ.
+
 **Types**
 
 | ID | Law | Sev | Reader | v0.1 |
@@ -808,8 +811,20 @@ ecosystem already ships the checks. Class-specific laws are `skip` for other cla
 
 ### 8.3 Law metadata
 
-Each law lives in `laws/W-NN.yaml` with `id`, `title`, `severity`, `classes`, `reader`, the tool
-rule names it maps, `rationale` and `fix`, as in Go-TOPS §8.3.
+Each law lives in `laws/W-NN.yaml`, valid against `schema/law.schema.json`; a file that is not valid
+fails the catalog, and so every `laws` command. Fields:
+
+- `id`, and `title`, the law text of §8.2;
+- `family`, the §8.2 table the law is listed in, and `severity`, `R` or `A`;
+- `classes`, the launch classes that map the law (§5.2), and `conditional_classes`, those among them
+  that map it only when the project depends on Astro;
+- `reader`: `kinds`, from `tl`, `an`, `at` and `tbd` (§8.1), and `text`, the Reader cell of §8.2;
+- `rules`: each tool rule, flag or check the law maps, as a `tool` and a `name`;
+- `judged`: `v0.1` for a law ticked in §8.2, `m3` for a law M3 gives a reader, `no` for the rest;
+- `rationale`, `fix` and an optional `note`.
+
+A class requires the laws it maps that are judged (§5.2): `webtops laws list --class <c> --required`
+prints them. §8.2 is generated from these files by `webtops laws sync`.
 
 ---
 
@@ -948,7 +963,7 @@ steps that bypass `webtops` judge nothing.
 | `check` | Validates `web-tops.yaml` against the JSON Schema, plus semantic checks: the protocol id lies in the range this `webtops` supports (the schema does not pin it to one constant), class has a profile, `crap.cap ≥ 1`, `ts-library` keeps `unexplained_survivors_max = 0`, `advisory` has an `exemption` whose `until` has not passed (UTC, through that day; §9), under `ratchet` the baseline exists, is clean and is no looser than the merge base's copy (§6.7), under `hard` no gate or step the class maps at tier 1 or below is off except `crap`, `mutation`, build output and `laws` (§9), and no coverage floor below, nor CRAP cap or survivors limit above, the class profile's (§5.2), `skip_private` only for a `"private": true` package |
 | `gate` | Runs enabled layers at or below `--max-tier` (default 1). `--base`, `--keep-going`, `--json`, `--all` (judge every function, not the diff's), `--only <layer>`, `--dry-run` (refused in CI) |
 | `baseline` | Writes `.web-tops/baseline.json` from the last report, after a passing run made at `HEAD` on a clean tree; the only writer. Refused under `hard`, and for a result looser than the baseline already there |
-| `laws [list \| run \| explain W-NN]` | Catalog with readers; laws alone; one law explained |
+| `laws [list \| explain W-NN \| sync]` | The law catalog (§8.3): `list [--class <c>] [--required] [--json]`, one law explained, and §8.2 regenerated from the files (`sync --check` fails on drift) |
 | `report [--format text \| json]` | Renders the last report |
 | `lock [--verify \| --update]` | Tool pins |
 | `doctor` | Environment: Bun version, Node inside the lock's range (exit 3 outside it), TypeScript pin, Playwright browsers |
@@ -1101,12 +1116,14 @@ web-tops/
 │   ├── diff/                # changed lines and functions against the merge base
 │   ├── gate/                # runner, tiers, verdicts, run info
 │   ├── init/                # webtops init: renders the drop-in set
+│   ├── laws/                # the law catalog (§8.3): the loader, the queries and the §8.2 table generator
 │   ├── layers/              # hygiene, tests, coverage, crap, mutation
 │   ├── lock/                # tool pins, web-tops.lock, the Node range
 │   ├── report/              # report writing, text and JSON rendering
 │   └── survivors/           # the survivor key (section 6.4), and the ledger when it lands
 ├── profiles/                # one profile per launch class: the data init renders from
-├── schema/                  # web-tops, gate-report, baseline and core (verdicts, modes) schemas
+├── laws/                    # one W-NN.yaml per law (§8.3): the source of the §8.2 tables
+├── schema/                  # web-tops, gate-report, baseline, core (verdicts, modes) and law schemas
 ├── config/                  # drop-in templates, AGENTS.md.tmpl
 ├── fixtures/                # config (with examples/), hygiene, init, lock, report, probe
 ├── probes/                  # w22/: the W-22 proof, its own package and lock
@@ -1118,7 +1135,7 @@ web-tops/
 └── LICENSE · LICENSE-MIT · LICENSE-APACHE
 ```
 
-Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4), `packages/eslint-plugin-webtops/`, `laws/` (one `W-NN.yaml` per law) and `fixtures/lints/` (M3).
+Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4), `packages/eslint-plugin-webtops/` and `fixtures/lints/` (M3).
 
 Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any release.
 

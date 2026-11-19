@@ -1,0 +1,14 @@
+# W-10: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-10
+title: "`switch` over a union is exhaustive"
+family: "Types"
+severity: R
+classes: [ts-library, ui-components, astro-site, web-app, node-service]
+reader:
+  kinds: [tl]
+  text: "tl: `switch-exhaustiveness-check`"
+rules:
+  - { tool: eslint, name: "@typescript-eslint/switch-exhaustiveness-check" }
+judged: v0.1
+rationale: "A union member added later is silently ignored by a `switch` that is not exhaustive."
+fix: "Cover every member, and end with a `never` check or a `default` that throws."

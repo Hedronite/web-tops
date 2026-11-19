@@ -1,0 +1,14 @@
+# W-24: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-24
+title: "Arbitrary values (`w-[437px]`) and `!important` are counted and ratcheted"
+family: "CSS and Tailwind"
+severity: A
+classes: [astro-site, web-app]
+reader:
+  kinds: [an, tl]
+  text: "an; Stylelint `declaration-no-important`"
+rules:
+  - { tool: stylelint, name: "declaration-no-important" }
+judged: no
+rationale: "Arbitrary values and `!important` bypass the design scale and start specificity wars."
+fix: "Use a scale or theme value, and add a token when none fits."
