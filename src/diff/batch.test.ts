@@ -1,11 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { realExec } from "../gate/exec.ts";
 import type { Exec } from "../gate/types.ts";
 import type { CoverageOf, CoverageOfMany } from "./scope.ts";
 import { diffScope } from "./scope.ts";
-import { cleanRepos, commit, git, makeRepo, write } from "./test-support.ts";
+import { cleanRepos, diffOf, fakeGit, plainDir } from "./test-support.ts";
 import type { CoverageMap, ScopeResult } from "./types.ts";
 
 // The changed test files are run together, once, and file by file only where that gives nothing: the functions in
@@ -37,19 +36,21 @@ const ran = (f: boolean, g: boolean): CoverageMap =>
     ],
   ]);
 
-function added(...names: string[]): string {
-  const dir = makeRepo({ "src/m.ts": M });
-  write(dir, Object.fromEntries(names.map((name) => [name, WEAK])));
-  git(dir, "add", "-A");
-  return dir;
+/** A project with src/m.ts and the given test files added, and the git that would say so. */
+function added(...names: string[]): { cwd: string; exec: Exec } {
+  const cwd = plainDir({ "src/m.ts": M, ...Object.fromEntries(names.map((name) => [name, WEAK])) });
+  const exec = fakeGit(diffOf(names.map((path) => ({ path, kind: "added" }))));
+  return { cwd, exec };
 }
 
-function weakened(): string {
-  const dir = makeRepo({ "src/m.ts": M, "src/m.test.ts": STRONG });
-  git(dir, "switch", "-q", "-c", "weaken");
-  write(dir, { "src/m.test.ts": WEAK, "src/n.test.ts": WEAK });
-  commit(dir, "weaken one test and add another");
-  return dir;
+/** src/m.test.ts weakened and src/n.test.ts added, with the strong version of the first at the merge base. */
+function weakened(): { cwd: string; exec: Exec } {
+  const cwd = plainDir({ "src/m.ts": M, "src/m.test.ts": WEAK, "src/n.test.ts": WEAK });
+  const diff = diffOf([
+    { path: "src/m.test.ts", kind: "modified" },
+    { path: "src/n.test.ts", kind: "added" },
+  ]);
+  return { cwd, exec: fakeGit(diff, { "src/m.test.ts": STRONG }) };
 }
 
 const keys = (result: ScopeResult): string[] =>
@@ -60,7 +61,7 @@ describe("changed test files run together", () => {
     const together: (readonly string[])[] = [];
     const alone: string[] = [];
     const result = await diffScope({
-      cwd: added("src/a.test.ts", "src/b.test.ts", "src/c.test.ts"),
+      ...added("src/a.test.ts", "src/b.test.ts", "src/c.test.ts"),
       base: "main",
       coverageOfMany: (group) => {
         together.push(group);
@@ -79,7 +80,7 @@ describe("changed test files run together", () => {
   it("runs them one by one, in order, when the run together gives nothing, and adds up what each covered", async () => {
     const alone: string[] = [];
     const result = await diffScope({
-      cwd: added("src/a.test.ts", "src/b.test.ts"),
+      ...added("src/a.test.ts", "src/b.test.ts"),
       base: "main",
       coverageOfMany: () => Promise.resolve(undefined),
       coverageOf: (file) => {
@@ -93,7 +94,7 @@ describe("changed test files run together", () => {
 
   it("fails naming the first file that cannot run alone, the later ones unnamed", async () => {
     const result = await diffScope({
-      cwd: added("src/a.test.ts", "src/b.test.ts", "src/c.test.ts"),
+      ...added("src/a.test.ts", "src/b.test.ts", "src/c.test.ts"),
       base: "main",
       coverageOfMany: () => Promise.resolve(undefined),
       coverageOf: (file) => Promise.resolve(file === "src/a.test.ts" ? ran(true, true) : undefined),
@@ -105,16 +106,16 @@ describe("changed test files run together", () => {
   });
 
   it("is the same scope as running each file alone", async () => {
-    const dir = added("src/a.test.ts", "src/b.test.ts");
+    const project = added("src/a.test.ts", "src/b.test.ts");
     const maps: Record<string, CoverageMap> = {
       "src/a.test.ts": ran(true, false),
       "src/b.test.ts": ran(false, true),
     };
     const alone: CoverageOf = (file) => Promise.resolve(maps[file]);
     const many: CoverageOfMany = () => Promise.resolve(ran(true, true));
-    const one = await diffScope({ cwd: dir, base: "main", coverageOf: alone });
+    const one = await diffScope({ ...project, base: "main", coverageOf: alone });
     const all = await diffScope({
-      cwd: dir,
+      ...project,
       base: "main",
       coverageOfMany: many,
       coverageOf: alone,
@@ -123,17 +124,17 @@ describe("changed test files run together", () => {
   });
 
   it("runs the merge-base versions together too, as copies that are gone afterwards", async () => {
-    const dir = weakened();
+    const project = weakened();
     const together: (readonly string[])[] = [];
     const seen: string[] = [];
     const result = await diffScope({
+      ...project,
       copyToken: () => "tok",
-      cwd: dir,
       base: "main",
       coverageOf: () => Promise.resolve(undefined),
       coverageOfMany: (group) => {
         together.push(group);
-        for (const file of group) seen.push(existsSync(join(dir, file)) ? file : "");
+        for (const file of group) seen.push(existsSync(join(project.cwd, file)) ? file : "");
         return Promise.resolve(
           group.some((file) => file.includes(".wt-base-")) ? ran(true, true) : ran(true, false),
         );
@@ -142,16 +143,16 @@ describe("changed test files run together", () => {
     expect(together).toEqual([["src/m.test.ts", "src/n.test.ts"], ["src/m.wt-base-tok.test.ts"]]);
     expect(seen).toEqual(["src/m.test.ts", "src/n.test.ts", "src/m.wt-base-tok.test.ts"]);
     expect(keys(result)).toEqual(["src/m.ts::f", "src/m.ts::g"]);
-    expect(existsSync(join(dir, "src/m.wt-base-tok.test.ts"))).toBe(false);
+    expect(existsSync(join(project.cwd, "src/m.wt-base-tok.test.ts"))).toBe(false);
   });
 
   it("holds the merge-base version in the copy, and runs a copy that fails together alone, leaving it out", async () => {
-    const dir = weakened();
+    const project = weakened();
     const alone: string[] = [];
     const text: Record<string, string> = {};
     const result = await diffScope({
+      ...project,
       copyToken: () => "tok",
-      cwd: dir,
       base: "main",
       coverageOfMany: (group) =>
         Promise.resolve(
@@ -159,21 +160,21 @@ describe("changed test files run together", () => {
         ),
       coverageOf: (file) => {
         alone.push(file);
-        text[file] = readFileSync(join(dir, file), "utf8");
+        text[file] = readFileSync(join(project.cwd, file), "utf8");
         return Promise.resolve(undefined);
       },
     });
     expect(alone).toEqual(["src/m.wt-base-tok.test.ts"]);
     expect(text["src/m.wt-base-tok.test.ts"]).toBe(STRONG.trim());
     expect(keys(result)).toEqual(["src/m.ts::f"]);
-    expect(existsSync(join(dir, "src/m.wt-base-tok.test.ts"))).toBe(false);
+    expect(existsSync(join(project.cwd, "src/m.wt-base-tok.test.ts"))).toBe(false);
   });
 
   it("leaves a merge-base version out when its runs throw, and still removes the copy", async () => {
-    const dir = weakened();
+    const project = weakened();
     const result = await diffScope({
+      ...project,
       copyToken: () => "tok",
-      cwd: dir,
       base: "main",
       coverageOfMany: (group) => {
         if (group.some((file) => file.includes(".wt-base-"))) throw new Error("the run died");
@@ -184,14 +185,14 @@ describe("changed test files run together", () => {
       },
     });
     expect(keys(result)).toEqual(["src/m.ts::f"]);
-    expect(existsSync(join(dir, "src/m.wt-base-tok.test.ts"))).toBe(false);
+    expect(existsSync(join(project.cwd, "src/m.wt-base-tok.test.ts"))).toBe(false);
   });
 
   it("runs at most 100 files at once", async () => {
     const names = Array.from({ length: 205 }, (_, at) => `src/t${String(at)}.test.ts`);
     const sizes: number[] = [];
     await diffScope({
-      cwd: added(...names),
+      ...added(...names),
       base: "main",
       coverageOfMany: (group) => {
         sizes.push(group.length);
@@ -203,12 +204,13 @@ describe("changed test files run together", () => {
 
   it("runs no group when it is given a source for one file only", async () => {
     const asked: string[] = [];
+    const project = added("src/a.test.ts", "src/b.test.ts");
     const exec: Exec = (command, args, options) => {
       asked.push(command);
-      return realExec(command, args, options);
+      return project.exec(command, args, options);
     };
     const result = await diffScope({
-      cwd: added("src/a.test.ts", "src/b.test.ts"),
+      cwd: project.cwd,
       base: "main",
       exec,
       coverageOf: () => Promise.resolve(ran(true, false)),

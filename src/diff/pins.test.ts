@@ -1,14 +1,13 @@
 import { existsSync, rmSync } from "node:fs";
 import { basename, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { realExec } from "../gate/exec.ts";
 import type { Exec } from "../gate/types.ts";
 import { COVERAGE_INCLUDE, DEFAULT_COVERAGE_EXCLUDES } from "../layers/coverage/scope.ts";
 import { coveredSpans, parseCoverage } from "./coverage.ts";
 import { functionsIn, innermostAt } from "./functions.ts";
 import { mergeBaseOf } from "./git.ts";
 import { diffScope, isSourceFile, isTestFile } from "./scope.ts";
-import { cleanRepos, commit, git, makeRepo, write } from "./test-support.ts";
+import { cleanRepos, diffOf, FAKE_BASE, fakeGit, plainDir, write } from "./test-support.ts";
 import type { CoverageMap } from "./types.ts";
 
 // What the diff step does at its edges, pinned one fact at a time.
@@ -201,32 +200,32 @@ function fakeVitest(args: readonly string[]): { code: number; stdout: string; st
   return { code: 0, stdout: "", stderr: "" };
 }
 
-/** Git runs for real; Vitest is a fake that keeps its arguments. */
-function spied(): { exec: Exec; vitest: string[][]; shows: string[][] } {
+/** Git is the given fake; Vitest is a fake that keeps its arguments. */
+function spied(git: Exec): { exec: Exec; vitest: string[][] } {
   const vitest: string[][] = [];
-  const shows: string[][] = [];
   const exec: Exec = (command, args, options) => {
-    if (command !== "git") {
-      vitest.push([...args]);
-      return Promise.resolve(fakeVitest(args));
-    }
-    if (args[0] === "show") shows.push([...args]);
-    return realExec(command, args, options);
+    if (command === "git") return git(command, args, options);
+    vitest.push([...args]);
+    return Promise.resolve(fakeVitest(args));
   };
-  return { exec, vitest, shows };
+  return { exec, vitest };
 }
 
 describe("the default runs of Vitest", () => {
-  function added(): string {
-    const dir = makeRepo({ "src/m.ts": M });
-    write(dir, { "src/a.test.ts": TEST, "src/b.test.ts": TEST });
-    git(dir, "add", "-A");
-    return dir;
-  }
+  const added = (): { cwd: string; git: Exec } => ({
+    cwd: plainDir({ "src/m.ts": M, "src/a.test.ts": TEST, "src/b.test.ts": TEST }),
+    git: fakeGit(
+      diffOf([
+        { path: "src/a.test.ts", kind: "added" },
+        { path: "src/b.test.ts", kind: "added" },
+      ]),
+    ),
+  });
 
   it("runs both files together first, then each alone where that fails, under the gate's own options", async () => {
-    const { exec, vitest } = spied();
-    const result = await diffScope({ cwd: added(), base: "main", exec });
+    const project = added();
+    const { exec, vitest } = spied(project.git);
+    const result = await diffScope({ cwd: project.cwd, base: "main", exec });
     expect(vitest.map((args) => args.filter((arg) => arg.endsWith(".test.ts")))).toEqual([
       ["src/a.test.ts", "src/b.test.ts"],
       ["src/a.test.ts"],
@@ -243,8 +242,9 @@ describe("the default runs of Vitest", () => {
   });
 
   it("adds the exclusions the project gives, and removes its temporary directories", async () => {
-    const { exec, vitest } = spied();
-    await diffScope({ cwd: added(), base: "main", exec, exclude: ["gen/**"] });
+    const project = added();
+    const { exec, vitest } = spied(project.git);
+    await diffScope({ cwd: project.cwd, base: "main", exec, exclude: ["gen/**"] });
     const first = vitest[0] ?? [];
     expect(first).toContain("--coverage.exclude=gen/**");
     expect(first).toHaveLength(10 + DEFAULT_COVERAGE_EXCLUDES.length);
@@ -255,30 +255,30 @@ describe("the default runs of Vitest", () => {
   });
 
   it("asks git for the merge-base version of a modified test, and of no added one", async () => {
-    const { exec, shows } = spied();
-    await diffScope({ cwd: added(), base: "main", exec });
-    expect(shows).toEqual([]);
-    const dir = makeRepo({ "src/m.ts": M, "src/a.test.ts": TEST });
-    git(dir, "switch", "-q", "-c", "work");
-    write(dir, { "src/a.test.ts": `${TEST}f(3);\n`, "src/b.test.ts": TEST });
-    commit(dir, "work");
-    const second = spied();
-    await diffScope({ cwd: dir, base: "main", exec: second.exec });
-    expect(second.shows).toHaveLength(1);
-    expect(second.shows[0]?.[1]).toMatch(/:src\/a\.test\.ts$/);
+    const seen: string[][] = [];
+    const cwd = plainDir({ "src/m.ts": M, "src/a.test.ts": TEST, "src/b.test.ts": TEST });
+    const diff = diffOf([
+      { path: "src/a.test.ts", kind: "modified" },
+      { path: "src/b.test.ts", kind: "added" },
+    ]);
+    const { exec } = spied(fakeGit(diff, { "src/a.test.ts": TEST }, seen));
+    await diffScope({ cwd, base: "main", exec });
+    const shows = seen.filter((args) => args[0] === "show");
+    expect(shows).toEqual([["show", `${FAKE_BASE}:src/a.test.ts`]]);
   });
 });
 
 describe("the merge-base copies", () => {
+  const modified = (path: string): { cwd: string; exec: Exec } => ({
+    cwd: plainDir({ "src/m.ts": M, [path]: TEST }),
+    exec: fakeGit(diffOf([{ path, kind: "modified" }]), { [path]: TEST }),
+  });
+
   it("are named before the extension for a test with no marker, after its last dot", async () => {
-    const dir = makeRepo({ "src/m.ts": M, "src/__tests__/a.b.ts": TEST });
-    git(dir, "switch", "-q", "-c", "work");
-    write(dir, { "src/__tests__/a.b.ts": `${TEST}f(3);\n` });
-    commit(dir, "work");
     const asked: string[] = [];
     await diffScope({
+      ...modified("src/__tests__/a.b.ts"),
       copyToken: () => "tok",
-      cwd: dir,
       base: "main",
       coverageOf: (file) => {
         asked.push(file);
@@ -289,16 +289,13 @@ describe("the merge-base copies", () => {
   });
 
   it("are removed even when the run took the copy away itself", async () => {
-    const dir = makeRepo({ "src/m.ts": M, "src/a.test.ts": TEST });
-    git(dir, "switch", "-q", "-c", "work");
-    write(dir, { "src/a.test.ts": `${TEST}f(3);\n` });
-    commit(dir, "work");
+    const project = modified("src/a.test.ts");
     const result = await diffScope({
+      ...project,
       copyToken: () => "tok",
-      cwd: dir,
       base: "main",
       coverageOf: (file) => {
-        if (file.includes(".wt-base-")) rmSync(join(dir, file));
+        if (file.includes(".wt-base-")) rmSync(join(project.cwd, file));
         return Promise.resolve(ran(true, false));
       },
     });
@@ -310,16 +307,14 @@ describe("the ranges to mutate", () => {
   it("are not joined across two files, however close the last line of one and the first of the next", async () => {
     const lines = (n: number, mark: string): string =>
       `${Array.from({ length: n }, (_, at) => `export const v${String(at)}${mark} = ${String(at)};`).join("\n")}\n`;
-    const dir = makeRepo({ "src/a.ts": lines(5, "a"), "src/b.ts": lines(8, "b") });
-    git(dir, "switch", "-q", "-c", "work");
-    const edit = (text: string, from: number, to: number): string =>
-      text
-        .split("\n")
-        .map((line, at) => (at + 1 >= from && at + 1 <= to ? `${line} // edited` : line))
-        .join("\n");
-    write(dir, { "src/a.ts": edit(lines(5, "a"), 3, 5), "src/b.ts": edit(lines(8, "b"), 6, 8) });
-    commit(dir, "work");
-    const result = await diffScope({ cwd: dir, base: "main" });
+    const cwd = plainDir({ "src/a.ts": lines(5, "a"), "src/b.ts": lines(8, "b") });
+    const exec = fakeGit(
+      diffOf([
+        { path: "src/a.ts", kind: "modified", range: [3, 5] },
+        { path: "src/b.ts", kind: "modified", range: [6, 8] },
+      ]),
+    );
+    const result = await diffScope({ cwd, base: "main", exec });
     expect(result.outcome === "scope" ? result.scope.mutate : []).toEqual([
       "src/a.ts:3-5",
       "src/b.ts:6-8",
