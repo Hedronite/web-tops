@@ -50,10 +50,13 @@ describe("G3b `laws probe`: arguments and problems", () => {
       cwd: tempDir(),
       env: {},
     };
-    const code = await runLawsCli(["probe", "--wat"], io);
+    const code = await runLawsCli(["probe", "--law"], io);
     expect(code).toBe(2);
     expect(err.startsWith("webtops laws probe: ")).toBe(true);
     expect(err).toContain("usage: webtops laws probe [--law W-NN]");
+    // The word `probe` is the command's, not an argument of it: only `--law` is wrong.
+    expect(err).toContain("--law");
+    expect(err).not.toContain("Unexpected argument");
     expect(out).toBe("");
   });
 
