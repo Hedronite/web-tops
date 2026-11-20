@@ -91,6 +91,12 @@ export interface LayerContext {
 export interface Consumed {
   readonly artifact: string;
   readonly from: string;
+  /**
+   * The runner passes the artifact if the producer left it and skips it if not, where a missing input otherwise makes
+   * the layer `not-run`. The layer says what a missing one means for what it judges (R92): a required law whose
+   * artifact is missing is `not-evaluated`, which ends the run.
+   */
+  readonly optional?: boolean;
 }
 
 export interface Layer {
