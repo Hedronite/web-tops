@@ -18,12 +18,7 @@ function astroSite(off?: string): string {
   const turned =
     off === undefined ? "[]" : `[{ files: ["**/*.astro"], rules: { "${off}": "off" } }]`;
   put(dir, {
-    // The astro preset parses a .astro file with `project: ./tsconfig.json`, and a wildcard include skips the
-    // hidden `.web-tops/`, so the project's tsconfig names the directory the probe copies its twins to.
-    "tsconfig.json": JSON.stringify({
-      extends: join(KIT, "tsconfig.json"),
-      include: [".web-tops/out/laws-probe/**/*"],
-    }),
+    "tsconfig.json": JSON.stringify({ extends: join(KIT, "tsconfig.json"), include: ["src/**/*"] }),
     "package.json": '{ "type": "module", "dependencies": { "astro": "5.0.0" } }\n',
     "eslint.config.js": [
       `import { eslintPreset } from "${join(KIT, "src/presets/eslint.js")}";`,
