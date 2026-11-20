@@ -1,0 +1,9 @@
+@unknown-rule "x"; /* expect: at-rule-no-unknown */
+.a { colour: red; } /* expect: property-no-unknown */
+.b { } /* expect: block-no-empty */
+.c { color: #ggg; } /* expect: color-no-invalid-hex */
+.d { width: 10pixels; } /* expect: unit-no-unknown */
+.e { color: red; color: blue; } /* expect: declaration-block-no-duplicate-properties */
+.f { color: red; }
+.f { color: blue; } /* expect: no-duplicate-selectors */
+.g:unknown-state { color: red; } /* expect: selector-pseudo-class-no-unknown */
