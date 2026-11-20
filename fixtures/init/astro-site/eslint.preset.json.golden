@@ -231,8 +231,7 @@
   },
   {
     "plugins": [
-      "@eslint-community/eslint-comments",
-      "webtops"
+      "@eslint-community/eslint-comments"
     ],
     "rules": {
       "@typescript-eslint/no-explicit-any": "error",
@@ -267,8 +266,7 @@
         }
       ],
       "@eslint-community/eslint-comments/require-description": "error",
-      "@eslint-community/eslint-comments/no-unlimited-disable": "error",
-      "webtops/no-unsanitized-html": "error"
+      "@eslint-community/eslint-comments/no-unlimited-disable": "error"
     },
     "linterOptions": {
       "reportUnusedDisableDirectives": "error"
@@ -614,23 +612,11 @@
     }
   },
   {
-    "files": [
-      "**/*.jsx",
-      "**/*.tsx"
-    ],
     "plugins": [
       "webtops"
     ],
     "rules": {
-      "webtops/public-env-only": "error"
-    }
-  },
-  {
-    "plugins": [
-      "webtops"
-    ],
-    "rules": {
-      "webtops/complete-tailwind-classes": "error"
+      "webtops/no-unsanitized-html": "error"
     }
   },
   {

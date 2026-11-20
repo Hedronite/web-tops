@@ -9,7 +9,7 @@ import { PROFILES, profileFor } from "../config/profiles.ts";
 export const LAUNCH_CLASSES: readonly string[] = PROFILES.map((profile) => profile.class);
 
 /** Which plugin set `eslint.config.js` adds on top of the base law rules. */
-export type EslintVariant = "base" | "react" | "react-app" | "astro";
+export type EslintVariant = "base" | "react" | "astro";
 
 /** The drop-in data for one class (the floors and mapped layers live in the class table; see the agreement test): floors, the tools its enabled layers run, and what M1 leaves off. */
 export interface DropIn {
@@ -46,7 +46,7 @@ const schema = {
     survivors_max: { type: "integer", minimum: 0 },
     js_budget: { type: "string", minLength: 1 },
     playwright: { type: "boolean" },
-    eslint: { enum: ["base", "react", "react-app", "astro"] },
+    eslint: { enum: ["base", "react", "astro"] },
     tools: { type: "array", items: { type: "string", minLength: 1 }, uniqueItems: true },
     disabled: { type: "object", additionalProperties: { type: "string", minLength: 1 } },
   },

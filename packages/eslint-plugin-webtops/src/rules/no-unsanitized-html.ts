@@ -16,9 +16,7 @@ import {
 
 /** W-36: HTML reaches `set:html`, `dangerouslySetInnerHTML` or `innerHTML` only as a literal or through a sanitizer. */
 
-const SANITIZERS = ["sanitize", "sanitizeHtml", "DOMPurify.sanitize"];
-const ASSIGNED_SINKS = new Set(["innerHTML", "outerHTML"]);
-const WRITERS = new Set(["document.write", "document.writeln"]);
+const defaultSanitizers = (): string[] => ["sanitize", "sanitizeHtml", "DOMPurify.sanitize"];
 
 /** Where markup goes in, and what is put there. */
 interface Sink {
@@ -28,24 +26,26 @@ interface Sink {
 
 type Safe = (node: unknown, sanitizers: ReadonlySet<string>) => boolean;
 
-const SAFE = new Map<string, Safe>([
-  [
-    "CallExpression",
-    (node, sanitizers) => {
-      const callee = dottedName(child(node, "callee"));
-      return callee !== undefined && sanitizers.has(callee);
-    },
-  ],
-  [
-    "ConditionalExpression",
-    (node, sanitizers) =>
-      isSafe(child(node, "consequent"), sanitizers) && isSafe(child(node, "alternate"), sanitizers),
-  ],
-]);
+const safeChecks = (): ReadonlyMap<string, Safe> =>
+  new Map<string, Safe>([
+    [
+      "CallExpression",
+      (node, sanitizers) => {
+        const callee = dottedName(child(node, "callee"));
+        return callee !== undefined && sanitizers.has(callee);
+      },
+    ],
+    [
+      "ConditionalExpression",
+      (node, sanitizers) =>
+        isSafe(child(node, "consequent"), sanitizers) &&
+        isSafe(child(node, "alternate"), sanitizers),
+    ],
+  ]);
 
 /** A literal, or the result of a sanitizer; a conditional is safe when both branches are. */
 export const isSafe = (node: unknown, sanitizers: ReadonlySet<string>): boolean =>
-  staticText(node) !== undefined || byKind(SAFE, node)?.(node, sanitizers) === true;
+  staticText(node) !== undefined || byKind(safeChecks(), node)?.(node, sanitizers) === true;
 
 /** What `dangerouslySetInnerHTML={{ __html: x }}` sets: `x`. A value that is not an object literal is its own payload, and an object with no `__html` sets nothing. */
 function htmlPayload(value: unknown): { html: unknown } | undefined {
@@ -56,20 +56,21 @@ function htmlPayload(value: unknown): { html: unknown } | undefined {
   return entry === undefined ? undefined : { html: child(entry, "value") };
 }
 
-const ATTRIBUTE_SINKS = new Map<string, (value: unknown) => { html: unknown } | undefined>([
-  ["dangerouslySetInnerHTML", htmlPayload],
-  ["set:html", (value) => ({ html: value })],
-]);
+const attributeSinks = (): ReadonlyMap<string, (value: unknown) => { html: unknown } | undefined> =>
+  new Map([
+    ["dangerouslySetInnerHTML", htmlPayload],
+    ["set:html", (value) => ({ html: value })],
+  ]);
 
 function attributeSink(attribute: unknown): Sink | undefined {
   const name = attributeName(attribute);
-  const payload = lookup(ATTRIBUTE_SINKS, name)?.(attributeValue(attribute));
+  const payload = lookup(attributeSinks(), name)?.(attributeValue(attribute));
   return name === undefined || payload === undefined ? undefined : { sink: name, ...payload };
 }
 
 function assignedSink(assignment: unknown): Sink | undefined {
   const sink = propertyName(child(assignment, "left"));
-  return sink !== undefined && ASSIGNED_SINKS.has(sink)
+  return sink === "innerHTML" || sink === "outerHTML"
     ? { sink, html: child(assignment, "right") }
     : undefined;
 }
@@ -82,7 +83,7 @@ function insertedSink(call: unknown): Sink | undefined {
 
 function writtenSink(call: unknown): Sink | undefined {
   const name = dottedName(child(call, "callee"));
-  return name !== undefined && WRITERS.has(name)
+  return name === "document.write" || name === "document.writeln"
     ? { sink: name, html: children(call, "arguments")[0] }
     : undefined;
 }
@@ -90,27 +91,31 @@ function writtenSink(call: unknown): Sink | undefined {
 const callSink = (call: unknown): Sink | undefined => insertedSink(call) ?? writtenSink(call);
 
 const rule: Rule.RuleModule = {
-  meta: {
-    type: "problem",
-    docs: {
-      description:
-        "No set:html, dangerouslySetInnerHTML or innerHTML with unsanitized input (W-36)",
-    },
-    schema: [
-      {
-        type: "object",
-        properties: { sanitizers: { type: "array", items: { type: "string" }, uniqueItems: true } },
-        additionalProperties: false,
+  get meta(): Rule.RuleMetaData {
+    return {
+      type: "problem",
+      docs: {
+        description:
+          "No set:html, dangerouslySetInnerHTML or innerHTML with unsanitized input (W-36)",
       },
-    ],
-    messages: {
-      unsanitized:
-        "Unsanitized HTML reaches {{ sink }}. Pass a string literal, or the result of a sanitizer ({{ sanitizers }}).",
-    },
+      schema: [
+        {
+          type: "object",
+          properties: {
+            sanitizers: { type: "array", items: { type: "string" }, uniqueItems: true },
+          },
+          additionalProperties: false,
+        },
+      ],
+      messages: {
+        unsanitized:
+          "Unsanitized HTML reaches {{ sink }}. Pass a string literal, or the result of a sanitizer ({{ sanitizers }}).",
+      },
+    };
   },
   create(context) {
     const option: unknown = context.options[0];
-    const list = stringList(option, "sanitizers", SANITIZERS);
+    const list = stringList(option, "sanitizers", defaultSanitizers());
     const sanitizers = new Set(list);
     const inspect = (node: Rule.Node, found: Sink | undefined): void => {
       if (found === undefined || isSafe(found.html, sanitizers)) return;

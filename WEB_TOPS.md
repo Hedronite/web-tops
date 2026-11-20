@@ -230,7 +230,7 @@ bunx webtops gate
 - `web-tops.yaml`, `web-tops.lock`;
 - thin importers, with the rules in the kit's presets and none in the project: `tsconfig.strict.json`
   (extends `web-tops/tsconfig/strict.json`), `eslint.config.js` (calls `web-tops/eslint` with the
-  class's variant: base, react, react-app or astro), `stylelint.config.js` (re-exports `web-tops/stylelint`) and
+  class's variant: base, react or astro), `stylelint.config.js` (re-exports `web-tops/stylelint`) and
   `.dependency-cruiser.cjs` (requires `web-tops/depcruise`); and `stryker.config.json` once the
   mutation layer ships;
 - the class CI workflow, with the jobs whose commands exist (§11);

@@ -5,11 +5,15 @@ import publicEnvOnly from "./rules/public-env-only.ts";
 
 /** The rules behind Web-TOPS laws W-23, W-36 and W-37, under the `webtops` namespace. */
 const plugin: ESLint.Plugin = {
-  meta: { name: "eslint-plugin-webtops" },
-  rules: {
-    "complete-tailwind-classes": completeTailwindClasses,
-    "no-unsanitized-html": noUnsanitizedHtml,
-    "public-env-only": publicEnvOnly,
+  get meta() {
+    return { name: "eslint-plugin-webtops" };
+  },
+  get rules() {
+    return {
+      "complete-tailwind-classes": completeTailwindClasses,
+      "no-unsanitized-html": noUnsanitizedHtml,
+      "public-env-only": publicEnvOnly,
+    };
   },
 };
 
