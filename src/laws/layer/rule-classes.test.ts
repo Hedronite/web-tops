@@ -5,6 +5,8 @@ import { cfg } from "../../gate/testkit.ts";
 import type { Exec, ExecResult, LayerContext } from "../../gate/types.ts";
 import { cleanTemp, put, tempDir } from "../probe/testkit.ts";
 import type { LawEntry } from "../readers/types.ts";
+import type { Law } from "../catalog/index.ts";
+import { entryOf } from "./catalog.ts";
 import { forClass, ruleApplies } from "./entries.ts";
 import { lawsLayer } from "./index.ts";
 
@@ -49,6 +51,30 @@ describe("a rule and the class it holds for", () => {
       classes: ["ui-components", "astro-site"],
     });
     expect(forClass(W22, "astro-site").rules.map((rule) => rule.name)).toEqual([PLAIN, ASTRO]);
+  });
+});
+
+describe("the catalog's rule classes reach the layer", () => {
+  it("entryOf keeps each rule's classes, as the catalog's schema has them", () => {
+    const law: Law = {
+      id: "W-22",
+      title: "t",
+      family: "HTML and accessibility",
+      severity: "R",
+      classes: ["ui-components", "astro-site"],
+      reader: { kinds: ["tl"], text: "tl" },
+      rules: [
+        { tool: "eslint", name: PLAIN },
+        { tool: "eslint", name: ASTRO, classes: ["astro-site"] },
+      ],
+      judged: "v0.1",
+      rationale: "r",
+      fix: "f",
+    };
+    expect(entryOf(law).rules).toEqual([
+      { tool: "eslint", name: PLAIN },
+      { tool: "eslint", name: ASTRO, classes: ["astro-site"] },
+    ]);
   });
 });
 
