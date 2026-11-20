@@ -119,6 +119,22 @@ function declaredClass(root) {
   }
 }
 
+/** Whether the project's package.json lists astro, so it has .astro files to read. */
+function dependsOnAstro(root) {
+  try {
+    const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+    return ["dependencies", "devDependencies", "peerDependencies"].some(
+      (field) => manifest[field]?.astro !== undefined,
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Whether the class maps a rule that reads .astro pages, which only the Astro parser can read. */
+const readsAstroPages = (className) =>
+  WEBTOPS_RULES.some((entry) => entry.files === ASTRO && entry.classes.includes(className));
+
 /** The plugin's rules the class's laws map, each at error. */
 function webtopsConfigs(className) {
   return WEBTOPS_RULES.filter((entry) => entry.classes.includes(className)).map((entry) => ({
@@ -162,16 +178,8 @@ async function reactConfigs() {
   ];
 }
 
-async function astroConfigs(tsconfigRootDir) {
-  const [astro, a11y] = await Promise.all([
-    load("eslint-plugin-astro"),
-    load("eslint-plugin-jsx-a11y-x"),
-  ]);
+function astroParserOptions(tsconfigRootDir) {
   return [
-    // W-22 semantic elements, alt text, labels (also inside .astro files)
-    ...astro.configs["flat/recommended"],
-    ...astro.configs["flat/jsx-a11y-strict"],
-    { files: TSX, ...a11y.configs.strict },
     {
       // astro-eslint-parser does not take `projectService`; it reads `project` (the file is parsed
       // as `project: true`, which fails on the template without this)
@@ -194,6 +202,26 @@ async function astroConfigs(tsconfigRootDir) {
   ];
 }
 
+async function astroConfigs(tsconfigRootDir) {
+  const [astro, a11y] = await Promise.all([
+    load("eslint-plugin-astro"),
+    load("eslint-plugin-jsx-a11y-x"),
+  ]);
+  return [
+    // W-22 semantic elements, alt text, labels (also inside .astro files)
+    ...astro.configs["flat/recommended"],
+    ...astro.configs["flat/jsx-a11y-strict"],
+    { files: TSX, ...a11y.configs.strict },
+    ...astroParserOptions(tsconfigRootDir),
+  ];
+}
+
+/** The Astro parser alone, for a class whose variant is not astro but whose laws read .astro pages. */
+async function astroParserConfigs(tsconfigRootDir) {
+  const astro = await load("eslint-plugin-astro");
+  return [...astro.configs["flat/base"], ...astroParserOptions(tsconfigRootDir)];
+}
+
 const PLUGIN_CONFIGS = { base: async () => [], react: reactConfigs, astro: astroConfigs };
 
 /** The variants a class can name: the plugin set added on top of the base law rules. */
@@ -207,6 +235,16 @@ export const PACKAGES = {
 };
 
 /**
+ * The variant's plugin set. A class that maps an .astro-scoped rule also gets the Astro parser when
+ * the project depends on astro, whatever its variant, or ESLint could not read its pages.
+ */
+async function pluginConfigs(variant, className, root) {
+  const plugins = await PLUGIN_CONFIGS[variant](root);
+  const needsParser = variant !== "astro" && readsAstroPages(className) && dependsOnAstro(root);
+  return needsParser ? [...plugins, ...(await astroParserConfigs(root))] : plugins;
+}
+
+/**
  * The flat config for one class: the base law rules plus the plugin set the variant adds.
  * `tsconfigRootDir` is the project root, so type-aware rules find its tsconfig. `class` names the
  * project's class; left out, the project's `web-tops.yaml` says which it is.
@@ -215,8 +253,9 @@ export async function eslintPreset({ variant, tsconfigRootDir, class: className 
   if (!Object.hasOwn(PLUGIN_CONFIGS, variant)) {
     throw new RangeError(`web-tops/eslint has no variant "${variant}"; use ${VARIANTS.join(", ")}`);
   }
-  const plugins = await PLUGIN_CONFIGS[variant](tsconfigRootDir);
-  const laws = webtopsConfigs(className ?? declaredClass(tsconfigRootDir) ?? DEFAULT_CLASS);
+  const resolved = className ?? declaredClass(tsconfigRootDir) ?? DEFAULT_CLASS;
+  const plugins = await pluginConfigs(variant, resolved, tsconfigRootDir);
+  const laws = webtopsConfigs(resolved);
   return defineConfig(
     { ignores: IGNORES },
     js.configs.recommended,

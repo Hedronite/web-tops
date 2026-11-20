@@ -21,6 +21,8 @@ export interface DropIn {
   readonly playwright: boolean;
   readonly eslint: EslintVariant;
   readonly tools: readonly string[];
+  /** Tools the class adds only where the project depends on astro. */
+  readonly astro_tools?: readonly string[];
   /** Layer key to the reason it is written `enabled: false`. */
   readonly disabled: Readonly<Record<string, string>>;
 }
@@ -48,6 +50,7 @@ const schema = {
     playwright: { type: "boolean" },
     eslint: { enum: ["base", "react", "astro"] },
     tools: { type: "array", items: { type: "string", minLength: 1 }, uniqueItems: true },
+    astro_tools: { type: "array", items: { type: "string", minLength: 1 }, uniqueItems: true },
     disabled: { type: "object", additionalProperties: { type: "string", minLength: 1 } },
   },
 } as const;

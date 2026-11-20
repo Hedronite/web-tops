@@ -1,37 +1,11 @@
-import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { Linter } from "eslint";
 import { afterAll, describe, expect, it } from "vitest";
 import { REAL_TOOL_TIMEOUT } from "../gate/test-support-timeouts.ts";
 import { PACKAGES, VARIANTS, eslintPreset } from "./eslint.js";
 import type { EslintVariant } from "./eslint.js";
-
-const ROOT = resolve(import.meta.dirname, "../..");
-const scratches: string[] = [];
-
-/**
- * A project outside the kit that reaches it only as `node_modules/web-tops`, the way an inited
- * project does. `files` are written relative to the project; it is an ES module project.
- */
-function scratchProject(files: Readonly<Record<string, string>> = {}): string {
-  const dir = mkdtempSync(join(tmpdir(), "wt-preset-"));
-  scratches.push(dir);
-  mkdirSync(join(dir, "node_modules"));
-  symlinkSync(ROOT, join(dir, "node_modules", "web-tops"));
-  // eslint-plugin-astro finds the TypeScript parser from the project it lints, as an adopter has it.
-  symlinkSync(
-    join(ROOT, "node_modules", "typescript-eslint"),
-    join(dir, "node_modules", "typescript-eslint"),
-  );
-  const all = { "package.json": '{ "type": "module" }\n', ...files };
-  for (const [path, text] of Object.entries(all)) {
-    mkdirSync(dirname(join(dir, path)), { recursive: true });
-    writeFileSync(join(dir, path), text);
-  }
-  return dir;
-}
+import { ROOT, bin, removeScratches, run, scratchProject } from "./test-support-scratch.ts";
 
 const presetOf = (variant: EslintVariant): Promise<Linter.Config[]> =>
   eslintPreset({ variant, tsconfigRootDir: "<project>" });
@@ -53,9 +27,7 @@ function errorRules(config: readonly Linter.Config[]): ReadonlySet<string> {
 const pluginNames = (config: readonly Linter.Config[]): ReadonlySet<string> =>
   new Set(config.flatMap((entry) => Object.keys(entry.plugins ?? {})));
 
-afterAll(() => {
-  for (const dir of scratches) rmSync(dir, { recursive: true, force: true });
-});
+afterAll(removeScratches);
 
 const PRESET_SOURCE = readFileSync(join(ROOT, "src/presets/eslint.js"), "utf8");
 const KIT_CONFIG = readFileSync(join(ROOT, "eslint.config.js"), "utf8");
@@ -67,17 +39,6 @@ const writtenRules = (source: string): ReadonlySet<string> =>
       (match) => match[1] ?? "",
     ),
   );
-
-function run(
-  command: string,
-  args: readonly string[],
-  cwd: string,
-): { status: number | null; output: string } {
-  const result = spawnSync(command, args, { cwd, encoding: "utf8" });
-  return { status: result.status, output: `${result.stdout}${result.stderr}` };
-}
-
-const bin = (name: string): string => join(ROOT, "node_modules", ".bin", name);
 
 describe("G2a: each preset imports from a scratch project", () => {
   it(
