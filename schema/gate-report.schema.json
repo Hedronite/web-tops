@@ -199,6 +199,34 @@
       "type": "string",
       "pattern": "^2\\.[0-9]+\\.[0-9]+$"
     },
+    "laws": {
+      "type": "object",
+      "description": "N of M laws judged for the class: M the laws it requires, N those a reader judged. Recounted from the laws layer's own findings (rule law/W-NN, required).",
+      "required": ["class", "of", "judged", "refused", "not_evaluated"],
+      "additionalProperties": false,
+      "properties": {
+        "class": {
+          "type": "string",
+          "minLength": 1
+        },
+        "of": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "judged": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "refused": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "not_evaluated": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
     "subject": {
       "type": "object",
       "required": ["package", "root"],
@@ -758,8 +786,10 @@
         "bun",
         "dependency-cruiser",
         "eslint",
+        "knip",
         "prettier",
         "publint",
+        "secretlint",
         "stryker",
         "stylelint",
         "tsc",

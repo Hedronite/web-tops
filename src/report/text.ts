@@ -96,6 +96,14 @@ function problemLines(report: Report): string[] {
   return (report.problems ?? []).map((problem) => `problem: ${problem.message} (${problem.path})`);
 }
 
+/** "N of M laws judged" for the class, as the report's `laws` block says it. */
+function lawsCountLine(report: Report): string[] {
+  const laws = report.laws;
+  return laws === undefined
+    ? []
+    : [`laws: ${String(laws.judged)} of ${String(laws.of)} judged (${laws.class})`];
+}
+
 function totalsLine(report: Report): string {
   const { in_range: inRange, ran, failed, not_evaluated: notEvaluated } = report.counts;
   return `layers: ${String(inRange)} in range, ${String(ran)} ran, ${String(failed)} failed, ${String(notEvaluated)} not-evaluated`;
@@ -117,6 +125,7 @@ export function formatText(report: Report): string {
     "",
     ...lawsLines(report),
     ...problemLines(report),
+    ...lawsCountLine(report),
     totalsLine(report),
     ...endLines(report),
   ];
