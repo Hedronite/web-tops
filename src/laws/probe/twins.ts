@@ -1,6 +1,6 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ProbeLaw, Twin, TwinKind } from "./types.ts";
+import type { ProbeLaw, SkippedTwin, Twin, TwinKind } from "./types.ts";
 
 /** The files of a twin the tools read. Anything else in a twin directory is copied beside them and left alone. */
 function twinFile(): RegExp {
@@ -47,6 +47,21 @@ export function listTwins(fixtures: string, laws: readonly ProbeLaw[]): Twin[] {
 }
 
 /**
+ * The twins the project's preset can lint, and those it cannot. An Astro twin is left out, with the reason, when the
+ * class has no Astro files to lint (`astroSkip` is the reason); every other twin is kept.
+ */
+export function splitTwins(
+  twins: readonly Twin[],
+  astroSkip: string | undefined,
+): { readonly kept: Twin[]; readonly skipped: SkippedTwin[] } {
+  const skip = (twin: Twin): boolean => astroSkip !== undefined && isAstro(twin.file);
+  return {
+    kept: twins.filter((twin) => !skip(twin)),
+    skipped: twins.filter(skip).map((twin) => ({ ...twin, reason: String(astroSkip) })),
+  };
+}
+
+/**
  * The scratch project: a copy of each probed law's directory, the one tsconfig the compiler and the type-aware lint
  * rules both find, and an empty ignore file for Stylelint. It extends the project's own, so a flag the project turns off is off for the twins too, and it
  * names every file, so no `include` or `exclude` of the project's keeps a twin out.
@@ -68,7 +83,7 @@ export function materialize(
   const config = {
     extends: tsconfig,
     compilerOptions: { noEmit: true },
-    include: ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
+    include: ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts", "**/*.astro"],
     exclude: [],
   };
   writeFileSync(join(scratch, "tsconfig.json"), `${JSON.stringify(config, null, 2)}\n`);

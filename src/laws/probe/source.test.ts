@@ -46,6 +46,7 @@ describe("G3a the laws the probe proves are read from the catalog's records", ()
       id: "W-01",
       classes: ["ts-library", "web-app"],
       proofs: ["@typescript-eslint/no-explicit-any", "noImplicitAny"],
+      scoped: {},
     });
     expect(isProbed(W01)).toBe(true);
   });
@@ -68,7 +69,8 @@ describe("G3a the laws the probe proves are read from the catalog's records", ()
 
   it("leaves out a law that is not ticked, whatever its rules", () => {
     expect(isProbed(W47)).toBe(false);
-    expect(isProbed({ ...W01, judged: "m3" })).toBe(false);
+    expect(isProbed({ ...W01, judged: "no" })).toBe(false);
+    expect(isProbed({ ...W01, judged: "m3" })).toBe(true);
   });
 
   it("lists the probed laws in id order, and reads the records each time the source is called", () => {
@@ -81,6 +83,24 @@ describe("G3a the laws the probe proves are read from the catalog's records", ()
     expect(source().map((law) => law.id)).toEqual(["W-01"]);
     source();
     expect(reads).toBe(2);
+  });
+});
+
+describe("R106 a rule whose entry names classes is scoped to them", () => {
+  const record: LawRecord = {
+    id: "W-91",
+    classes: ["ui-components", "astro-site"],
+    judged: "v0.1",
+    rules: [
+      { tool: "eslint", name: "jsx-a11y-x/alt-text" },
+      { tool: "eslint", name: "astro/jsx-a11y/alt-text", classes: ["astro-site"] },
+      { tool: "axe", name: "axe", classes: ["astro-site"] },
+    ],
+  };
+
+  it("lists the classes of each probed rule that has them, and leaves the other rules out", () => {
+    expect(toProbeLaw(record).scoped).toEqual({ "astro/jsx-a11y/alt-text": ["astro-site"] });
+    expect(toProbeLaw(W01).scoped).toEqual({});
   });
 });
 

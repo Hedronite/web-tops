@@ -5,8 +5,17 @@ import { TOOLS, parseJson, readOutput, resolveTool } from "../../layers/hygiene/
 import { judgeLaw } from "./judge.ts";
 import { parseMarkers } from "./markers.ts";
 import { readEslint, readStylelint, readTsc, type Reading } from "./observe.ts";
-import { isAstro, isCss, isScript, listTwins, materialize, stylelintIgnore } from "./twins.ts";
-import type { Expectation, Observed, ProbeLaw, ProbeReport, Twin } from "./types.ts";
+import {
+  isAstro,
+  isCss,
+  isScript,
+  listTwins,
+  materialize,
+  splitTwins,
+  stylelintIgnore,
+} from "./twins.ts";
+import { defaultConfig, writeWrapper } from "./wrapper.ts";
+import type { Expectation, Observed, ProbeLaw, ProbeReport, SkippedTwin, Twin } from "./types.ts";
 
 export interface ProbeRequest {
   readonly cwd: string;
@@ -21,6 +30,11 @@ export interface ProbeRequest {
   readonly eslintConfig: string | undefined;
   /** The tsconfig whose flags are proven: the project's own. */
   readonly tsconfig: string;
+  /**
+   * Why Astro twins are left out: the project's class has no Astro files to lint. Absent when its preset lints them,
+   * and then each Astro twin is proven like any other.
+   */
+  readonly astroSkip?: string | undefined;
 }
 
 /** The probe could not run: 3 when a tool is missing or timed out, 2 when a config or output is unusable. */
@@ -109,9 +123,17 @@ function lintTargets(request: ProbeRequest, twins: readonly Twin[]): string[] {
   return [relative(request.cwd, request.scratch), ...astro];
 }
 
+/** The config ESLint is given: the project's own, with the twins' tsconfig for the type-aware rules (R109). */
+function configArgs(request: ProbeRequest): string[] {
+  const config = request.eslintConfig ?? defaultConfig(request.cwd);
+  return config === undefined
+    ? []
+    : ["--config", writeWrapper(config, request.scratch, request.cwd)];
+}
+
 async function eslintPass(request: ProbeRequest, twins: readonly Twin[]): Promise<Pass> {
   const output = join(request.scratch, "eslint.json");
-  const config = request.eslintConfig === undefined ? [] : ["--config", request.eslintConfig];
+  const config = configArgs(request);
   const args = ["--no-ignore", "--format", "json", "--output-file", output, ...config];
   const result = await runTool(request, "eslint", [...args, ...lintTargets(request, twins)]);
   const failed = stopped("eslint", result, [0, 1]);
@@ -160,16 +182,38 @@ function marksOf(scratch: string, twins: readonly Twin[]): Expectation[] {
   );
 }
 
-function report(
-  request: ProbeRequest,
-  twins: readonly Twin[],
-  seen: readonly Observed[],
-): ProbeReport {
-  const marks = marksOf(request.scratch, twins);
+interface Kept {
+  readonly kept: readonly Twin[];
+  readonly skipped: readonly SkippedTwin[];
+}
+
+/** The markers of the files of a law: a marker names its file with the law's id first. */
+const ofLaw = (marks: readonly Expectation[], law: ProbeLaw): Expectation[] =>
+  marks.filter((mark) => mark.file.startsWith(`${law.id}/`));
+
+/**
+ * A law whose every twin was skipped has nothing to judge: it is left out of the laws, and its twins are named in
+ * `skipped` with the reason. A rule only a skipped twin names is not unproven: it was skipped.
+ */
+function report(request: ProbeRequest, twins: Kept, seen: readonly Observed[]): ProbeReport {
+  const marks = marksOf(request.scratch, twins.kept);
+  const skippedMarks = marksOf(request.scratch, twins.skipped);
+  const left = request.laws.filter(
+    (law) =>
+      twins.kept.some((twin) => twin.law === law.id) ||
+      !twins.skipped.some((twin) => twin.law === law.id),
+  );
   return {
-    laws: request.laws.map((law) =>
-      judgeLaw({ law, twins: twins.filter((twin) => twin.law === law.id), marks, seen }),
+    laws: left.map((law) =>
+      judgeLaw({
+        law,
+        twins: twins.kept.filter((twin) => twin.law === law.id),
+        marks,
+        seen,
+        skippedMarks: ofLaw(skippedMarks, law),
+      }),
     ),
+    skipped: twins.skipped,
   };
 }
 
@@ -189,22 +233,26 @@ const real = (request: ProbeRequest): ProbeRequest => ({
  * what the tools reported.
  */
 export async function runProbe(given: ProbeRequest): Promise<ProbeOutcome> {
-  const twins = listTwins(given.fixtures, given.laws);
+  const twins = splitTwins(listTwins(given.fixtures, given.laws), given.astroSkip);
   materialize(given.fixtures, given.scratch, given.laws, given.tsconfig);
   const request = real(given);
-  const linted = await lint(request, twins);
+  const linted = await lint(request, twins.kept);
   if (!linted.ok) {
     return linted;
   }
-  const compiled = await compile(request, twins);
+  const compiled = await compile(request, twins.kept);
   if (!compiled.ok) {
     return compiled;
   }
-  const styled = await stylelintPass(request, twins);
+  const styled = await stylelintPass(request, twins.kept);
   return styled.ok
-    ? {
-        ok: true,
-        report: report(request, twins, [...linted.seen, ...compiled.seen, ...styled.seen]),
-      }
+    ? judged(report(request, twins, [...linted.seen, ...compiled.seen, ...styled.seen]))
     : styled;
+}
+
+/** A probe that left every law out has proven nothing: it says so, and names the twins it skipped. */
+function judged(made: ProbeReport): ProbeOutcome {
+  return made.laws.length === 0 && made.skipped.length > 0
+    ? problem(`every twin of the given laws was skipped: ${String(made.skipped[0]?.reason)}`)
+    : { ok: true, report: made };
 }

@@ -7,7 +7,7 @@ const ids = (className: string): string[] =>
   lawsOfClass(kitProbeLaws(), className).map((law) => law.id);
 
 describe("G3a the laws the probe proves are the catalog's ticked lint and compiler laws", () => {
-  it("reads the fourteen laws a lint rule or a flag judges, in order, from laws/W-NN.yaml", () => {
+  it("reads the fifteen laws a lint rule or a flag judges (judged v0.1 or m3), in order, from laws/W-NN.yaml", () => {
     expect(kitProbeLaws().map((law) => law.id)).toEqual([
       "W-01",
       "W-02",
@@ -23,6 +23,7 @@ describe("G3a the laws the probe proves are the catalog's ticked lint and compil
       "W-26",
       "W-34",
       "W-35",
+      "W-49",
     ]);
   });
 
@@ -42,10 +43,42 @@ describe("G3a the laws the probe proves are the catalog's ticked lint and compil
     expect(ids("web-app")).toContain("W-26");
   });
 
+  it("W-49 is mapped by the astro-site class alone", () => {
+    expect(ids("astro-site")).toContain("W-49");
+    for (const className of ["ts-library", "ui-components", "web-app", "node-service"]) {
+      expect(ids(className)).not.toContain("W-49");
+    }
+  });
+
   it("a class the catalog does not know maps nothing, and a law with no class list is mapped by every class", () => {
     expect(ids("cli")).toEqual([]);
     expect(lawsOfClass([], "ts-library")).toEqual([]);
     expect(lawsOfClass([{ id: "W-99", proofs: [] }], "anything")).toHaveLength(1);
+  });
+});
+
+describe("R106 a law's proofs under a class are the rules that apply to it", () => {
+  const law = {
+    id: "W-91",
+    classes: ["ui-components", "astro-site"],
+    proofs: ["jsx-a11y-x/alt-text", "astro/jsx-a11y/alt-text"],
+    scoped: { "astro/jsx-a11y/alt-text": ["astro-site"] },
+  };
+  const proofsOf = (className: string): string[] =>
+    lawsOfClass([law], className).flatMap((found) => found.proofs);
+
+  it("keeps a rule that names classes only for those, and every other rule for every class", () => {
+    expect(proofsOf("astro-site")).toEqual(["jsx-a11y-x/alt-text", "astro/jsx-a11y/alt-text"]);
+    expect(proofsOf("ui-components")).toEqual(["jsx-a11y-x/alt-text"]);
+  });
+
+  it("still maps no law for a class the law does not list", () => {
+    expect(proofsOf("web-app")).toEqual([]);
+  });
+
+  it("takes a law with no scopes as it is", () => {
+    const plain = { id: "W-92", proofs: ["a", "b"] };
+    expect(lawsOfClass([plain], "ui-components")).toEqual([plain]);
   });
 });
 

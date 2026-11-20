@@ -858,7 +858,8 @@ fails the catalog, and so every `laws` command. Fields:
 - `classes`, the launch classes that map the law (§5.2), and `conditional_classes`, those among them
   that map it only when the project depends on Astro;
 - `reader`: `kinds`, from `tl`, `an`, `at` and `tbd` (§8.1), and `text`, the Reader cell of §8.2;
-- `rules`: each tool rule, flag or check the law maps, as a `tool` and a `name`;
+- `rules`: each tool rule, flag or check the law maps, as a `tool` and a `name`, and an optional
+  `classes`, the classes among the law's that the rule applies to (absent: every class the law maps);
 - `judged`: `v0.1` for a law ticked in §8.2, `m3` for a law M3 gives a reader, `no` for the rest;
 - `rationale`, `fix` and an optional `note`.
 

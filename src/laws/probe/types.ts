@@ -13,6 +13,8 @@ export interface ProbeLaw {
   readonly proofs: readonly string[];
   /** The classes that map the law (WEB_TOPS.md section 5.2); absent for a law every class maps. */
   readonly classes?: readonly string[];
+  /** The classes a rule applies to, by proof, where its entry names them (R106); any other proof is proven for every class. */
+  readonly scoped?: Readonly<Record<string, readonly string[]>>;
 }
 
 /** Where the laws come from. `laws/W-NN.yaml` is the source once it lands; until then, the interim table. */
@@ -72,6 +74,12 @@ export interface LawProbe {
   readonly unrelated: readonly Observed[];
 }
 
+/** A twin the probe left out of the run, and why: a skip is always said, never silent. */
+export interface SkippedTwin extends Twin {
+  readonly reason: string;
+}
+
 export interface ProbeReport {
   readonly laws: readonly LawProbe[];
+  readonly skipped: readonly SkippedTwin[];
 }

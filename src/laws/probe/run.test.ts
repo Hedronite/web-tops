@@ -1,4 +1,4 @@
-import { realpathSync, writeFileSync } from "node:fs";
+import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import type { Exec, ExecResult } from "../../gate/types.ts";
@@ -154,17 +154,21 @@ describe("G3b the runner lints the twins once and compiles them once, then judge
     expect(calls).toHaveLength(2);
   });
 
-  it("passes the ESLint config given with --config, and none when there is none", async () => {
-    const cwd = project();
-    const withConfig: Call[] = [];
-    const named = request(cwd, fake({ eslintOutput: "[]" }, withConfig), {
+  it("passes a wrapper of the ESLint config given, which imports it", async () => {
+    const calls: Call[] = [];
+    const named = request(project(), fake({ eslintOutput: "[]" }, calls), {
       eslintConfig: "/x/e.js",
     });
     await runProbe(named);
-    const args = withConfig[0]?.args ?? [];
-    expect(args[args.indexOf("--config") + 1]).toBe("/x/e.js");
+    const args = String(calls[0]?.args);
+    const wrapper = args.split(",")[args.split(",").indexOf("--config") + 1];
+    expect(String(wrapper).endsWith(".web-tops/out/laws-probe.eslint.config.mjs")).toBe(true);
+    expect(readFileSync(String(wrapper), "utf8")).toContain('await import("file:///x/e.js")');
+  });
+
+  it("passes no ESLint config when none is given and the project has none", async () => {
     const without: Call[] = [];
-    await runProbe(request(cwd, fake({ eslintOutput: "[]" }, without)));
+    await runProbe(request(project(), fake({ eslintOutput: "[]" }, without)));
     expect(without[0]?.args).not.toContain("--config");
   });
 
@@ -485,5 +489,165 @@ describe("G3b the runner's exact calls, and each law judged on its own twins", (
     };
     const outcome = await runProbe(request(project(), fake({ eslint: timeout }, [])));
     expect(!outcome.ok && outcome.problem).toBe("eslint did not run: tool-timeout. late\npartial");
+  });
+});
+
+const MIXED_LAW: ProbeLaw = { id: "W-96", proofs: ["no-thing", "astro/no-astro"] };
+
+function mixedFixtures(): string {
+  const dir = tempDir();
+  put(dir, {
+    "W-96/bad/a.ts": "export const a = 1; // expect: no-thing\n",
+    "W-96/clean/a.ts": "export const a = 1;\n",
+    "W-96/bad/page.astro": "<p /> <!-- expect: astro/no-astro -->\n",
+    "W-96/clean/page.astro": "<p />\n",
+  });
+  return dir;
+}
+
+const REASON = "the ui-components preset does not lint .astro files";
+
+describe("R105 the runner skips Astro twins a class cannot lint, and says so", () => {
+  const mixed = (cwd: string, exec: Exec, extra: Partial<ProbeRequest> = {}): ProbeRequest =>
+    request(cwd, exec, { laws: [MIXED_LAW], fixtures: mixedFixtures(), ...extra });
+
+  it("names no Astro twin to ESLint, reports each as skipped with the reason, and passes on the other twins", async () => {
+    const cwd = project();
+    const calls: Call[] = [];
+    const real = join(realpathSync(cwd), ".web-tops/out/laws-probe");
+    const found = JSON.stringify([
+      {
+        filePath: `${real}/W-96/bad/a.ts`,
+        messages: [{ ruleId: "p/no-thing", line: 1, message: "m" }],
+      },
+    ]);
+    const outcome = await runProbe(
+      mixed(cwd, fake({ eslintOutput: found }, calls), { astroSkip: REASON }),
+    );
+    expect(nth(calls, 0).args.join(" ")).not.toContain("page.astro");
+    expect(outcome).toMatchObject({
+      ok: true,
+      report: {
+        laws: [{ id: "W-96", verdict: "pass", failures: [] }],
+        skipped: [
+          { file: "W-96/bad/page.astro", reason: REASON },
+          { file: "W-96/clean/page.astro", reason: REASON },
+        ],
+      },
+    });
+  });
+
+  it("without a reason the Astro twins are linted and proven, and nothing is skipped", async () => {
+    const cwd = project();
+    const calls: Call[] = [];
+    const outcome = await runProbe(mixed(cwd, fake({ eslintOutput: "[]" }, calls)));
+    expect(nth(calls, 0).args.join(" ")).toContain("page.astro");
+    expect(outcome).toMatchObject({ ok: true, report: { skipped: [] } });
+  });
+
+  it("a law whose every twin is Astro is left out, and a probe with no law left is a problem naming why", async () => {
+    const cwd = project();
+    const outcome = await runProbe(
+      request(cwd, fake({ eslintOutput: "[]" }, []), {
+        laws: [ASTRO_LAW],
+        fixtures: astroFixtures(),
+        astroSkip: REASON,
+      }),
+    );
+    expect(outcome).toEqual({
+      ok: false,
+      code: 2,
+      problem: `every twin of the given laws was skipped: ${REASON}`,
+    });
+  });
+
+  it("a law with only Astro twins is dropped beside a law that has others, and the other is still judged", async () => {
+    const cwd = project();
+    const fixtures = mixedFixtures();
+    put(fixtures, {
+      "W-97/bad/page.astro": "<p /> <!-- expect: no-thing -->\n",
+      "W-97/clean/page.astro": "<p />\n",
+    });
+    const outcome = await runProbe(
+      request(cwd, fake({ eslintOutput: "[]" }, []), {
+        laws: [MIXED_LAW, ASTRO_LAW],
+        fixtures,
+        astroSkip: REASON,
+      }),
+    );
+    expect(outcome.ok && outcome.report.laws.map((law) => law.id)).toEqual(["W-96"]);
+    expect(outcome.ok && outcome.report.skipped.map((twin) => twin.law)).toEqual([
+      "W-96",
+      "W-96",
+      "W-97",
+      "W-97",
+    ]);
+  });
+});
+
+describe("R105 the runner keeps each law's twins and each law's skips apart", () => {
+  const OTHER: ProbeLaw = { id: "W-95", proofs: ["no-thing", "astro/no-astro"] };
+
+  it("a proof that another law's skipped twin names is still unproven for a law that has no such twin", async () => {
+    const cwd = project();
+    const fixtures = mixedFixtures();
+    put(fixtures, {
+      "W-95/bad/a.ts": "export const a = 1; // expect: no-thing\n",
+      "W-95/clean/a.ts": "export const a = 1;\n",
+    });
+    const real = join(realpathSync(cwd), ".web-tops/out/laws-probe");
+    const found = JSON.stringify(
+      ["W-95", "W-96"].map((id) => ({
+        filePath: `${real}/${id}/bad/a.ts`,
+        messages: [{ ruleId: "p/no-thing", line: 1, message: "m" }],
+      })),
+    );
+    const outcome = await runProbe(
+      request(cwd, fake({ eslintOutput: found }, []), {
+        laws: [MIXED_LAW, OTHER],
+        fixtures,
+        astroSkip: REASON,
+      }),
+    );
+    expect(outcome.ok && outcome.report.laws.map((law) => `${law.id} ${law.verdict}`)).toEqual([
+      "W-96 pass",
+      "W-95 fail",
+    ]);
+    expect(outcome.ok && outcome.report.laws[1]?.failures.map((failure) => failure.kind)).toEqual([
+      "unproven",
+    ]);
+  });
+
+  it("a law with no twin of its own has none, even beside a law that has some", async () => {
+    const cwd = project();
+    const outcome = await runProbe(
+      request(cwd, fake({ eslintOutput: "[]" }, []), {
+        laws: [LAW, { id: "W-98", proofs: ["no-thing"] }],
+      }),
+    );
+    expect(outcome.ok && outcome.report.laws[1]?.failures.map((failure) => failure.kind)).toEqual([
+      "no-bad-twin",
+      "no-clean-twin",
+      "unproven",
+    ]);
+  });
+
+  it("a law with no twin at all stays in the report beside a law whose twins were skipped", async () => {
+    const outcome = await runProbe(
+      request(project(), fake({ eslintOutput: "[]" }, []), {
+        laws: [MIXED_LAW, { id: "W-94", proofs: ["no-thing"] }],
+        fixtures: mixedFixtures(),
+        astroSkip: REASON,
+      }),
+    );
+    expect(outcome.ok && outcome.report.laws.map((law) => `${law.id} ${law.verdict}`)).toEqual([
+      "W-96 fail",
+      "W-94 fail",
+    ]);
+  });
+
+  it("no law to probe and nothing skipped is a report with no law, not a problem", async () => {
+    const outcome = await runProbe(request(project(), fake({}, []), { laws: [] }));
+    expect(outcome).toEqual({ ok: true, report: { laws: [], skipped: [] } });
   });
 });

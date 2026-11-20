@@ -23,7 +23,7 @@ const laws = (): readonly ProbeLaw[] => [
 
 const passed: ProbeOutcome = {
   ok: true,
-  report: { laws: [{ id: "W-99", verdict: "pass", failures: [], unrelated: [] }] },
+  report: { laws: [{ id: "W-99", verdict: "pass", failures: [], unrelated: [] }], skipped: [] },
 };
 
 const failed: ProbeOutcome = {
@@ -42,6 +42,7 @@ const failed: ProbeOutcome = {
         unrelated: [],
       },
     ],
+    skipped: [],
   },
 };
 
@@ -83,6 +84,7 @@ describe("G3b the command prints a probe's report and picks its exit code", () =
     expect(result.code).toBe(0);
     expect(JSON.parse(result.out)).toEqual({
       laws: [{ id: "W-99", verdict: "pass", failures: [], unrelated: [] }],
+      skipped: [],
     });
     expect(result.out.endsWith("}\n")).toBe(true);
   });
@@ -220,5 +222,53 @@ describe("G3b the command's own problems", () => {
     expect(made.probe).toBe(runProbe);
     expect(made.laws).toBe(catalogLaws);
     expect(made.fixtures).toBe(join(KIT, "fixtures", "laws"));
+  });
+});
+
+describe("R105 the request says why Astro twins are skipped", () => {
+  const skipOf = async (
+    className: string,
+    files: Record<string, string> = {},
+  ): Promise<unknown> => {
+    const cwd = tempDir();
+    put(cwd, files);
+    const { probe, requests } = given(passed);
+    await cli(["--class", className, "--law", "W-99"], cwd, { probe, laws });
+    return first(requests).astroSkip;
+  };
+  const MANIFEST = (field: string): Record<string, string> => ({
+    "package.json": JSON.stringify({ [field]: { astro: "^5.0.0" } }),
+  });
+
+  it("an astro-site lints Astro files, so nothing is skipped", async () => {
+    expect(await skipOf("astro-site")).toBeUndefined();
+  });
+
+  it("a ui-components and a ts-library project do not lint them, and the reason names the class", async () => {
+    expect(await skipOf("ui-components")).toBe(
+      "the ui-components preset does not lint .astro files",
+    );
+    expect(await skipOf("ts-library")).toBe("the ts-library preset does not lint .astro files");
+  });
+
+  it("a web-app lints them only when its package.json depends on astro, under any dependency field", async () => {
+    const why = "a web-app lints .astro files only when the project depends on astro";
+    expect(await skipOf("web-app")).toBe(why);
+    expect(await skipOf("web-app", { "package.json": "{}" })).toBe(why);
+    expect(await skipOf("web-app", { "package.json": "not json" })).toBe(why);
+    expect(await skipOf("web-app", MANIFEST("dependencies"))).toBeUndefined();
+    expect(await skipOf("web-app", MANIFEST("devDependencies"))).toBeUndefined();
+    expect(await skipOf("web-app", MANIFEST("peerDependencies"))).toBeUndefined();
+    expect(
+      await skipOf("web-app", { "package.json": JSON.stringify({ dependencies: ["astro"] }) }),
+    ).toBe(why);
+  });
+
+  it("the class is the one web-tops.yaml names when no --class is given", async () => {
+    const cwd = tempDir();
+    put(cwd, { "web-tops.yaml": "class: astro-site\n" });
+    const { probe, requests } = given(passed);
+    await cli(["--law", "W-99"], cwd, { probe, laws });
+    expect(first(requests).astroSkip).toBeUndefined();
   });
 });

@@ -34,6 +34,11 @@ export interface InitOutcome {
 /** What `astro check` needs, locked only where the step runs. */
 const ASTRO_TOOLS = ["@astrojs/check", "astro"];
 
+/** The tools the class adds only where `astro check` runs: the shared ones and its own. */
+function conditionalTools(profile: DropIn, astro: boolean): readonly string[] {
+  return astro ? [...ASTRO_TOOLS, ...(profile.astro_tools ?? [])] : [];
+}
+
 /** What a run decided to write, before it touches the disk. */
 interface Plan {
   readonly files: ReadonlyMap<string, string>;
@@ -98,7 +103,7 @@ function pinTools(
 ): { lock: Record<string, string>; install: string[] } | string {
   const lock: Record<string, string> = { webtops: pkg.version, node: NODE_RANGE };
   const install: string[] = [`web-tops@${pkg.version}`];
-  for (const tool of [...profile.tools, ...(astro ? ASTRO_TOOLS : [])]) {
+  for (const tool of [...profile.tools, ...conditionalTools(profile, astro)]) {
     const version: unknown = Reflect.get(TOOL_PINS, tool);
     if (typeof version !== "string")
       return `profiles/${profile.class}.yaml pins ${tool}, which has no exact version`;

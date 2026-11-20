@@ -1,0 +1,4 @@
+---
+const posts = Object.values(import.meta.glob("./posts/*.md"));
+---
+<p>{posts.length}</p>

@@ -86,6 +86,26 @@ describe("validateLaw (G1a: an invalid file fails)", () => {
     expect(problemsOf(lawWith({ conditional_classes: [] }))).toHaveLength(1);
   });
 
+  it("accepts a rule's classes among the law's, and fails one that is not, an empty list and a repeat", () => {
+    const withRule = (classes: unknown): unknown =>
+      lawWith({
+        classes: ["web-app", "astro-site"],
+        conditional_classes: undefined,
+        rules: [
+          { tool: "eslint", name: "a/b" },
+          { tool: "eslint", name: "c/d", classes },
+        ],
+      });
+    expect(problemsOf(withRule(["astro-site"]))).toEqual([]);
+    expect(problemsOf(withRule(["ui-components"]))).toEqual([
+      "/rules/1/classes ui-components is not in classes",
+    ]);
+    expect(problemsOf(withRule([]))).toHaveLength(1);
+    expect(problemsOf(withRule(["astro-site", "astro-site"]))).toHaveLength(1);
+    expect(problemsOf(withRule(["cli"]))).toHaveLength(1);
+    expect(problemsOf(withRule("astro-site"))).toHaveLength(1);
+  });
+
   it("fails a severity, a judged value and an id the schema does not allow", () => {
     expect(problemsOf(lawWith({ severity: "X" }))).toHaveLength(1);
     expect(problemsOf(lawWith({ judged: "yes" }))).toHaveLength(1);
