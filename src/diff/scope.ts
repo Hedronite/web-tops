@@ -244,19 +244,21 @@ async function copyOf(
   return createCopy(path, shown.value) ? { name, path } : undefined;
 }
 
-/** A coverage source that returns undefined for a run that throws. */
-const quiet =
-  <A>(run: (given: A) => Promise<CoverageMap | undefined>) =>
-  async (given: A): Promise<CoverageMap | undefined> => {
-    try {
-      return await run(given);
-    } catch {
-      return undefined;
-    }
-  };
+/** What a coverage source gives, or undefined for a run that throws. */
+async function quietly<A>(
+  run: (given: A) => Promise<CoverageMap | undefined>,
+  given: A,
+): Promise<CoverageMap | undefined> {
+  try {
+    return await run(given);
+  } catch {
+    return undefined;
+  }
+}
 
-const quietMany = (many: CoverageOfMany | undefined): CoverageOfMany | undefined =>
-  many === undefined ? undefined : quiet(many);
+function quietMany(many: CoverageOfMany | undefined): CoverageOfMany | undefined {
+  return many === undefined ? undefined : (group) => quietly(many, group);
+}
 
 /** Writes the merge-base copy of each test file that has one, adding each to `copies` as it is made. */
 async function copyAll(
@@ -288,7 +290,11 @@ async function baseCoverage(
   try {
     await copyAll(copies, options, exec, mergeBase, tests);
     const names = copies.map((copy) => copy.name);
-    const got = await gather(names, quiet(sources.coverageOf), quietMany(sources.coverageOfMany));
+    const got = await gather(
+      names,
+      (file) => quietly(sources.coverageOf, file),
+      quietMany(sources.coverageOfMany),
+    );
     return got.maps;
   } finally {
     for (const copy of copies) rmSync(copy.path, { force: true });
