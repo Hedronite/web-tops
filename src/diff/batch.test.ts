@@ -202,6 +202,21 @@ describe("changed test files run together", () => {
     expect(sizes).toEqual([100, 100, 5]);
   });
 
+  it("lists the functions of one file by line, though the head covered the later and the base the earlier", async () => {
+    const project = weakened();
+    const result = await diffScope({
+      ...project,
+      copyToken: () => "tok",
+      base: "main",
+      coverageOf: () => Promise.resolve(undefined),
+      coverageOfMany: (group) =>
+        Promise.resolve(
+          group.some((file) => file.includes(".wt-base-")) ? ran(true, false) : ran(false, true),
+        ),
+    });
+    expect(keys(result)).toEqual(["src/m.ts::f", "src/m.ts::g"]);
+  });
+
   it("lists the functions by file and line, whatever order the coverage came in", async () => {
     const cwd = plainDir({ "src/z.ts": M, "src/a.ts": M, "src/t.test.ts": WEAK });
     const both = (path: string): [string, readonly FunctionHit[]] => [

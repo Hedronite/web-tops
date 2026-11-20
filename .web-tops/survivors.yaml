@@ -174,6 +174,26 @@ survivors:
       function to the changed ones, whether or not it is counted among the
       sources.
     owner: web-platform
+  - file: src/diff/test-support.ts
+    function: src/diff/test-support.ts::<module>
+    mutator: ArrayDeclaration
+    original: "[]"
+    replacement: "[\"Stryker was here\"]"
+    occurrence: 1
+    reason: The list only holds directories to remove; a name that is no directory
+      is removed with force and changes nothing, so a first entry in the list is
+      not seen.
+    owner: web-platform
+  - file: src/diff/test-support.ts
+    function: src/diff/test-support.ts::showOf
+    mutator: StringLiteral
+    original: "\"\""
+    replacement: "\"Stryker was here!\""
+    occurrence: 1
+    reason: "The fallback is the key of a file that is not in the table of
+      merge-base files, and any other string is not in it either: the same
+      failure comes back."
+    owner: web-platform
   - file: src/gate/adapter.ts
     function: src/gate/adapter.ts::classCap
     mutator: StringLiteral
