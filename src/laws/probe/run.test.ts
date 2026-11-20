@@ -580,3 +580,56 @@ describe("R105 the runner skips Astro twins a class cannot lint, and says so", (
     ]);
   });
 });
+
+describe("R105 the runner keeps each law's twins and each law's skips apart", () => {
+  const OTHER: ProbeLaw = { id: "W-95", proofs: ["no-thing", "astro/no-astro"] };
+
+  it("a proof that another law's skipped twin names is still unproven for a law that has no such twin", async () => {
+    const cwd = project();
+    const fixtures = mixedFixtures();
+    put(fixtures, {
+      "W-95/bad/a.ts": "export const a = 1; // expect: no-thing\n",
+      "W-95/clean/a.ts": "export const a = 1;\n",
+    });
+    const real = join(realpathSync(cwd), ".web-tops/out/laws-probe");
+    const found = JSON.stringify(
+      ["W-95", "W-96"].map((id) => ({
+        filePath: `${real}/${id}/bad/a.ts`,
+        messages: [{ ruleId: "p/no-thing", line: 1, message: "m" }],
+      })),
+    );
+    const outcome = await runProbe(
+      request(cwd, fake({ eslintOutput: found }, []), {
+        laws: [MIXED_LAW, OTHER],
+        fixtures,
+        astroSkip: REASON,
+      }),
+    );
+    expect(outcome.ok && outcome.report.laws.map((law) => `${law.id} ${law.verdict}`)).toEqual([
+      "W-96 pass",
+      "W-95 fail",
+    ]);
+    expect(outcome.ok && outcome.report.laws[1]?.failures.map((failure) => failure.kind)).toEqual([
+      "unproven",
+    ]);
+  });
+
+  it("a law with no twin of its own has none, even beside a law that has some", async () => {
+    const cwd = project();
+    const outcome = await runProbe(
+      request(cwd, fake({ eslintOutput: "[]" }, []), {
+        laws: [LAW, { id: "W-98", proofs: ["no-thing"] }],
+      }),
+    );
+    expect(outcome.ok && outcome.report.laws[1]?.failures.map((failure) => failure.kind)).toEqual([
+      "no-bad-twin",
+      "no-clean-twin",
+      "unproven",
+    ]);
+  });
+
+  it("no law to probe and nothing skipped is a report with no law, not a problem", async () => {
+    const outcome = await runProbe(request(project(), fake({}, []), { laws: [] }));
+    expect(outcome).toEqual({ ok: true, report: { laws: [], skipped: [] } });
+  });
+});
