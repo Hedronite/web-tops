@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { validateReport, type Finding } from "../config/report.ts";
+import { COUNTED_LAYERS, validateReport, type Finding } from "../config/report.ts";
 import { edit, get } from "../config/test-support.ts";
 import { summarizeLaws } from "./laws.ts";
 import { formatText } from "./text.ts";
@@ -35,6 +35,12 @@ const lawFinding = (rule: string): Finding => ({
   line: null,
   fingerprint: "fp1:0000000000000000",
   required: true,
+});
+
+describe("the layers whose findings are counted per rule per file", () => {
+  it("are gate 1 and the laws layer", () => {
+    expect([...COUNTED_LAYERS].sort()).toEqual(["hygiene", "laws"]);
+  });
 });
 
 describe("a law's own finding is exactly law/W-NN", () => {
