@@ -33,7 +33,27 @@ describe("the wrapper config", () => {
   });
 });
 
+describe("the wrapper config, exactly", () => {
+  it("is these lines, with a newline at the end", () => {
+    expect(wrapperSource("/p/eslint.config.js", "/p/s", "/p")).toBe(
+      [
+        'const loaded = await import("file:///p/eslint.config.js");',
+        "const base = loaded.default ?? loaded;",
+        'const twins = { files: ["s/**/*.{ts,tsx,mts,cts,astro}"], languageOptions: { parserOptions: {"projectService":false,"project":["/p/s/tsconfig.json"],"tsconfigRootDir":"/p/s"} } };',
+        "export default [...(Array.isArray(base) ? base : [base]), twins];",
+        "",
+      ].join("\n"),
+    );
+  });
+});
+
 describe("the config ESLint finds for a project", () => {
+  it.each(["js", "mjs", "cjs", "ts", "mts", "cts"])("finds eslint.config.%s", (extension) => {
+    const cwd = tempDir();
+    put(cwd, { [`eslint.config.${extension}`]: "export default [];\n" });
+    expect(defaultConfig(cwd)).toBe(join(cwd, `eslint.config.${extension}`));
+  });
+
   it("is the first of its names in the directory, js before mjs", () => {
     const cwd = tempDir();
     put(cwd, {
