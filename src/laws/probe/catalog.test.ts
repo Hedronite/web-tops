@@ -57,6 +57,31 @@ describe("G3a the laws the probe proves are the catalog's ticked lint and compil
   });
 });
 
+describe("R106 a law's proofs under a class are the rules that apply to it", () => {
+  const law = {
+    id: "W-91",
+    classes: ["ui-components", "astro-site"],
+    proofs: ["jsx-a11y-x/alt-text", "astro/jsx-a11y/alt-text"],
+    scoped: { "astro/jsx-a11y/alt-text": ["astro-site"] },
+  };
+  const proofsOf = (className: string): string[] =>
+    lawsOfClass([law], className).flatMap((found) => found.proofs);
+
+  it("keeps a rule that names classes only for those, and every other rule for every class", () => {
+    expect(proofsOf("astro-site")).toEqual(["jsx-a11y-x/alt-text", "astro/jsx-a11y/alt-text"]);
+    expect(proofsOf("ui-components")).toEqual(["jsx-a11y-x/alt-text"]);
+  });
+
+  it("still maps no law for a class the law does not list", () => {
+    expect(proofsOf("web-app")).toEqual([]);
+  });
+
+  it("takes a law with no scopes as it is", () => {
+    const plain = { id: "W-92", proofs: ["a", "b"] };
+    expect(lawsOfClass([plain], "ui-components")).toEqual([plain]);
+  });
+});
+
 const bad: Catalog = {
   ok: false,
   problems: [

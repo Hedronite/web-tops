@@ -1,6 +1,6 @@
 import { isConditional } from "./query.ts";
 import type { Filter } from "./query.ts";
-import type { Judged, Law } from "./types.ts";
+import type { Judged, Law, LawRule } from "./types.ts";
 
 const SEVERITY: Readonly<Record<Law["severity"], string>> = {
   R: "a break is refuse",
@@ -41,11 +41,15 @@ const classText = (law: Law): string =>
     .map((name) => (isConditional(law, name) ? `${name} (${ASTRO_ONLY})` : name))
     .join(", ");
 
+/** A rule that applies to some of the law's classes only says which. */
+const ruleClasses = (rule: LawRule): string =>
+  rule.classes === undefined ? "" : `  (${rule.classes.join(", ")} only)`;
+
 /** The rules a law maps: one line each under `rules:`, or `none` after it. */
 const rulesText = (law: Law): string =>
   law.rules.length === 0
     ? " none"
-    : law.rules.map((rule) => `\n  ${rule.tool}  ${rule.name}`).join("");
+    : law.rules.map((rule) => `\n  ${rule.tool}  ${rule.name}${ruleClasses(rule)}`).join("");
 
 /** `laws explain`: every field of section 8.3, one line each, with the reader and rules spelled out. */
 export function explainText(law: Law): string {

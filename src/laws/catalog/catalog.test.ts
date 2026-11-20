@@ -226,8 +226,9 @@ describe("the rules a law names, for the law probe", () => {
     expect(rulesOf("W-26", "stylelint")).toHaveLength(8);
   });
 
-  it("names for W-22 the click and anchor rules beside alt, label and static-element rules", () => {
-    expect(rulesOf("W-22", "eslint")).toEqual([
+  it("names for W-22 the click and anchor rules beside alt, label and static-element rules, and Astro's own beside them", () => {
+    const own = rulesOf("W-22", "eslint").filter((name) => !name.startsWith("astro/jsx-a11y/"));
+    expect(own).toEqual([
       "jsx-a11y-x/alt-text",
       "jsx-a11y-x/label-has-associated-control",
       "jsx-a11y-x/no-static-element-interactions",
