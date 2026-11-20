@@ -24,7 +24,7 @@ export interface ScopeOptions {
   readonly base: string;
   readonly exec?: Exec;
   /** What a test file covers; by default a Vitest run of that file alone. */
-  readonly coverageOf?: CoverageOf;
+  readonly coverageOf?: CoverageOf | undefined;
   /** Reasoned coverage exclusions from `web-tops.yaml`, passed to the default per-file run. */
   readonly exclude?: readonly string[];
   /** The random part of a merge-base copy's name; a test sets it to know the name. */

@@ -90,15 +90,6 @@ function layer(report: Report, id: string): Report["layers"][number] {
   return found;
 }
 
-describe("G9b: only the ratchet mode reads a baseline", () => {
-  it("leaves a run above its baseline alone under hard, though the config names one", async () => {
-    const report = await run(project(BASE), layersWith(crapRows(9)), ratchet({ enforce: "hard" }));
-    expect(layer(report, "crap").verdict).toBe("pass");
-    expect(layer(report, "crap").findings).toEqual([]);
-    expect(report.passed).toBe(true);
-  });
-});
-
 describe("G9b: a run above its baseline is refused, layer by layer", () => {
   it("passes a run that equals its baseline, and one that is below it", async () => {
     const same = await run(

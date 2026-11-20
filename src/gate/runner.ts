@@ -182,6 +182,10 @@ function keepArtifacts(
 /** The coverage a layer that does not need the tests' functions gets from the diff engine: none, without a Vitest run. */
 const NO_COVERAGE: CoverageMap = new Map();
 
+/** What the diff engine is given to cover a changed test file with: none, for a layer that does not need the tests' functions, and its own run otherwise. */
+export const coverageFor = (needs: DiffNeeds): (() => Promise<CoverageMap>) | undefined =>
+  needs.coveredByTests ? undefined : () => Promise.resolve(NO_COVERAGE);
+
 /** The diff, computed the first time a layer asks and kept for each kind of ask (the test-covered functions cost Vitest runs). */
 function diffProvider(input: RunInput, base: string): DiffProvider {
   const asked = new Map<boolean, Promise<ScopeResult>>();
@@ -196,7 +200,7 @@ function diffProvider(input: RunInput, base: string): DiffProvider {
       base,
       exec: input.exec,
       exclude,
-      ...(needs.coveredByTests ? {} : { coverageOf: () => Promise.resolve(NO_COVERAGE) }),
+      coverageOf: coverageFor(needs),
     });
     asked.set(needs.coveredByTests, fresh);
     return fresh;

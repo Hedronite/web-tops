@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Report } from "../report/types.ts";
-import { runGate, sourceReader } from "./runner.ts";
+import { coverageFor, runGate, sourceReader } from "./runner.ts";
 import { cfg, fakeLayer, noExec, off, opts, tempProject, tickingClock } from "./testkit.ts";
 import type { GateConfig, GateOptions, Layer, LayerContext } from "./types.ts";
 
@@ -227,5 +227,15 @@ describe("the text of a file a finding points at", () => {
       "text",
     ]);
     expect(reads).toEqual(["/work:a.ts", "/work:b.ts"]);
+  });
+});
+
+describe("the coverage the diff engine is given for a changed test file", () => {
+  it("is its own run for a layer that needs the tests' functions, and none for one that does not", async () => {
+    expect(coverageFor({ coveredByTests: true })).toBeUndefined();
+    const none = coverageFor({ coveredByTests: false });
+    const covered = await none?.();
+    expect(covered).toBeInstanceOf(Map);
+    expect(covered?.size).toBe(0);
   });
 });
