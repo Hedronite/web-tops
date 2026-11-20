@@ -307,7 +307,9 @@ function producedPath(state: RunState, need: Consumed): string | undefined {
 
 /** R29 N5: the first input this layer consumes that its named producer did not leave on disk, worded for the report. */
 function missingInput(layer: Layer, state: RunState): string | undefined {
-  const missing = layer.consumes.find((need) => producedPath(state, need) === undefined);
+  const missing = layer.consumes.find(
+    (need) => need.optional !== true && producedPath(state, need) === undefined,
+  );
   return missing === undefined
     ? undefined
     : `input ${missing.artifact} missing: ${missing.from} ${verdictOf(state, missing.from)}`;

@@ -17,12 +17,12 @@ function runReal(config: GateConfig) {
   });
 }
 
-const LATER = [
-  ["build-output", "M4"],
-  ["laws", "M3"],
-] as const;
+const LATER = [["build-output", "M4"]] as const;
 
-describe("G2e stubs: build-output and laws report not-run when enabled", () => {
+/** The laws layer is real since M3 (G4): these tests keep it off so they judge the stubs alone. */
+const LAWS_OFF = { laws: off("the laws layer is tested in its own files") };
+
+describe("G2e stubs: build-output reports not-run when enabled", () => {
   it("registers the seven built-in layers in gate order", () => {
     expect(buildRegistry(cfg()).map((layer) => layer.id)).toEqual([...BUILTIN_IDS]);
   });
@@ -30,12 +30,7 @@ describe("G2e stubs: build-output and laws report not-run when enabled", () => {
   it.each(LATER)(
     "enabling %s yields not-run naming %s, and a failed gate",
     async (id, milestone) => {
-      const only = Object.fromEntries(
-        LATER.map(([other]) => [
-          other,
-          other === id ? { enabled: true } : off(`later milestone ${other}`),
-        ]),
-      );
+      const only = { ...LAWS_OFF, [id]: { enabled: true } };
       const report = await runReal(
         cfg({
           toggles: {
@@ -63,7 +58,7 @@ describe("G2e stubs: build-output and laws report not-run when enabled", () => {
   it.each(LATER)(
     "%s disabled in config is skip with the config reason, not a silent skip",
     async (id) => {
-      const toggles: Record<string, { enabled: boolean; reason?: string }> = {};
+      const toggles: Record<string, { enabled: boolean; reason?: string }> = { ...LAWS_OFF };
       for (const [other] of LATER) {
         toggles[other] = off(`${other} lands later`);
       }

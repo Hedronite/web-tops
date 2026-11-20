@@ -5,7 +5,7 @@ import type { Report } from "../report/types.ts";
 import { runGate } from "./runner.ts";
 import { buildRegistry } from "./registry.ts";
 import { cfg, fakeLayer, noExec, off, opts, tempProject, tickingClock } from "./testkit.ts";
-import type { GateConfig, GateOptions, Layer } from "./types.ts";
+import type { Consumed, GateConfig, GateOptions, Layer } from "./types.ts";
 
 /** R29 N5: layers declare the artifacts they produce and consume; a missing input is `not-run`, a present one is judged. */
 
@@ -307,12 +307,19 @@ describe("G2c the real registry declares its hand-offs", () => {
   const layers = buildRegistry(cfg());
   const byId = new Map(layers.map((layer) => [layer.id, layer]));
 
-  it("never consumes from a layer it does not require, and the producer declares what is consumed", () => {
-    for (const layer of layers) {
-      for (const need of layer.consumes) {
-        expect(layer.requires).toContain(need.from);
-        expect(byId.get(need.from)?.produces).toContain(need.artifact);
-      }
+  const isRequired = (need: Consumed): boolean => need.optional !== true;
+
+  it("never consumes from a layer it does not require", () => {
+    const needs = layers.flatMap((layer) => layer.consumes.map((need) => [layer, need] as const));
+    for (const [layer, need] of needs) {
+      expect(layer.requires).toContain(need.from);
+    }
+  });
+
+  it("the producer declares what a layer consumes, but an optional input may be one it does not write (R92)", () => {
+    const needs = layers.flatMap((layer) => layer.consumes.filter(isRequired));
+    for (const need of needs) {
+      expect(byId.get(need.from)?.produces).toContain(need.artifact);
     }
   });
 
