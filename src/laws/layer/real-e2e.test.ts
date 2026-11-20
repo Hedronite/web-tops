@@ -120,50 +120,59 @@ function judge(eslintConfig: string): Answer {
 const lawOf = (answer: Answer, id: string): Answer["findings"][number] | undefined =>
   answer.findings.find((found) => found.rule === `law/${id}`);
 
-describe("G4 the laws layer on a project with real ESLint and real tsc", () => {
-  it(
-    "passes W-01 and W-04 when every rule is at error for every TypeScript file and every flag is set",
-    () => {
-      const answer = judge(config(""));
-      expect(lawOf(answer, "W-01")?.verdict).toBe("pass");
-      expect(lawOf(answer, "W-04")?.verdict).toBe("pass");
-      expect(answer.verdict).toBe("pass");
-    },
-    SLOW,
-  );
+/**
+ * Not run inside a Stryker worker: it starts bun, ESLint and tsc as processes, covers none of the code under mutation (the
+ * layer runs in the child), and so no mutant has it as its killer, while a slow runner can fail Stryker's initial run on it.
+ */
+const insideStryker = process.env["STRYKER_MUTATOR_WORKER"] !== undefined;
 
-  it.each([
-    ["off", "off"],
-    ["warn", "warn"],
-  ])(
-    "refuses W-01 at the config line of an override that sets no-explicit-any to %s",
-    (_name, level) => {
-      const override = `  { files: ["src/**"], rules: { "${ANY}": "${level}" } },`;
-      const text = config(override);
-      const line = text.split("\n").indexOf(override) + 1;
-      const answer = judge(text);
-      expect(lawOf(answer, "W-01")?.verdict).toBe("refuse");
-      expect(answer.verdict).toBe("refuse");
-      const spot = answer.findings.find((found) => found.rule === ANY);
-      expect(spot).toMatchObject({ verdict: "refuse", file: "eslint.config.js", line });
-      expect(spot?.message).toBe(`${ANY} is below error for 1 file(s), such as src/a.ts`);
-      expect(lawOf(answer, "W-04")?.verdict).toBe("pass");
-    },
-    SLOW,
-  );
+describe.skipIf(insideStryker)(
+  "G4 the laws layer on a project with real ESLint and real tsc",
+  () => {
+    it(
+      "passes W-01 and W-04 when every rule is at error for every TypeScript file and every flag is set",
+      () => {
+        const answer = judge(config(""));
+        expect(lawOf(answer, "W-01")?.verdict).toBe("pass");
+        expect(lawOf(answer, "W-04")?.verdict).toBe("pass");
+        expect(answer.verdict).toBe("pass");
+      },
+      SLOW,
+    );
 
-  it(
-    "says why W-01 is not evaluated when the config reaches no TypeScript file, and refuses the file-set",
-    () => {
-      const answer = judge(`export default [{ rules: { "${ANY}": "error" } }];\n`);
-      const reading = answer.findings.find((found) => found.rule === "law/W-01");
-      expect(reading?.verdict).toBe("not-evaluated");
-      expect(reading?.message).toContain("ESLint's config reaches no TypeScript file");
-      expect(answer.findings.find((found) => found.rule === "file-set")).toMatchObject({
-        verdict: "refuse",
-        file: "src/a.ts",
-      });
-    },
-    SLOW,
-  );
-});
+    it.each([
+      ["off", "off"],
+      ["warn", "warn"],
+    ])(
+      "refuses W-01 at the config line of an override that sets no-explicit-any to %s",
+      (_name, level) => {
+        const override = `  { files: ["src/**"], rules: { "${ANY}": "${level}" } },`;
+        const text = config(override);
+        const line = text.split("\n").indexOf(override) + 1;
+        const answer = judge(text);
+        expect(lawOf(answer, "W-01")?.verdict).toBe("refuse");
+        expect(answer.verdict).toBe("refuse");
+        const spot = answer.findings.find((found) => found.rule === ANY);
+        expect(spot).toMatchObject({ verdict: "refuse", file: "eslint.config.js", line });
+        expect(spot?.message).toBe(`${ANY} is below error for 1 file(s), such as src/a.ts`);
+        expect(lawOf(answer, "W-04")?.verdict).toBe("pass");
+      },
+      SLOW,
+    );
+
+    it(
+      "says why W-01 is not evaluated when the config reaches no TypeScript file, and refuses the file-set",
+      () => {
+        const answer = judge(`export default [{ rules: { "${ANY}": "error" } }];\n`);
+        const reading = answer.findings.find((found) => found.rule === "law/W-01");
+        expect(reading?.verdict).toBe("not-evaluated");
+        expect(reading?.message).toContain("ESLint's config reaches no TypeScript file");
+        expect(answer.findings.find((found) => found.rule === "file-set")).toMatchObject({
+          verdict: "refuse",
+          file: "src/a.ts",
+        });
+      },
+      SLOW,
+    );
+  },
+);
