@@ -135,6 +135,45 @@ survivors:
     reason: document.toJS throws only Error instances (the YAML library), so the
       fallback text is a dead branch.
     owner: web-platform
+  - file: src/diff/coverage.ts
+    function: src/diff/coverage.ts::innermostHolding
+    mutator: ConditionalExpression
+    original: "span.start <= hit.start"
+    replacement: "true"
+    occurrence: 1
+    reason: innermostAt then keeps only spans that hold the line of the hit's start,
+      which are exactly the spans that start at or before it, so the first test
+      of the filter changes nothing.
+    owner: web-platform
+  - file: src/diff/functions.ts
+    function: src/diff/functions.ts::boundName
+    mutator: ConditionalExpression
+    original: "parent.initializer === node"
+    replacement: "true"
+    occurrence: 1
+    reason: "A function node is the child of a variable, property assignment or
+      property declaration only as its initializer: its other children are
+      names, types and decorators, none of them function nodes."
+    owner: web-platform
+  - file: src/diff/functions.ts
+    function: src/diff/functions.ts::declaredName
+    mutator: ConditionalExpression
+    original: "ts.isArrowFunction(node)"
+    replacement: "false"
+    occurrence: 1
+    reason: An arrow function has no name, so the next line gives undefined for it
+      as well; the test exists for the type of the node, not for the result.
+    owner: web-platform
+  - file: src/diff/scope.ts
+    function: src/diff/scope.ts::scopeOf
+    mutator: ConditionalExpression
+    original: "file.status !== \"deleted\""
+    replacement: "true"
+    occurrence: 1
+    reason: A deleted file has no added lines, so it adds no range to mutate and no
+      function to the changed ones, whether or not it is counted among the
+      sources.
+    owner: web-platform
   - file: src/gate/adapter.ts
     function: src/gate/adapter.ts::classCap
     mutator: StringLiteral

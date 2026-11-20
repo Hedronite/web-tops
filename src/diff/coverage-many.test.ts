@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Exec } from "../gate/types.ts";
+import { DEFAULT_COVERAGE_EXCLUDES } from "../layers/coverage/scope.ts";
 import { vitestCoverageOf, vitestCoverageOfMany } from "./coverage.ts";
 
 const REPORT = {
@@ -34,6 +35,29 @@ describe("vitestCoverageOfMany", () => {
     const args = log[0] ?? [];
     expect(args.slice(1, 4)).toEqual(["run", "src/a.test.ts", "src/b.test.ts"]);
     expect(map?.get("src/a.ts")).toEqual([{ start: 1, end: 3, hits: 1 }]);
+  });
+
+  it("gives the gate's own options and nothing else, then the extra arguments it is given", async () => {
+    const log: string[][] = [];
+    await vitestCoverageOfMany(["src/a.test.ts", "src/b.test.ts"], {
+      cwd: "/repo",
+      exec: stamped(log),
+    });
+    const plain = (log[0] ?? []).slice(1);
+    expect(plain).toHaveLength(9 + DEFAULT_COVERAGE_EXCLUDES.length);
+    expect(plain.filter((arg) => arg.startsWith("--coverage.exclude="))).toEqual(
+      DEFAULT_COVERAGE_EXCLUDES.map((glob) => `--coverage.exclude=${glob}`),
+    );
+    await vitestCoverageOfMany(["src/a.test.ts"], {
+      cwd: "/repo",
+      exec: stamped(log),
+      exclude: ["gen/**"],
+      args: ["--reporter=dot"],
+    });
+    const extra = (log[1] ?? []).slice(1);
+    expect(extra.at(-1)).toBe("--reporter=dot");
+    expect(extra).toContain("--coverage.exclude=gen/**");
+    expect(extra).toHaveLength(9 + DEFAULT_COVERAGE_EXCLUDES.length - 1 + 2);
   });
 
   it("is undefined when the run fails, whichever file is the cause", async () => {

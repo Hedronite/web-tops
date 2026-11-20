@@ -79,7 +79,9 @@ describe("coverage maps", () => {
 
   it("takes no work-tree prefix off a path when it is given none", () => {
     const file = { fnMap: { 0: { loc: { start: { line: 1 }, end: { line: 2 } } } }, f: { 0: 1 } };
-    expect([...(parseCoverage({ "/work/a.ts": file })?.keys() ?? [])]).toEqual(["/work/a.ts"]);
+    const paths = (path: string): string[] => [...(parseCoverage({ [path]: file })?.keys() ?? [])];
+    expect(paths("/work/a.ts")).toEqual(["/work/a.ts"]);
+    expect(paths("Stryker was here/a.ts")).toEqual(["Stryker was here/a.ts"]);
   });
 
   const spans = [
@@ -120,6 +122,16 @@ describe("functions of a file", () => {
     expect(functionsIn("a.ts", text).map((span) => span.key)).toEqual([
       "a.ts::<module>",
       "a.ts::ov",
+    ]);
+  });
+
+  it("names a function only by a variable, property assignment or property declaration it initializes", () => {
+    const text = "export function f(a = () => 1) {}\nconst { x = () => 2 } = o;\n";
+    expect(functionsIn("a.ts", text).map((span) => span.key)).toEqual([
+      "a.ts::<module>",
+      "a.ts::f",
+      "a.ts::f#1",
+      "a.ts::<module>#1",
     ]);
   });
 
