@@ -1,18 +1,9 @@
 import type { Linter } from "eslint";
-import { afterAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { REAL_TOOL_TIMEOUT } from "../gate/test-support-timeouts.ts";
 import { eslintPreset } from "./eslint.js";
 import type { EslintVariant } from "./eslint.js";
-import {
-  TSCONFIG,
-  bin,
-  configFor,
-  removeScratches,
-  run,
-  scratchProject,
-} from "./test-support-scratch.ts";
-
-afterAll(removeScratches);
+import { TSCONFIG, bin, configFor, run, scratchProject } from "./test-support-scratch.ts";
 
 const ASTRO = { dependencies: { astro: "7.4.12" } };
 const manifest = (extra: object): string => JSON.stringify({ type: "module", ...extra });

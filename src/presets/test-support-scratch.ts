@@ -2,17 +2,20 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { onTestFinished } from "vitest";
 
 export const ROOT = resolve(import.meta.dirname, "../..");
-const scratches: string[] = [];
 
 /**
  * A project outside the kit that reaches it only as `node_modules/web-tops`, the way an inited
- * project does. `files` are written relative to the project; it is an ES module project.
+ * project does. `files` are written relative to the project; it is an ES module project. Call it
+ * from inside a test: the project is removed when that test finishes.
  */
 export function scratchProject(files: Readonly<Record<string, string>> = {}): string {
   const dir = mkdtempSync(join(tmpdir(), "wt-preset-"));
-  scratches.push(dir);
+  onTestFinished(() => {
+    rmSync(dir, { recursive: true });
+  });
   mkdirSync(join(dir, "node_modules"));
   symlinkSync(ROOT, join(dir, "node_modules", "web-tops"));
   // eslint-plugin-astro finds the TypeScript parser from the project it lints, as an adopter has it.
@@ -26,11 +29,6 @@ export function scratchProject(files: Readonly<Record<string, string>> = {}): st
     writeFileSync(join(dir, path), text);
   }
   return dir;
-}
-
-/** Removes every project scratchProject() made. */
-export function removeScratches(): void {
-  for (const dir of scratches) rmSync(dir, { recursive: true, force: true });
 }
 
 export interface Ran {

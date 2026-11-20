@@ -1,11 +1,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Linter } from "eslint";
-import { afterAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { REAL_TOOL_TIMEOUT } from "../gate/test-support-timeouts.ts";
 import { PACKAGES, VARIANTS, eslintPreset } from "./eslint.js";
 import type { EslintVariant } from "./eslint.js";
-import { ROOT, bin, removeScratches, run, scratchProject } from "./test-support-scratch.ts";
+import { ROOT, bin, run, scratchProject } from "./test-support-scratch.ts";
 
 const presetOf = (variant: EslintVariant): Promise<Linter.Config[]> =>
   eslintPreset({ variant, tsconfigRootDir: "<project>" });
@@ -26,8 +26,6 @@ function errorRules(config: readonly Linter.Config[]): ReadonlySet<string> {
 /** The plugin names a config registers. */
 const pluginNames = (config: readonly Linter.Config[]): ReadonlySet<string> =>
   new Set(config.flatMap((entry) => Object.keys(entry.plugins ?? {})));
-
-afterAll(removeScratches);
 
 const PRESET_SOURCE = readFileSync(join(ROOT, "src/presets/eslint.js"), "utf8");
 const KIT_CONFIG = readFileSync(join(ROOT, "eslint.config.js"), "utf8");

@@ -1,19 +1,12 @@
 import { readFileSync, readdirSync, realpathSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
-import { afterAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import plugin from "../../packages/eslint-plugin-webtops/src/index.ts";
 import { REAL_TOOL_TIMEOUT } from "../gate/test-support-timeouts.ts";
 import { eslintPreset } from "./eslint.js";
 import type { EslintVariant } from "./eslint.js";
-import {
-  TSCONFIG,
-  bin,
-  configFor,
-  removeScratches,
-  run,
-  scratchProject,
-} from "./test-support-scratch.ts";
+import { TSCONFIG, bin, configFor, run, scratchProject } from "./test-support-scratch.ts";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const PREFIX = "webtops/";
@@ -90,8 +83,6 @@ describe("R98: a class's preset enables exactly the plugin rules its laws map", 
     expect(withTailwind).toEqual(["astro-site", "web-app"]);
   });
 });
-
-afterAll(removeScratches);
 
 /** One file of each kind a class's rules can match: a module, a React module and an Astro page. */
 const KINDS = {
