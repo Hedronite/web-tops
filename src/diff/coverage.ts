@@ -66,11 +66,9 @@ function hitsByFile(
  */
 export function parseCoverage(
   value: unknown,
-  root?: string | readonly string[],
+  root: string | readonly string[] = [],
 ): CoverageMap | undefined {
-  return isRecord(value)
-    ? hitsByFile(value, typeof root === "string" ? [root] : (root ?? []))
-    : undefined;
+  return isRecord(value) ? hitsByFile(value, typeof root === "string" ? [root] : root) : undefined;
 }
 
 /** The functions, of those the spans list, that ran: each hit goes to the smallest function-or-module span that holds it. */
@@ -101,11 +99,16 @@ export interface CoverageRun {
   readonly args?: readonly string[];
 }
 
-function coverageArgs(testFile: string, config: string, out: string, run: CoverageRun): string[] {
+function coverageArgs(
+  testFiles: readonly string[],
+  config: string,
+  out: string,
+  run: CoverageRun,
+): string[] {
   const excludes = [...DEFAULT_COVERAGE_EXCLUDES, ...(run.exclude ?? [])];
   return [
     "run",
-    testFile,
+    ...testFiles,
     `--config=${config}`,
     "--coverage",
     "--coverage.provider=v8",
@@ -118,18 +121,19 @@ function coverageArgs(testFile: string, config: string, out: string, run: Covera
 }
 
 /**
- * Runs Vitest on one test file with the gate's own config (the project's, without coverage thresholds) and
- * the gate's coverage include and exclude, as the tests layer does, and reads what ran from the JSON report.
- * A run that fails, or leaves no coverage file, is undefined: what the test covers is then not known.
+ * Runs Vitest on test files, all in one run, with the gate's own config (the project's, without coverage thresholds)
+ * and the gate's coverage include and exclude, as the tests layer does, and reads what ran from the JSON report: a
+ * function is covered when any of the files ran it. A run that fails, or leaves no coverage file, is undefined: what
+ * the files cover is then not known, and which of them is the cause is not either.
  */
-export async function vitestCoverageOf(
-  testFile: string,
+export async function vitestCoverageOfMany(
+  testFiles: readonly string[],
   run: CoverageRun,
 ): Promise<CoverageMap | undefined> {
   const out = mkdtempSync(join(tmpdir(), "wt-cov-"));
   try {
     const config = writeKitConfig(run.cwd, out);
-    const args = coverageArgs(testFile, config, out, run);
+    const args = coverageArgs(testFiles, config, out, run);
     const result = await run.exec(join(run.cwd, "node_modules/.bin/vitest"), args, {
       cwd: run.cwd,
     });
@@ -138,6 +142,12 @@ export async function vitestCoverageOf(
     rmSync(out, { recursive: true, force: true });
   }
 }
+
+/** What one test file covers: a run of that file alone. */
+export const vitestCoverageOf = (
+  testFile: string,
+  run: CoverageRun,
+): Promise<CoverageMap | undefined> => vitestCoverageOfMany([testFile], run);
 
 /** The work tree under its given name and under its real path, when it has one. */
 function rootsOf(root: string): readonly string[] {

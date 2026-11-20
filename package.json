@@ -44,7 +44,8 @@
     "config",
     "profiles",
     "packages/eslint-plugin-webtops/package.json",
-    "packages/eslint-plugin-webtops/dist"
+    "packages/eslint-plugin-webtops/dist",
+    "fixtures/laws"
   ],
   "engines": {
     "bun": ">=1.4.0",

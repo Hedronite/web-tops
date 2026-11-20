@@ -56,13 +56,7 @@ describe("G10a: section 17 matches the tree", () => {
     const paragraph =
       section.split("\n").find((line) => line.startsWith("Not yet in the tree")) ?? "";
     const paths = [...paragraph.matchAll(/`([^`]+\/)`/g)].map((match) => match[1] ?? "");
-    expect(paths).toEqual(
-      expect.arrayContaining([
-        "src/budgets/",
-        "fixtures/laws/W-NN/{bad,clean}/",
-        "examples/node-service/",
-      ]),
-    );
+    expect(paths).toEqual(expect.arrayContaining(["src/budgets/", "examples/node-service/"]));
     for (const path of paths) expect(existsSync(join(root, path)), path).toBe(false);
   });
 });

@@ -1,0 +1,26 @@
+@import "tailwindcss";
+@source "../src";
+@plugin "typography";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-brand: #336699;
+}
+
+@layer components {
+  .card {
+    @apply rounded p-4;
+  }
+}
+
+.a {
+  color: red;
+}
+
+.a:hover {
+  color: green;
+}
+
+.b {
+  width: 10px;
+}
