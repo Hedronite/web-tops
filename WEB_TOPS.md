@@ -1144,7 +1144,7 @@ web-tops/
 └── LICENSE · LICENSE-MIT · LICENSE-APACHE
 ```
 
-The law twins are in `fixtures/laws/W-NN/{bad,clean}/`: a bad and a clean twin per law, which the law probe (`src/laws/probe/`) proves.
+The law twins are in `fixtures/laws/W-NN/{bad,clean}/`: a bad and a clean twin per law, which `webtops laws probe` proves.
 
 Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4) and the M3 paths: `packages/eslint-plugin-webtops/`, `examples/node-service/`, `src/layers/laws/`, `src/acks/` and `src/lawdiff/`. The kit's tools already cover them: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
 
