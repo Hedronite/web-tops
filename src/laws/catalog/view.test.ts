@@ -57,6 +57,12 @@ describe("listText", () => {
 });
 
 describe("explainText", () => {
+  it("says which classes a rule applies to when it does not apply to all of the law's", () => {
+    const text = explainText(law("W-22"));
+    expect(text).toContain("\n  eslint  astro/jsx-a11y/alt-text  (astro-site only)\n");
+    expect(text).toContain("\n  eslint  jsx-a11y-x/alt-text\n");
+  });
+
   it("prints every field of a law, one line each", () => {
     const text = explainText(law("W-01"));
     const lines = text.split("\n");

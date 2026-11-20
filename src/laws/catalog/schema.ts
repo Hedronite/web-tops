@@ -11,9 +11,20 @@ const strays = (law: Law): Problem[] =>
     .filter((name) => !law.classes.includes(name))
     .map((name) => ({ pointer: "/conditional_classes", message: `${name} is not in classes` }));
 
-/** Validates one parsed law file against `schema/law.schema.json`, and the one rule a schema cannot state. */
+/** A rule's classes must be among the law's: a schema cannot say that either. */
+const ruleStrays = (law: Law): Problem[] =>
+  law.rules.flatMap((rule, index) =>
+    (rule.classes ?? [])
+      .filter((name) => !law.classes.includes(name))
+      .map((name) => ({
+        pointer: `/rules/${String(index)}/classes`,
+        message: `${name} is not in classes`,
+      })),
+  );
+
+/** Validates one parsed law file against `schema/law.schema.json`, and the rules a schema cannot state. */
 export function validateLaw(value: unknown): Validated<Law> {
   if (!validate(value)) return { ok: false, problems: toProblems(validate.errors) };
-  const problems = strays(value);
+  const problems = [...strays(value), ...ruleStrays(value)];
   return problems.length === 0 ? { ok: true, value } : { ok: false, problems };
 }

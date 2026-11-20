@@ -19,6 +19,8 @@ export type Judged = "v0.1" | "m3" | "no";
 export interface LawRule {
   readonly tool: string;
   readonly name: string;
+  /** The classes the rule applies to, among the law's: absent, every class the law maps. */
+  readonly classes?: readonly LawClass[];
 }
 
 /** One law, as `laws/W-NN.yaml` holds it (WEB_TOPS.md section 8.3, `schema/law.schema.json`). */

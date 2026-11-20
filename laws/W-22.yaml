@@ -13,6 +13,37 @@ rules:
   - { tool: eslint, name: "jsx-a11y-x/no-static-element-interactions" }
   - { tool: eslint, name: "jsx-a11y-x/click-events-have-key-events" }
   - { tool: eslint, name: "jsx-a11y-x/anchor-is-valid" }
+  - { tool: eslint, name: "astro/jsx-a11y/alt-text", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/anchor-has-content", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/anchor-is-valid", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/aria-activedescendant-has-tabindex", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/aria-props", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/aria-proptypes", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/aria-role", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/aria-unsupported-elements", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/autocomplete-valid", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/click-events-have-key-events", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/heading-has-content", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/html-has-lang", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/iframe-has-title", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/img-redundant-alt", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/interactive-supports-focus", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/label-has-associated-control", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/media-has-caption", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/mouse-events-have-key-events", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/no-access-key", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/no-autofocus", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/no-distracting-elements", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/no-interactive-element-to-noninteractive-role", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/no-noninteractive-element-interactions", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/no-noninteractive-element-to-interactive-role", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/no-noninteractive-tabindex", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/no-redundant-roles", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/no-static-element-interactions", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/role-has-required-aria-props", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/role-supports-aria-props", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/scope", classes: [astro-site] }
+  - { tool: eslint, name: "astro/jsx-a11y/tabindex-no-positive", classes: [astro-site] }
   - { tool: html-validate, name: "a11y" }
   - { tool: axe, name: "axe" }
 judged: v0.1
