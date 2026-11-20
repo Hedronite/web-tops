@@ -5,7 +5,6 @@ import { lawsLayer } from "../laws/layer/index.ts";
 import { mutationLayer } from "../layers/mutation/index.ts";
 import { hygieneLayer } from "../layers/hygiene/index.ts";
 import { testsLayer } from "../layers/tests/index.ts";
-import { compareGates } from "./order.ts";
 import { BUILD_OUTPUT_STUB, customLayer } from "./stubs.ts";
 import type { GateConfig, Layer } from "./types.ts";
 
@@ -21,5 +20,5 @@ export function buildRegistry(config: GateConfig): Layer[] {
     BUILD_OUTPUT_STUB,
     ...custom,
     lawsLayer(yamlCatalog),
-  ].sort((a, b) => compareGates(a.gate, b.gate));
+  ];
 }

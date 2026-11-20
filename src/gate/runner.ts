@@ -121,11 +121,14 @@ function readInside(cwd: string, file: string): string | undefined {
 }
 
 /** Reads each file once for a layer, however many findings point into it. */
-function sourceReader(cwd: string): (file: string) => string | undefined {
+export function sourceReader(
+  cwd: string,
+  read: (cwd: string, file: string) => string | undefined = readInside,
+): (file: string) => string | undefined {
   const cache = new Map<string, string | undefined>();
   return (file) => {
     if (!cache.has(file)) {
-      cache.set(file, readInside(cwd, file));
+      cache.set(file, read(cwd, file));
     }
     return cache.get(file);
   };
@@ -405,8 +408,7 @@ function problemsOf(state: RunState): Problem[] {
 }
 
 function passedOf(state: RunState, problems: readonly Problem[]): boolean {
-  const clean = problems.length === 0 && state.ran === state.inRange;
-  return clean && !state.layers.some(ends);
+  return problems.length === 0 && !state.layers.some(ends);
 }
 
 function exitCodeOf(passed: boolean, enforced: boolean): 0 | 1 {

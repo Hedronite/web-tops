@@ -65,11 +65,17 @@ function byLine(raws: readonly RawFinding[]): (left: number, right: number) => n
   return (left, right) => lineAt(raws, left) - lineAt(raws, right) || left - right;
 }
 
+interface Anchored {
+  readonly raw: RawFinding;
+  readonly anchor: string;
+}
+
 /** Each finding's order among its repeats, by line and then by the order the tool listed them. */
-function occurrences(raws: readonly RawFinding[], anchors: readonly string[]): number[] {
+function occurrences(found: readonly Anchored[]): number[] {
+  const raws = found.map((item) => item.raw);
   const groups = new Map<string, number[]>();
-  raws.forEach((raw, index) => {
-    const key = groupKey(raw, anchors[index] ?? "");
+  found.forEach(({ raw, anchor }, index) => {
+    const key = groupKey(raw, anchor);
     groups.set(key, [...(groups.get(key) ?? []), index]);
   });
   const order = raws.map(() => 1);
@@ -118,7 +124,7 @@ function complete(raw: RawFinding, anchor: string, occurrence: number): Finding 
  * anchored on the flagged line (WEB_TOPS.md section 6.6). `read` returns a file's text, or undefined.
  */
 export function completeFindings(raws: readonly RawFinding[], read: Reader): Finding[] {
-  const anchors = raws.map((raw) => anchorFor(raw, read));
-  const order = occurrences(raws, anchors);
-  return raws.map((raw, index) => complete(raw, anchors[index] ?? "", order[index] ?? 1));
+  const found = raws.map((raw) => ({ raw, anchor: anchorFor(raw, read) }));
+  const order = occurrences(found);
+  return found.map(({ raw, anchor }, index) => complete(raw, anchor, order[index] ?? 1));
 }

@@ -130,6 +130,38 @@ describe("R63 the default CRAP scope is the diff, computed by the gate", () => {
   });
 });
 
+describe("R63 a layer that does not need the tests' functions starts no test run", () => {
+  it("runs git and nothing else for a diff that changes a test file", async () => {
+    const dir = repoChanging(true);
+    write(dir, { "src/a.test.ts": "export const t = 1;\n" });
+    commit(dir, "a test");
+    const commands: string[] = [];
+    const exec: Exec = (command, args, options) => {
+      commands.push(command);
+      return realExec(command, args, options);
+    };
+    const asking: Layer = {
+      ...fakeLayer({ id: "hygiene", gate: 1 }),
+      run: async (ctx: LayerContext) => {
+        await ctx.diff?.({ coveredByTests: false });
+        return { verdict: "pass", findings: [], artifacts: {} };
+      },
+    };
+    await runGate({
+      layers: [asking],
+      config: cfg(),
+      options: opts({ base: "main" }),
+      cwd: dir,
+      env: {},
+      exec,
+      outDir: join(dir, ".web-tops", "out"),
+      now: tickingClock(),
+    });
+    expect(commands.length).toBeGreaterThan(0);
+    expect(new Set(commands)).toEqual(new Set(["git"]));
+  });
+});
+
 describe("R63 the provider computes the diff once for each kind of request", () => {
   /** How many git commands a run makes when its one layer asks for the diff as `asks` says. */
   async function gitCalls(asks: readonly DiffNeeds[]): Promise<number> {

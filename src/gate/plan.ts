@@ -33,7 +33,7 @@ interface Scope {
 }
 
 function requiresOf(layers: readonly Layer[], id: string): readonly string[] {
-  return layers.find((layer) => layer.id === id)?.requires ?? [];
+  return layers.filter((layer) => layer.id === id).flatMap((layer) => layer.requires);
 }
 
 function select(

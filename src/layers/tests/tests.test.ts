@@ -313,6 +313,17 @@ describe("G4a tests: zero tests, .only and .skip each fail", () => {
     expect(rulesOf(result)).toEqual([rule]);
   });
 
+  it("names vitest in what it says when node is missing or vitest is killed", async () => {
+    const missing = await runTests(real({}), () =>
+      Promise.resolve({ code: null, stdout: "", stderr: "", failure: "tool-missing" as const }),
+    );
+    expect(missing.findings[0]?.message).toBe("node is not on PATH, so vitest cannot run");
+    const slow = await runTests(real({}), () =>
+      Promise.resolve({ code: null, stdout: "", stderr: "", failure: "tool-timeout" as const }),
+    );
+    expect(slow.findings[0]?.message).toBe("vitest did not finish in time and was killed");
+  });
+
   it("results that are not JSON or not an object are findings, not passes", async () => {
     const item = real({});
     const writes =
