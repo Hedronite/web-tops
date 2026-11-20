@@ -458,7 +458,7 @@ file. The same holds for ESLint: a tracked source file that no config block reac
 is a `refuse` file-set finding, because no lint law judges it. A nested project reaches ESLint through its own
 `eslint.config`, which ESLint looks up from each file's directory. The data trees `fixtures/` and `probes/`
 (section 17) are the only exemption from both, fixed here and in the code; no ESLint `ignores` entry, no `exclude`
-and no configuration adds to it. A compiler diagnostic that names a flag (`TS7005` and `TS7006` for
+and no configuration adds to it. A rule entry of a law may list `classes`, a subset of the law's: a rule outside the run's class is neither required nor refused, so a project is not refused for a rule that holds for another class only. A compiler diagnostic that names a flag (`TS7005` and `TS7006` for
 `noImplicitAny`, and so on; gate 1 writes them as the `tsc-diagnostics` artifact) refuses the laws that map that flag:
 a live flag with a failing diagnostic is never a pass. A code that many errors share names no flag.
 
