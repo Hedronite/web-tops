@@ -1,8 +1,18 @@
-import type { LawEntry } from "../../laws/readers/types.ts";
+import type { LawEntry, LawRule } from "../../laws/readers/types.ts";
 
 /** The laws a class maps: a law with no class list is mapped by every class (section 5.2). */
 export const lawsOfClass = (laws: readonly LawEntry[], className: string): LawEntry[] =>
   laws.filter((law) => law.classes.length === 0 || law.classes.includes(className));
+
+/** A rule with no class list holds for every class its law maps; one with a list holds for those classes only. */
+export const ruleApplies = (rule: LawRule, className: string): boolean =>
+  rule.classes === undefined || rule.classes.includes(className);
+
+/** The law as one class reads it: a rule outside the class is neither required nor refused. */
+export const forClass = (law: LawEntry, className: string): LawEntry => ({
+  ...law,
+  rules: law.rules.filter((rule) => ruleApplies(rule, className)),
+});
 
 /**
  * A law is required when section 8.2 judges it and the class maps it (section 3.3). A mapped law that is not judged is

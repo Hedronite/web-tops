@@ -7,6 +7,8 @@ import type { Verdict } from "../../report/types.ts";
 export interface LawRule {
   readonly tool: string;
   readonly name: string;
+  /** The classes the rule holds for, a subset of the law's: absent, it holds for every class the law maps. */
+  readonly classes?: readonly string[];
 }
 
 /**
