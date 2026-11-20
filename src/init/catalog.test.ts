@@ -109,16 +109,17 @@ describe("G8a: section 7 names the presets, page JavaScript and axe's settings",
 });
 
 describe("G8b: section 8 corrections and new laws", () => {
-  it("states 48 laws, with one row for each id from W-01 to W-48", () => {
-    expect(section82).toContain("draft: 48 laws, W-01…W-48");
+  it("states 49 laws, with one row for each id from W-01 to W-49", () => {
+    expect(section82).toContain("draft: 49 laws, W-01…W-49");
     const ids = section82
       .split("\n")
       .map((line) => /^\| (W-\d+) \|/.exec(line)?.[1])
       .filter((id) => id !== undefined);
-    expect(ids).toEqual(
-      Array.from({ length: 48 }, (_, i) => `W-${String(i + 1).padStart(2, "0")}`),
+    // A family's laws sit together, so W-49 follows W-31 in the Astro table: the set is W-01 to W-49.
+    expect([...ids].sort()).toEqual(
+      Array.from({ length: 49 }, (_, i) => `W-${String(i + 1).padStart(2, "0")}`),
     );
-    expect(section82).toContain("**v0.1 target:** 26 of 48 laws judged");
+    expect(section82).toContain("**v0.1 target:** 26 of 49 laws judged");
   });
 
   it("W-06 no longer says FormData and storage return any", () => {

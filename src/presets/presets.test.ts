@@ -64,7 +64,7 @@ describe("G2a: each preset imports from a scratch project", () => {
         variants: ["base", "react", "astro"],
         configs: 10,
         stylelint: 9,
-        depcruise: ["no-circular", "no-unresolvable"],
+        depcruise: ["no-circular", "no-unresolvable", "no-optional-peer-import"],
       });
     },
     REAL_TOOL_TIMEOUT,

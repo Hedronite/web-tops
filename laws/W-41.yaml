@@ -7,7 +7,8 @@ classes: [ts-library, ui-components, astro-site, web-app, node-service]
 reader:
   kinds: [an]
   text: "an"
-rules: []
+rules:
+  - { tool: lock, name: "web-tops.lock" }
 judged: v0.1
 rationale: "A tool version that differs from the lock makes a gate result mean something else on another machine."
 fix: "Run `webtops lock --update` after a deliberate change, or reinstall the locked version."

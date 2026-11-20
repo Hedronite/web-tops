@@ -76,27 +76,27 @@ const idsOf = (out: string): string[] =>
     .map((line) => line.slice(0, 4 + 1).trim());
 
 describe("webtops laws list (G1b)", () => {
-  it("lists all 48 laws with no filter", async () => {
+  it("lists all 49 laws with no filter", async () => {
     const { code, out } = await laws(["list"]);
     expect(code).toBe(0);
-    expect(out.startsWith("48 of 48 laws\n")).toBe(true);
-    expect(idsOf(out)).toHaveLength(48);
+    expect(out.startsWith("49 of 49 laws\n")).toBe(true);
+    expect(idsOf(out)).toHaveLength(49);
   });
 
   it("lists the laws a class requires, 22 for a ts-library and 21 for a node-service", async () => {
     const tsLibrary = await laws(["list", "--class", "ts-library", "--required"]);
-    expect(tsLibrary.out.split("\n")[0]).toBe("22 of 48 laws (class ts-library, required)");
+    expect(tsLibrary.out.split("\n")[0]).toBe("22 of 49 laws (class ts-library, required)");
     const service = await laws(["list", "--class=node-service", "--required"]);
-    expect(service.out.split("\n")[0]).toBe("21 of 48 laws (class node-service, required)");
+    expect(service.out.split("\n")[0]).toBe("21 of 49 laws (class node-service, required)");
     expect(idsOf(service.out)).not.toContain("W-18");
   });
 
   it("lists the laws a class maps with --class alone, and the judged laws with --required alone", async () => {
     expect((await laws(["list", "--class", "astro-site"])).out.split("\n")[0]).toBe(
-      "47 of 48 laws (class astro-site)",
+      "48 of 49 laws (class astro-site)",
     );
     expect((await laws(["list", "--required"])).out.split("\n")[0]).toBe(
-      "33 of 48 laws (required)",
+      "34 of 49 laws (required)",
     );
   });
 
@@ -269,7 +269,7 @@ describe("bun src/cli/main.ts laws: the registered command, in a real process", 
   it("lists the laws a class requires, exit 0", () => {
     const { status, stdout } = spawnCli("list", "--class", "ts-library", "--required");
     expect(status).toBe(0);
-    expect(stdout.split("\n")[0]).toBe("22 of 48 laws (class ts-library, required)");
+    expect(stdout.split("\n")[0]).toBe("22 of 49 laws (class ts-library, required)");
   });
 
   it("exits 2 for a law that is not in the catalog, and names it", () => {
@@ -287,6 +287,6 @@ describe("laws is registered with the command dispatcher", () => {
   it("run hands `laws list` to the laws command, in this process", async () => {
     const { io, out } = capture();
     expect(await run(["laws", "list", "--class", "ts-library", "--required"], io)).toBe(0);
-    expect(out().split("\n")[0]).toBe("22 of 48 laws (class ts-library, required)");
+    expect(out().split("\n")[0]).toBe("22 of 49 laws (class ts-library, required)");
   });
 });

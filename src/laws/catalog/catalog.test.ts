@@ -14,7 +14,7 @@ const loaded = loadCatalog(join(ROOT, "laws"));
 if (!loaded.ok) throw new Error(loaded.problems.map((found) => found.message).join("; "));
 const laws: readonly Law[] = loaded.laws;
 
-const LAW_COUNT = 48;
+const LAW_COUNT = 49;
 
 /** The tick column of section 8.2 (v0.1): the laws judged today. */
 const TICKED = [
@@ -73,11 +73,11 @@ const ids = (shown: readonly { id: string }[]): string[] => shown.map((law) => l
 const numbered = (list: string): string[] => list.split(/[ ,]+/u).filter((word) => word !== "");
 
 describe("the kit's catalog: laws/W-NN.yaml (G1a)", () => {
-  it("holds a valid file for each of the 48 laws, W-01 to W-48, in order", () => {
+  it("holds a valid file for each of the 49 laws, W-01 to W-49, in order", () => {
     expect(ids(laws)).toEqual(
       Array.from({ length: LAW_COUNT }, (_, index) => `W-${String(index + 1).padStart(2, "0")}`),
     );
-    expect(laws).toHaveLength(48);
+    expect(laws).toHaveLength(LAW_COUNT);
   });
 
   it("puts every law in a family the text of section 8.2 has a table for", () => {
@@ -126,6 +126,7 @@ describe("the catalog agrees with the profiles and with section 5.2 (G1b)", () =
       "W-37",
       "W-39",
       "W-48",
+      "W-49",
     ]);
   });
 
@@ -249,6 +250,7 @@ describe("the rules a law names, for the law probe", () => {
       "dependency-cruiser",
       "eslint",
       "html-validate",
+      "lock",
       "publint",
       "stylelint",
       "tsc",
