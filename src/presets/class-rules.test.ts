@@ -1,10 +1,12 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { readFileSync, readdirSync, realpathSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import plugin from "../../packages/eslint-plugin-webtops/src/index.ts";
+import { REAL_TOOL_TIMEOUT } from "../gate/test-support-timeouts.ts";
 import { eslintPreset } from "./eslint.js";
 import type { EslintVariant } from "./eslint.js";
+import { TSCONFIG, bin, configFor, run, scratchProject } from "./test-support-scratch.ts";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const PREFIX = "webtops/";
@@ -80,4 +82,58 @@ describe("R98: a class's preset enables exactly the plugin rules its laws map", 
     }
     expect(withTailwind).toEqual(["astro-site", "web-app"]);
   });
+});
+
+/** One file of each kind a class's rules can match: a module, a React module and an Astro page. */
+const KINDS = {
+  "src/a.ts": "export const a: number = 1;\n",
+  "src/c.tsx": "export const c = (): null => null;\n",
+  "src/page.astro": [
+    "---",
+    "const Widget = (): null => null;",
+    "---",
+    "<Widget client:load />",
+    "",
+  ].join("\n"),
+};
+
+/** ESLint's report for every file under src, as JSON. */
+function lintAll(dir: string): unknown[] {
+  const parsed: unknown = JSON.parse(run(bin("eslint"), ["--format", "json", "src"], dir).stdout);
+  return Array.isArray(parsed) ? parsed : [];
+}
+
+function pathOf(dir: string, report: unknown): string {
+  const path = field(report, "filePath");
+  return typeof path === "string" ? relative(realpathSync(dir), path) : "";
+}
+
+const messagesOf = (report: unknown): unknown[] => list(report, "messages");
+
+describe("R105: a class's preset can parse every file kind its rules match", () => {
+  it.each(CLASSES)(
+    "%s: its project lints a module, a React module and a page with no parse error",
+    (cls) => {
+      const dir = scratchProject({
+        "package.json": JSON.stringify({ type: "module", dependencies: { astro: "7.4.12" } }),
+        "web-tops.yaml": `class: ${cls}\n`,
+        "eslint.config.js": configFor(variantOf(cls)),
+        "tsconfig.json": TSCONFIG,
+        ...KINDS,
+      });
+      const reports = lintAll(dir);
+      const mapsPages = mappedRules(cls).some((rule) => rule.startsWith(`${PREFIX}astro-`));
+      expect(reports.map((report) => pathOf(dir, report)).sort()).toEqual(
+        mapsPages ? Object.keys(KINDS).sort() : ["src/a.ts", "src/c.tsx"],
+      );
+      for (const report of reports) {
+        const fatal = messagesOf(report).filter((message) => field(message, "fatal") === true);
+        expect(fatal, pathOf(dir, report)).toEqual([]);
+      }
+      const page = reports.find((report) => pathOf(dir, report) === "src/page.astro");
+      const ruleIds = messagesOf(page).map((message) => field(message, "ruleId"));
+      expect(ruleIds.includes(`${PREFIX}astro-client-load-ack`)).toBe(mapsPages);
+    },
+    REAL_TOOL_TIMEOUT,
+  );
 });

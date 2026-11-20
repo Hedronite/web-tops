@@ -83,6 +83,7 @@ export function materialize(
   const config = {
     extends: tsconfig,
     compilerOptions: { noEmit: true },
+    // `.astro` is here for typescript-eslint's projectService: a typed rule needs the file in a program.
     include: ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts", "**/*.astro"],
     exclude: [],
   };

@@ -3,7 +3,14 @@ import { REAL_TOOL_TIMEOUT } from "../gate/test-support-timeouts.ts";
 import { lawsOfClass } from "../laws/probe/catalog.ts";
 import { kitProbeLaws } from "../laws/probe/testkit.ts";
 import { cleanTemp, put } from "../laws/probe/testkit.ts";
-import { adopter, failing, messages, probeOf, verdicts } from "./test-support-probe.ts";
+import {
+  adopter,
+  failing,
+  messages,
+  probeOf,
+  probeProcess,
+  verdicts,
+} from "./test-support-probe.ts";
 
 afterAll(cleanTemp);
 
@@ -36,6 +43,15 @@ describe("G3c `laws probe` under a class with JSX and CSS: W-22 and W-26", () =>
     expect(new Set(ui.report.skipped.map((twin) => twin.reason))).toEqual(
       new Set(["a web-app lints .astro files only when the project depends on astro"]),
     );
+  });
+
+  it("a law whose twins are all Astro is not probed for a web-app that does not depend on astro, and the exit says why", () => {
+    const run = probeProcess(adopter(undefined, true), "--class", "web-app", "--law", "W-49");
+    expect(run.code).toBe(2);
+    expect(run.err).toBe(
+      "webtops laws probe: every twin of the given laws was skipped: a web-app lints .astro files only when the project depends on astro\n",
+    );
+    expect(run.out).toBe("");
   });
 
   it(

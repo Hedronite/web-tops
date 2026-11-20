@@ -1,32 +1,11 @@
-import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { Linter } from "eslint";
-import { afterAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { REAL_TOOL_TIMEOUT } from "../gate/test-support-timeouts.ts";
 import { PACKAGES, VARIANTS, eslintPreset } from "./eslint.js";
 import type { EslintVariant } from "./eslint.js";
-
-const ROOT = resolve(import.meta.dirname, "../..");
-const scratches: string[] = [];
-
-/**
- * A project outside the kit that reaches it only as `node_modules/web-tops`, the way an inited
- * project does. `files` are written relative to the project; it is an ES module project.
- */
-function scratchProject(files: Readonly<Record<string, string>> = {}): string {
-  const dir = mkdtempSync(join(tmpdir(), "wt-preset-"));
-  scratches.push(dir);
-  mkdirSync(join(dir, "node_modules"));
-  symlinkSync(ROOT, join(dir, "node_modules", "web-tops"));
-  const all = { "package.json": '{ "type": "module" }\n', ...files };
-  for (const [path, text] of Object.entries(all)) {
-    mkdirSync(dirname(join(dir, path)), { recursive: true });
-    writeFileSync(join(dir, path), text);
-  }
-  return dir;
-}
+import { ROOT, bin, run, scratchProject } from "./test-support-scratch.ts";
 
 const presetOf = (variant: EslintVariant): Promise<Linter.Config[]> =>
   eslintPreset({ variant, tsconfigRootDir: "<project>" });
@@ -48,10 +27,6 @@ function errorRules(config: readonly Linter.Config[]): ReadonlySet<string> {
 const pluginNames = (config: readonly Linter.Config[]): ReadonlySet<string> =>
   new Set(config.flatMap((entry) => Object.keys(entry.plugins ?? {})));
 
-afterAll(() => {
-  for (const dir of scratches) rmSync(dir, { recursive: true, force: true });
-});
-
 const PRESET_SOURCE = readFileSync(join(ROOT, "src/presets/eslint.js"), "utf8");
 const KIT_CONFIG = readFileSync(join(ROOT, "eslint.config.js"), "utf8");
 
@@ -62,17 +37,6 @@ const writtenRules = (source: string): ReadonlySet<string> =>
       (match) => match[1] ?? "",
     ),
   );
-
-function run(
-  command: string,
-  args: readonly string[],
-  cwd: string,
-): { status: number | null; output: string } {
-  const result = spawnSync(command, args, { cwd, encoding: "utf8" });
-  return { status: result.status, output: `${result.stdout}${result.stderr}` };
-}
-
-const bin = (name: string): string => join(ROOT, "node_modules", ".bin", name);
 
 describe("G2a: each preset imports from a scratch project", () => {
   it(
@@ -179,6 +143,49 @@ describe("G2a: each preset imports from a scratch project", () => {
     REAL_TOOL_TIMEOUT,
   );
 
+  it(
+    "the Astro rules are live through web-tops/eslint: a page is flagged, its frontmatter may read server env",
+    () => {
+      const frontmatter = Array.from(
+        { length: 11 },
+        (_, i) => `const s${String(i)} = ${String(i)};`,
+      );
+      const dir = scratchProject({
+        "web-tops.yaml": "class: astro-site\n",
+        "eslint.config.js":
+          'import { eslintPreset } from "web-tops/eslint";\nexport default await eslintPreset({\n  variant: "astro",\n  tsconfigRootDir: import.meta.dirname,\n});\n',
+        "tsconfig.json":
+          '{ "extends": "web-tops/tsconfig/strict.json", "compilerOptions": { "noEmit": true }, "include": ["src"] }\n',
+        "src/page.astro": [
+          "---",
+          'import { Image } from "astro:assets";',
+          'import Widget from "../Widget";',
+          "const secret: unknown = import.meta.env.SECRET;",
+          ...frontmatter,
+          "---",
+          '<img src="a.png" alt="" />',
+          '<Image src="a.png" alt="" />',
+          "<Widget client:load />",
+          "<script>",
+          "  const client: unknown = import.meta.env.SECRET;",
+          "</script>",
+          "",
+        ].join("\n"),
+      });
+      const page = run(bin("eslint"), ["src/page.astro"], dir);
+      for (const rule of [
+        "astro-assets-image",
+        "astro-client-load-ack",
+        "astro-frontmatter-size",
+      ]) {
+        expect(page.output, rule).toContain(`webtops/${rule}`);
+      }
+      expect(page.output.split("webtops/public-env-only")).toHaveLength(2);
+      expect(page.output).toMatch(/\n\s+21:27\s+error\s+SECRET[^\n]*webtops\/public-env-only/u);
+    },
+    REAL_TOOL_TIMEOUT,
+  );
+
   it("exports plain JavaScript and JSON, which Node loads from inside node_modules", () => {
     const exported: unknown = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
     const text = JSON.stringify(exported);
@@ -247,18 +254,22 @@ describe("the ESLint preset", () => {
   const W36 = "webtops/no-unsanitized-html";
   const W37 = "webtops/public-env-only";
   const W23 = "webtops/complete-tailwind-classes";
+  const W28 = "webtops/astro-client-load-ack";
+  const W30 = "webtops/astro-assets-image";
+  const W31 = "webtops/astro-frontmatter-size";
+  const ALL = [W36, W37, W23, W28, W30, W31];
 
   it.each([
     ["ts-library", "base", [W36]],
     ["node-service", "base", [W36]],
     ["ui-components", "react", [W36, W37]],
-    ["web-app", "react", [W36, W37, W23]],
-    ["astro-site", "astro", [W36, W37, W23]],
+    ["web-app", "react", [W36, W37, W23, W28]],
+    ["astro-site", "astro", ALL],
     ["cli", "base", []],
   ] as const)("class %s (%s) enables exactly the plugin rules %j", async (cls, variant, has) => {
     const config = await eslintPreset({ variant, tsconfigRootDir: "<project>", class: cls });
     const rules = errorRules(config);
-    for (const name of [W36, W37, W23]) {
+    for (const name of ALL) {
       if (has.some((wanted) => wanted === name)) expect(rules, name).toContain(name);
       else expect(rules, name).not.toContain(name);
     }
@@ -268,13 +279,13 @@ describe("the ESLint preset", () => {
   it("reads the class from the project's web-tops.yaml, and falls back to the loosest class", async () => {
     const root = scratchProject({ "web-tops.yaml": 'protocol: "0.3.0"\nclass: "web-app"\n' });
     const declared = errorRules(await eslintPreset({ variant: "react", tsconfigRootDir: root }));
-    expect([W36, W37, W23].filter((name) => declared.has(name))).toEqual([W36, W37, W23]);
+    expect(ALL.filter((name) => declared.has(name))).toEqual([W36, W37, W23, W28]);
     const none = scratchProject();
     const fallback = errorRules(await eslintPreset({ variant: "react", tsconfigRootDir: none }));
-    expect([W36, W37, W23].filter((name) => fallback.has(name))).toEqual([W36]);
+    expect(ALL.filter((name) => fallback.has(name))).toEqual([W36]);
     const unquoted = scratchProject({ "web-tops.yaml": "class: ui-components\n" });
     const read = errorRules(await eslintPreset({ variant: "react", tsconfigRootDir: unquoted }));
-    expect([W36, W37, W23].filter((name) => read.has(name))).toEqual([W36, W37]);
+    expect(ALL.filter((name) => read.has(name))).toEqual([W36, W37]);
   });
 
   it("scopes public-env-only (W-37) to the client modules and the <script> blocks, never the frontmatter", async () => {
@@ -287,6 +298,39 @@ describe("the ESLint preset", () => {
       .filter((entry) => Object.hasOwn(entry.rules ?? {}, W37))
       .map((entry) => entry.files);
     expect(scopes).toEqual([["**/*.jsx", "**/*.tsx", "**/*.astro/*.ts", "**/*.astro/*.js"]]);
+  });
+
+  it("scopes the Astro rules (W-28, W-30, W-31) to .astro files", async () => {
+    const config = await eslintPreset({
+      variant: "astro",
+      tsconfigRootDir: ".",
+      class: "astro-site",
+    });
+    for (const name of [W28, W30, W31]) {
+      const scopes = config
+        .filter((entry) => Object.hasOwn(entry.rules ?? {}, name))
+        .map((entry) => entry.files);
+      expect(scopes, name).toEqual([["**/*.astro"]]);
+    }
+  });
+
+  it("lints .astro files with a project, and their <script> blocks without types", async () => {
+    const config = await eslintPreset({ variant: "astro", tsconfigRootDir: "/some/project" });
+    const parserOptions = (files: string): unknown[] =>
+      config
+        .filter((entry) => entry.files?.includes(files) === true)
+        .map((entry) => entry.languageOptions?.parserOptions)
+        .filter((options) => options !== undefined);
+    expect(parserOptions("**/*.astro")).toContainEqual({
+      projectService: false,
+      project: "./tsconfig.json",
+      tsconfigRootDir: "/some/project",
+      extraFileExtensions: [".astro"],
+    });
+    expect(parserOptions("**/*.astro/*.ts")).toContainEqual({
+      projectService: false,
+      project: null,
+    });
   });
 
   it.each(VARIANTS)(
