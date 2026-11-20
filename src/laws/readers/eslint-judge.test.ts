@@ -153,7 +153,8 @@ describe("G4a the ESLint reader judges a law by each file's effective config", (
     expect(reading).toEqual({
       law: "W-01",
       verdict: "not-evaluated",
-      reason: "no TypeScript file was linted",
+      reason:
+        "no TypeScript file was linted: ESLint's config reaches no TypeScript file (no config block has files for **/*.ts and the TypeScript parser, or an ignore drops them), so no rule can be judged",
       findings: [],
     });
   });
