@@ -61,8 +61,11 @@ function passing(seen: string[]): LawReader {
 }
 
 describe("G4 a law whose tool artifact is missing is not-evaluated", () => {
-  it("is declared as optional inputs of hygiene, beside the two it always needs", () => {
-    const consumes = lawsLayer(CATALOG()).consumes;
+  it("is declared as optional inputs of hygiene, beside the two it always needs, and writes no artifact", () => {
+    const layer = lawsLayer(CATALOG());
+    const consumes = layer.consumes;
+    expect(layer.produces).toEqual([]);
+    expect(consumes.map((one) => one.from)).toEqual(consumes.map(() => "hygiene"));
     expect(consumes.filter((one) => one.optional !== true).map((one) => one.artifact)).toEqual([
       "eslint-json",
       "tsc-diagnostics",
@@ -74,6 +77,30 @@ describe("G4 a law whose tool artifact is missing is not-evaluated", () => {
       "install-json",
       "publint-json",
     ]);
+  });
+
+  it("asks a reader for the rules of its own tool only: another tool's missing artifact is not its concern", async () => {
+    const seen: string[] = [];
+    const mixed: LawEntry = {
+      ...law("W-40", "eslint", "no-explicit-any"),
+      rules: [
+        { tool: "eslint", name: "no-explicit-any" },
+        { tool: "bun", name: "audit" },
+      ],
+    };
+    const layer = lawsLayer(CATALOG(mixed), new Map([["eslint", passing(seen)]]));
+    await layer.run(context([]));
+    expect(seen).toEqual(["W-40"]);
+  });
+
+  it("does not call a reader that has no law left to read", async () => {
+    let calls = 0;
+    const counting: LawReader = () => {
+      calls += 1;
+      return Promise.resolve([]);
+    };
+    await lawsLayer(CATALOG(AUDIT), new Map([["bun", counting]])).run(context([]));
+    expect(calls).toBe(0);
   });
 
   it("does not ask the reader, and says which artifact is missing and which tool cannot be read", async () => {

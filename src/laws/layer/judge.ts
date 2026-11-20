@@ -8,11 +8,9 @@ function worstFirst(): readonly Verdict[] {
   return ["refuse", "fail", "ack-missing", "not-evaluated", "pass"];
 }
 
-const rank = (verdict: Verdict): number => worstFirst().indexOf(verdict);
-
 /** The worse of two verdicts. */
 export const worse = (left: Verdict, right: Verdict): Verdict =>
-  rank(left) <= rank(right) ? left : right;
+  worstFirst().find((verdict) => verdict === left || verdict === right) ?? left;
 
 /** Why a law with no tool rules to read has no reading: its reader is not built, or it is judged by review. */
 function unreadReason(law: LawEntry): string {

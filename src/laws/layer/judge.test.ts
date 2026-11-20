@@ -52,6 +52,11 @@ describe("G4d one verdict for a law, from what its readers say", () => {
   it("a break of a law whose severity is A is ack-missing, not refuse", () => {
     const soft = law("W-09", { severity: "A" });
     expect(judgeEntry(soft, "ts-library", [reading("refuse")]).verdict).toBe("ack-missing");
+    expect(judgeEntry(soft, "ts-library", [reading("fail")]).verdict).toBe("fail");
+    expect(judgeEntry(soft, "ts-library", [reading("not-evaluated")]).verdict).toBe(
+      "not-evaluated",
+    );
+    expect(judgeEntry(soft, "ts-library", [reading("pass")]).verdict).toBe("pass");
   });
 
   it("a law that is not required is counted: a break is not-evaluated, and a tool that failed is still fail", () => {
