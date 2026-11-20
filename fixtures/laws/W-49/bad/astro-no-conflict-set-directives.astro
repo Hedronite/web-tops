@@ -1,0 +1,6 @@
+---
+const html = "<b>a</b>";
+const text = "a";
+---
+<!-- expect: astro/no-conflict-set-directives -->
+<div set:html={html} set:text={text}></div>

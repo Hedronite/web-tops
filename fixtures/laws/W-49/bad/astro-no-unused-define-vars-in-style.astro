@@ -1,0 +1,7 @@
+---
+---
+<p>x</p>
+<!-- expect: astro/no-unused-define-vars-in-style -->
+<style define:vars={{ color: "red" }}>
+  p { margin: 0; }
+</style>

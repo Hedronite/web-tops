@@ -3,11 +3,18 @@ import { REAL_TOOL_TIMEOUT } from "../gate/test-support-timeouts.ts";
 import { lawsOfClass } from "../laws/probe/catalog.ts";
 import { kitProbeLaws } from "../laws/probe/testkit.ts";
 import { cleanTemp, put } from "../laws/probe/testkit.ts";
-import { adopter, failing, messages, probeOf, verdicts } from "./test-support-probe.ts";
+import {
+  adopter,
+  failing,
+  messages,
+  probeOf,
+  probeProcess,
+  verdicts,
+} from "./test-support-probe.ts";
 
 afterAll(cleanTemp);
 
-const ALL = kitProbeLaws().map((law) => law.id);
+const WEB_APP = lawsOfClass(kitProbeLaws(), "web-app").map((law) => law.id);
 const TS_ONLY = lawsOfClass(kitProbeLaws(), "ts-library").map((law) => law.id);
 
 /** Replaces one line of a config, as an adopter that did not enable a rule would have it. */
@@ -24,8 +31,17 @@ describe("G3c `laws probe` under a class with JSX and CSS: W-22 and W-26", () =>
 
   it("proves W-22 and W-26 beside the laws every class maps, and every law passes", () => {
     expect(ui.code).toBe(0);
-    expect(ui.report.laws.map((law) => law.id)).toEqual(ALL);
+    expect(ui.report.laws.map((law) => law.id)).toEqual(WEB_APP);
     expect(failing(ui.report)).toEqual([]);
+  });
+
+  it("a law whose twins are all Astro is not probed for a web-app that does not depend on astro, and the exit says why", () => {
+    const run = probeProcess(adopter(undefined, true), "--class", "web-app", "--law", "W-49");
+    expect(run.code).toBe(2);
+    expect(run.err).toBe(
+      "webtops laws probe: every twin of the given laws was skipped: a web-app lints .astro files only when the project depends on astro\n",
+    );
+    expect(run.out).toBe("");
   });
 
   it(
@@ -36,7 +52,7 @@ describe("G3c `laws probe` under a class with JSX and CSS: W-22 and W-26", () =>
       expect(plain.report.laws.map((law) => law.id)).toEqual(TS_ONLY);
       put(dir, { "web-tops.yaml": "class: web-app\n" });
       const named = await probeOf(dir);
-      expect(named.report.laws.map((law) => law.id)).toEqual(ALL);
+      expect(named.report.laws.map((law) => law.id)).toEqual(WEB_APP);
     },
     REAL_TOOL_TIMEOUT,
   );
