@@ -66,11 +66,9 @@ function hitsByFile(
  */
 export function parseCoverage(
   value: unknown,
-  root?: string | readonly string[],
+  root: string | readonly string[] = [],
 ): CoverageMap | undefined {
-  return isRecord(value)
-    ? hitsByFile(value, typeof root === "string" ? [root] : (root ?? []))
-    : undefined;
+  return isRecord(value) ? hitsByFile(value, typeof root === "string" ? [root] : root) : undefined;
 }
 
 /** The functions, of those the spans list, that ran: each hit goes to the smallest function-or-module span that holds it. */

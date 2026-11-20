@@ -56,13 +56,13 @@ type Covered =
 
 type Reader = (path: string) => string | undefined;
 
-const TEST = /\.(test|spec)\.[cm]?tsx?$|(^|\/)__tests__\//;
-const SOURCE = /\.[cm]?tsx?$/;
-const DECLARATION = /\.d\.[cm]?ts$/;
+const hasScriptExtension = (path: string): boolean => /\.[cm]?tsx?$/.test(path);
+const isDeclaration = (path: string): boolean => /\.d\.[cm]?ts$/.test(path);
 
-export const isTestFile = (path: string): boolean => TEST.test(path) && SOURCE.test(path);
+export const isTestFile = (path: string): boolean =>
+  /\.(test|spec)\.[cm]?tsx?$|(^|\/)__tests__\//.test(path) && hasScriptExtension(path);
 export const isSourceFile = (path: string): boolean =>
-  SOURCE.test(path) && !DECLARATION.test(path) && !TEST.test(path);
+  hasScriptExtension(path) && !isDeclaration(path) && !isTestFile(path);
 
 function readerFor(cwd: string): Reader {
   return (path) => {
