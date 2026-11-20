@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Report } from "../report/types.ts";
-import { coverageFor, runGate, sourceReader } from "./runner.ts";
+import { optionsFor, runGate, sourceReader } from "./runner.ts";
 import { cfg, fakeLayer, noExec, off, opts, tempProject, tickingClock } from "./testkit.ts";
 import type { GateConfig, GateOptions, Layer, LayerContext } from "./types.ts";
 
@@ -230,11 +230,17 @@ describe("the text of a file a finding points at", () => {
   });
 });
 
-describe("the coverage the diff engine is given for a changed test file", () => {
-  it("is its own run for a layer that needs the tests' functions, and none for one that does not", async () => {
-    expect(coverageFor({ coveredByTests: true })).toBeUndefined();
-    const none = coverageFor({ coveredByTests: false });
-    const covered = await none?.();
+describe("the diff engine's options for a layer", () => {
+  const base = { cwd: "/work", base: "main", exclude: ["src/gen/**"] };
+
+  it("are kept for a layer that needs the tests' functions", () => {
+    expect(optionsFor({ coveredByTests: true }, base)).toBe(base);
+  });
+
+  it("add a coverage of none for one that does not, and keep the rest", async () => {
+    const given = optionsFor({ coveredByTests: false }, base);
+    expect(given).toMatchObject(base);
+    const covered = await given.coverageOf?.("src/a.test.ts");
     expect(covered).toBeInstanceOf(Map);
     expect(covered?.size).toBe(0);
   });

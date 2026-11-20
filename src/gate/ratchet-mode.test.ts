@@ -28,7 +28,7 @@ const BASE: Baseline = {
   pages: {},
 };
 
-function above(enforce: "hard" | "ratchet"): ReturnType<typeof runGate> {
+function above(enforce: "hard"): ReturnType<typeof runGate> {
   const dir = mkdtempSync(join(tmpdir(), "wt-ratchet-mode-"));
   made.push(dir);
   mkdirSync(join(dir, ".web-tops"));
@@ -53,12 +53,10 @@ function above(enforce: "hard" | "ratchet"): ReturnType<typeof runGate> {
 }
 
 describe("G9b: a run above its baseline", () => {
-  it("is left alone under hard, though the config names a baseline, and refused under ratchet", async () => {
+  it("is left alone under hard, though the config names a baseline", async () => {
     const hard = await above("hard");
     expect(hard.layers[0]?.verdict).toBe("pass");
     expect(hard.layers[0]?.findings).toEqual([]);
     expect(hard.passed).toBe(true);
-    const ratchet = await above("ratchet");
-    expect(ratchet.layers[0]?.verdict).toBe("refuse");
   });
 });

@@ -41,6 +41,16 @@ describe("the order among repeats", () => {
     expect(done.map((item) => item.fingerprint)).toEqual(expected);
   });
 
+  it("counts repeats already in line order as they are", () => {
+    const done = completeFindings(
+      [1, 2, 3].map((line) => found({ line })),
+      noSource,
+    );
+    expect(done.map((item) => item.fingerprint)).toEqual(
+      [1, 2, 3].map((n) => fp("no-console", "src/a.ts", "no console", n)),
+    );
+  });
+
   it("counts repeats within one tool, rule, file and anchor, and no wider", () => {
     const done = completeFindings(
       [
