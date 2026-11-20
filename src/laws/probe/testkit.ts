@@ -48,6 +48,6 @@ export function kitProbeLaws(): ProbeLaw[] {
 }
 
 function lawOfLine(line: string): ProbeLaw {
-  const [id = "", proofs = "", classes = ""] = line.split(" ");
-  return { id, proofs: proofs.split(","), classes: classes.split(",") };
+  const [id, proofs, classes] = line.split(" ");
+  return { id: String(id), proofs: String(proofs).split(","), classes: String(classes).split(",") };
 }

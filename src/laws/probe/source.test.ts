@@ -83,3 +83,25 @@ describe("G3a the laws the probe proves are read from the catalog's records", ()
     expect(reads).toBe(2);
   });
 });
+
+describe("G3a the tools whose rules a twin can fire", () => {
+  const law = (tool: string): LawRecord => ({
+    id: "W-90",
+    classes: ["ts-library"],
+    judged: "v0.1",
+    rules: [{ tool, name: "some-rule" }],
+  });
+
+  it("are ESLint, the compiler and Stylelint, and no other", () => {
+    expect(["eslint", "tsc", "stylelint"].map((tool) => isProbed(law(tool)))).toEqual([
+      true,
+      true,
+      true,
+    ]);
+    expect(
+      ["knip", "publint", "attw", "bun", "dependency-cruiser", "axe"].some((tool) =>
+        isProbed(law(tool)),
+      ),
+    ).toBe(false);
+  });
+});

@@ -3,9 +3,8 @@ import { join, resolve } from "node:path";
 import { expect } from "vitest";
 import { spawnSync } from "node:child_process";
 import type { Exec } from "../gate/types.ts";
-import { catalogLaws } from "../laws/probe/catalog.ts";
-import { put, tempDir } from "../laws/probe/testkit.ts";
-import type { ProbeReport } from "../laws/probe/types.ts";
+import { kitProbeLaws, put, tempDir } from "../laws/probe/testkit.ts";
+import type { ProbeLaw, ProbeReport } from "../laws/probe/types.ts";
 import type { Io } from "./io.ts";
 import { runLawsProbeCli, type ProbeDeps } from "./laws-probe.ts";
 
@@ -35,8 +34,12 @@ export const statusOf = (status: number | null): number => status ?? -1;
 
 export const NO_EXEC: Exec = () => Promise.reject(new Error("no tool should run"));
 
+/** The kit's laws for a test that names none, read by a process of its own the first time and kept. */
+let kept: readonly ProbeLaw[] | undefined;
+const kitLaws = (): readonly ProbeLaw[] => (kept ??= kitProbeLaws());
+
 function deps(over: Partial<ProbeDeps>): ProbeDeps {
-  return { exec: NO_EXEC, laws: catalogLaws, fixtures: join(KIT, "fixtures/laws"), ...over };
+  return { exec: NO_EXEC, laws: kitLaws, fixtures: join(KIT, "fixtures/laws"), ...over };
 }
 
 export async function cli(
