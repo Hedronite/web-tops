@@ -1,0 +1,22 @@
+# W-49: the source of its row in WEB_TOPS.md section 8.2 (`webtops laws sync` regenerates the table from these files).
+id: W-49
+title: "Astro components use the Astro API correctly: no deprecated APIs, conflicting directives or exports from components"
+family: "Astro"
+severity: R
+classes: [astro-site]
+reader:
+  kinds: [tl]
+  text: "tl: `eslint-plugin-astro` `recommended`"
+rules:
+  - { tool: eslint, name: "astro/missing-client-only-directive-value" }
+  - { tool: eslint, name: "astro/no-conflict-set-directives" }
+  - { tool: eslint, name: "astro/no-deprecated-astro-canonicalurl" }
+  - { tool: eslint, name: "astro/no-deprecated-astro-fetchcontent" }
+  - { tool: eslint, name: "astro/no-deprecated-astro-resolve" }
+  - { tool: eslint, name: "astro/no-deprecated-getentrybyslug" }
+  - { tool: eslint, name: "astro/no-exports-from-components" }
+  - { tool: eslint, name: "astro/no-prerender-export-outside-pages" }
+  - { tool: eslint, name: "astro/no-unused-define-vars-in-style" }
+judged: m3
+rationale: "A removed API, two directives that fight over the same content, or an export from a component breaks the build or the page."
+fix: "Use the current Astro API, set content with one directive, and move the export out of the component."

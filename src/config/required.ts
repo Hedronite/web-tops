@@ -34,8 +34,8 @@ export const JUDGED_LAWS: readonly string[] = [
   "W-41",
 ];
 
-/** W-01 to W-48 (WEB_TOPS.md section 8.2). */
-export const LAW_COUNT = 48;
+/** W-01 to W-49 (WEB_TOPS.md section 8.2). */
+export const LAW_COUNT = 49;
 const ALL_LAWS = Array.from(
   { length: LAW_COUNT },
   (_, index) => `W-${String(index + 1).padStart(2, "0")}`,
@@ -57,7 +57,9 @@ const BUILD_OUTPUT: readonly LayerKey[] = [
 
 /** Every law the class maps: the ones no class gates, and the class's own (W-27 only with Astro). */
 export function mappedLaws(profile: Profile, project: Project): readonly string[] {
-  const own = [...profile.extraLaws, ...(project.dependsOnAstro ? profile.conditionalLaws : [])];
+  const own = project.dependsOnAstro
+    ? [...profile.extraLaws, ...profile.conditionalLaws]
+    : profile.extraLaws;
   return ALL_LAWS.filter((id) => !GATED.has(id) || own.includes(id));
 }
 

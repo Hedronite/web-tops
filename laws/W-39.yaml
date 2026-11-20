@@ -7,8 +7,8 @@ classes: [ts-library, ui-components, astro-site, web-app, node-service]
 reader:
   kinds: [tl]
   text: "tl: secrets scanner **[verify]**"
-rules: []
+rules:
+  - { tool: secretlint, name: "@secretlint/secretlint-rule-preset-recommend" }
 judged: m3
 rationale: "A secret in source or a fixture is a leaked credential, in history too."
 fix: "Remove it, rotate it, and load it from the environment."
-note: "The scanner is chosen in M3; no rule names it yet."
