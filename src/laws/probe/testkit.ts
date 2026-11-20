@@ -2,18 +2,20 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
-/** Temporary directories a test makes, removed by `cleanTemp` (put it in `afterAll`). */
-const made: string[] = [];
+/** The one directory a test run keeps its temporary directories in, made the first time one is asked for. */
+let parent: string | undefined;
 
+/** A new temporary directory, inside the run's own directory that `cleanTemp` removes whole (put it in `afterAll`). */
 export function tempDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), "wt-probe-"));
-  made.push(dir);
-  return dir;
+  parent ??= mkdtempSync(join(tmpdir(), "wt-probe-"));
+  return mkdtempSync(join(parent, "d-"));
 }
 
+/** Removes every directory `tempDir` made, with what is in them. Nothing made is nothing to remove. */
 export function cleanTemp(): void {
-  for (const dir of made.splice(0)) {
-    rmSync(dir, { recursive: true, force: true });
+  if (parent !== undefined) {
+    rmSync(parent, { recursive: true, force: true });
+    parent = undefined;
   }
 }
 
