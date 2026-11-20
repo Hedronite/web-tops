@@ -22,6 +22,9 @@ tools:
   - "typescript"
   - "typescript-eslint"
   - "vitest"
+# Installed and locked only where the project depends on astro: the parser behind its .astro files (W-28).
+astro_tools:
+  - "eslint-plugin-astro"
 disabled:
   package_exports: "not mapped for class: an app publishes no package exports"
   crap: "milestone M2: native CRAP lands in M2"
