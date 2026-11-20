@@ -16,7 +16,11 @@ rules:
   - { tool: eslint, name: "astro/jsx-a11y/alt-text", classes: [astro-site] }
   - { tool: eslint, name: "astro/jsx-a11y/anchor-has-content", classes: [astro-site] }
   - { tool: eslint, name: "astro/jsx-a11y/anchor-is-valid", classes: [astro-site] }
-  - { tool: eslint, name: "astro/jsx-a11y/aria-activedescendant-has-tabindex", classes: [astro-site] }
+  - {
+      tool: eslint,
+      name: "astro/jsx-a11y/aria-activedescendant-has-tabindex",
+      classes: [astro-site],
+    }
   - { tool: eslint, name: "astro/jsx-a11y/aria-props", classes: [astro-site] }
   - { tool: eslint, name: "astro/jsx-a11y/aria-proptypes", classes: [astro-site] }
   - { tool: eslint, name: "astro/jsx-a11y/aria-role", classes: [astro-site] }
@@ -34,9 +38,21 @@ rules:
   - { tool: eslint, name: "astro/jsx-a11y/no-access-key", classes: [astro-site] }
   - { tool: eslint, name: "astro/jsx-a11y/no-autofocus", classes: [astro-site] }
   - { tool: eslint, name: "astro/jsx-a11y/no-distracting-elements", classes: [astro-site] }
-  - { tool: eslint, name: "astro/jsx-a11y/no-interactive-element-to-noninteractive-role", classes: [astro-site] }
-  - { tool: eslint, name: "astro/jsx-a11y/no-noninteractive-element-interactions", classes: [astro-site] }
-  - { tool: eslint, name: "astro/jsx-a11y/no-noninteractive-element-to-interactive-role", classes: [astro-site] }
+  - {
+      tool: eslint,
+      name: "astro/jsx-a11y/no-interactive-element-to-noninteractive-role",
+      classes: [astro-site],
+    }
+  - {
+      tool: eslint,
+      name: "astro/jsx-a11y/no-noninteractive-element-interactions",
+      classes: [astro-site],
+    }
+  - {
+      tool: eslint,
+      name: "astro/jsx-a11y/no-noninteractive-element-to-interactive-role",
+      classes: [astro-site],
+    }
   - { tool: eslint, name: "astro/jsx-a11y/no-noninteractive-tabindex", classes: [astro-site] }
   - { tool: eslint, name: "astro/jsx-a11y/no-redundant-roles", classes: [astro-site] }
   - { tool: eslint, name: "astro/jsx-a11y/no-static-element-interactions", classes: [astro-site] }
