@@ -37,20 +37,24 @@ describe("G3b `laws probe`: arguments and problems", () => {
     expect(result).toMatchObject({ code: 2, err: "webtops laws probe: no law W-98 to probe\n" });
   });
 
-  it("is routed from `webtops laws probe`, with the probe's own messages", async () => {
-    const out: string[] = [];
-    const err: string[] = [];
+  it("is routed from `webtops laws probe`, with the probe's own messages and its own exit code", async () => {
+    let out = "";
+    let err = "";
     const io = {
-      out: (t: string) => out.push(t),
-      err: (t: string) => err.push(t),
+      out: (text: string) => {
+        out += text;
+      },
+      err: (text: string) => {
+        err += text;
+      },
       cwd: tempDir(),
       env: {},
     };
-    const code = await runLawsCli(["probe", "--law", "W-98"], io);
-    expect({ code, err: err.join("") }).toEqual({
-      code: 2,
-      err: "webtops laws probe: no law W-98 to probe\n",
-    });
+    const code = await runLawsCli(["probe", "--wat"], io);
+    expect(code).toBe(2);
+    expect(err.startsWith("webtops laws probe: ")).toBe(true);
+    expect(err).toContain("usage: webtops laws probe [--law W-NN]");
+    expect(out).toBe("");
   });
 
   it("a catalog that cannot be read is exit 2 with its problems, never an empty probe", async () => {

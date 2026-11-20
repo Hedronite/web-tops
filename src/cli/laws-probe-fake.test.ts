@@ -125,6 +125,7 @@ describe("G3b the request the command builds", () => {
     expect(request.exec).toBe(exec);
     expect(request.scratch).toBe(join(cwd, ".web-tops", "out", "laws-probe"));
     expect(request.laws.map((law) => law.id)).toEqual(["W-99"]);
+    expect(request.fixtures).toBe(join(KIT, "fixtures", "laws"));
   });
 
   it("with no flag and no web-tops.yaml it asks for the laws a ts-library maps, and no other", async () => {
