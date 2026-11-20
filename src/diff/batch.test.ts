@@ -5,7 +5,7 @@ import type { Exec } from "../gate/types.ts";
 import type { CoverageOf, CoverageOfMany } from "./scope.ts";
 import { diffScope } from "./scope.ts";
 import { cleanRepos, diffOf, fakeGit, plainDir } from "./test-support.ts";
-import type { CoverageMap, ScopeResult } from "./types.ts";
+import type { CoverageMap, FunctionHit, ScopeResult } from "./types.ts";
 
 // The changed test files are run together, once, and file by file only where that gives nothing: the functions in
 // scope, the mutate ranges and the verdicts are those of a run of each file alone.
@@ -200,6 +200,24 @@ describe("changed test files run together", () => {
       },
     });
     expect(sizes).toEqual([100, 100, 5]);
+  });
+
+  it("lists the functions by file and line, whatever order the coverage came in", async () => {
+    const cwd = plainDir({ "src/z.ts": M, "src/a.ts": M, "src/t.test.ts": WEAK });
+    const both = (path: string): [string, readonly FunctionHit[]] => [
+      path,
+      [
+        { start: 4, end: 6, hits: 1 },
+        { start: 1, end: 3, hits: 1 },
+      ],
+    ];
+    const result = await diffScope({
+      cwd,
+      base: "main",
+      exec: fakeGit(diffOf([{ path: "src/t.test.ts", kind: "added" }])),
+      coverageOfMany: () => Promise.resolve(new Map([both("src/z.ts"), both("src/a.ts")])),
+    });
+    expect(keys(result)).toEqual(["src/a.ts::f", "src/a.ts::g", "src/z.ts::f", "src/z.ts::g"]);
   });
 
   it("runs no group when it is given a source for one file only", async () => {

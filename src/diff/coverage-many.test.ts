@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Exec } from "../gate/types.ts";
@@ -58,6 +58,15 @@ describe("vitestCoverageOfMany", () => {
     expect(extra.at(-1)).toBe("--reporter=dot");
     expect(extra).toContain("--coverage.exclude=gen/**");
     expect(extra).toHaveLength(9 + DEFAULT_COVERAGE_EXCLUDES.length - 1 + 2);
+  });
+
+  it("is undefined, not a failure, when the run took its own directory away", async () => {
+    const exec: Exec = (_command, args) => {
+      const flag = args.find((arg) => arg.startsWith("--coverage.reportsDirectory=")) ?? "";
+      rmSync(flag.slice("--coverage.reportsDirectory=".length), { recursive: true, force: true });
+      return Promise.resolve({ code: 1, stdout: "", stderr: "" });
+    };
+    expect(await vitestCoverageOfMany(["src/a.test.ts"], { cwd: "/repo", exec })).toBeUndefined();
   });
 
   it("is undefined when the run fails, whichever file is the cause", async () => {
