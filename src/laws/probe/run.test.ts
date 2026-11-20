@@ -628,6 +628,20 @@ describe("R105 the runner keeps each law's twins and each law's skips apart", ()
     ]);
   });
 
+  it("a law with no twin at all stays in the report beside a law whose twins were skipped", async () => {
+    const outcome = await runProbe(
+      request(project(), fake({ eslintOutput: "[]" }, []), {
+        laws: [MIXED_LAW, { id: "W-94", proofs: ["no-thing"] }],
+        fixtures: mixedFixtures(),
+        astroSkip: REASON,
+      }),
+    );
+    expect(outcome.ok && outcome.report.laws.map((law) => `${law.id} ${law.verdict}`)).toEqual([
+      "W-96 fail",
+      "W-94 fail",
+    ]);
+  });
+
   it("no law to probe and nothing skipped is a report with no law, not a problem", async () => {
     const outcome = await runProbe(request(project(), fake({}, []), { laws: [] }));
     expect(outcome).toEqual({ ok: true, report: { laws: [], skipped: [] } });
