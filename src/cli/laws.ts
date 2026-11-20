@@ -161,15 +161,25 @@ function lawsOf(io: Io, catalog: string): readonly Law[] | number {
   return failure(io, `the catalog is invalid\n${lines.join("").trimEnd()}`);
 }
 
-/** `webtops laws`: the law catalog (WEB_TOPS.md section 8): `list`, `explain` and `sync`. */
-export function runLawsCli(
-  argv: readonly string[],
-  io: Io,
-  catalog = CATALOG_DIR,
-): Promise<number> {
+/** `list`, `explain` and `sync`: the law catalog (WEB_TOPS.md section 8). */
+function runCatalogCli(argv: readonly string[], io: Io, catalog: string): Promise<number> {
   const parsed = parse(argv, io);
   if (typeof parsed === "number") return Promise.resolve(parsed);
   const laws = lawsOf(io, catalog);
   if (typeof laws === "number") return Promise.resolve(laws);
   return Promise.resolve(parsed.sub.run(parsed.flags, io, laws));
+}
+
+/** `webtops laws`: the law catalog (section 8), and `probe`, which proves the readers of the laws (G3). */
+export async function runLawsCli(
+  argv: readonly string[],
+  io: Io,
+  catalog = CATALOG_DIR,
+): Promise<number> {
+  if (argv[0] === "probe") {
+    // Loaded here, not at the top: `probe` is G3's, and this file's own module-level code is left as it was.
+    const { runLawsProbeCli } = await import("./laws-probe.ts");
+    return runLawsProbeCli(argv.slice(1), io);
+  }
+  return runCatalogCli(argv, io, catalog);
 }

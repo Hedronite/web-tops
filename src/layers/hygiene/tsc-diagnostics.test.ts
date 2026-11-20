@@ -72,6 +72,9 @@ describe("R87 hygiene tsc: tsc-diagnostics.json", () => {
       "stylelint-json",
       "dependency-cruiser-json",
       "tsc-diagnostics",
+      "install-json",
+      "publint-json",
+      "attw-json",
     ]);
     expect(hygieneLayer.classes).toEqual([
       "ts-library",

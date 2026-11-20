@@ -397,7 +397,8 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
   cannot run is `fail`; a merge-base version that cannot run against HEAD adds nothing. The diff is
   taken without rename detection, so a renamed file counts as new and every function in it is
   judged. A pure deletion belongs to the smallest function that holds the lines on both sides of
-  it, else to the file's `<module>` (§6.7).
+  it, else to the file's `<module>` (§6.7). The data trees of §17, `fixtures/` and `probes/` at the top of the tree, are
+  not part of the diff: a file changed under them is neither mutated nor run, because it breaks rules on purpose.
 - **Statuses.** Stryker's status of each mutant decides what counts:
 
 | Status | Counts as |
@@ -1133,7 +1134,7 @@ web-tops/
 ├── laws/                    # one W-NN.yaml per law (§8.3): the source of the §8.2 tables
 ├── schema/                  # web-tops, gate-report, baseline, core (verdicts, modes) and law schemas
 ├── config/                  # drop-in templates, AGENTS.md.tmpl
-├── fixtures/                # config (with examples/), hygiene, init, lock, report, probe
+├── fixtures/                # config (with examples/), hygiene, init, lock, report, probe, laws
 ├── probes/                  # w22/: the W-22 proof, its own package and lock
 ├── docs/brand/
 ├── .github/workflows/       # the gate job
@@ -1143,7 +1144,9 @@ web-tops/
 └── LICENSE · LICENSE-MIT · LICENSE-APACHE
 ```
 
-Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4) and the M3 paths: `fixtures/laws/W-NN/{bad,clean}/` (a bad and a clean twin per law), `packages/eslint-plugin-webtops/`, `examples/node-service/`, `src/layers/laws/`, `src/acks/` and `src/lawdiff/`. The kit's tools already cover them: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
+The law twins are in `fixtures/laws/W-NN/{bad,clean}/`: a bad and a clean twin per law, which `webtops laws probe` proves.
+
+Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4) and the M3 paths: `packages/eslint-plugin-webtops/`, `examples/node-service/`, `src/layers/laws/`, `src/acks/` and `src/lawdiff/`. The kit's tools already cover them: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
 
 Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any release.
 
