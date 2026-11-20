@@ -57,7 +57,9 @@ const BUILD_OUTPUT: readonly LayerKey[] = [
 
 /** Every law the class maps: the ones no class gates, and the class's own (W-27 only with Astro). */
 export function mappedLaws(profile: Profile, project: Project): readonly string[] {
-  const own = [...profile.extraLaws, ...(project.dependsOnAstro ? profile.conditionalLaws : [])];
+  const own = project.dependsOnAstro
+    ? [...profile.extraLaws, ...profile.conditionalLaws]
+    : profile.extraLaws;
   return ALL_LAWS.filter((id) => !GATED.has(id) || own.includes(id));
 }
 
