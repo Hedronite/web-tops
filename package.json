@@ -42,7 +42,8 @@
     "schema",
     "laws",
     "config",
-    "profiles"
+    "profiles",
+    "fixtures/laws"
   ],
   "engines": {
     "bun": ">=1.4.0",
