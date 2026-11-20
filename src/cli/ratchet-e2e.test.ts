@@ -1,15 +1,12 @@
+import { spawn } from "node:child_process";
 import { existsSync, readFileSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { validateReport, type GateReport } from "../config/report.ts";
 import { cleanRepos, commit, git, write } from "../diff/test-support.ts";
 import { REAL_TOOL_TIMEOUT } from "../gate/test-support-timeouts.ts";
 import { realProject } from "../layers/tests/testkit.ts";
 import { readBaseline } from "../baseline/read.ts";
-import { runBaselineCli } from "./baseline.ts";
-import { runCheckCli } from "./check.ts";
-import { runGateCli } from "./gate.ts";
-import type { Io } from "./io.ts";
 
 /**
  * G9 end to end: a project with legacy debt (a function over the cap that no test runs, and coverage under the floor)
@@ -81,31 +78,41 @@ function adopter(yaml = YAML, files: Readonly<Record<string, string>> = DEBT_FIL
   return project.dir;
 }
 
-function streams(cwd: string): { io: Io; out: () => string; err: () => string } {
-  let out = "";
-  let err = "";
-  return {
-    io: {
-      out: (text) => {
-        out += text;
-      },
-      err: (text) => {
-        err += text;
-      },
-      cwd,
-      env: { ...process.env, CI: "" },
-    },
-    out: () => out,
-    err: () => err,
-  };
+const MAIN = resolve(import.meta.dirname, "main.ts");
+
+interface Ran {
+  readonly code: number;
+  readonly out: string;
+  readonly err: string;
+}
+
+/**
+ * The real CLI as a process: the gate it runs is not this test's own, so the tests that stand beside the code
+ * are the ones that judge it, and this one stays an end to end check of the entry point.
+ */
+function cli(cwd: string, ...args: string[]): Promise<Ran> {
+  return new Promise((done, fail) => {
+    const child = spawn("bun", [MAIN, ...args], { cwd, env: { ...process.env, CI: "" } });
+    let out = "";
+    let err = "";
+    child.stdout.on("data", (chunk: Buffer) => {
+      out += chunk.toString();
+    });
+    child.stderr.on("data", (chunk: Buffer) => {
+      err += chunk.toString();
+    });
+    child.on("error", fail);
+    child.on("close", (code) => {
+      done({ code: code ?? 1, out, err });
+    });
+  });
 }
 
 async function gate(dir: string, ...args: string[]): Promise<{ code: number; report: GateReport }> {
-  const run = streams(dir);
-  const code = await runGateCli(args, run.io);
+  const run = await cli(dir, "gate", ...args);
   const read = validateReport(JSON.parse(readFileSync(join(dir, ".web-tops/report.json"), "utf8")));
   if (!read.ok) throw new Error(`the report is not valid: ${JSON.stringify(read.problems)}`);
-  return { code, report: read.value };
+  return { code: run.code, report: read.value };
 }
 
 function layerOf(report: GateReport, layer: string): GateReport["layers"][number] | undefined {
@@ -121,11 +128,10 @@ describe("G9 end to end: legacy debt adopts the ratchet, and is held to it", () 
     "takes its first baseline from a failing run, then passes, refuses new debt, and does not refuse legacy it touches",
     async () => {
       const dir = adopter();
-      const checked = streams(dir);
-      const code = await runCheckCli([], checked.io);
-      expect(checked.err()).toBe("");
-      expect(code).toBe(0);
-      expect(checked.out()).toContain(
+      const checked = await cli(dir, "check");
+      expect(checked.err).toBe("");
+      expect(checked.code).toBe(0);
+      expect(checked.out).toContain(
         "no baseline yet: run webtops gate --all --keep-going, then webtops baseline",
       );
 
@@ -136,9 +142,9 @@ describe("G9 end to end: legacy debt adopts the ratchet, and is held to it", () 
       expect(rulesOf(first.report, "coverage")).toContain("coverage-below-floor");
 
       // 2. a baseline is taken from it: the legacy findings stay in it
-      const taken = streams(dir);
-      expect(await runBaselineCli([], taken.io)).toBe(0);
-      expect(taken.out()).toMatch(/^wrote \.web-tops\/baseline\.json: 2 functions, 1 packages/);
+      const taken = await cli(dir, "baseline");
+      expect(taken.code).toBe(0);
+      expect(taken.out).toMatch(/^wrote \.web-tops\/baseline\.json: 2 functions, 1 packages/);
       commit(dir, "adopt the ratchet");
 
       // 3. held to it, with nothing above it, the run passes: no placeholder stands in, and the legacy debt is not judged anew
@@ -172,9 +178,9 @@ describe("G9 end to end: legacy debt adopts the ratchet, and is held to it", () 
     async () => {
       const dir = adopter();
       await gate(dir, "--keep-going");
-      const run = streams(dir);
-      expect(await runBaselineCli([], run.io)).toBe(2);
-      expect(run.err()).toContain("--all");
+      const run = await cli(dir, "baseline");
+      expect(run.code).toBe(2);
+      expect(run.err).toContain("--all");
       expect(existsSync(join(dir, ".web-tops/baseline.json"))).toBe(false);
     },
     REAL_TOOL_TIMEOUT * 3,
@@ -188,9 +194,9 @@ describe("G9 end to end: legacy debt adopts the ratchet, and is held to it", () 
       commit(dir, "break a test");
       const first = await gate(dir, "--all", "--keep-going");
       expect(first.code).toBe(1);
-      const run = streams(dir);
-      expect(await runBaselineCli([], run.io)).toBe(2);
-      expect(run.err()).toContain("what failed is not something a first baseline holds");
+      const run = await cli(dir, "baseline");
+      expect(run.code).toBe(2);
+      expect(run.err).toContain("what failed is not something a first baseline holds");
       expect(existsSync(join(dir, ".web-tops/baseline.json"))).toBe(false);
     },
     REAL_TOOL_TIMEOUT * 3,
@@ -238,7 +244,7 @@ describe("G9-4 end to end: legacy lint adopts the ratchet, and is held at its co
       const first = await gate(dir, "--all", "--keep-going");
       expect(first.code).toBe(1);
       expect(rulesOf(first.report, "hygiene")).toContain("no-var");
-      expect(await runBaselineCli([], streams(dir).io)).toBe(0);
+      expect((await cli(dir, "baseline")).code).toBe(0);
       commit(dir, "adopt the ratchet");
       const read = readBaseline(dir, ".web-tops/baseline.json");
       expect(read.ok && read.baseline.findings).toEqual({ "no-var": { "src/old.ts": 2 } });
