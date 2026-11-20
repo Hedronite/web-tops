@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 import { applyRatchet } from "../baseline/ratchet.ts";
-import { diffScope, type CoverageMap, type ScopeResult } from "../diff/index.ts";
+import { diffScope, type CoverageMap, type ScopeOptions, type ScopeResult } from "../diff/index.ts";
 import { COUNTED_LAYERS, completeFindings, countsByRuleFile } from "../report/findings.ts";
 import {
   endsRun,
@@ -121,11 +121,14 @@ function readInside(cwd: string, file: string): string | undefined {
 }
 
 /** Reads each file once for a layer, however many findings point into it. */
-function sourceReader(cwd: string): (file: string) => string | undefined {
+export function sourceReader(
+  cwd: string,
+  read: (cwd: string, file: string) => string | undefined = readInside,
+): (file: string) => string | undefined {
   const cache = new Map<string, string | undefined>();
   return (file) => {
     if (!cache.has(file)) {
-      cache.set(file, readInside(cwd, file));
+      cache.set(file, read(cwd, file));
     }
     return cache.get(file);
   };
@@ -179,6 +182,10 @@ function keepArtifacts(
 /** The coverage a layer that does not need the tests' functions gets from the diff engine: none, without a Vitest run. */
 const NO_COVERAGE: CoverageMap = new Map();
 
+/** The diff engine's options for a layer: a layer that does not need the tests' functions covers a changed test file with none, and the engine's own run is kept for one that does. */
+export const optionsFor = (needs: DiffNeeds, options: ScopeOptions): ScopeOptions =>
+  needs.coveredByTests ? options : { ...options, coverageOf: () => Promise.resolve(NO_COVERAGE) };
+
 /** The diff, computed the first time a layer asks and kept for each kind of ask (the test-covered functions cost Vitest runs). */
 function diffProvider(input: RunInput, base: string): DiffProvider {
   const asked = new Map<boolean, Promise<ScopeResult>>();
@@ -188,13 +195,7 @@ function diffProvider(input: RunInput, base: string): DiffProvider {
       return known;
     }
     const exclude = input.config.coverage.exclude.map((entry) => entry.glob);
-    const fresh = diffScope({
-      cwd: input.cwd,
-      base,
-      exec: input.exec,
-      exclude,
-      ...(needs.coveredByTests ? {} : { coverageOf: () => Promise.resolve(NO_COVERAGE) }),
-    });
+    const fresh = diffScope(optionsFor(needs, { cwd: input.cwd, base, exec: input.exec, exclude }));
     asked.set(needs.coveredByTests, fresh);
     return fresh;
   };
@@ -307,7 +308,9 @@ function producedPath(state: RunState, need: Consumed): string | undefined {
 
 /** R29 N5: the first input this layer consumes that its named producer did not leave on disk, worded for the report. */
 function missingInput(layer: Layer, state: RunState): string | undefined {
-  const missing = layer.consumes.find((need) => producedPath(state, need) === undefined);
+  const missing = layer.consumes.find(
+    (need) => need.optional !== true && producedPath(state, need) === undefined,
+  );
   return missing === undefined
     ? undefined
     : `input ${missing.artifact} missing: ${missing.from} ${verdictOf(state, missing.from)}`;
@@ -403,8 +406,7 @@ function problemsOf(state: RunState): Problem[] {
 }
 
 function passedOf(state: RunState, problems: readonly Problem[]): boolean {
-  const clean = problems.length === 0 && state.ran === state.inRange;
-  return clean && !state.layers.some(ends);
+  return problems.length === 0 && !state.layers.some(ends);
 }
 
 function exitCodeOf(passed: boolean, enforced: boolean): 0 | 1 {
