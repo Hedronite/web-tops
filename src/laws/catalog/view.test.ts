@@ -63,6 +63,15 @@ describe("explainText", () => {
     expect(text).toContain("\n  eslint  jsx-a11y-x/alt-text\n");
   });
 
+  it("lists each class of a rule that names several, comma separated", () => {
+    const base = law("W-22");
+    const text = explainText({
+      ...base,
+      rules: [{ tool: "eslint", name: "some-rule", classes: ["astro-site", "web-app"] }],
+    });
+    expect(text).toContain("\n  eslint  some-rule  (astro-site, web-app only)\n");
+  });
+
   it("prints every field of a law, one line each", () => {
     const text = explainText(law("W-01"));
     const lines = text.split("\n");
