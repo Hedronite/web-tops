@@ -7,9 +7,8 @@ import { child } from "../ast.ts";
  * declarations do not, and neither does anything in the template, which starts at `AstroFragment`.
  */
 
-const MAX = 10;
-
-const STATEMENTS = [
+/** The statement types that count. */
+const statementTypes = (): string[] => [
   "ExpressionStatement",
   "VariableDeclaration",
   "FunctionDeclaration",
@@ -30,32 +29,34 @@ const STATEMENTS = [
 ];
 
 const rule: Rule.RuleModule = {
-  meta: {
-    type: "suggestion",
-    docs: { description: "Frontmatter logic beyond 10 statements moves to a .ts module (W-31)" },
-    schema: [
-      {
-        type: "object",
-        properties: { max: { type: "integer", minimum: 0 } },
-        additionalProperties: false,
+  get meta(): Rule.RuleMetaData {
+    return {
+      type: "suggestion",
+      docs: { description: "Frontmatter logic beyond 10 statements moves to a .ts module (W-31)" },
+      schema: [
+        {
+          type: "object",
+          properties: { max: { type: "integer", minimum: 0 } },
+          additionalProperties: false,
+        },
+      ],
+      messages: {
+        tooLong:
+          "The frontmatter has more than {{ max }} statements. Move the logic into a .ts module and import it, so it can be tested.",
       },
-    ],
-    messages: {
-      tooLong:
-        "The frontmatter has more than {{ max }} statements. Move the logic into a .ts module and import it, so it can be tested.",
-    },
+    };
   },
   create(context) {
     const option: unknown = context.options[0];
     const limit = child(option, "max");
-    const max = typeof limit === "number" ? limit : MAX;
+    const max = typeof limit === "number" ? limit : 10;
     let inTemplate = false;
     let count = 0;
     return {
       AstroFragment() {
         inTemplate = true;
       },
-      [STATEMENTS.join(", ")](node: Rule.Node) {
+      [statementTypes().join(", ")](node: Rule.Node) {
         if (inTemplate) return;
         count += 1;
         if (count === max + 1) {

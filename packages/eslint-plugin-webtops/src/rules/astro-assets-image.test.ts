@@ -45,6 +45,18 @@ tester.run("astro-assets-image", rule, {
       ...page("<Image {...props} />"),
     },
     {
+      name: "a spread beside other attributes",
+      ...page('<Image src={hero} {...props} alt="" />'),
+    },
+    {
+      name: "a named Image from another module",
+      ...page('<Image src="a" />', 'import { Image } from "../components";'),
+    },
+    {
+      name: "a member element is not read as an Image",
+      ...page('<assets.Image src="a" />', 'import * as assets from "astro:assets";'),
+    },
+    {
       name: "an aliased import",
       ...page(
         '<Img src={hero} width={1} height={2} alt="" />',

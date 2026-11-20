@@ -94,6 +94,16 @@ tester.run("astro-client-load-ack", rule, {
       errors: unacknowledged,
     },
     {
+      name: "an empty comment between the acknowledgement and the element",
+      ...page("<!-- webtops-ack W-28: reason -->\n<!-- -->\n<Widget client:load />"),
+      errors: unacknowledged,
+    },
+    {
+      name: "the acknowledgement written as text, not as a comment",
+      ...page("webtops-ack W-28: reason\n<Widget client:load />"),
+      errors: unacknowledged,
+    },
+    {
       name: "the comment before another element",
       ...page("<!-- webtops-ack W-28: reason -->\n<p />\n<Widget client:load />"),
       errors: unacknowledged,

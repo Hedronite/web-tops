@@ -4,8 +4,6 @@ import { attributeName, child, children, kind } from "../ast.ts";
 
 /** W-28: `client:load` ships and runs JavaScript on every page view, so it needs an acknowledgement. */
 
-const LAW = "W-28";
-
 const isBlank = (node: unknown): boolean => {
   const text = child(node, "value");
   return kind(node) === "JSXText" && typeof text === "string" && text.trim() === "";
@@ -24,19 +22,21 @@ function acknowledged(element: unknown): boolean {
   return (
     kind(before) === "AstroHTMLComment" &&
     typeof text === "string" &&
-    ackReason(text, LAW) !== undefined
+    ackReason(text, "W-28") !== undefined
   );
 }
 
 const rule: Rule.RuleModule = {
-  meta: {
-    type: "suggestion",
-    docs: { description: "`client:load` needs an acknowledgement (W-28)" },
-    schema: [],
-    messages: {
-      unacknowledged:
-        "client:load ships and runs JavaScript on every page view. Prefer client:visible, client:idle or no directive, or acknowledge it with a comment right before the element: <!-- webtops-ack W-28: reason -->.",
-    },
+  get meta(): Rule.RuleMetaData {
+    return {
+      type: "suggestion",
+      docs: { description: "`client:load` needs an acknowledgement (W-28)" },
+      schema: [],
+      messages: {
+        unacknowledged:
+          "client:load ships and runs JavaScript on every page view. Prefer client:visible, client:idle or no directive, or acknowledge it with a comment right before the element: <!-- webtops-ack W-28: reason -->.",
+      },
+    };
   },
   create(context) {
     return {
