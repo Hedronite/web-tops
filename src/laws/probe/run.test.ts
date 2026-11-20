@@ -1,4 +1,4 @@
-import { realpathSync, writeFileSync } from "node:fs";
+import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import type { Exec, ExecResult } from "../../gate/types.ts";
@@ -154,17 +154,21 @@ describe("G3b the runner lints the twins once and compiles them once, then judge
     expect(calls).toHaveLength(2);
   });
 
-  it("passes the ESLint config given with --config, and none when there is none", async () => {
-    const cwd = project();
-    const withConfig: Call[] = [];
-    const named = request(cwd, fake({ eslintOutput: "[]" }, withConfig), {
+  it("passes a wrapper of the ESLint config given, which imports it", async () => {
+    const calls: Call[] = [];
+    const named = request(project(), fake({ eslintOutput: "[]" }, calls), {
       eslintConfig: "/x/e.js",
     });
     await runProbe(named);
-    const args = withConfig[0]?.args ?? [];
-    expect(args[args.indexOf("--config") + 1]).toBe("/x/e.js");
+    const args = String(calls[0]?.args);
+    const wrapper = args.split(",")[args.split(",").indexOf("--config") + 1];
+    expect(String(wrapper).endsWith(".web-tops/out/laws-probe.eslint.config.mjs")).toBe(true);
+    expect(readFileSync(String(wrapper), "utf8")).toContain('await import("file:///x/e.js")');
+  });
+
+  it("passes no ESLint config when none is given and the project has none", async () => {
     const without: Call[] = [];
-    await runProbe(request(cwd, fake({ eslintOutput: "[]" }, without)));
+    await runProbe(request(project(), fake({ eslintOutput: "[]" }, without)));
     expect(without[0]?.args).not.toContain("--config");
   });
 
