@@ -18,6 +18,18 @@ export function readCatalog(dir: string = CATALOG_DIR, load: typeof loadCatalog 
 /** The laws the probe proves: the ticked laws a lint rule or a compiler flag judges, read from the catalog. */
 export const catalogLaws: LawSource = sourceOf(readCatalog);
 
-/** The laws a class maps (`classes` in each law's file); a law with no class list is mapped by every class. */
+const mapsClass = (law: ProbeLaw, className: string): boolean =>
+  law.classes === undefined || law.classes.includes(className);
+
+/** The proofs of a law that apply to a class: a rule whose entry names classes (R106) is proven only for those. */
+const proofsFor = (law: ProbeLaw, className: string): ProbeLaw => ({
+  ...law,
+  proofs: law.proofs.filter((proof) => law.scoped?.[proof]?.includes(className) ?? true),
+});
+
+/**
+ * The laws a class maps (`classes` in each law's file; a law with no class list is mapped by every class), each with
+ * the proofs that apply to the class.
+ */
 export const lawsOfClass = (list: readonly ProbeLaw[], className: string): ProbeLaw[] =>
-  list.filter((law) => law.classes === undefined || law.classes.includes(className));
+  list.filter((law) => mapsClass(law, className)).map((law) => proofsFor(law, className));

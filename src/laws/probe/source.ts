@@ -5,7 +5,11 @@ export interface LawRecord {
   readonly id: string;
   readonly classes: readonly string[];
   readonly judged: string;
-  readonly rules: readonly { readonly tool: string; readonly name: string }[];
+  readonly rules: readonly {
+    readonly tool: string;
+    readonly name: string;
+    readonly classes?: readonly string[];
+  }[];
 }
 
 /** The tools whose rules a twin can fire: a lint config, the compiler's flags, and Stylelint. */
@@ -33,11 +37,19 @@ export function isProbed(law: LawRecord): boolean {
   return isJudged(law) && rules.length > 0 && !rules.some((rule) => isCustom(rule.name));
 }
 
+/** The classes a rule applies to, by its name: only a rule whose entry has `classes` (R106) is listed. */
+function scopesOf(rules: LawRecord["rules"]): Record<string, readonly string[]> {
+  return Object.fromEntries(
+    rules.flatMap((rule) => (rule.classes === undefined ? [] : [[rule.name, rule.classes]])),
+  );
+}
+
 /** A law as the probe takes it: what its tool rules and flags name are what its twins must prove. */
 export const toProbeLaw = (law: LawRecord): ProbeLaw => ({
   id: law.id,
   classes: law.classes,
   proofs: law.rules.filter(probed).map((rule) => rule.name),
+  scoped: scopesOf(law.rules.filter(probed)),
 });
 
 /** The probe's laws out of the catalog's records, in id order. */
