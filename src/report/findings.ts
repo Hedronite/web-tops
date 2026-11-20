@@ -62,7 +62,7 @@ function lineAt(raws: readonly RawFinding[], index: number): number {
 }
 
 function byLine(raws: readonly RawFinding[]): (left: number, right: number) => number {
-  return (left, right) => lineAt(raws, left) - lineAt(raws, right) || left - right;
+  return (left, right) => lineAt(raws, left) - lineAt(raws, right);
 }
 
 interface Anchored {

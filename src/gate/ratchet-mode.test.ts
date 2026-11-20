@@ -2,7 +2,6 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { canonicalJson } from "../baseline/canonical.ts";
 import type { Baseline } from "../baseline/types.ts";
 import { runGate } from "./runner.ts";
 import { cfg, fakeLayer, noExec, opts, tickingClock } from "./testkit.ts";
@@ -32,7 +31,7 @@ function above(enforce: "hard"): ReturnType<typeof runGate> {
   const dir = mkdtempSync(join(tmpdir(), "wt-ratchet-mode-"));
   made.push(dir);
   mkdirSync(join(dir, ".web-tops"));
-  writeFileSync(join(dir, BASELINE), canonicalJson(BASE));
+  writeFileSync(join(dir, BASELINE), JSON.stringify(BASE));
   const crap = fakeLayer({
     id: "crap",
     gate: 4,
