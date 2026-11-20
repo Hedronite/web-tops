@@ -1,0 +1,5 @@
+---
+import { getEntry } from "astro:content";
+const entry = await getEntry("blog", "a");
+---
+<p>{entry}</p>

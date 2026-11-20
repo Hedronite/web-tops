@@ -7,7 +7,7 @@ const ids = (className: string): string[] =>
   lawsOfClass(kitProbeLaws(), className).map((law) => law.id);
 
 describe("G3a the laws the probe proves are the catalog's ticked lint and compiler laws", () => {
-  it("reads the fourteen laws a lint rule or a flag judges, in order, from laws/W-NN.yaml", () => {
+  it("reads the fifteen laws a lint rule or a flag judges (judged v0.1 or m3), in order, from laws/W-NN.yaml", () => {
     expect(kitProbeLaws().map((law) => law.id)).toEqual([
       "W-01",
       "W-02",
@@ -23,6 +23,7 @@ describe("G3a the laws the probe proves are the catalog's ticked lint and compil
       "W-26",
       "W-34",
       "W-35",
+      "W-49",
     ]);
   });
 
@@ -40,6 +41,13 @@ describe("G3a the laws the probe proves are the catalog's ticked lint and compil
     expect(ids("ui-components")).not.toContain("W-26");
     expect(ids("astro-site")).toContain("W-26");
     expect(ids("web-app")).toContain("W-26");
+  });
+
+  it("W-49 is mapped by the astro-site class alone", () => {
+    expect(ids("astro-site")).toContain("W-49");
+    for (const className of ["ts-library", "ui-components", "web-app", "node-service"]) {
+      expect(ids(className)).not.toContain("W-49");
+    }
   });
 
   it("a class the catalog does not know maps nothing, and a law with no class list is mapped by every class", () => {

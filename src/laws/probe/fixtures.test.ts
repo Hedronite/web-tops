@@ -34,7 +34,9 @@ describe("G3a every law the probe proves has a bad and a clean twin, marked", ()
   it("only a bad twin carries a marker, and each file is an ES module so the twins do not share globals", () => {
     const withMarkers = TWINS.filter((twin) => parseMarkers(twin.file, text(twin.file)).length > 0);
     expect(withMarkers.every((twin) => twin.kind === "bad")).toBe(true);
-    const sources = TWINS.filter((twin) => !twin.file.endsWith(".css"));
+    const sources = TWINS.filter(
+      (twin) => !twin.file.endsWith(".css") && !twin.file.endsWith(".astro"),
+    );
     const scripts = sources.filter((twin) => !/^(import|export) /mu.test(text(twin.file)));
     expect(scripts.map((twin) => twin.file)).toEqual([]);
   });

@@ -105,13 +105,47 @@ const absolute = (cwd: string, path: string): string =>
 const noLaws = (law: string | undefined): string =>
   law === undefined ? "no law to probe" : `no law ${law} to probe`;
 
-/** The one law asked for, or the laws the project's class maps: `--class`, else `web-tops.yaml`, else `ts-library`. */
+/** The project's class: `--class`, else `web-tops.yaml`, else `ts-library`. */
+const classOf = (io: Io, flags: Flags): string =>
+  flags.class ?? projectString(io.cwd, "class") ?? defaultClass();
+
+/** The one law asked for, or the laws the project's class maps. */
 function lawsFor(io: Io, deps: ProbeDeps, flags: Flags): ProbeLaw[] {
   const laws = deps.laws();
   if (flags.law !== undefined) {
     return laws.filter((law) => law.id === flags.law);
   }
-  return lawsOfClass(laws, flags.class ?? projectString(io.cwd, "class") ?? defaultClass());
+  return lawsOfClass(laws, classOf(io, flags));
+}
+
+/** Whether the project's `package.json` lists `astro` among its dependencies. */
+function dependsOnAstro(cwd: string): boolean {
+  try {
+    const manifest: unknown = JSON.parse(readFileSync(join(cwd, "package.json"), "utf8"));
+    return ["dependencies", "devDependencies", "peerDependencies"].some((field) => {
+      const group = step(manifest, field);
+      return isRecord(group) && "astro" in group;
+    });
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Why `.astro` twins are left out, or undefined when the class's preset lints them: an astro-site always does, a
+ * web-app only when the project depends on astro, and every other class has no Astro files to lint.
+ */
+function astroSkip(io: Io, flags: Flags): string | undefined {
+  const className = classOf(io, flags);
+  if (className === "astro-site") {
+    return undefined;
+  }
+  if (className === "web-app") {
+    return dependsOnAstro(io.cwd)
+      ? undefined
+      : "a web-app lints .astro files only when the project depends on astro";
+  }
+  return `the ${className} preset does not lint .astro files`;
 }
 
 /** The laws to probe, or what is wrong: the catalog cannot be read, or the flags choose no law. */
@@ -139,6 +173,7 @@ function requestOf(io: Io, deps: ProbeDeps, flags: Flags, laws: readonly ProbeLa
     eslintConfig:
       flags.config === undefined ? projectEslintConfig(io.cwd) : absolute(io.cwd, flags.config),
     tsconfig: absolute(io.cwd, flags.tsconfig ?? "tsconfig.json"),
+    astroSkip: astroSkip(io, flags),
   };
 }
 

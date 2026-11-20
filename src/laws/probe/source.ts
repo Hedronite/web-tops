@@ -21,13 +21,16 @@ const isCustom = (name: string): boolean => name.startsWith("webtops/");
 
 const probed = (rule: LawRecord["rules"][number]): boolean => probedTools().includes(rule.tool);
 
+/** A law is judged when section 8.2 ticks it (`v0.1`) or milestone M3 gives it a reader (`m3`); `no` is not judged yet. */
+const isJudged = (law: LawRecord): boolean => law.judged === "v0.1" || law.judged === "m3";
+
 /**
- * Whether the probe proves a law: it is ticked (`judged: v0.1`, section 8.2), a lint rule or a compiler flag judges it,
- * and none of those is a rule of the custom plugin.
+ * Whether the probe proves a law: it is judged, a lint rule or a compiler flag judges it, and none of those is a rule
+ * of the custom plugin.
  */
 export function isProbed(law: LawRecord): boolean {
   const rules = law.rules.filter(probed);
-  return law.judged === "v0.1" && rules.length > 0 && !rules.some((rule) => isCustom(rule.name));
+  return isJudged(law) && rules.length > 0 && !rules.some((rule) => isCustom(rule.name));
 }
 
 /** A law as the probe takes it: what its tool rules and flags name are what its twins must prove. */
