@@ -66,6 +66,13 @@ describe("a report that does not hold together says what is wrong", () => {
     );
   });
 
+  it("gives no layer name to a problem that is not a missing layer", () => {
+    const result = validateReport(edit(fixture("pass.json"), ["enforce"], "bogus"));
+    const messages = result.ok ? [] : result.problems.map((problem) => problem.message);
+    expect(messages.length).toBeGreaterThan(0);
+    expect(messages.filter((message) => message.includes("is missing"))).toEqual([]);
+  });
+
   it("says the laws counts are not those of the laws layer's findings, at /laws", () => {
     const result = validateReport(edit(fixture("shape/laws.json"), ["laws", "of"], 0));
     expect(result.ok ? [] : result.problems).toEqual([
