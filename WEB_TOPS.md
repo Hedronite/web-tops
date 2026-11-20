@@ -462,8 +462,8 @@ has one shape in every layer: `tool`, `rule`, `law`, `verdict`, `message`, `file
 `fingerprint`.
 
 - `tool` is the tool that said it, from a closed set: `astro`, `attw`, `audit` (`bun audit`),
-  `biome`, `bun` (install and pack), `dependency-cruiser`, `eslint`, `prettier`, `publint`,
-  `stryker`, `stylelint`, `tsc` and `vitest`; `webtops` is the gate's own checks (coverage, a missing tool,
+  `biome`, `bun` (install and pack), `dependency-cruiser`, `eslint`, `knip`, `prettier`, `publint`,
+  `secretlint`, `stryker`, `stylelint`, `tsc` and `vitest`; `webtops` is the gate's own checks (coverage, a missing tool,
   a skipped step).
 - A finding of the mutation layer may carry `survivor`: the six fields of its key (§6.4), which the survivor ledger matches it by. No other layer's finding has one.
 - `rule` is the tool's rule id, or a kit id for a check of the gate's own. `law` is the `W-NN` the
@@ -494,7 +494,7 @@ To replay a shuffled failure, rerun the suite with that seed: `vitest run --sequ
 From 0.3.0 the report is the source the baseline is projected from, so it carries:
 
 - `report_version`, the report format's own semver, separate from `protocol`; it was `1.0.0`
-  for the shape above, `2.0.0` once findings had one shape, `2.1.0` once a mutation survivor carried an optional `survivor` object, `2.2.0` once the report said `crap_scope`, and is `2.3.0` since the mutation layer carries a count for each Stryker status. It changes only when the report's shape does, so a protocol patch that leaves the report alone does not change it;
+  for the shape above, `2.0.0` once findings had one shape, `2.1.0` once a mutation survivor carried an optional `survivor` object, `2.2.0` once the report said `crap_scope`, and is `2.3.0` once the mutation layer carried a count for each Stryker status, and is `2.4.0` since the report says how many laws were judged. It changes only when the report's shape does, so a protocol patch that leaves the report alone does not change it;
 - `crap_scope`, `all` or `diff`: whether the CRAP layer judged every function, under `--all` or
   `gates.crap.scope: all`, or only the ones the diff changed;
 - `subject`, the package and the root the run judged: `{package, root}`, the root being the
@@ -523,6 +523,14 @@ two-space indent, a trailing newline, so a regeneration with no change is no dif
 layer reports each coverage hint as a `coverage-hint/<kind>` finding (`v8`, `istanbul` or `c8`) with
 tool `webtops`, verdict `pass`, a file, a line and an `fp1`, and the baseline counts those by kind
 (`v8-ignore`, `istanbul-ignore`, `c8-ignore`).
+
+A report may carry `laws`: `{ class, of, judged, refused, not_evaluated }`, "N of M laws judged" for the class. M
+(`of`) is the required laws the class maps, and N (`judged`) the ones a reader judged (`pass`, `refuse` or
+`ack-missing`); `refused` and `not_evaluated` count those verdicts among them. The laws layer writes one finding for
+every law it maps, rule `law/W-NN`, tool `webtops`, with the law's verdict and `required`, and `laws` is exactly the
+count of those findings: a report whose `laws` differs from them fails validation, so any reader of the report can
+recount it. A required law that no reader judged is `not-evaluated` and ends the run, so N below M fails the gate. The
+text report prints `laws: N of M judged (class)` when the block is present.
 
 `counts` gains `required_not_evaluated`. `failed` counts every verdict §3.3 marks as ending the
 run, a required `not-evaluated` included; `not_evaluated` counts every `not-evaluated`, and

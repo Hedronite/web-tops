@@ -28,7 +28,7 @@ export const VERDICTS = [
 ] as const;
 
 /** The report format's own version (WEB_TOPS.md section 6.6): it changes only when the report's shape does. */
-export const REPORT_VERSION = "2.3.0";
+export const REPORT_VERSION = "2.4.0";
 
 export type BuiltInLayerId = (typeof LAYER_IDS)[number];
 
@@ -110,8 +110,10 @@ export const TOOLS = [
   "bun",
   "dependency-cruiser",
   "eslint",
+  "knip",
   "prettier",
   "publint",
+  "secretlint",
   "stryker",
   "stylelint",
   "tsc",
@@ -199,6 +201,49 @@ export interface LayerReport {
   readonly seed?: number;
 }
 
+/** A law's own finding: tool `webtops`, rule `law/W-NN` (the laws layer writes one for every law its class maps). */
+function lawRule(): RegExp {
+  return /^law\/W-\d+$/u;
+}
+
+const isRequiredLaw = (finding: Finding): boolean =>
+  lawRule().test(finding.rule) && finding.required === true;
+
+/** The verdicts of a law a reader judged: it said pass, refuse or ack-missing, as against could not. */
+function judgedVerdicts(): ReadonlySet<string> {
+  return new Set(["pass", "refuse", "ack-missing"]);
+}
+
+const countOf = (findings: readonly Finding[], verdict: string): number =>
+  findings.filter((finding) => finding.verdict === verdict).length;
+
+/** "N of M laws judged" for the class (section 6.6), recounted from the laws layer's own findings. */
+export interface LawsSummary {
+  readonly class: ClassName;
+  /** M: the laws the class requires. */
+  readonly of: number;
+  /** N: the required laws a reader judged (`pass`, `refuse` or `ack-missing`). */
+  readonly judged: number;
+  readonly refused: number;
+  readonly not_evaluated: number;
+}
+
+/**
+ * "N of M laws judged" for a class, read back from the laws layer's own findings: M is the required laws the class
+ * maps, N those a reader judged. A required law no reader judged is `not-evaluated` and ends the run, so N below M is a
+ * failing run, and any reader of the report can recount the numbers.
+ */
+export function summarizeLaws(findings: readonly Finding[], className: ClassName): LawsSummary {
+  const required = findings.filter(isRequiredLaw);
+  return {
+    class: className,
+    of: required.length,
+    judged: required.filter((finding) => judgedVerdicts().has(finding.verdict)).length,
+    refused: countOf(required, "refuse"),
+    not_evaluated: countOf(required, "not-evaluated"),
+  };
+}
+
 export interface GateReport {
   readonly report_version: string;
   readonly protocol: string;
@@ -222,6 +267,8 @@ export interface GateReport {
     readonly required_not_evaluated: number;
   };
   readonly layers: readonly LayerReport[];
+  /** Present when the laws layer ran: the number of required laws judged, of those the class requires. */
+  readonly laws?: LawsSummary;
   // Optional fields the runner writes beside the required set.
   readonly package?: string;
   readonly base?: string | null;
@@ -237,8 +284,8 @@ const validate = ajv.compile<GateReport>(schema);
 
 /** Names the built-in layer a failed `contains` stands for: the schema lists them in LAYER_IDS order. */
 function describe(error: ErrorObject): string | undefined {
-  const index = /\/allOf\/(\d+)\/contains$/.exec(error.schemaPath)?.[1];
-  const id = index === undefined ? undefined : LAYER_IDS[Number(index)];
+  const index = /\/allOf\/(\d)\/contains/.exec(error.schemaPath)?.[1];
+  const id = LAYER_IDS[Number(index)];
   return id === undefined ? undefined : `layer "${id}" is missing`;
 }
 
@@ -259,10 +306,7 @@ function one(pointer: string, message: string): readonly Problem[] {
 export const COUNTED_LAYERS: ReadonlySet<string> = new Set(["hygiene", "laws"]);
 
 function compareText(left: string, right: string): number {
-  if (left === right) {
-    return 0;
-  }
-  return left < right ? -1 : 1;
+  return Number(left > right) - Number(left < right);
 }
 
 function compareRows(left: FindingMetric, right: FindingMetric): number {
@@ -370,9 +414,21 @@ function passedFlag(report: GateReport): readonly Problem[] {
   return one("/passed", whyPassedIsWrong(report, clean));
 }
 
+/** The `laws` block says what the laws layer's findings hold: a count only the layer knows would not be a count. */
+function lawsCounts(report: GateReport): readonly Problem[] {
+  if (report.laws === undefined) return [];
+  const held = summarizeLaws(lawsFindings(report), report.class);
+  if (JSON.stringify(held) === JSON.stringify(report.laws)) return [];
+  return one("/laws", "the laws counts are not those of the laws layer's findings");
+}
+
+const lawsFindings = (report: GateReport): readonly Finding[] =>
+  report.layers.find((layer) => layer.id === "laws")?.findings ?? [];
+
 const CHECKS: readonly ((report: GateReport) => readonly Problem[])[] = [
   duplicateLayers,
   findingCounts,
+  lawsCounts,
   notEvaluatedCount,
   requiredNotEvaluatedCount,
   failedCount,
