@@ -14,6 +14,7 @@ import {
   splitTwins,
   stylelintIgnore,
 } from "./twins.ts";
+import { defaultConfig, writeWrapper } from "./wrapper.ts";
 import type { Expectation, Observed, ProbeLaw, ProbeReport, SkippedTwin, Twin } from "./types.ts";
 
 export interface ProbeRequest {
@@ -122,9 +123,17 @@ function lintTargets(request: ProbeRequest, twins: readonly Twin[]): string[] {
   return [relative(request.cwd, request.scratch), ...astro];
 }
 
+/** The config ESLint is given: the project's own, with the twins' tsconfig for the type-aware rules (R109). */
+function configArgs(request: ProbeRequest): string[] {
+  const config = request.eslintConfig ?? defaultConfig(request.cwd);
+  return config === undefined
+    ? []
+    : ["--config", writeWrapper(config, request.scratch, request.cwd)];
+}
+
 async function eslintPass(request: ProbeRequest, twins: readonly Twin[]): Promise<Pass> {
   const output = join(request.scratch, "eslint.json");
-  const config = request.eslintConfig === undefined ? [] : ["--config", request.eslintConfig];
+  const config = configArgs(request);
   const args = ["--no-ignore", "--format", "json", "--output-file", output, ...config];
   const result = await runTool(request, "eslint", [...args, ...lintTargets(request, twins)]);
   const failed = stopped("eslint", result, [0, 1]);
