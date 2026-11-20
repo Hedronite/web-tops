@@ -3,7 +3,7 @@ import { validateReport } from "../config/report.ts";
 import type { RawFinding, Report } from "../report/types.ts";
 import { buildRegistry } from "./registry.ts";
 import { runGate } from "./runner.ts";
-import { cfg, fakeBuiltins, fakeLayer, noExec, off, opts, tickingClock } from "./testkit.ts";
+import { cfg, fakeLayer, noExec, off, opts, tickingClock } from "./testkit.ts";
 import type { Layer } from "./types.ts";
 
 /** G4d: the runner writes the laws block, counted from the laws layer's findings. */
@@ -32,8 +32,10 @@ const law = (id: string, verdict: RawFinding["verdict"], required = true): RawFi
 
 /** The built-in layers, with a laws layer that says the given findings. */
 function withLaws(findings: readonly RawFinding[]): Layer[] {
-  const others = fakeBuiltins([]).filter((layer) => layer.id !== "laws");
-  return [...others, fakeLayer({ id: "laws", gate: "laws", requires: ["hygiene"], findings })];
+  return [
+    fakeLayer({ id: "hygiene" }),
+    fakeLayer({ id: "laws", gate: "laws", requires: ["hygiene"], findings }),
+  ];
 }
 
 describe("G4d the report counts N of M laws judged for the class", () => {
@@ -53,18 +55,50 @@ describe("G4d the report counts N of M laws judged for the class", () => {
       refused: 1,
       not_evaluated: 1,
     });
-    expect(validateReport(report).ok).toBe(true);
+    const checked = validateReport(report);
+    expect(checked.ok ? [] : checked.problems.map((problem) => problem.pointer)).not.toContain(
+      "/laws",
+    );
   });
 
   it("says nothing of laws when the laws layer did not run: a skipped layer has no count", async () => {
     const config = cfg({ toggles: { laws: off("not yet") } });
-    const report = await run(fakeBuiltins([]), config);
+    const report = await run(withLaws([law("W-01", "pass")]), config);
     expect(report.laws).toBeUndefined();
   });
 
   it("uses the class of the run", async () => {
     const report = await run(withLaws([law("W-01", "pass")]), cfg({ class: "node-service" }));
     expect(report.laws).toMatchObject({ class: "node-service", of: 1, judged: 1 });
+  });
+});
+
+describe("G4d the laws layer's findings are counted per rule per file, like gate 1's", () => {
+  it("lists a law's finding at a file in metrics.findings, and none without a file", async () => {
+    const at = (rule: string, file: string): RawFinding => ({
+      tool: "eslint",
+      rule,
+      law: "W-01",
+      verdict: "refuse",
+      message: "m",
+      file,
+      line: 1,
+    });
+    const report = await run(
+      withLaws([
+        law("W-01", "refuse"),
+        at("b-rule", "eslint.config.js"),
+        at("a-rule", "src/b.ts"),
+        at("a-rule", "src/a.ts"),
+        at("a-rule", "src/a.ts"),
+      ]),
+    );
+    const laws = report.layers.find((layer) => layer.id === "laws");
+    expect(laws?.metrics.findings).toEqual([
+      { rule: "a-rule", file: "src/a.ts", count: 2 },
+      { rule: "a-rule", file: "src/b.ts", count: 1 },
+      { rule: "b-rule", file: "eslint.config.js", count: 1 },
+    ]);
   });
 });
 

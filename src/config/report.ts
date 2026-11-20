@@ -284,8 +284,8 @@ const validate = ajv.compile<GateReport>(schema);
 
 /** Names the built-in layer a failed `contains` stands for: the schema lists them in LAYER_IDS order. */
 function describe(error: ErrorObject): string | undefined {
-  const index = /\/allOf\/(\d+)\/contains$/.exec(error.schemaPath)?.[1];
-  const id = index === undefined ? undefined : LAYER_IDS[Number(index)];
+  const index = /\/allOf\/(\d)\/contains/.exec(error.schemaPath)?.[1];
+  const id = LAYER_IDS[Number(index)];
   return id === undefined ? undefined : `layer "${id}" is missing`;
 }
 
@@ -306,10 +306,7 @@ function one(pointer: string, message: string): readonly Problem[] {
 export const COUNTED_LAYERS: ReadonlySet<string> = new Set(["hygiene", "laws"]);
 
 function compareText(left: string, right: string): number {
-  if (left === right) {
-    return 0;
-  }
-  return left < right ? -1 : 1;
+  return Number(left > right) - Number(left < right);
 }
 
 function compareRows(left: FindingMetric, right: FindingMetric): number {
