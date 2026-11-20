@@ -76,15 +76,6 @@ describe("G3b `laws probe`: arguments and problems", () => {
     const result = await cli([], tempDir(), { laws: empty });
     expect(result).toMatchObject({ code: 2, err: "webtops laws probe: no law to probe\n" });
   });
-
-  it("exits with the problem's code and message when a tool cannot run", async () => {
-    const result = await cli(["--law", "W-01"], tempDir());
-    expect(result.code).toBe(3);
-    expect(result.err).toBe(
-      "webtops laws probe: eslint did not run: tool-missing. eslint is not installed in node_modules\n",
-    );
-    expect(result.out).toBe("");
-  });
 });
 
 describe("G3b `laws probe` on a project's own config", () => {

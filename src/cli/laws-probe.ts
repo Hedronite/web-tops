@@ -29,13 +29,15 @@ function shippedFixtures(): string {
 /** What a run reads that a test replaces: how a tool runs, and where the laws come from. */
 export interface ProbeDeps {
   readonly exec: Exec;
+  /** Proves the laws: the probe itself, which a test of the command replaces with one that is given. */
+  readonly probe: (request: ProbeRequest) => Promise<ProbeOutcome>;
   readonly laws: LawSource;
   readonly fixtures: string;
 }
 
 /** What a run reads that a test replaces, as the command has it: the gate's own exec, the catalog, the shipped twins. */
 export function defaults(): ProbeDeps {
-  return { exec: realExec, laws: catalogLaws, fixtures: shippedFixtures() };
+  return { exec: realExec, probe: runProbe, laws: catalogLaws, fixtures: shippedFixtures() };
 }
 
 interface Flags {
@@ -167,5 +169,5 @@ export async function runLawsProbeCli(
   if (typeof laws === "string") {
     return fail(io, laws, 2);
   }
-  return finish(io, parsed.flags.json, await runProbe(requestOf(io, deps, parsed.flags, laws)));
+  return finish(io, parsed.flags.json, await deps.probe(requestOf(io, deps, parsed.flags, laws)));
 }

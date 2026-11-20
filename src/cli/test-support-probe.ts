@@ -38,8 +38,16 @@ export const NO_EXEC: Exec = () => Promise.reject(new Error("no tool should run"
 let kept: readonly ProbeLaw[] | undefined;
 const kitLaws = (): readonly ProbeLaw[] => (kept ??= kitProbeLaws());
 
+const noProbe: ProbeDeps["probe"] = () => Promise.reject(new Error("no probe should run"));
+
 function deps(over: Partial<ProbeDeps>): ProbeDeps {
-  return { exec: NO_EXEC, laws: kitLaws, fixtures: join(KIT, "fixtures/laws"), ...over };
+  return {
+    exec: NO_EXEC,
+    probe: noProbe,
+    laws: kitLaws,
+    fixtures: join(KIT, "fixtures/laws"),
+    ...over,
+  };
 }
 
 export async function cli(
