@@ -19,7 +19,7 @@ const ids = (shown: readonly { id: string }[]): string[] => shown.map((law) => l
 
 describe("select", () => {
   it("is every law with no filter", () => {
-    expect(select(laws, { cls: undefined, required: false })).toHaveLength(48);
+    expect(select(laws, { cls: undefined, required: false })).toHaveLength(49);
   });
 
   it("is the laws a class maps, required or not", () => {

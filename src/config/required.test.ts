@@ -192,9 +192,9 @@ describe("G3d: section 5.2 states how the caps work (X2)", () => {
 });
 
 describe("R55: W-47 and W-48 join the catalog, unjudged", () => {
-  it("counts as many laws as section 8.2 lists, 48", () => {
+  it("counts as many laws as section 8.2 lists, 49", () => {
     const rows = spec.split("\n").filter((line) => /^\| W-\d+ /.test(line));
-    expect(LAW_COUNT).toBe(48);
+    expect(LAW_COUNT).toBe(49);
     expect(rows).toHaveLength(LAW_COUNT);
   });
 
