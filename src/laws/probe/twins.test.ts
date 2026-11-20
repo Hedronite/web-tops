@@ -108,7 +108,7 @@ describe("G3a twins: fixtures/laws/W-NN/{bad,clean}/", () => {
     expect(config).toEqual({
       extends: "/project/tsconfig.json",
       compilerOptions: { noEmit: true },
-      include: ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
+      include: ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts", "**/*.astro"],
       exclude: [],
     });
   });

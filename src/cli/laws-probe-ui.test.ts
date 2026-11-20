@@ -7,7 +7,7 @@ import { adopter, failing, messages, probeOf, verdicts } from "./test-support-pr
 
 afterAll(cleanTemp);
 
-const ALL = kitProbeLaws().map((law) => law.id);
+const WEB_APP = lawsOfClass(kitProbeLaws(), "web-app").map((law) => law.id);
 const TS_ONLY = lawsOfClass(kitProbeLaws(), "ts-library").map((law) => law.id);
 
 /** Replaces one line of a config, as an adopter that did not enable a rule would have it. */
@@ -24,7 +24,7 @@ describe("G3c `laws probe` under a class with JSX and CSS: W-22 and W-26", () =>
 
   it("proves W-22 and W-26 beside the laws every class maps, and every law passes", () => {
     expect(ui.code).toBe(0);
-    expect(ui.report.laws.map((law) => law.id)).toEqual(ALL);
+    expect(ui.report.laws.map((law) => law.id)).toEqual(WEB_APP);
     expect(failing(ui.report)).toEqual([]);
   });
 
@@ -46,7 +46,7 @@ describe("G3c `laws probe` under a class with JSX and CSS: W-22 and W-26", () =>
       expect(plain.report.laws.map((law) => law.id)).toEqual(TS_ONLY);
       put(dir, { "web-tops.yaml": "class: web-app\n" });
       const named = await probeOf(dir);
-      expect(named.report.laws.map((law) => law.id)).toEqual(ALL);
+      expect(named.report.laws.map((law) => law.id)).toEqual(WEB_APP);
     },
     REAL_TOOL_TIMEOUT,
   );

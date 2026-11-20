@@ -83,7 +83,7 @@ export function materialize(
   const config = {
     extends: tsconfig,
     compilerOptions: { noEmit: true },
-    include: ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
+    include: ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts", "**/*.astro"],
     exclude: [],
   };
   writeFileSync(join(scratch, "tsconfig.json"), `${JSON.stringify(config, null, 2)}\n`);
