@@ -96,7 +96,7 @@ describe("G2a: each preset imports from a scratch project", () => {
       const seen: unknown = JSON.parse(result.output);
       expect(seen).toEqual({
         variants: ["base", "react", "astro"],
-        configs: 9,
+        configs: 10,
         stylelint: 9,
         depcruise: ["no-circular", "no-unresolvable"],
       });
@@ -156,6 +156,29 @@ describe("G2a: each preset imports from a scratch project", () => {
     REAL_TOOL_TIMEOUT,
   );
 
+  it(
+    "the plugin's rules are live through web-tops/eslint: client code is flagged, server code is not",
+    () => {
+      const dir = scratchProject({
+        "web-tops.yaml": "class: web-app\n",
+        "eslint.config.js":
+          'import { eslintPreset } from "web-tops/eslint";\nexport default await eslintPreset({\n  variant: "react",\n  tsconfigRootDir: import.meta.dirname,\n});\n',
+        "tsconfig.json":
+          '{ "extends": "web-tops/tsconfig/strict.json", "compilerOptions": { "noEmit": true, "jsx": "preserve" } }\n',
+        "client.tsx":
+          "export const A = (p: { c: string; h: string }) => (\n  <div className={`bg-${p.c}-500`} dangerouslySetInnerHTML={{ __html: p.h }}>{process.env.SECRET}</div>\n);\n",
+        "server.ts": "export const s: unknown = process.env.SECRET;\n",
+      });
+      const client = run(bin("eslint"), ["client.tsx"], dir);
+      for (const rule of ["complete-tailwind-classes", "no-unsanitized-html", "public-env-only"]) {
+        expect(client.output, rule).toContain(`webtops/${rule}`);
+      }
+      const server = run(bin("eslint"), ["server.ts"], dir);
+      expect(server.output).not.toContain("webtops/public-env-only");
+    },
+    REAL_TOOL_TIMEOUT,
+  );
+
   it("exports plain JavaScript and JSON, which Node loads from inside node_modules", () => {
     const exported: unknown = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
     const text = JSON.stringify(exported);
@@ -168,6 +191,14 @@ describe("G2a: each preset imports from a scratch project", () => {
       expect(text, target).toContain(`"${target}"`);
     }
     expect(text).not.toMatch(/src\/presets\/[\w/]+\.ts"/);
+    // The preset imports the plugin's build once published, so the build ships beside it.
+    const files: unknown = Reflect.get(exported ?? {}, "files");
+    expect(files).toEqual(
+      expect.arrayContaining([
+        "packages/eslint-plugin-webtops/package.json",
+        "packages/eslint-plugin-webtops/dist",
+      ]),
+    );
   });
 });
 
@@ -182,8 +213,8 @@ describe("the ESLint preset", () => {
   });
 
   it("lists every package its source imports, and no other", () => {
-    const imported = [...PRESET_SOURCE.matchAll(/(?:from|load\()\s*"([^"]+)"/g)].map((match) =>
-      (match[1] ?? "").replace(/^eslint\/config$/, "eslint"),
+    const imported = [...PRESET_SOURCE.matchAll(/(?:from|load\()\s*"((?!node:)[^".][^"]*)"/g)].map(
+      (match) => (match[1] ?? "").replace(/^eslint\/config$/, "eslint"),
     );
     const listed = new Set(Object.values(PACKAGES).flat());
     expect(new Set(imported)).toEqual(listed);
@@ -211,6 +242,51 @@ describe("the ESLint preset", () => {
       const rules = errorRules(await presetOf(variant));
       for (const rule of kit) expect(rules, `${variant} ${rule}`).toContain(rule);
     }
+  });
+
+  const W36 = "webtops/no-unsanitized-html";
+  const W37 = "webtops/public-env-only";
+  const W23 = "webtops/complete-tailwind-classes";
+
+  it.each([
+    ["ts-library", "base", [W36]],
+    ["node-service", "base", [W36]],
+    ["ui-components", "react", [W36, W37]],
+    ["web-app", "react", [W36, W37, W23]],
+    ["astro-site", "astro", [W36, W37, W23]],
+    ["cli", "base", []],
+  ] as const)("class %s (%s) enables exactly the plugin rules %j", async (cls, variant, has) => {
+    const config = await eslintPreset({ variant, tsconfigRootDir: "<project>", class: cls });
+    const rules = errorRules(config);
+    for (const name of [W36, W37, W23]) {
+      if (has.some((wanted) => wanted === name)) expect(rules, name).toContain(name);
+      else expect(rules, name).not.toContain(name);
+    }
+    expect(pluginNames(config).has("webtops")).toBe(has.length > 0);
+  });
+
+  it("reads the class from the project's web-tops.yaml, and falls back to the loosest class", async () => {
+    const root = scratchProject({ "web-tops.yaml": 'protocol: "0.3.0"\nclass: "web-app"\n' });
+    const declared = errorRules(await eslintPreset({ variant: "react", tsconfigRootDir: root }));
+    expect([W36, W37, W23].filter((name) => declared.has(name))).toEqual([W36, W37, W23]);
+    const none = scratchProject();
+    const fallback = errorRules(await eslintPreset({ variant: "react", tsconfigRootDir: none }));
+    expect([W36, W37, W23].filter((name) => fallback.has(name))).toEqual([W36]);
+    const unquoted = scratchProject({ "web-tops.yaml": "class: ui-components\n" });
+    const read = errorRules(await eslintPreset({ variant: "react", tsconfigRootDir: unquoted }));
+    expect([W36, W37, W23].filter((name) => read.has(name))).toEqual([W36, W37]);
+  });
+
+  it("scopes public-env-only (W-37) to the client modules and the <script> blocks, never the frontmatter", async () => {
+    const config = await eslintPreset({
+      variant: "astro",
+      tsconfigRootDir: ".",
+      class: "astro-site",
+    });
+    const scopes = config
+      .filter((entry) => Object.hasOwn(entry.rules ?? {}, W37))
+      .map((entry) => entry.files);
+    expect(scopes).toEqual([["**/*.jsx", "**/*.tsx", "**/*.astro/*.ts", "**/*.astro/*.js"]]);
   });
 
   it.each(VARIANTS)(
