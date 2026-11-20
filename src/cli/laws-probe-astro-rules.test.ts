@@ -111,7 +111,14 @@ function resultOf(): Result {
 /** Forty probes, one for each rule, in a process of their own: a few minutes on a slow runner. */
 const FORTY_PROBES = 600_000;
 
-describe("the Astro rules of W-22 and W-49 are each enabled, listed and twinned, and each twin goes red alone", () => {
+/**
+ * Inside a Stryker worker (the kit's own mutation run) this test would start forty real probes while the mutants run,
+ * and starve the workers until untouched mutants time out. It covers none of the probe's code, so the mutants lose
+ * nothing; the gate's tests layer and CI run it.
+ */
+const insideStryker = process.env["STRYKER_MUTATOR_WORKER"] !== undefined;
+
+describe.skipIf(insideStryker)("the Astro rules of W-22 and W-49 are each enabled, listed and twinned, and each twin goes red alone", () => {
   let result: Result;
   beforeAll(() => {
     result = resultOf();
