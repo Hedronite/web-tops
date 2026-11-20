@@ -1,0 +1,26 @@
+{
+  "name": "eslint-plugin-webtops",
+  "version": "0.3.0",
+  "private": true,
+  "description": "ESLint rules behind Web-TOPS laws W-23, W-36 and W-37 (complete Tailwind classes, no unsanitized HTML, public env only in client code)",
+  "license": "MIT OR Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "peerDependencies": {
+    "eslint": ">=10.15.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  }
+}

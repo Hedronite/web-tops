@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import eslintComments from "@eslint-community/eslint-plugin-eslint-comments";
 import js from "@eslint/js";
 import vitest from "@vitest/eslint-plugin";
@@ -53,6 +56,70 @@ const LAW_RULES = {
 };
 
 const TSX = ["**/*.jsx", "**/*.tsx"];
+
+const PLUGIN_SOURCE = join(
+  import.meta.dirname,
+  "../../packages/eslint-plugin-webtops/src/index.ts",
+);
+
+/**
+ * `eslint-plugin-webtops`, which ships inside this package: a published package has its build, and
+ * a checkout of the kit has the source, which Node reads as it is, so a test run needs no build.
+ */
+async function loadWebtops() {
+  const loaded = existsSync(PLUGIN_SOURCE)
+    ? await import(pathToFileURL(PLUGIN_SOURCE).href)
+    : await import("../../packages/eslint-plugin-webtops/dist/index.js");
+  return loaded.default;
+}
+
+const webtops = await loadWebtops();
+
+/** eslint-plugin-astro lints each `<script>` of a page as a file of its own, `page.astro/0.ts`. */
+const ASTRO_SCRIPTS = ["**/*.astro/*.ts", "**/*.astro/*.js"];
+
+const LAW_CLASSES = ["ts-library", "ui-components", "astro-site", "web-app", "node-service"];
+
+/** The class a project without a `web-tops.yaml` is read as: the one that maps the fewest laws. */
+const DEFAULT_CLASS = "ts-library";
+
+/**
+ * Each rule of `eslint-plugin-webtops`, where it applies, and the classes whose laws map it
+ * (WEB_TOPS.md section 8.2). A preset enables exactly the rules of the laws its class maps, and the
+ * class-rules test keeps this table equal to the law files.
+ */
+const WEBTOPS_RULES = [
+  // W-36 no unsanitized HTML in `set:html`, `dangerouslySetInnerHTML`, `innerHTML` and the like
+  { rule: "webtops/no-unsanitized-html", classes: LAW_CLASSES },
+  // W-37 only public env reaches client code: the client modules and the `<script>` blocks of a
+  // page, never .astro frontmatter, which is server code
+  {
+    rule: "webtops/public-env-only",
+    files: [...TSX, ...ASTRO_SCRIPTS],
+    classes: ["ui-components", "astro-site", "web-app"],
+  },
+  // W-23 Tailwind class names are complete strings, in every file
+  { rule: "webtops/complete-tailwind-classes", classes: ["astro-site", "web-app"] },
+];
+
+/** The class `web-tops.yaml` declares at the project root, or undefined when there is none. */
+function declaredClass(root) {
+  try {
+    const text = readFileSync(join(root, "web-tops.yaml"), "utf8");
+    return /^class:\s*["']?([\w-]+)/mu.exec(text)?.[1];
+  } catch {
+    return undefined;
+  }
+}
+
+/** The plugin's rules the class's laws map, each at error. */
+function webtopsConfigs(className) {
+  return WEBTOPS_RULES.filter((entry) => entry.classes.includes(className)).map((entry) => ({
+    ...(entry.files === undefined ? {} : { files: entry.files }),
+    plugins: { webtops },
+    rules: { [entry.rule]: "error" },
+  }));
+}
 
 const BASE_PACKAGES = [
   "@eslint-community/eslint-plugin-eslint-comments",
@@ -115,13 +182,15 @@ export const PACKAGES = {
 
 /**
  * The flat config for one class: the base law rules plus the plugin set the variant adds.
- * `tsconfigRootDir` is the project root, so type-aware rules find its tsconfig.
+ * `tsconfigRootDir` is the project root, so type-aware rules find its tsconfig. `class` names the
+ * project's class; left out, the project's `web-tops.yaml` says which it is.
  */
-export async function eslintPreset({ variant, tsconfigRootDir }) {
+export async function eslintPreset({ variant, tsconfigRootDir, class: className }) {
   if (!Object.hasOwn(PLUGIN_CONFIGS, variant)) {
     throw new RangeError(`web-tops/eslint has no variant "${variant}"; use ${VARIANTS.join(", ")}`);
   }
   const plugins = await PLUGIN_CONFIGS[variant]();
+  const laws = webtopsConfigs(className ?? declaredClass(tsconfigRootDir) ?? DEFAULT_CLASS);
   return defineConfig(
     { ignores: IGNORES },
     js.configs.recommended,
@@ -140,6 +209,7 @@ export async function eslintPreset({ variant, tsconfigRootDir }) {
       rules: { "vitest/no-focused-tests": "error", "vitest/no-disabled-tests": "error" },
     },
     ...plugins,
+    ...laws,
     {
       // Plain JavaScript config files sit outside tsconfig: no type-aware rules there.
       files: ["**/*.js", "**/*.cjs", "**/*.mjs"],

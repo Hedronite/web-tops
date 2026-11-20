@@ -612,6 +612,14 @@
     }
   },
   {
+    "plugins": [
+      "webtops"
+    ],
+    "rules": {
+      "webtops/no-unsanitized-html": "error"
+    }
+  },
+  {
     "files": [
       "**/*.js",
       "**/*.cjs",
