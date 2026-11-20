@@ -40,10 +40,13 @@ const literalText = (node: unknown): string | undefined => {
 const plainTemplateText = (node: unknown): string | undefined =>
   children(node, "expressions").length === 0 ? quasisOf(node)[0] : undefined;
 
-const TEXT = new Map<string, (node: unknown) => string | undefined>([
-  ["Literal", literalText],
-  ["TemplateLiteral", plainTemplateText],
-]);
+// Tables are built where they are used, not at module level: a mutant in module-level data runs
+// the whole suite again (a static mutant), one in a function runs only the tests that reach it.
+const textReaders = (): ReadonlyMap<string, (node: unknown) => string | undefined> =>
+  new Map([
+    ["Literal", literalText],
+    ["TemplateLiteral", plainTemplateText],
+  ]);
 
 /** The entry of a table keyed by node type, for the node's own type. */
 export function byKind<T>(table: ReadonlyMap<string, T>, node: unknown): T | undefined {
@@ -58,7 +61,8 @@ export const lookup = <T>(
 ): T | undefined => (name === undefined ? undefined : table.get(name));
 
 /** The text of a string literal or of a template literal with no interpolation; undefined for anything else. */
-export const staticText = (node: unknown): string | undefined => byKind(TEXT, node)?.(node);
+export const staticText = (node: unknown): string | undefined =>
+  byKind(textReaders(), node)?.(node);
 
 const joined = (object: string | undefined, property: string | undefined): string | undefined =>
   object !== undefined && property !== undefined ? `${object}.${property}` : undefined;

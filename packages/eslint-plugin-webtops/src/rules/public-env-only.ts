@@ -3,9 +3,9 @@ import { child, children, dottedName, kind, nameOf, propertyName, stringList } f
 
 /** W-37: client code reads only public env: `PUBLIC_` variables, and `astro:env/client` fields. */
 
-const PREFIXES = ["PUBLIC_"];
+const defaultPrefixes = (): string[] => ["PUBLIC_"];
 /** What Vite and Astro define for every build, and none of it is a secret. */
-const BUILT_IN = ["MODE", "DEV", "PROD", "SSR", "BASE_URL", "SITE"];
+const builtIn = (): string[] => ["MODE", "DEV", "PROD", "SSR", "BASE_URL", "SITE"];
 
 /** `process.env` or `import.meta.env`. */
 function isEnvObject(node: unknown): boolean {
@@ -21,34 +21,36 @@ const isChildOf = (parent: unknown, type: string, field: string, node: unknown):
   kind(parent) === type && child(parent, field) === node;
 
 const rule: Rule.RuleModule = {
-  meta: {
-    type: "problem",
-    docs: { description: "Only public env reaches client code (W-37)" },
-    schema: [
-      {
-        type: "object",
-        properties: {
-          prefixes: { type: "array", items: { type: "string" }, uniqueItems: true },
-          allowed: { type: "array", items: { type: "string" }, uniqueItems: true },
+  get meta(): Rule.RuleMetaData {
+    return {
+      type: "problem",
+      docs: { description: "Only public env reaches client code (W-37)" },
+      schema: [
+        {
+          type: "object",
+          properties: {
+            prefixes: { type: "array", items: { type: "string" }, uniqueItems: true },
+            allowed: { type: "array", items: { type: "string" }, uniqueItems: true },
+          },
+          additionalProperties: false,
         },
-        additionalProperties: false,
+      ],
+      messages: {
+        private:
+          "{{ name }} is not a public variable (prefix {{ prefixes }}), so reading it in client code ships it to every visitor. Read it on the server.",
+        dynamic:
+          "An env variable read by a computed name cannot be checked, and may be private. Read a public variable by name.",
+        whole:
+          "The whole env object reaches client code. Read the public variables you need, by name.",
+        server:
+          "{{ name }} is a server-only module: its fields stay off the client. Use astro:env/client.",
       },
-    ],
-    messages: {
-      private:
-        "{{ name }} is not a public variable (prefix {{ prefixes }}), so reading it in client code ships it to every visitor. Read it on the server.",
-      dynamic:
-        "An env variable read by a computed name cannot be checked, and may be private. Read a public variable by name.",
-      whole:
-        "The whole env object reaches client code. Read the public variables you need, by name.",
-      server:
-        "{{ name }} is a server-only module: its fields stay off the client. Use astro:env/client.",
-    },
+    };
   },
   create(context) {
     const option: unknown = context.options[0];
-    const prefixes = stringList(option, "prefixes", PREFIXES);
-    const allowed = new Set(stringList(option, "allowed", BUILT_IN));
+    const prefixes = stringList(option, "prefixes", defaultPrefixes());
+    const allowed = new Set(stringList(option, "allowed", builtIn()));
     const isPublic = (name: string): boolean =>
       allowed.has(name) || prefixes.some((prefix) => name.startsWith(prefix));
     const reportName = (node: Rule.Node, name: string | undefined): void => {

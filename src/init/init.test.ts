@@ -16,11 +16,11 @@ const CLASSES = ["ts-library", "ui-components", "astro-site", "web-app", "node-s
 type Class = (typeof CLASSES)[number];
 
 // From WEB_TOPS.md section 4: which plugin set each class adds to the base law rules.
-const VARIANT: Record<Class, "base" | "react" | "react-app" | "astro"> = {
+const VARIANT: Record<Class, "base" | "react" | "astro"> = {
   "ts-library": "base",
   "node-service": "base",
   "ui-components": "react",
-  "web-app": "react-app",
+  "web-app": "react",
   "astro-site": "astro",
 };
 
