@@ -118,30 +118,38 @@ const FORTY_PROBES = 600_000;
  */
 const insideStryker = process.env["STRYKER_MUTATOR_WORKER"] !== undefined;
 
-describe.skipIf(insideStryker)("the Astro rules of W-22 and W-49 are each enabled, listed and twinned, and each twin goes red alone", () => {
-  let result: Result;
-  beforeAll(() => {
-    result = resultOf();
-  }, FORTY_PROBES);
+describe.skipIf(insideStryker)(
+  "the Astro rules of W-22 and W-49 are each enabled, listed and twinned, and each twin goes red alone",
+  () => {
+    let result: Result;
+    beforeAll(() => {
+      result = resultOf();
+    }, FORTY_PROBES);
 
-  it("the rules the astro-site preset enables are the rules the two laws list and the twins mark", () => {
-    expect(result.enabled).toHaveLength(40);
-    expect(result.listed).toEqual(result.enabled);
-    expect(result.marked).toEqual(result.enabled);
-  });
+    it("the rules the astro-site preset enables are the rules the two laws list and the twins mark", () => {
+      expect(result.enabled).toHaveLength(40);
+      expect(result.listed).toEqual(result.enabled);
+      expect(result.marked).toEqual(result.enabled);
+    });
 
-  it("both laws pass under the astro-site preset, with nothing skipped", () => {
-    expect(result.baseline).toEqual([
-      { law: "W-22", code: 0, skipped: 0, failures: 0 },
-      { law: "W-49", code: 0, skipped: 0, failures: 0 },
-    ]);
-  });
+    it("both laws pass under the astro-site preset, with nothing skipped", () => {
+      expect(result.baseline).toEqual([
+        { law: "W-22", code: 0, skipped: 0, failures: 0 },
+        { law: "W-49", code: 0, skipped: 0, failures: 0 },
+      ]);
+    });
 
-  it("turning one rule off fails its law, silent on exactly the lines that mark the rule and nowhere else", () => {
-    expect(result.runs.map((run) => run.rule)).toEqual(result.enabled);
-    for (const run of result.runs) {
-      expect(run.expected, run.rule).not.toEqual([]);
-      expect([run.rule, run.code, run.silent, run.others]).toEqual([run.rule, 1, run.expected, 0]);
-    }
-  });
-});
+    it("turning one rule off fails its law, silent on exactly the lines that mark the rule and nowhere else", () => {
+      expect(result.runs.map((run) => run.rule)).toEqual(result.enabled);
+      for (const run of result.runs) {
+        expect(run.expected, run.rule).not.toEqual([]);
+        expect([run.rule, run.code, run.silent, run.others]).toEqual([
+          run.rule,
+          1,
+          run.expected,
+          0,
+        ]);
+      }
+    });
+  },
+);
