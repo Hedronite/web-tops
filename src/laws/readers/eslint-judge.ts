@@ -160,11 +160,16 @@ function countedReading(
     : undefined;
 }
 
+/** Why no rule can be judged, worded for an adopter whose ESLint config cannot reach `.ts` files at all. */
+function unlintedReason(): string {
+  return "no TypeScript file was linted: ESLint's config reaches no TypeScript file (no config block has files for **/*.ts and the TypeScript parser, or an ignore drops them), so no rule can be judged";
+}
+
 /** No TypeScript file was linted: the typed rules have no file to be judged over. */
 function unjudgedReading(law: string, evidence: Evidence): LawReading | undefined {
   return [...evidence.levels.keys()].some(isTypeScript)
     ? undefined
-    : { law, verdict: "not-evaluated", reason: "no TypeScript file was linted", findings: [] };
+    : { law, verdict: "not-evaluated", reason: unlintedReason(), findings: [] };
 }
 
 function passReading(law: string, counted: readonly string[]): LawReading {
