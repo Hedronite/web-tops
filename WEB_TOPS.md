@@ -228,8 +228,11 @@ bunx webtops gate
 
 `init` writes:
 - `web-tops.yaml`, `web-tops.lock`;
-- `tsconfig.strict.json` to extend, `eslint.config.js`, `stylelint.config.js`,
-  `.dependency-cruiser.cjs`, and `stryker.config.json` once the mutation layer ships;
+- thin importers, with the rules in the kit's presets and none in the project: `tsconfig.strict.json`
+  (extends `web-tops/tsconfig/strict.json`), `eslint.config.js` (calls `web-tops/eslint` with the
+  class's variant: base, react or astro), `stylelint.config.js` (re-exports `web-tops/stylelint`) and
+  `.dependency-cruiser.cjs` (requires `web-tops/depcruise`); and `stryker.config.json` once the
+  mutation layer ships;
 - the class CI workflow, with the jobs whose commands exist (§11);
 - the Web-TOPS section of `AGENTS.md`. If `AGENTS.md` exists, `init` replaces only the text
   between `<!-- web-tops:begin -->` and `<!-- web-tops:end -->`. The section names only the
@@ -394,7 +397,8 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
   cannot run is `fail`; a merge-base version that cannot run against HEAD adds nothing. The diff is
   taken without rename detection, so a renamed file counts as new and every function in it is
   judged. A pure deletion belongs to the smallest function that holds the lines on both sides of
-  it, else to the file's `<module>` (§6.7).
+  it, else to the file's `<module>` (§6.7). The data trees of §17, `fixtures/` and `probes/` at the top of the tree, are
+  not part of the diff: a file changed under them is neither mutated nor run, because it breaks rules on purpose.
 - **Statuses.** Stryker's status of each mutant decides what counts:
 
 | Status | Counts as |
@@ -1124,6 +1128,7 @@ web-tops/
 │   ├── laws/                # the law catalog (§8.3): the loader, the queries and the §8.2 table generator
 │   ├── layers/              # hygiene, tests, coverage, crap, mutation
 │   ├── lock/                # tool pins, web-tops.lock, the Node range
+│   ├── presets/             # the drop-in rules behind web-tops/eslint, /stylelint, /depcruise and /tsconfig/strict.json (plain JavaScript: Node does not strip types in node_modules)
 │   ├── report/              # report writing, text and JSON rendering
 │   └── survivors/           # the survivor key (section 6.4), and the ledger when it lands
 ├── profiles/                # one profile per launch class: the data init renders from
@@ -1140,7 +1145,7 @@ web-tops/
 └── LICENSE · LICENSE-MIT · LICENSE-APACHE
 ```
 
-Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4) and the M3 paths: `fixtures/laws/W-NN/{bad,clean}/` (a bad and a clean twin per law), `packages/eslint-plugin-webtops/`, `examples/node-service/`, `src/layers/laws/`, `src/presets/`, `src/acks/` and `src/lawdiff/`. The kit's tools already cover them: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
+Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4) and the M3 paths: `fixtures/laws/W-NN/{bad,clean}/` (a bad and a clean twin per law), `packages/eslint-plugin-webtops/`, `examples/node-service/`, `src/layers/laws/`, `src/acks/` and `src/lawdiff/`. The kit's tools already cover them: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
 
 Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any release.
 

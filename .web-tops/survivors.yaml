@@ -184,6 +184,26 @@ survivors:
     reason: Node drops an environment variable whose value is undefined when it
       starts a process, so passing one makes no difference to the child.
     owner: web-platform
+  - file: src/init/meta.ts
+    function: src/init/meta.ts::readPackageMeta
+    mutator: BlockStatement
+    original: "{\n    doc = undefined;\n  }"
+    replacement: "{}"
+    occurrence: 1
+    reason: "The catch only assigns undefined to doc, which is already undefined
+      where it was declared, so emptying the block changes nothing: an
+      unreadable or invalid package.json and a missing one both leave doc
+      undefined."
+    owner: web-platform
+  - file: src/layers/hygiene/package.ts
+    function: src/layers/hygiene/package.ts::<module>
+    mutator: Regex
+    original: "/^\\d+\\. (.+)$/u"
+    replacement: "/^\\d+\\. (.+)/u"
+    occurrence: 1
+    reason: The pattern is applied to one line, and (.+) already runs to its end, so
+      the closing anchor cannot change a match.
+    owner: web-platform
   - file: src/lock/candidates.ts
     function: src/lock/candidates.ts::readPackage
     mutator: StringLiteral

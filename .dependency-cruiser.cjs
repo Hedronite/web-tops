@@ -1,5 +1,7 @@
 // The kit's own boundaries (WEB_TOPS.md W-16). `webtops gate` runs this once, in gate 1.
 const TEST = "(\\.test\\.ts|/test-support[^/]*\\.ts)$";
+// The presets run in a project that installs the tools they import, so they may name devDependencies.
+const PRESETS = "^src/presets/";
 
 /** @type {import("dependency-cruiser").IConfiguration} */
 module.exports = {
@@ -30,7 +32,7 @@ module.exports = {
       comment:
         "Production code imports only dependencies, never devDependencies. A type-only import is erased, so it may name a tool's types (the complexity counter takes the project's own TypeScript as an argument).",
       severity: "error",
-      from: { path: "^src/", pathNot: TEST },
+      from: { path: "^src/", pathNot: [TEST, PRESETS] },
       to: { dependencyTypes: ["npm-dev"], dependencyTypesNot: ["type-only"] },
     },
     {

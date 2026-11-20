@@ -21,7 +21,16 @@ import { readPackage, runTool, type StepContext, type StepResult } from "./tooli
 const LAUNCH_CLASSES = ["ts-library", "ui-components", "astro-site", "web-app", "node-service"];
 
 /** The files this layer leaves in `.web-tops/out/hygiene/`, by name. */
-const ARTIFACTS = ["audit-json", "eslint-json", "stylelint-json", "dependency-cruiser-json"];
+const ARTIFACTS = [
+  "audit-json",
+  "eslint-json",
+  "stylelint-json",
+  "dependency-cruiser-json",
+  "tsc-diagnostics",
+  "install-json",
+  "publint-json",
+  "attw-json",
+];
 
 const WORST_FIRST: readonly Verdict[] = ["fail", "not-run", "not-evaluated", "ack-missing"];
 

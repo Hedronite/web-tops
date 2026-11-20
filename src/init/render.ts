@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { stringify } from "yaml";
 import { PROTOCOL } from "../config/protocol.ts";
 import { NODE_CI, TOOL_PINS } from "../lock/pins.ts";
-import type { EslintVariant, DropIn } from "./profile.ts";
+import type { DropIn } from "./profile.ts";
 
 export const TEMPLATES_DIR = resolve(import.meta.dirname, "../../config/templates");
 export const AGENTS_TEMPLATE = resolve(import.meta.dirname, "../../config/AGENTS.md.tmpl");
@@ -33,41 +33,9 @@ export function readTemplate(name: string): string {
   return readFileSync(resolve(TEMPLATES_DIR, name), "utf8");
 }
 
-const A11Y_IMPORT = 'import jsxA11yX from "eslint-plugin-jsx-a11y-x";';
-const A11Y_CONFIG = '  { files: ["**/*.jsx", "**/*.tsx"], ...jsxA11yX.configs.strict },';
-const HOOKS_IMPORT = 'import reactHooks from "eslint-plugin-react-hooks";';
-const HOOKS_CONFIG = [
-  "  {",
-  "    // W-47 rules of hooks",
-  '    files: ["**/*.jsx", "**/*.tsx"],',
-  '    plugins: { "react-hooks": reactHooks },',
-  "    rules: {",
-  '      "react-hooks/rules-of-hooks": "error",',
-  '      "react-hooks/exhaustive-deps": "error",',
-  "    },",
-  "  },",
-].join("\n");
-
-const ESLINT_SLOTS: Record<EslintVariant, { imports: string; configs: string }> = {
-  base: { imports: "", configs: "" },
-  react: {
-    imports: `${A11Y_IMPORT}\n${HOOKS_IMPORT}`,
-    configs: `  // W-22 semantic elements, alt text, labels\n${A11Y_CONFIG}\n${HOOKS_CONFIG}`,
-  },
-  astro: {
-    imports: `import astro from "eslint-plugin-astro";\n${A11Y_IMPORT}`,
-    configs:
-      `  // W-22 semantic elements, alt text, labels (also inside .astro files)\n` +
-      `  ...astro.configs["flat/recommended"],\n  ...astro.configs["flat/jsx-a11y-strict"],\n${A11Y_CONFIG}`,
-  },
-};
-
+/** The importer init writes: it names the class's variant, and every rule lives in `web-tops/eslint`. */
 export function eslintConfig(profile: DropIn): string {
-  const slots = ESLINT_SLOTS[profile.eslint];
-  return fill(readTemplate("eslint.config.js.template"), {
-    PLUGIN_IMPORTS: slots.imports,
-    PLUGIN_CONFIGS: slots.configs,
-  });
+  return fill(readTemplate("eslint.config.js.template"), { VARIANT: profile.eslint });
 }
 
 export function workflow(profile: DropIn): string {
@@ -100,9 +68,9 @@ const VERIFIED: readonly (readonly [string, string])[] = [
   ["laws", "the laws"],
 ];
 
+/** `a, b, and c`; what the gate verifies is always at least three things (type checks, lint and tests). */
 function joinList(items: readonly string[]): string {
-  const last = items.at(-1) ?? "";
-  return items.length < 2 ? last : `${items.slice(0, -1).join(", ")}, and ${last}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items.slice(-1).join()}`;
 }
 
 function verifies(profile: DropIn, astroCheck: AstroCheck): string {
