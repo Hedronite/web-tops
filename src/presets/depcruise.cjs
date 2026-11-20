@@ -4,6 +4,8 @@
 // resolver reads each package's `exports`, so an import through a path it does not expose cannot be
 // resolved and fails at no-unresolvable. A rule on the resolved path would flag every normal import,
 // because a package's own types resolve into its dist.
+// W-19: React and R3F, when a package declares them as peers, are imported only from its `react`
+// entries and its `adapters`, the only places that may need them (WEB_TOPS.md section 8.2).
 /** @type {import("dependency-cruiser").IConfiguration} */
 module.exports = {
   forbidden: [
@@ -20,6 +22,17 @@ module.exports = {
       severity: "error",
       from: {},
       to: { couldNotResolve: true },
+    },
+    {
+      name: "no-optional-peer-import",
+      comment:
+        "W-19: an optional peer (React, R3F) is imported only from a react entry or an adapter.",
+      severity: "error",
+      from: { pathNot: "(^|/)(react|adapters)(/|\\.[cm]?[jt]sx?$)" },
+      to: {
+        dependencyTypes: ["npm-peer"],
+        path: "(^|/)node_modules/(react|react-dom|three|@react-three/[^/]+)(/|$)",
+      },
     },
   ],
   options: {
