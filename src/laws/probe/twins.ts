@@ -1,6 +1,6 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ProbeLaw, Twin, TwinKind } from "./types.ts";
+import type { ProbeLaw, SkippedTwin, Twin, TwinKind } from "./types.ts";
 
 /** The files of a twin the tools read. Anything else in a twin directory is copied beside them and left alone. */
 function twinFile(): RegExp {
@@ -44,6 +44,21 @@ export function listTwins(fixtures: string, laws: readonly ProbeLaw[]): Twin[] {
         .map((name) => ({ law: law.id, kind, file: `${law.id}/${kind}/${name}` })),
     ),
   );
+}
+
+/**
+ * The twins the project's preset can lint, and those it cannot. An Astro twin is left out, with the reason, when the
+ * class has no Astro files to lint (`astroSkip` is the reason); every other twin is kept.
+ */
+export function splitTwins(
+  twins: readonly Twin[],
+  astroSkip: string | undefined,
+): { readonly kept: Twin[]; readonly skipped: SkippedTwin[] } {
+  const skip = (twin: Twin): boolean => astroSkip !== undefined && isAstro(twin.file);
+  return {
+    kept: twins.filter((twin) => !skip(twin)),
+    skipped: twins.filter(skip).map((twin) => ({ ...twin, reason: String(astroSkip) })),
+  };
 }
 
 /**

@@ -18,6 +18,7 @@ const GOOD: LawEvidence = {
   twins: TWINS,
   marks: [mark(1, "no-thing"), mark(2, "noImplicitAny")],
   seen: [seen(BAD, 1, "plugin/no-thing"), seen(BAD, 2, "TS7006")],
+  skippedMarks: [],
 };
 
 function kinds(evidence: LawEvidence): string[] {
@@ -209,5 +210,31 @@ describe("G3b the judge says each failure in a sentence", () => {
     expect(probe.failures.map((failure) => failure.message)).toEqual([
       "W-99/bad/b.ts has no // expect: marker",
     ]);
+  });
+
+  it("a proof that only a skipped twin names is not unproven: it was skipped, and the report says so", () => {
+    const skipped = { file: "W-99/bad/page.astro", line: 1, rules: ["astro/no-astro"] };
+    const law: ProbeLaw = { id: "W-99", proofs: ["no-thing", "astro/no-astro"] };
+    const evidence: LawEvidence = {
+      ...GOOD,
+      law,
+      marks: [mark(1, "no-thing")],
+      seen: [seen(BAD, 1, "plugin/no-thing")],
+    };
+    expect(kinds(evidence)).toEqual(["unproven"]);
+    expect(kinds({ ...evidence, skippedMarks: [skipped] })).toEqual([]);
+  });
+
+  it("a skipped twin excuses only the proof it names, never another one", () => {
+    const skipped = { file: "W-99/bad/page.astro", line: 1, rules: ["astro/other-rule"] };
+    const law: ProbeLaw = { id: "W-99", proofs: ["no-thing", "astro/no-astro"] };
+    const evidence: LawEvidence = {
+      ...GOOD,
+      law,
+      marks: [mark(1, "no-thing")],
+      seen: [seen(BAD, 1, "plugin/no-thing")],
+      skippedMarks: [skipped],
+    };
+    expect(kinds(evidence)).toEqual(["unproven"]);
   });
 });

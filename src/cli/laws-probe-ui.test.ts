@@ -28,6 +28,16 @@ describe("G3c `laws probe` under a class with JSX and CSS: W-22 and W-26", () =>
     expect(failing(ui.report)).toEqual([]);
   });
 
+  it("skips the .astro twins of a web-app that does not depend on astro, and names each with the reason", () => {
+    const names = ui.report.skipped.map((twin) => twin.file);
+    expect(names).toContain("W-22/bad/astro-a11y-alt-text.astro");
+    expect(names).toContain("W-22/clean/astro-a11y-alt-text.astro");
+    expect(names.every((name) => name.endsWith(".astro"))).toBe(true);
+    expect(new Set(ui.report.skipped.map((twin) => twin.reason))).toEqual(
+      new Set(["a web-app lints .astro files only when the project depends on astro"]),
+    );
+  });
+
   it(
     "a ts-library probes neither, and a project's web-tops.yaml names its class",
     async () => {
