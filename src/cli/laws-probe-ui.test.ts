@@ -1,13 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { REAL_TOOL_TIMEOUT } from "../gate/test-support-timeouts.ts";
-import { catalogLaws, lawsOfClass } from "../laws/probe/catalog.ts";
+import { lawsOfClass } from "../laws/probe/catalog.ts";
+import { kitProbeLaws } from "../laws/probe/testkit.ts";
 import { cleanTemp, put } from "../laws/probe/testkit.ts";
 import { adopter, failing, messages, probeOf, verdicts } from "./test-support-probe.ts";
 
 afterAll(cleanTemp);
 
-const ALL = catalogLaws().map((law) => law.id);
-const TS_ONLY = lawsOfClass(catalogLaws(), "ts-library").map((law) => law.id);
+const ALL = kitProbeLaws().map((law) => law.id);
+const TS_ONLY = lawsOfClass(kitProbeLaws(), "ts-library").map((law) => law.id);
 
 /** Replaces one line of a config, as an adopter that did not enable a rule would have it. */
 const without =

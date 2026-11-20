@@ -2,7 +2,8 @@ import { cpSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { REAL_TOOL_TIMEOUT } from "../gate/test-support-timeouts.ts";
-import { catalogLaws, lawsOfClass } from "../laws/probe/catalog.ts";
+import { lawsOfClass } from "../laws/probe/catalog.ts";
+import { kitProbeLaws } from "../laws/probe/testkit.ts";
 import { cleanTemp, put, tempDir } from "../laws/probe/testkit.ts";
 import type { LawSource } from "../laws/probe/types.ts";
 import { runLawsCli } from "./laws.ts";
@@ -19,7 +20,7 @@ import {
 
 afterAll(cleanTemp);
 
-const KIT_LAWS = lawsOfClass(catalogLaws(), "ts-library").length;
+const KIT_LAWS = lawsOfClass(kitProbeLaws(), "ts-library").length;
 
 describe("G3b `laws probe`: arguments and problems", () => {
   it("rejects an argument it does not know, and a flag with no value, with the usage", async () => {
@@ -98,7 +99,7 @@ describe("G3b `laws probe` on a project's own config", () => {
   it("passes every law under a config that is the kit's, with no finding left unexplained", () => {
     expect(kitLike.code).toBe(0);
     expect(verdicts(kitLike.report)).toEqual(
-      lawsOfClass(catalogLaws(), "ts-library").map((law) => `${law.id} pass`),
+      lawsOfClass(kitProbeLaws(), "ts-library").map((law) => `${law.id} pass`),
     );
     expect(kitLike.report.laws.flatMap((law) => law.unrelated)).toEqual([]);
   });

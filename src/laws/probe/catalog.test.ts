@@ -1,16 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { afterAll } from "vitest";
-import { CatalogError, catalogLaws, lawsOfClass, readCatalog } from "./catalog.ts";
-import { cleanTemp, put, tempDir } from "./testkit.ts";
-
-afterAll(cleanTemp);
+import type { Catalog } from "../catalog/index.ts";
+import { CatalogError, lawsOfClass, readCatalog } from "./catalog.ts";
+import { kitProbeLaws } from "./testkit.ts";
 
 const ids = (className: string): string[] =>
-  lawsOfClass(catalogLaws(), className).map((law) => law.id);
+  lawsOfClass(kitProbeLaws(), className).map((law) => law.id);
 
 describe("G3a the laws the probe proves are the catalog's ticked lint and compiler laws", () => {
   it("reads the fourteen laws a lint rule or a flag judges, in order, from laws/W-NN.yaml", () => {
-    expect(catalogLaws().map((law) => law.id)).toEqual([
+    expect(kitProbeLaws().map((law) => law.id)).toEqual([
       "W-01",
       "W-02",
       "W-04",
@@ -51,25 +49,37 @@ describe("G3a the laws the probe proves are the catalog's ticked lint and compil
   });
 });
 
+const bad: Catalog = {
+  ok: false,
+  problems: [
+    { file: "W-01.yaml", pointer: "/id", message: "is required" },
+    { file: "W-02.yaml", pointer: "", message: "is not a map" },
+  ],
+};
+
 describe("G3a a catalog that cannot be read is an error with its problems", () => {
   it("names each problem file and pointer, joined by semicolons, and is a CatalogError", () => {
-    const dir = tempDir();
-    put(dir, { "W-01.yaml": "id: W-01\n", "W-02.yaml": "id: W-02\n" });
     let caught: unknown;
     try {
-      readCatalog(dir);
+      readCatalog("laws", () => bad);
     } catch (error) {
       caught = error;
     }
     expect(caught).toBeInstanceOf(CatalogError);
-    const message = caught instanceof Error ? caught.message : "";
-    expect(message.startsWith("the catalog is invalid: ")).toBe(true);
-    expect(message).toContain("W-01.yaml");
-    expect(message).toContain("W-02.yaml");
-    expect(message).toContain("; ");
+    expect(caught instanceof Error && caught.message).toBe(
+      "the catalog is invalid: W-01.yaml/id: is required; W-02.yaml: is not a map",
+    );
   });
 
-  it("reads the kit's catalog when it is given no directory", () => {
-    expect(readCatalog().length).toBeGreaterThan(40);
+  it("reads the directory it is given, and the kit's laws directory when it is given none", () => {
+    const seen: string[] = [];
+    const ok = (dir: string): Catalog => {
+      seen.push(dir);
+      return { ok: true, laws: [] };
+    };
+    expect(readCatalog("somewhere", ok)).toEqual([]);
+    readCatalog(undefined, ok);
+    expect(seen[0]).toBe("somewhere");
+    expect(seen[1]?.endsWith("/laws")).toBe(true);
   });
 });

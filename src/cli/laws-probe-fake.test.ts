@@ -219,6 +219,20 @@ describe("G3b which laws the command probes, and with what", () => {
     );
   });
 
+  it("a web-tops.yaml that cannot be read, or is no map, names no class and no config: the defaults hold", async () => {
+    for (const text of ["a: [\n", "just words\n", "- one\n- two\n"]) {
+      const cwd = project();
+      put(cwd, { "web-tops.yaml": text });
+      const calls: (readonly string[])[] = [];
+      const result = await cli(["--fixtures", twinsOf("W-99", "W-98")], cwd, {
+        exec: fakeFor(cwd, ["W-99"], calls),
+        laws: two,
+      });
+      expect(result.out, text).toContain("W-99  pass\n");
+      expect(calls[0], text).not.toContain("--config");
+    }
+  });
+
   it("a usage problem prints the usage once, with no blank line after it", async () => {
     const result = await cli(["--wat"], tempDir());
     expect(result.code).toBe(2);

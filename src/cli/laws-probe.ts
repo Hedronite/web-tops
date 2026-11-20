@@ -7,7 +7,9 @@ import { CatalogError, catalogLaws, lawsOfClass } from "../laws/probe/catalog.ts
 import { probeExit, probeText } from "../laws/probe/format.ts";
 import { runProbe, type ProbeOutcome, type ProbeRequest } from "../laws/probe/run.ts";
 import type { LawSource, ProbeLaw, ProbeReport } from "../laws/probe/types.ts";
-import { field, readConfigDoc } from "../lock/config.ts";
+import { readFileSync } from "node:fs";
+import { parse } from "yaml";
+import { isRecord } from "../layers/hygiene/tooling.ts";
 import type { Io } from "./io.ts";
 
 function usage(): string {
@@ -72,10 +74,20 @@ const fail = (io: Io, message: string, code: number): number => {
   return code;
 };
 
+/** The project's `web-tops.yaml` as plain data, or undefined when it has none or cannot be read. */
+function projectDoc(cwd: string): unknown {
+  try {
+    return parse(readFileSync(join(cwd, "web-tops.yaml"), "utf8"));
+  } catch {
+    return undefined;
+  }
+}
+
+const step = (node: unknown, key: string): unknown => (isRecord(node) ? node[key] : undefined);
+
 /** A string `web-tops.yaml` holds at a key path, when the project has one. */
 function projectString(cwd: string, ...path: readonly string[]): string | undefined {
-  const read = readConfigDoc(cwd);
-  const named = read.state === "ok" ? field(read.doc, ...path) : undefined;
+  const named = path.reduce(step, projectDoc(cwd));
   return typeof named === "string" ? named : undefined;
 }
 
