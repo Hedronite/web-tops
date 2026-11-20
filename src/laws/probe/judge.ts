@@ -16,6 +16,8 @@ export interface LawEvidence {
   readonly twins: readonly Twin[];
   readonly marks: readonly Expectation[];
   readonly seen: readonly Observed[];
+  /** The markers of this law's twins that were left out: a rule they name was skipped, not unproven. */
+  readonly skippedMarks: readonly Expectation[];
 }
 
 const at = (found: { file: string; line: number }): string => `${found.file}:${String(found.line)}`;
@@ -167,7 +169,7 @@ export function judgeLaw(evidence: LawEvidence): LawProbe {
     ...unexpected(law, bad, badMarks, seen),
     ...marksInClean(clean, marks),
     ...noisy(law, clean, seen),
-    ...unproven(law, badMarks),
+    ...unproven(law, [...badMarks, ...evidence.skippedMarks]),
   ];
   const unrelated = inFiles(seen, own).filter(
     (found) => !explains(law, found.rule) && !marked(marks, found) && !isNotEvaluated(found.rule),

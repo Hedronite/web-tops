@@ -15,7 +15,8 @@ function lawLines(probe: LawProbe): string[] {
 export function probeText(report: ProbeReport): string {
   const passed = report.laws.filter((probe) => probe.verdict === "pass").length;
   const total = `${String(passed)} of ${String(report.laws.length)} laws probed pass`;
-  return `${[...report.laws.flatMap(lawLines), total].join("\n")}\n`;
+  const skipped = report.skipped.map((twin) => `skipped ${twin.file}: ${twin.reason}`);
+  return `${[...report.laws.flatMap(lawLines), ...skipped, total].join("\n")}\n`;
 }
 
 export const probeExit = (report: ProbeReport): 0 | 1 =>

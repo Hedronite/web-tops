@@ -68,7 +68,8 @@ describe("G3a the laws the probe proves are read from the catalog's records", ()
 
   it("leaves out a law that is not ticked, whatever its rules", () => {
     expect(isProbed(W47)).toBe(false);
-    expect(isProbed({ ...W01, judged: "m3" })).toBe(false);
+    expect(isProbed({ ...W01, judged: "no" })).toBe(false);
+    expect(isProbed({ ...W01, judged: "m3" })).toBe(true);
   });
 
   it("lists the probed laws in id order, and reads the records each time the source is called", () => {

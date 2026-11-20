@@ -2,7 +2,15 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { cleanTemp, put, tempDir } from "./testkit.ts";
-import { isAstro, isCss, isScript, listTwins, materialize, stylelintIgnore } from "./twins.ts";
+import {
+  isAstro,
+  isCss,
+  isScript,
+  listTwins,
+  materialize,
+  splitTwins,
+  stylelintIgnore,
+} from "./twins.ts";
 import type { ProbeLaw } from "./types.ts";
 
 afterAll(cleanTemp);
@@ -100,7 +108,7 @@ describe("G3a twins: fixtures/laws/W-NN/{bad,clean}/", () => {
     expect(config).toEqual({
       extends: "/project/tsconfig.json",
       compilerOptions: { noEmit: true },
-      include: ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
+      include: ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts", "**/*.astro"],
       exclude: [],
     });
   });
@@ -122,5 +130,31 @@ describe("G3a twins: the files a twin has", () => {
       false,
       true,
     ]);
+  });
+});
+
+describe("R105 twins: the Astro twins a class's preset cannot lint are skipped, with a reason", () => {
+  const TWINS = [
+    { law: "W-22", kind: "bad" as const, file: "W-22/bad/a.tsx" },
+    { law: "W-22", kind: "bad" as const, file: "W-22/bad/a.astro" },
+    { law: "W-22", kind: "clean" as const, file: "W-22/clean/a.astro" },
+    { law: "W-26", kind: "bad" as const, file: "W-26/bad/s.css" },
+  ];
+
+  it("keeps every twin when the preset lints Astro", () => {
+    expect(splitTwins(TWINS, undefined)).toEqual({ kept: TWINS, skipped: [] });
+  });
+
+  it("skips each Astro twin, and only those, with the reason beside it", () => {
+    const { kept, skipped } = splitTwins(TWINS, "no astro here");
+    expect(kept.map((twin) => twin.file)).toEqual(["W-22/bad/a.tsx", "W-26/bad/s.css"]);
+    expect(skipped).toEqual([
+      { law: "W-22", kind: "bad", file: "W-22/bad/a.astro", reason: "no astro here" },
+      { law: "W-22", kind: "clean", file: "W-22/clean/a.astro", reason: "no astro here" },
+    ]);
+  });
+
+  it("an empty reason still skips: only an absent one keeps the twins", () => {
+    expect(splitTwins(TWINS, "").skipped).toHaveLength(2);
   });
 });

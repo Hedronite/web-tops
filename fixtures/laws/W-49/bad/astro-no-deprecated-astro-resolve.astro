@@ -1,0 +1,5 @@
+---
+// expect: astro/no-deprecated-astro-resolve
+const src = Astro.resolve("./a.png");
+---
+<img src={src} alt="a" />

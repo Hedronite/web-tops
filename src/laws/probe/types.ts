@@ -72,6 +72,12 @@ export interface LawProbe {
   readonly unrelated: readonly Observed[];
 }
 
+/** A twin the probe left out of the run, and why: a skip is always said, never silent. */
+export interface SkippedTwin extends Twin {
+  readonly reason: string;
+}
+
 export interface ProbeReport {
   readonly laws: readonly LawProbe[];
+  readonly skipped: readonly SkippedTwin[];
 }

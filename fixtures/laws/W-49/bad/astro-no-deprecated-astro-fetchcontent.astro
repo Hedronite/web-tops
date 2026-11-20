@@ -1,0 +1,5 @@
+---
+// expect: astro/no-deprecated-astro-fetchcontent
+const posts = Astro.fetchContent("./posts/*.md");
+---
+<p>{posts.length}</p>
