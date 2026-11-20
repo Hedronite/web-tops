@@ -107,7 +107,7 @@ function kindOf(file: string): ts.ScriptKind {
 export function functionsIn(file: string, text: string): readonly FunctionSpan[] {
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.ES2023, true, kindOf(file));
   const module = `${file}::<module>`;
-  const last = text.replace(/\n$/, "").split("\n").length;
+  const last = text.split("\n").length - (text.endsWith("\n") ? 1 : 0);
   const walk: Walk = {
     file,
     source,

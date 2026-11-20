@@ -3,7 +3,12 @@ import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { realExec } from "../gate/exec.ts";
 import type { Exec } from "../gate/types.ts";
-import { vitestCoverageOf, coveredSpans } from "./coverage.ts";
+import {
+  vitestCoverageOf,
+  vitestCoverageOfMany,
+  coveredSpans,
+  type CoverageRun,
+} from "./coverage.ts";
 import { functionsIn, innermostAt } from "./functions.ts";
 import { diffText, mergeBaseOf, showAt } from "./git.ts";
 import { parseDiff } from "./parse.ts";
@@ -18,6 +23,9 @@ import type {
 
 export type CoverageOf = (testFile: string) => Promise<CoverageMap | undefined>;
 
+/** What several test files cover together: one run for all of them, the functions any of them ran. */
+export type CoverageOfMany = (testFiles: readonly string[]) => Promise<CoverageMap | undefined>;
+
 export interface ScopeOptions {
   readonly cwd: string;
   /** The ref the run is judged against, such as `origin/main`. */
@@ -25,6 +33,11 @@ export interface ScopeOptions {
   readonly exec?: Exec;
   /** What a test file covers; by default a Vitest run of that file alone. */
   readonly coverageOf?: CoverageOf;
+  /**
+   * What test files cover together, in one run: used, when given, before `coverageOf`, which then only runs the files of
+   * a group that did not run together. By default a Vitest run of a whole group, when `coverageOf` is not given either.
+   */
+  readonly coverageOfMany?: CoverageOfMany;
   /** Reasoned coverage exclusions from `web-tops.yaml`, passed to the default per-file run. */
   readonly exclude?: readonly string[];
   /** The random part of a merge-base copy's name; a test sets it to know the name. */
@@ -43,13 +56,13 @@ type Covered =
 
 type Reader = (path: string) => string | undefined;
 
-const TEST = /\.(test|spec)\.[cm]?tsx?$|(^|\/)__tests__\//;
-const SOURCE = /\.[cm]?tsx?$/;
-const DECLARATION = /\.d\.[cm]?ts$/;
+const hasScriptExtension = (path: string): boolean => /\.[cm]?tsx?$/.test(path);
+const isDeclaration = (path: string): boolean => /\.d\.[cm]?ts$/.test(path);
 
-export const isTestFile = (path: string): boolean => TEST.test(path) && SOURCE.test(path);
+export const isTestFile = (path: string): boolean =>
+  /\.(test|spec)\.[cm]?tsx?$|(^|\/)__tests__\//.test(path) && hasScriptExtension(path);
 export const isSourceFile = (path: string): boolean =>
-  SOURCE.test(path) && !DECLARATION.test(path) && !TEST.test(path);
+  hasScriptExtension(path) && !isDeclaration(path) && !isTestFile(path);
 
 function readerFor(cwd: string): Reader {
   return (path) => {
@@ -101,38 +114,88 @@ function refsCovered(map: CoverageMap, read: Reader): readonly FunctionRef[] {
   });
 }
 
-interface CoverRun {
-  readonly coverageOf: CoverageOf;
-  readonly read: Reader;
-  /** The coverage of a test file as it was at the merge base, or undefined when it has none or cannot run. */
-  readonly baseCoverageOf: CoverageOf;
+/** How many test files one run covers at most, so that a very large diff never overruns the length of a command line. */
+const GROUP = 100;
+
+function groupsOf(paths: readonly string[]): string[][] {
+  return Array.from({ length: Math.ceil(paths.length / GROUP) }, (_, at) =>
+    paths.slice(at * GROUP, (at + 1) * GROUP),
+  );
 }
 
-const NONE: CoverageMap = new Map();
-
-async function headMap(test: ChangedFile, run: CoverRun): Promise<CoverageMap | undefined> {
-  return test.status === "deleted" ? NONE : run.coverageOf(test.path);
+interface Gathered {
+  readonly maps: readonly CoverageMap[];
+  /** The files that could not run alone, in the order given. */
+  readonly failed: readonly string[];
 }
 
-async function baseMap(test: ChangedFile, run: CoverRun): Promise<CoverageMap> {
-  return test.status === "added" ? NONE : ((await run.baseCoverageOf(test.path)) ?? NONE);
+/** What the files cover, one run each: a file that cannot run is `failed`. */
+async function alone(group: readonly string[], one: CoverageOf): Promise<Gathered> {
+  const maps: CoverageMap[] = [];
+  const failed: string[] = [];
+  for (const path of group) {
+    const got = await one(path);
+    if (got === undefined) failed.push(path);
+    else maps.push(got);
+  }
+  return { maps, failed };
+}
+
+/** A group in one run when `many` is given, and file by file where that run gives nothing. */
+async function groupCoverage(
+  group: readonly string[],
+  one: CoverageOf,
+  many: CoverageOfMany | undefined,
+): Promise<Gathered> {
+  const together = many === undefined ? undefined : await many(group);
+  return together === undefined ? alone(group, one) : { maps: [together], failed: [] };
 }
 
 /**
+ * What `paths` cover. Each group of them runs together when `many` is given; a group that does not run together (one
+ * of its files fails, or the run leaves nothing) runs file by file, as every file did before, so a file that cannot
+ * run is found and named whatever the others do.
+ */
+async function gather(
+  paths: readonly string[],
+  one: CoverageOf,
+  many: CoverageOfMany | undefined,
+): Promise<Gathered> {
+  const found: Gathered[] = [];
+  for (const group of groupsOf(paths)) found.push(await groupCoverage(group, one, many));
+  return { maps: found.flatMap((got) => got.maps), failed: found.flatMap((got) => got.failed) };
+}
+
+interface Sources {
+  readonly coverageOf: CoverageOf;
+  readonly coverageOfMany: CoverageOfMany | undefined;
+}
+
+interface CoverRun extends Sources {
+  readonly read: Reader;
+  /** The merge-base versions of the changed test files, run beside the originals, as they covered then. */
+  readonly baseMaps: (tests: readonly ChangedFile[]) => Promise<readonly CoverageMap[]>;
+}
+
+const byPathThenStartRef = (a: FunctionRef, b: FunctionRef): number =>
+  a.path.localeCompare(b.path) || a.start - b.start;
+
+/**
  * The functions every changed test file covers, as it is at HEAD and as it was at the merge base (so a test
- * that dropped a call keeps the function it no longer calls in scope). A head version that cannot run is `fail`;
- * a merge-base version that cannot run against the head is left out.
+ * that dropped a call keeps the function it no longer calls in scope). A head version that cannot run is `fail`,
+ * naming the first such file; a merge-base version that cannot run against the head is left out. The functions are
+ * those any of the runs covered, ordered by file and line.
  */
 async function coveredFunctions(tests: readonly ChangedFile[], run: CoverRun): Promise<Covered> {
-  const refs: FunctionRef[] = [];
-  for (const test of tests) {
-    const head = await headMap(test, run);
-    if (head === undefined) {
-      return { ok: false, reason: `could not run ${test.path} to find the functions it covers` };
-    }
-    refs.push(...refsCovered(head, run.read), ...refsCovered(await baseMap(test, run), run.read));
+  const heads = tests.filter((test) => test.status !== "deleted").map((test) => test.path);
+  const head = await gather(heads, run.coverageOf, run.coverageOfMany);
+  const [first] = head.failed;
+  if (first !== undefined) {
+    return { ok: false, reason: `could not run ${first} to find the functions it covers` };
   }
-  return { ok: true, refs: uniqueByKey(refs) };
+  const bases = await run.baseMaps(tests.filter((test) => test.status !== "added"));
+  const refs = [...head.maps, ...bases].flatMap((map) => refsCovered(map, run.read));
+  return { ok: true, refs: [...uniqueByKey(refs)].sort(byPathThenStartRef) };
 }
 
 const randomToken = (): string => randomBytes(6).toString("hex");
@@ -161,36 +224,80 @@ function createCopy(path: string, text: string): boolean {
   }
 }
 
+interface Copy {
+  /** The copy's path relative to the project, as the test runner is asked for it. */
+  readonly name: string;
+  readonly path: string;
+}
+
+/** The merge-base copy of one test file, written beside it so its imports resolve; undefined when the file is not at the merge base or the name is taken. */
+async function copyOf(
+  options: ScopeOptions,
+  exec: Exec,
+  mergeBase: string,
+  test: string,
+): Promise<Copy | undefined> {
+  const shown = await showAt(exec, options.cwd, mergeBase, test);
+  if (!shown.ok) return undefined;
+  const name = copyName(test, (options.copyToken ?? randomToken)());
+  const path = join(options.cwd, name);
+  return createCopy(path, shown.value) ? { name, path } : undefined;
+}
+
+/** What a coverage source gives, or undefined for a run that throws. */
+async function quietly<A>(
+  run: (given: A) => Promise<CoverageMap | undefined>,
+  given: A,
+): Promise<CoverageMap | undefined> {
+  try {
+    return await run(given);
+  } catch {
+    return undefined;
+  }
+}
+
+function quietMany(many: CoverageOfMany | undefined): CoverageOfMany | undefined {
+  return many === undefined ? undefined : (group) => quietly(many, group);
+}
+
+/** Writes the merge-base copy of each test file that has one, adding each to `copies` as it is made. */
+async function copyAll(
+  copies: Copy[],
+  options: ScopeOptions,
+  exec: Exec,
+  mergeBase: string,
+  tests: readonly ChangedFile[],
+): Promise<void> {
+  for (const test of tests) {
+    const copy = await copyOf(options, exec, mergeBase, test.path);
+    if (copy !== undefined) copies.push(copy);
+  }
+}
+
 /**
- * The coverage of the merge-base copy of a test file, written beside the original so its imports resolve, run,
- * and removed. Only a file this created is removed; a path that is already taken means no run (undefined).
+ * The coverage of the merge-base versions of the changed test files, each written beside the original under a name
+ * that is never the original's, run together (file by file where that fails), and all removed whatever happens. Only a
+ * file this created is removed; a path that is already taken means no run for that file.
  */
 async function baseCoverage(
   options: ScopeOptions,
   exec: Exec,
   mergeBase: string,
-  coverageOf: CoverageOf,
-  test: string,
-): Promise<CoverageMap | undefined> {
-  const shown = await showAt(exec, options.cwd, mergeBase, test);
-  if (!shown.ok) return undefined;
-  const copy = copyName(test, (options.copyToken ?? randomToken)());
-  const path = join(options.cwd, copy);
-  return createCopy(path, shown.value) ? runCopy(coverageOf, copy, path) : undefined;
-}
-
-/** Runs the coverage of a copy this created, and removes the copy whatever happens. */
-async function runCopy(
-  coverageOf: CoverageOf,
-  copy: string,
-  path: string,
-): Promise<CoverageMap | undefined> {
+  sources: Sources,
+  tests: readonly ChangedFile[],
+): Promise<readonly CoverageMap[]> {
+  const copies: Copy[] = [];
   try {
-    return await coverageOf(copy);
-  } catch {
-    return undefined;
+    await copyAll(copies, options, exec, mergeBase, tests);
+    const names = copies.map((copy) => copy.name);
+    const got = await gather(
+      names,
+      (file) => quietly(sources.coverageOf, file),
+      quietMany(sources.coverageOfMany),
+    );
+    return got.maps;
   } finally {
-    rmSync(path, { force: true });
+    for (const copy of copies) rmSync(copy.path, { force: true });
   }
 }
 
@@ -239,6 +346,21 @@ function scopeOf(
   };
 }
 
+/** A source for a group of files: the caller's, else Vitest on the group, unless the caller gave a source for one file only. */
+function manyOf(options: ScopeOptions, run: CoverageRun): CoverageOfMany | undefined {
+  if (options.coverageOfMany !== undefined) return options.coverageOfMany;
+  return options.coverageOf === undefined ? (group) => vitestCoverageOfMany(group, run) : undefined;
+}
+
+/** Where coverage comes from: what the caller gave, else Vitest runs. */
+function sourcesOf(options: ScopeOptions, exec: Exec): Sources {
+  const run = { cwd: options.cwd, exec, exclude: options.exclude ?? [] };
+  return {
+    coverageOf: options.coverageOf ?? ((test) => vitestCoverageOf(test, run)),
+    coverageOfMany: manyOf(options, run),
+  };
+}
+
 async function assemble(
   options: ScopeOptions,
   exec: Exec,
@@ -246,14 +368,13 @@ async function assemble(
   files: readonly ChangedFile[],
 ): Promise<ScopeResult> {
   const read = readerFor(options.cwd);
-  const coverageOf =
-    options.coverageOf ??
-    ((test: string) =>
-      vitestCoverageOf(test, { cwd: options.cwd, exec, exclude: options.exclude ?? [] }));
-  const baseCoverageOf = (test: string): Promise<CoverageMap | undefined> =>
-    baseCoverage(options, exec, mergeBase, coverageOf, test);
+  const coverage = sourcesOf(options, exec);
   const tests = files.filter((file) => isTestFile(file.path));
-  const covered = await coveredFunctions(tests, { coverageOf, read, baseCoverageOf });
+  const covered = await coveredFunctions(tests, {
+    ...coverage,
+    read,
+    baseMaps: (changed) => baseCoverage(options, exec, mergeBase, coverage, changed),
+  });
   if (!covered.ok) return { outcome: "fail", reason: covered.reason };
   const scope = scopeOf(mergeBase, files, read, covered.refs);
   return scope.mutate.length === 0
