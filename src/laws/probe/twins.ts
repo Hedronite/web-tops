@@ -83,6 +83,7 @@ export function materialize(
   const config = {
     extends: tsconfig,
     compilerOptions: { noEmit: true },
+    // `.astro` is here because the probe's ESLint wrapper config names this tsconfig as the `project` of the twins.
     include: ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts", "**/*.astro"],
     exclude: [],
   };

@@ -35,6 +35,16 @@ describe("G3c `laws probe` under a class with JSX and CSS: W-22 and W-26", () =>
     expect(failing(ui.report)).toEqual([]);
   });
 
+  it("skips the .astro twins of a web-app that does not depend on astro, and names each with the reason", () => {
+    const names = ui.report.skipped.map((twin) => twin.file);
+    expect(names).toContain("W-22/bad/astro-a11y-alt-text.astro");
+    expect(names).toContain("W-22/clean/astro-a11y-alt-text.astro");
+    expect(names.every((name) => name.endsWith(".astro"))).toBe(true);
+    expect(new Set(ui.report.skipped.map((twin) => twin.reason))).toEqual(
+      new Set(["a web-app lints .astro files only when the project depends on astro"]),
+    );
+  });
+
   it("a law whose twins are all Astro is not probed for a web-app that does not depend on astro, and the exit says why", () => {
     const run = probeProcess(adopter(undefined, true), "--class", "web-app", "--law", "W-49");
     expect(run.code).toBe(2);
