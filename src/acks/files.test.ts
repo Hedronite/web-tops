@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { ackedFiles, ledgerPath } from "./files.ts";
+import { ackedFiles, ledgerPath, namedLedger } from "./files.ts";
 
 const made: string[] = [];
 
@@ -110,5 +110,13 @@ describe("ledgerPath: the ledger the config names, else the default", () => {
     expect(ledgerPath(project({ "web-tops.yaml": "laws:\n  ack_ledger: 7\n" }))).toBe(
       ".web-tops/acks.yaml",
     );
+  });
+});
+
+describe("namedLedger: the ledger a validated config names", () => {
+  it("is the one `laws.ack_ledger` names, else the default path", () => {
+    expect(namedLedger({ laws: { ack_ledger: "docs/acks.yaml" } })).toBe("docs/acks.yaml");
+    expect(namedLedger({ laws: {} })).toBe(".web-tops/acks.yaml");
+    expect(namedLedger({})).toBe(".web-tops/acks.yaml");
   });
 });
