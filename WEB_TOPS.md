@@ -1169,6 +1169,7 @@ web-tops/
 │   ├── diff/                # changed lines and functions against the merge base
 │   ├── gate/                # runner, tiers, verdicts, run info
 │   ├── init/                # webtops init: renders the drop-in set
+│   ├── lawdiff/             # webtops law-diff: what a PR weakens, surface by surface (§11)
 │   ├── laws/                # the law catalog (§8.3): the loader, the queries and the §8.2 table generator; the probe, the ESLint and compiler readers and the laws layer (§6.5)
 │   ├── layers/              # hygiene, tests, coverage, crap, mutation
 │   ├── lock/                # tool pins, web-tops.lock, the Node range
@@ -1184,7 +1185,7 @@ web-tops/
 ├── probes/                  # w22/: the W-22 proof, its own package and lock
 ├── examples/                # node-service/: a node-service project that gates itself, its own package and lock
 ├── docs/brand/
-├── .github/workflows/       # the gate job
+├── .github/workflows/       # the gate job and the law-diff job
 ├── WEB_TOPS.md
 ├── AGENTS.md · CLAUDE.md · CHANGELOG.md · README.md
 ├── web-tops.yaml · web-tops.lock · package.json · bun.lock
@@ -1193,7 +1194,7 @@ web-tops/
 
 The law twins are in `fixtures/laws/W-NN/{bad,clean}/`: a bad and a clean twin per law, which `webtops laws probe` proves.
 
-Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4) and the M3 paths: `src/acks/` and `src/lawdiff/`. The kit's tools already cover them: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
+Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4) and the M3 path: `src/acks/`. The kit's tools already cover them: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
 
 Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any release.
 
