@@ -749,6 +749,13 @@ law: the bad twin breaks each enabled rule on purpose, with an `// expect: <rule
 line, and the clean twin stays quiet. A test fails if a marked rule stays quiet on the bad twin or
 an unmarked one fires. Custom ESLint rules are tested with ESLint's `RuleTester`.
 
+**Acknowledgements.** A soft law (**A**, §8.2) that a file breaks is `ack-missing` unless the break is acknowledged, and an acknowledged break is `pass` and carries `ack: { source, reason }` (§3.3, §6.6). There are two forms:
+
+- **A comment** in the file: `// webtops-ack W-NN: reason`, or the same text in a block, CSS or `<!-- -->` comment. It covers a finding of that law on its own line or on the line below it. The reason holds a letter or a digit.
+- **A ledger entry** in `.web-tops/acks.yaml` (`laws.ack_ledger`, §9), which `schema/acks.schema.json` defines: `version: 1` and `acks`, each entry with `law`, `file`, `reason` and `owner`, and an optional `expires` (`YYYY-MM-DD`, UTC, valid through that day). It covers every finding of that law in that file; a file has one entry for each law. An expired entry acknowledges nothing.
+
+An acknowledgement fails, with a finding at its comment line or ledger file, when it gives no reason (`ack-no-reason`), does not read as above (`ack-malformed`), names a hard law (**R**), whose break is `refuse` and which nothing turns into a pass (`ack-not-needed`), or names no law (`ack-unknown-law`); an unreadable ledger fails too (`ack-ledger-unreadable`). `webtops check` reads the ledger and reports each of these for its entries (exit 2), and `webtops acks` lists them for the comments too (exit 1).
+
 ### 8.2 Law catalog (draft: 49 laws, W-01…W-49)
 
 Severity: **R** = a break is `refuse`, **A** = a break needs an acknowledgement or is `ack-missing`. ✓ = judged in v0.1. Law IDs from the TS-TOPS sketch
@@ -1039,6 +1046,7 @@ steps that bypass `webtops` judge nothing.
 | `lock [--verify \| --update]` | Tool pins |
 | `doctor` | Environment: Bun version, Node inside the lock's range (exit 3 outside it), TypeScript pin, Playwright browsers |
 | `survivors [list \| explain \| expire]` | Mutation ledger |
+| `acks [--json]` | The acknowledgements of soft laws (§8.1): the comments in tracked files and the ledger entries, and each one that is not well formed (exit 1) |
 | `version` | Protocol, package and pinned tool versions |
 
 Exit codes: 0 pass; 1 gate failed; 2 config invalid or lock mismatch; 3 environment error;
@@ -1178,6 +1186,7 @@ The kit is written in TypeScript and is installed and started with Bun, so it ga
 ```
 web-tops/
 ├── src/
+│   ├── acks/                # the ack comment and ledger (§8.1), and which acknowledgement covers a finding
 │   ├── baseline/            # webtops baseline: the projection from a report, the ratchet comparison, the baseline across a change
 │   ├── census/              # the suppression census readers (§6.7): directive comments, ESLint and tsconfig configuration
 │   ├── cli/                 # webtops entry and one file per command
@@ -1197,7 +1206,7 @@ web-tops/
 ├── profiles/                # one profile per launch class: the data init renders from
 ├── packages/                # eslint-plugin-webtops: the custom ESLint rules behind W-23, W-36 and W-37, built into the web-tops package
 ├── laws/                    # one W-NN.yaml per law (§8.3): the source of the §8.2 tables
-├── schema/                  # web-tops, gate-report, baseline, core (verdicts, modes) and law schemas
+├── schema/                  # web-tops, gate-report, baseline, acks, core (verdicts, modes) and law schemas
 ├── config/                  # drop-in templates, AGENTS.md.tmpl
 ├── fixtures/                # config (with examples/), hygiene, init, lock, report, probe, laws
 ├── probes/                  # w22/: the W-22 proof, its own package and lock
@@ -1211,7 +1220,7 @@ web-tops/
 
 The law twins are in `fixtures/laws/W-NN/{bad,clean}/`: a bad and a clean twin per law, which `webtops laws probe` proves.
 
-Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4) and the M3 paths: `examples/node-service/` and `src/acks/`. The kit's tools already cover them: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
+Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4) and the M3 path: `examples/node-service/`. The kit's tools already cover them: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
 
 Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any release.
 

@@ -319,3 +319,41 @@ survivors:
     reason: The branch runs only when b !== y, so b > y and b >= y give the same
       answer.
     owner: web-platform
+  - file: src/survivors/path.ts
+    function: src/survivors/path.ts::<module>~1
+    mutator: ConditionalExpression
+    original: "path === \"\""
+    replacement: "false"
+    occurrence: 1
+    reason: 'path === "" is a second spelling of the first check: an empty path
+      resolves to the project directory itself, and escapes() already refuses
+      that with the same message.'
+    owner: web-platform
+  - file: src/survivors/path.ts
+    function: src/survivors/path.ts::<module>~1
+    mutator: StringLiteral
+    original: "\"\""
+    replacement: "\"Stryker was here!\""
+    occurrence: 1
+    reason: 'path === "" is a second spelling of the first check: an empty path
+      resolves to the project directory itself, and escapes() already refuses
+      that with the same message.'
+    owner: web-platform
+  - file: src/survivors/path.ts
+    function: src/survivors/path.ts::existingAncestor
+    mutator: ConditionalExpression
+    original: "dirname(current) !== current"
+    replacement: "true"
+    occurrence: 1
+    reason: existingAncestor stops at the first path that exists, and the root of
+      the file system always does, so the guard only restates that.
+    owner: web-platform
+  - file: src/survivors/path.ts
+    function: src/survivors/path.ts::lower
+    mutator: MethodExpression
+    original: "path.toLowerCase()"
+    replacement: "path.toUpperCase()"
+    occurrence: 1
+    reason: lower is only used to compare two paths with each other, so folding both
+      to upper case compares them the same.
+    owner: web-platform

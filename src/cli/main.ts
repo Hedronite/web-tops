@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { runAcksCli } from "./acks.ts";
 import { runBaselineCli } from "./baseline.ts";
 import { runCheckCli } from "./check.ts";
 import { runDoctorCli } from "./doctor.ts";
@@ -27,6 +28,7 @@ const COMMANDS: ReadonlyMap<string, Command> = new Map<string, Command>([
   ["survivors", runSurvivorsCli],
   ["version", runVersionCli],
   ["laws", runLawsCli],
+  ["acks", runAcksCli],
   ["law-diff", (argv, io) => runLawDiffCli(argv, io)],
 ]);
 
