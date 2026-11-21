@@ -57,6 +57,22 @@ describe("ackedFiles: the files a law has a valid ledger entry for", () => {
     expect(ackedFiles(dir, "W-31", "2026-11-20", SEVERITY)).toEqual({ ok: true, files: [] });
   });
 
+  it("reads the ledger it is given, not the one the config file names", () => {
+    const dir = project({
+      "web-tops.yaml": "laws:\n  ack_ledger: named/acks.yaml\n",
+      "named/acks.yaml": ledger(entry("W-28", "src/named.astro")),
+      "given/acks.yaml": ledger(entry("W-28", "src/given.astro")),
+    });
+    expect(ackedFiles(dir, "W-28", "2026-11-20", SEVERITY)).toEqual({
+      ok: true,
+      files: ["src/named.astro"],
+    });
+    expect(ackedFiles(dir, "W-28", "2026-11-20", SEVERITY, "given/acks.yaml")).toEqual({
+      ok: true,
+      files: ["src/given.astro"],
+    });
+  });
+
   it("an entry is valid through the day it names, and an expired one acknowledges nothing", () => {
     const dir = project({
       ".web-tops/acks.yaml": ledger(

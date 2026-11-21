@@ -1,14 +1,16 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type * as Files from "../../acks/files.ts";
 import type { AckedFiles } from "../../acks/files.ts";
 import { cfg, tempProject, type TempProject } from "../../gate/testkit.ts";
-import type { Exec, ExecOptions, ExecResult, LayerContext } from "../../gate/types.ts";
+import type { Exec, ExecOptions, ExecResult, GateConfig, LayerContext } from "../../gate/types.ts";
 import { ackedEnv, readLedger, runTool, toolEnv, toolOf } from "./tooling.ts";
 
 const seen: { args: unknown[][] } = vi.hoisted(() => ({ args: [] }));
 
-vi.mock("../../acks/files.ts", () => ({
+vi.mock("../../acks/files.ts", async (original) => ({
+  ...(await original<typeof Files>()),
   ackedFiles: (...args: unknown[]): AckedFiles => {
     seen.args.push(args);
     return { ok: true, files: ["src/page.astro"] };
@@ -47,6 +49,8 @@ interface Start {
 function contextOver(
   dir: string,
   answer: ExecResult = CLEAN,
+  env: LayerContext["env"] = { PATH: "/usr/bin" },
+  config: GateConfig = cfg(),
 ): { ctx: LayerContext; starts: Start[] } {
   const starts: Start[] = [];
   const exec: Exec = (command, args, options) => {
@@ -55,10 +59,10 @@ function contextOver(
   };
   const ctx: LayerContext = {
     cwd: dir,
-    config: cfg(),
+    config,
     base: "origin/main",
     enforce: "hard",
-    env: { PATH: "/usr/bin" },
+    env,
     exec,
     outDir: join(dir, ".web-tops", "out"),
     artifacts: new Map(),
@@ -103,24 +107,25 @@ describe("the finding's tool for a name a step runs", () => {
   });
 });
 
+const LAW = (files: readonly string[]): string => JSON.stringify({ "W-28": files });
+
 describe("the environment that tells the preset which files the ledger covers", () => {
   it("lists the files of a ledger that has some, by law", () => {
-    expect(ackedEnv(LISTED)).toEqual({
-      WEBTOPS_ACKED_FILES: JSON.stringify({ "W-28": ["src/a.astro", "src/b.astro"] }),
-    });
+    expect(ackedEnv(LISTED)).toEqual({ WEBTOPS_ACKED_FILES: LAW(["src/a.astro", "src/b.astro"]) });
   });
 
-  it("adds nothing for a ledger that lists no file, or cannot be read, so the finding stays", () => {
-    expect(ackedEnv({ ok: true, files: [] })).toEqual({});
-    expect(ackedEnv(UNREADABLE)).toEqual({});
+  it("lists no file for a ledger that lists none, or cannot be read, so the finding stays", () => {
+    expect(ackedEnv({ ok: true, files: [] })).toEqual({ WEBTOPS_ACKED_FILES: LAW([]) });
+    expect(ackedEnv(UNREADABLE)).toEqual({ WEBTOPS_ACKED_FILES: LAW([]) });
   });
 });
 
 describe("the ledger's files for W-28", () => {
   it("asks for W-28 in the project, on today's UTC date, with the catalog's severities", () => {
     seen.args.length = 0;
+    const { ctx } = contextOver("/work/site");
     const before = new Date().toISOString().slice(0, 10);
-    const found = readLedger("/work/site");
+    const found = readLedger(ctx);
     const after = new Date().toISOString().slice(0, 10);
     expect(found).toEqual({ ok: true, files: ["src/page.astro"] });
     expect(seen.args).toHaveLength(1);
@@ -129,26 +134,43 @@ describe("the ledger's files for W-28", () => {
     expect([before, after]).toContain(today);
     expect(severity).toBe(SEVERITY);
   });
+
+  it("reads the ledger the loaded config names, and the default one when it names none", () => {
+    seen.args.length = 0;
+    readLedger(
+      contextOver("/work/site", CLEAN, { PATH: "/usr/bin" }, cfg({ ackLedger: "ops/acks.yaml" }))
+        .ctx,
+    );
+    readLedger(contextOver("/work/site").ctx);
+    expect(seen.args.map((args) => args[4])).toEqual(["ops/acks.yaml", ".web-tops/acks.yaml"]);
+  });
 });
 
 describe("the environment a tool runs in", () => {
-  it("gives ESLint the ledger's files besides the layer's environment, asking about the project", () => {
+  it("gives ESLint the ledger's files besides the layer's environment, asking about the run's context", () => {
     const { ctx } = contextOver("/work/site");
-    const asked: string[] = [];
-    const env = toolEnv(ctx, "eslint", (cwd) => {
-      asked.push(cwd);
+    const asked: LayerContext[] = [];
+    const env = toolEnv(ctx, "eslint", (from) => {
+      asked.push(from);
       return LISTED;
     });
-    expect(asked).toEqual(["/work/site"]);
+    expect(asked).toEqual([ctx]);
     expect(env).toEqual({
       PATH: "/usr/bin",
-      WEBTOPS_ACKED_FILES: JSON.stringify({ "W-28": ["src/a.astro", "src/b.astro"] }),
+      WEBTOPS_ACKED_FILES: LAW(["src/a.astro", "src/b.astro"]),
     });
   });
 
-  it("gives ESLint the layer's environment alone when the ledger lists none", () => {
-    const { ctx } = contextOver("/work/site");
-    expect(toolEnv(ctx, "eslint", () => UNREADABLE)).toEqual({ PATH: "/usr/bin" });
+  it.each([
+    ["lists none", { ok: true, files: [] } satisfies AckedFiles],
+    ["cannot be read", UNREADABLE],
+  ])("gives ESLint no file, over one the process inherited, when the ledger %s", (_name, acked) => {
+    const inherited = { PATH: "/usr/bin", WEBTOPS_ACKED_FILES: LAW(["src/page.astro"]) };
+    const { ctx } = contextOver("/work/site", CLEAN, inherited);
+    expect(toolEnv(ctx, "eslint", () => acked)).toEqual({
+      PATH: "/usr/bin",
+      WEBTOPS_ACKED_FILES: LAW([]),
+    });
   });
 
   it("gives every other tool the layer's environment, and never reads the ledger for it", () => {
@@ -170,10 +192,7 @@ describe("running a tool", () => {
         args: [join(dir, "node_modules", "eslint", "bin", "eslint.js"), "--format", "json"],
         options: {
           cwd: dir,
-          env: {
-            PATH: "/usr/bin",
-            WEBTOPS_ACKED_FILES: JSON.stringify({ "W-28": ["src/page.astro"] }),
-          },
+          env: { PATH: "/usr/bin", WEBTOPS_ACKED_FILES: LAW(["src/page.astro"]) },
         },
       },
     ]);

@@ -145,7 +145,9 @@ const readsAstroPages = (className) =>
  * The files the ack ledger covers for a law, which the gate passes in `WEBTOPS_ACKED_FILES` as JSON, `{ "W-28":
  * ["src/page.astro"] }`: it reads the ledger once and ESLint, which runs under Node, cannot import the kit's
  * TypeScript. An editor's ESLint, run without the gate, has no such list, so it does not honour the ledger and
- * flags a file the ledger acknowledges; only a comment acknowledges there. A list that is not one is no files.
+ * flags a file the ledger acknowledges; only a comment acknowledges there. The gate always sets the variable for ESLint,
+ * with no file when the ledger lists none, so a value inherited from the environment never reaches the rule in a gate
+ * run; an editor's shell that has the variable set gets the ledger behaviour it names. A list that is not one is no files.
  */
 function ackedFilesOf(law) {
   try {

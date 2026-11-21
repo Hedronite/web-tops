@@ -51,7 +51,7 @@ function script(): string {
     `const steps = Object.fromEntries(HYGIENE_STEPS.map((name) => [name, name === "eslint" ? { enabled: true } : { enabled: false, reason: "not this test" }]));`,
     `const result = await hygieneLayer.run({`,
     `  cwd, config: cfg({ class: "astro-site", hygiene: { auditFailOn: "high", steps } }), base: "origin/main", enforce: "hard",`,
-    `  env: { PATH: process.env.PATH ?? "" }, exec: realExec, outDir: cwd + "/.web-tops/out", artifacts: new Map(),`,
+    `  env: { PATH: process.env.PATH ?? "", ...JSON.parse(process.env.WT_ENV ?? "{}") }, exec: realExec, outDir: cwd + "/.web-tops/out", artifacts: new Map(),`,
     `});`,
     `process.stdout.write(JSON.stringify(result.findings.filter((found) => found.verdict === "fail").map((found) => [found.rule, found.file, found.line])));`,
   ].join("\n");
@@ -76,10 +76,11 @@ function site(page: string, extra: Readonly<Record<string, string>> = {}): strin
   return cwd;
 }
 
-function findingsOf(cwd: string): unknown {
+/** The findings of the hygiene step; `inherited` is the environment the gate was started with, beyond PATH. */
+function findingsOf(cwd: string, inherited: Readonly<Record<string, string>> = {}): unknown {
   const done = spawnSync("bun", ["-e", script(), cwd], {
     cwd,
-    env: { ...process.env, WT_KIT: KIT },
+    env: { ...process.env, WT_KIT: KIT, WT_ENV: JSON.stringify(inherited) },
     encoding: "utf8",
   });
   if (done.status !== 0) {
@@ -125,6 +126,22 @@ describe.skipIf(insideStryker)("W-28 through the hygiene eslint step on a real a
     "still flags it with %s",
     (_name, ledger) => {
       expect(findingsOf(site(PAGE(""), { ".web-tops/acks.yaml": ledger }))).toEqual(FLAGGED);
+    },
+    SLOW,
+  );
+
+  it.each([
+    ["no ledger", {}],
+    ["a ledger that cannot be read", { ".web-tops/acks.yaml": "acks: [unclosed\n" }],
+    [
+      "an entry for another file",
+      { ".web-tops/acks.yaml": LEDGER("src/other.astro", "2999-01-01") },
+    ],
+  ])(
+    "still flags it when the gate inherits WEBTOPS_ACKED_FILES naming the file, with %s",
+    (_name, extra) => {
+      const inherited = { WEBTOPS_ACKED_FILES: JSON.stringify({ "W-28": ["src/page.astro"] }) };
+      expect(findingsOf(site(PAGE(""), extra), inherited)).toEqual(FLAGGED);
     },
     SLOW,
   );

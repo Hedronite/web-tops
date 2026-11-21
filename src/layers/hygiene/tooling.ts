@@ -1,4 +1,4 @@
-import { ackedFiles, type AckedFiles } from "../../acks/files.ts";
+import { ackedFiles, ledgerOf, type AckedFiles } from "../../acks/files.ts";
 import { catalogSeverity } from "../../acks/severity.ts";
 import { utcDate } from "../../survivors/dates.ts";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
@@ -99,27 +99,26 @@ export function resolveTool(cwd: string, spec: ToolSpec): string | undefined {
   return existsSync(entry) ? entry : undefined;
 }
 
-/** The files the ack ledger covers for W-28 today: the ledger's entries for it that have not expired. */
-export const readLedger = (cwd: string): AckedFiles =>
-  ackedFiles(cwd, "W-28", utcDate(new Date()), catalogSeverity());
+/** The files the ack ledger the config names covers for W-28 today: its entries for it that have not expired. */
+export const readLedger = (ctx: LayerContext): AckedFiles =>
+  ackedFiles(ctx.cwd, "W-28", utcDate(new Date()), catalogSeverity(), ledgerOf(ctx.config));
 
 /**
  * The environment that tells the ESLint preset which files the ledger covers for W-28 (`WEBTOPS_ACKED_FILES`, JSON by
- * law), so the rule does not flag them. A ledger that lists none, or cannot be read, adds nothing: the finding stays,
- * and the laws layer and `webtops acks` report the ledger.
+ * law), so the rule does not flag them. It is always set, with no file when the ledger lists none or cannot be read, so
+ * a value the process inherited never reaches the rule: the finding stays, and the laws layer and `webtops acks`
+ * report the ledger.
  */
-export const ackedEnv = (acked: AckedFiles): Record<string, string> =>
-  acked.ok && acked.files.length > 0
-    ? { WEBTOPS_ACKED_FILES: JSON.stringify({ "W-28": acked.files }) }
-    : {};
+export const ackedEnv = (acked: AckedFiles): Record<string, string> => ({
+  WEBTOPS_ACKED_FILES: JSON.stringify({ "W-28": acked.ok ? acked.files : [] }),
+});
 
 /** The environment a tool runs in: the layer's own, and for ESLint the ledger's files as well. */
 export const toolEnv = (
   ctx: LayerContext,
   name: string,
-  ledger: (cwd: string) => AckedFiles = readLedger,
-): LayerContext["env"] =>
-  name === "eslint" ? { ...ctx.env, ...ackedEnv(ledger(ctx.cwd)) } : ctx.env;
+  ledger: (from: LayerContext) => AckedFiles = readLedger,
+): LayerContext["env"] => (name === "eslint" ? { ...ctx.env, ...ackedEnv(ledger(ctx)) } : ctx.env);
 
 /** Runs a tool's executable under `node`; a missing `node` is worded so it is not blamed on the tool. */
 async function underNode(
