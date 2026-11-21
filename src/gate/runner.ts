@@ -422,8 +422,11 @@ function seedOf(state: RunState): number | null {
 }
 
 /** "N of M laws judged", when the laws layer ran: counted from its findings, so a reader can recount it. */
-function lawsOf(state: RunState, className: ClassName): { laws?: LawsSummary } {
-  const layer = state.layers.find((one) => one.id === "laws");
+export function lawsOf(
+  layers: readonly Report["layers"][number][],
+  className: ClassName,
+): { laws?: LawsSummary } {
+  const layer = layers.find((one) => one.id === "laws");
   return layer !== undefined && hasRun(layer.verdict)
     ? { laws: summarizeLaws(layer.findings, className) }
     : {};
@@ -464,7 +467,7 @@ function reportOf(
     counts: countsOf(state),
     problems,
     layers: state.layers,
-    ...lawsOf(state, config.class),
+    ...lawsOf(state.layers, config.class),
   };
 }
 
