@@ -1,5 +1,8 @@
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
+import type { Ack } from "../../acks/apply.ts";
+import type { Collected } from "../../acks/collect.ts";
+import type { SeverityOf } from "../../acks/severity.ts";
 import { cfg } from "../../gate/testkit.ts";
 import type { Exec, GateConfig, LayerContext, LayerResult } from "../../gate/types.ts";
 import { cleanTemp, put, tempDir } from "../probe/testkit.ts";
@@ -8,7 +11,10 @@ import { lawsLayer } from "./index.ts";
 
 afterAll(cleanTemp);
 
-/** The laws layer reads the acknowledgements of the project, the comments and the ledger `laws.ack_ledger` names. */
+/**
+ * The laws layer reads the acknowledgements of the project through the function it is given (the real one reads the
+ * comments and the ledger: the child process test beside this one runs the real gate), and applies them.
+ */
 
 const SOFT: LawEntry = {
   id: "W-12",
@@ -19,7 +25,7 @@ const SOFT: LawEntry = {
   rules: [{ tool: "eslint", name: "no-await-in-loop" }],
 };
 
-/** Another soft law, and a hard one: a comment or an entry of either names a law, so it is not an unknown id. */
+/** Another soft law, and a hard one: they are in the catalog, so an acknowledgement naming them is not of an unknown id. */
 const OTHER: LawEntry = { ...SOFT, id: "W-13", judged: false };
 const HARD: LawEntry = { ...SOFT, id: "W-04", severity: "R", judged: false };
 
@@ -48,18 +54,6 @@ const passes: LawReader = (input) =>
     input.laws.map((law) => ({ law: law.id, verdict: "pass" as const, findings: [] })),
   );
 
-const LEDGER = [
-  "version: 1",
-  "acks:",
-  "  - law: W-12",
-  "    file: src/a.ts",
-  "    reason: Each step needs the one before it.",
-  "    owner: web-platform",
-  "",
-].join("\n");
-
-const WHOLE = "export const a = 1;\nawait Promise.resolve();\nawait Promise.resolve();\n";
-
 /** A fake process runner: `git ls-files` lists the project's files, and `node` answers the ESLint question. */
 const runner: Exec = (command) =>
   Promise.resolve({
@@ -71,16 +65,30 @@ const runner: Exec = (command) =>
     stderr: "",
   });
 
+const NOTHING: Collected = { acks: [], problems: [] };
+
+const ledgerAck: Ack = {
+  source: "ledger",
+  law: "W-12",
+  file: "src/a.ts",
+  reason: "Each step needs the one before it.",
+};
+const commentAck: Ack = { ...ledgerAck, source: "comment", line: 2 };
+
+interface Seen {
+  ledger?: string;
+  severity?: SeverityOf;
+}
+
 async function run(
-  files: Readonly<Record<string, string>>,
-  config: Partial<GateConfig> = {},
-  reader: LawReader = refuses,
+  collected: Collected,
+  options: { config?: Partial<GateConfig>; reader?: LawReader; seen?: Seen } = {},
 ): Promise<LayerResult> {
   const cwd = tempDir();
-  put(cwd, { "src/a.ts": WHOLE, "out/e.json": "[]\n", "out/t.json": "[]\n", ...files });
+  put(cwd, { "out/e.json": "[]\n", "out/t.json": "[]\n" });
   const ctx: LayerContext = {
     cwd,
-    config: cfg({ class: "ts-library", ...config }),
+    config: cfg({ class: "ts-library", ...options.config }),
     base: "origin/main",
     enforce: "hard",
     env: {},
@@ -91,27 +99,38 @@ async function run(
       ["tsc-diagnostics", join(cwd, "out/t.json")],
     ]),
   };
-  return lawsLayer(() => [SOFT, OTHER, HARD], new Map([["eslint", reader]])).run(ctx);
+  const seen = options.seen ?? {};
+  return lawsLayer(
+    () => [SOFT, OTHER, HARD],
+    new Map([["eslint", options.reader ?? refuses]]),
+    (_cwd, _files, ledger, severity) => {
+      seen.ledger = ledger;
+      seen.severity = severity;
+      return collected;
+    },
+  ).run(ctx);
 }
-
-const runQuiet = (files: Readonly<Record<string, string>>) => run(files, {}, passes);
 
 const lawOf = (result: LayerResult) => result.findings.find((found) => found.rule === "law/W-12");
 const placeOf = (result: LayerResult) =>
   result.findings.find((found) => found.rule === "no-await-in-loop");
+const problemsOf = (result: LayerResult) =>
+  result.findings.filter(
+    (found) => found.rule === "ack-not-needed" || found.rule === "ack-unknown-law",
+  );
 
 describe("a soft law that is refused with no acknowledgement", () => {
   it("is ack-missing, and the place says so", async () => {
-    const result = await run({});
+    const result = await run(NOTHING);
     expect([result.verdict, lawOf(result)?.verdict]).toEqual(["ack-missing", "ack-missing"]);
     expect(placeOf(result)).toMatchObject({ file: "src/a.ts", line: 3, verdict: "ack-missing" });
     expect(placeOf(result)?.ack).toBeUndefined();
   });
 });
 
-describe("a soft law acknowledged in the ledger", () => {
-  it("passes, and the place carries the ledger's ack", async () => {
-    const result = await run({ ".web-tops/acks.yaml": LEDGER });
+describe("a soft law that an acknowledgement covers", () => {
+  it("passes through a ledger entry, and the place carries the ledger's ack", async () => {
+    const result = await run({ acks: [ledgerAck], problems: [] });
     expect([result.verdict, lawOf(result)?.verdict]).toEqual(["pass", "pass"]);
     expect(placeOf(result)).toMatchObject({
       verdict: "pass",
@@ -119,31 +138,8 @@ describe("a soft law acknowledged in the ledger", () => {
     });
   });
 
-  it("is read from the file `laws.ack_ledger` names, and not from the default one", async () => {
-    const named = await run({ "docs/acks.yaml": LEDGER }, { ackLedger: "docs/acks.yaml" });
-    expect(named.verdict).toBe("pass");
-    const other = await run({ ".web-tops/acks.yaml": LEDGER }, { ackLedger: "docs/acks.yaml" });
-    expect(other.verdict).toBe("ack-missing");
-  });
-
-  it("does not pass it when the entry has expired", async () => {
-    const result = await run({
-      ".web-tops/acks.yaml": LEDGER.replace("    owner:", "    expires: 2000-01-01\n    owner:"),
-    });
-    expect(result.verdict).toBe("ack-missing");
-  });
-
-  it("does not pass it when the ledger cannot be read: the census fails the run for that", async () => {
-    const result = await run({ ".web-tops/acks.yaml": "version: [" });
-    expect(result.verdict).toBe("ack-missing");
-  });
-});
-
-describe("a soft law acknowledged by a comment", () => {
-  it("passes when the comment is on the line above the place, and carries the comment's ack", async () => {
-    const text =
-      "export const a = 1;\n// webtops-ack W-12: Each step needs the one before it.\nawait Promise.resolve();\n";
-    const result = await run({ "src/a.ts": text });
+  it("passes through a comment on the line above the place, and carries the comment's ack", async () => {
+    const result = await run({ acks: [commentAck], problems: [] });
     expect(result.verdict).toBe("pass");
     expect(placeOf(result)?.ack).toEqual({
       source: "comment",
@@ -151,46 +147,64 @@ describe("a soft law acknowledged by a comment", () => {
     });
   });
 
-  it("does not pass when the comment is for another law", async () => {
-    const text =
-      "export const a = 1;\n// webtops-ack W-13: Each step needs the one before it.\nawait Promise.resolve();\n";
-    expect((await run({ "src/a.ts": text })).verdict).toBe("ack-missing");
+  it("does not pass through an acknowledgement of another law", async () => {
+    const result = await run({ acks: [{ ...ledgerAck, law: "W-13" }], problems: [] });
+    expect(result.verdict).toBe("ack-missing");
   });
 });
 
-const problemsOf = (result: LayerResult) =>
-  result.findings.filter(
-    (found) => found.rule === "ack-not-needed" || found.rule === "ack-unknown-law",
-  );
+describe("the acknowledgements are read with the ledger the config names and the catalog's severities", () => {
+  it("asks for .web-tops/acks.yaml when the config names none, and for the one it names otherwise", async () => {
+    const standard: Seen = {};
+    await run(NOTHING, { seen: standard });
+    expect(standard.ledger).toBe(".web-tops/acks.yaml");
+    const named: Seen = {};
+    await run(NOTHING, { config: { ackLedger: "docs/acks.yaml" }, seen: named });
+    expect(named.ledger).toBe("docs/acks.yaml");
+  });
+
+  it("hands over the severity of every law of the catalog, not only those of the class, and none for an id that is no law", async () => {
+    const seen: Seen = {};
+    await run(NOTHING, { seen });
+    expect(["W-12", "W-13", "W-04", "W-99"].map((id) => seen.severity?.(id))).toEqual([
+      "A",
+      "A",
+      "R",
+      undefined,
+    ]);
+  });
+});
 
 describe("an acknowledgement of a hard law or of an id that is no law fails the layer", () => {
-  const quiet = "export const a = 1;\n";
+  const at = (rule: string, file: string, line?: number) => ({
+    file,
+    rule,
+    message: `${rule} says so`,
+    ...(line === undefined ? {} : { line }),
+  });
 
-  it("fails a comment of a hard law, at its line, though no law is broken", async () => {
-    const text = `${quiet}// webtops-ack W-04: Reviewed with the owner.\n`;
-    const result = await runQuiet({ "src/a.ts": text });
+  it("is a failing finding at the comment's line, though no law is broken", async () => {
+    const result = await run(
+      { acks: [], problems: [at("ack-not-needed", "src/a.ts", 2)] },
+      { reader: passes },
+    );
     expect(problemsOf(result)).toMatchObject([
       { rule: "ack-not-needed", verdict: "fail", file: "src/a.ts", line: 2 },
     ]);
     expect(result.verdict).toBe("fail");
   });
 
-  it("fails a comment of an id that is no law", async () => {
-    const result = await runQuiet({
-      "src/a.ts": `${quiet}// webtops-ack W-99: Reviewed with the owner.\n`,
-    });
-    expect(problemsOf(result)).toMatchObject([
-      { rule: "ack-unknown-law", verdict: "fail", file: "src/a.ts", line: 2 },
-    ]);
-    expect(result.verdict).toBe("fail");
-  });
-
-  it("fails a ledger entry of a hard law and one of an id that is no law, at the ledger", async () => {
-    const entry = (law: string): string =>
-      `  - law: ${law}\n    file: src/a.ts\n    reason: Reviewed with the owner.\n    owner: web-platform\n`;
-    const result = await runQuiet({
-      ".web-tops/acks.yaml": `version: 1\nacks:\n${entry("W-04")}${entry("W-99")}`,
-    });
+  it("is a failing finding at the ledger, for each of the two rules", async () => {
+    const result = await run(
+      {
+        acks: [],
+        problems: [
+          at("ack-not-needed", ".web-tops/acks.yaml"),
+          at("ack-unknown-law", ".web-tops/acks.yaml"),
+        ],
+      },
+      { reader: passes },
+    );
     expect(problemsOf(result)).toMatchObject([
       { rule: "ack-not-needed", verdict: "fail", file: ".web-tops/acks.yaml" },
       { rule: "ack-unknown-law", verdict: "fail", file: ".web-tops/acks.yaml" },
@@ -198,17 +212,23 @@ describe("an acknowledgement of a hard law or of an id that is no law fails the 
     expect(result.verdict).toBe("fail");
   });
 
-  it("says nothing of an acknowledgement of a soft law that is well formed, and of one with no reason, which the census says", async () => {
-    const text = `${quiet}// webtops-ack W-12: Reviewed with the owner.\n// webtops-ack W-13:\n`;
-    const result = await runQuiet({ "src/a.ts": text });
-    expect(problemsOf(result)).toEqual([]);
+  it("leaves the other problems of an acknowledgement to the census", async () => {
+    const result = await run(
+      {
+        acks: [],
+        problems: [at("ack-no-reason", "src/a.ts", 2), at("ack-ledger-unreadable", "acks.yaml")],
+      },
+      { reader: passes },
+    );
+    expect(result.findings.filter((found) => found.rule.startsWith("ack-"))).toEqual([]);
     expect(result.verdict).toBe("pass");
   });
 
   it("does not let a hard law's acknowledgement pass a refusal of a soft one", async () => {
-    const text =
-      "export const a = 1;\n// webtops-ack W-04: Reviewed with the owner.\nawait Promise.resolve();\n";
-    const result = await run({ "src/a.ts": text });
+    const result = await run({
+      acks: [],
+      problems: [at("ack-not-needed", "src/a.ts", 2)],
+    });
     expect(lawOf(result)?.verdict).toBe("ack-missing");
     expect(result.verdict).toBe("fail");
   });

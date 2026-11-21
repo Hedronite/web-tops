@@ -18,9 +18,7 @@ function ackedPlace(
   const ack =
     finding.file === undefined
       ? undefined
-      : ackFor(acks, law.id, finding.file, finding.line, today, (id) =>
-          id === law.id ? law.severity : undefined,
-        );
+      : ackFor(acks, law.id, finding.file, finding.line, today, () => law.severity);
   return ack === undefined ? finding : { ...finding, verdict: "pass", ack };
 }
 

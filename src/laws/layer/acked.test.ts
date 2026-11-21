@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Ack } from "../../acks/apply.ts";
 import type { RawFinding } from "../../report/findings.ts";
 import type { LawEntry, LawReading } from "../readers/types.ts";
-import { ackAll, ackReading } from "./acked.ts";
+import { ackAll, ackReading, lawAckFindings } from "./acked.ts";
 
 /** What an acknowledgement does to the reading of a soft law (WEB_TOPS.md sections 3.3 and 8.1). */
 
@@ -207,5 +207,40 @@ describe("ackAll: every law's readings, acknowledged by that law's acks", () => 
     ]);
     const all = ackAll([SOFT, other], byLaw, [ledger("src/a.ts")], TODAY);
     expect([firstVerdict(all, "W-12"), firstVerdict(all, "W-13")]).toEqual(["pass", "refuse"]);
+  });
+});
+
+describe("lawAckFindings: the problems the laws layer says", () => {
+  const problem = (rule: string, line?: number) => ({
+    file: "src/a.ts",
+    rule,
+    message: "m",
+    ...(line === undefined ? {} : { line }),
+  });
+
+  it("is a failing finding for each of the two rules, with its line only when it has one", () => {
+    expect(
+      lawAckFindings([problem("ack-not-needed", 4), problem("ack-unknown-law")]),
+    ).toStrictEqual([
+      {
+        tool: "webtops",
+        rule: "ack-not-needed",
+        verdict: "fail",
+        message: "m",
+        file: "src/a.ts",
+        line: 4,
+      },
+      { tool: "webtops", rule: "ack-unknown-law", verdict: "fail", message: "m", file: "src/a.ts" },
+    ]);
+  });
+
+  it("is nothing for the other rules", () => {
+    expect(
+      lawAckFindings([
+        problem("ack-no-reason", 1),
+        problem("ack-malformed", 1),
+        problem("ack-ledger-unreadable"),
+      ]),
+    ).toEqual([]);
   });
 });

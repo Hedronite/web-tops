@@ -1,6 +1,8 @@
 import { collectAcks } from "../../acks/collect.ts";
+import type { Collected } from "../../acks/collect.ts";
 import { ledgerOf } from "../../acks/files.ts";
 import { severityOf } from "../../acks/severity.ts";
+import type { SeverityOf } from "../../acks/severity.ts";
 import { ratchetHeld } from "../../baseline/state.ts";
 import type { EslintRead } from "../../census/eslint.ts";
 import type { Layer, LayerContext, LayerResult } from "../../gate/types.ts";
@@ -115,9 +117,18 @@ function resultOf(judged: readonly Judged[], own: readonly RawFinding[]): LayerR
   return { verdict: layerVerdict(judged, own), findings, artifacts: {} };
 }
 
+/** What reads the acknowledgements of a project: its comments and its ledger. */
+export type AcksOf = (
+  cwd: string,
+  files: readonly string[],
+  ledger: string,
+  severity: SeverityOf,
+) => Collected;
+
 async function run(
   catalog: LawCatalog,
   readers: ReadonlyMap<string, LawReader>,
+  acksOf: AcksOf,
   ctx: LayerContext,
 ): Promise<LayerResult> {
   const tracked = await trackedFiles(ctx);
@@ -131,7 +142,7 @@ async function run(
     forClass(law, ctx.config.class),
   );
   const input = { ctx, tracked: tracked.files, held: ratchetHeld(ctx), eslint };
-  const acks = collectAcks(ctx.cwd, tracked.files, ledgerOf(ctx.config), severityOf(catalog()));
+  const acks = acksOf(ctx.cwd, tracked.files, ledgerOf(ctx.config), severityOf(catalog()));
   const byLaw = ackAll(laws, await readAll(laws, input, readers), acks.acks, utcDate(new Date()));
   const facts = await eslint();
   const own = [
@@ -149,7 +160,11 @@ const CONSUMES: Layer["consumes"] = [
 ];
 
 /** The laws layer over a catalog of laws and the readers of each tool's rules. */
-export const lawsLayer = (catalog: LawCatalog, readers = defaultReaders()): Layer => ({
+export const lawsLayer = (
+  catalog: LawCatalog,
+  readers = defaultReaders(),
+  acksOf: AcksOf = collectAcks,
+): Layer => ({
   id: "laws",
   gate: "laws",
   tier: 1,
@@ -157,5 +172,5 @@ export const lawsLayer = (catalog: LawCatalog, readers = defaultReaders()): Laye
   requires: ["hygiene"],
   produces: [],
   consumes: CONSUMES,
-  run: (ctx) => run(catalog, readers, ctx),
+  run: (ctx) => run(catalog, readers, acksOf, ctx),
 });
