@@ -63,6 +63,7 @@ describe("the hygiene tsc step and project references", () => {
   it.each([
     ['{ "include": ["src"] }'],
     ['{ "references": [] }'],
+    ['{ "references": [{ "path": "a" }] } x'],
     ['{ // "references": [{ "path": "a" }]\n  "include": ["src"] }'],
     ['{ /* "references": [{ "path": "a" }] */ "include": ["src"] }'],
     ['{ "compilerOptions": { "paths": { "references": ["x"] } } }'],

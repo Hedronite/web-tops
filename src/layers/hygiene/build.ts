@@ -154,8 +154,9 @@ function hasReferences(cwd: string): boolean {
   try {
     const ts = loadTypeScript(cwd);
     const read = ts.readConfigFile(join(cwd, "tsconfig.json"), (file) => ts.sys.readFile(file));
+    if (read.error !== undefined) return false;
     const listed: unknown = Reflect.get(Object(read.config), "references");
-    return read.error === undefined && Array.isArray(listed) && listed.length > 0;
+    return Array.isArray(listed) && listed.length > 0;
   } catch {
     return false;
   }

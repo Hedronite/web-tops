@@ -135,6 +135,17 @@ describe("G6a: the data trees of section 17 are not part of the diff", () => {
     ]);
   });
 
+  it("only an examples/ folder at the top of the tree can be an example that gates itself", () => {
+    const text = diff(
+      ...change("docs/examples/gates/src/a.ts"),
+      ...change("examples/gates/src/b.ts"),
+    );
+    const owns: Parameters<typeof parseDiff>[1] = (folder) => folder.endsWith("examples/gates");
+    expect(parseDiff(text, owns).map((file) => file.path)).toEqual([
+      "docs/examples/gates/src/a.ts",
+    ]);
+  });
+
   it("keeps a file under examples/ whose folder holds no web-tops.yaml of its own, and leaves out one that does", () => {
     const text = diff(
       ...change("examples/gates/src/a.ts"),
