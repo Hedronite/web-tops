@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedronite.com/schemas/web-tops/0.3/acks.schema.json",
+  "title": "acknowledgement ledger (.web-tops/acks.yaml)",
+  "description": "The acknowledgements of soft laws (WEB_TOPS.md section 8.1) that are not written as a `// webtops-ack W-NN: reason` comment in source. An entry covers every finding of its law in its file.",
+  "type": "object",
+  "required": ["version", "acks"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "acks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["law", "file", "reason", "owner"],
+        "additionalProperties": false,
+        "properties": {
+          "law": { "type": "string", "pattern": "^W-[0-9]{2,}$" },
+          "file": {
+            "description": "A project-relative path with `/` separators.",
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "description": "Why the break is accepted. It holds a letter or a digit: an empty or punctuation-only reason is no reason.",
+            "type": "string",
+            "pattern": "[\\p{L}\\p{N}]"
+          },
+          "owner": { "type": "string", "pattern": "\\S" },
+          "expires": {
+            "description": "YYYY-MM-DD, UTC, valid through that day. An expired entry acknowledges nothing.",
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          }
+        }
+      }
+    }
+  }
+}

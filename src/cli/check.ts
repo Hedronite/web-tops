@@ -1,5 +1,8 @@
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { namedLedger } from "../acks/files.ts";
+import { ackLedgerReport } from "../acks/report.ts";
+import { catalogSeverity } from "../acks/severity.ts";
 import { configHistoryProblems } from "../baseline/config-history.ts";
 import { checkConfigFile } from "../config/validate.ts";
 import type { Problem, WebTopsConfig } from "../config/types.ts";
@@ -23,6 +26,11 @@ function line(problem: Problem): string {
   return `  ${problem.pointer === "" ? "(document)" : problem.pointer}: ${problem.message}\n`;
 }
 
+/** What `webtops check` writes for a configuration that is not valid: the file name, then a line for each problem. */
+export function invalidReport(path: string, problems: readonly Problem[]): string {
+  return `${path}: invalid\n${problems.map(line).join("")}`;
+}
+
 /** The ledger path the config names, else the default. */
 const ledgerPathOf = (config: {
   readonly gates?: { readonly mutation?: { readonly ledger?: string } };
@@ -33,6 +41,14 @@ function ledgerReport(directory: string, named: string): string | undefined {
   const problems = checkLedger(directory, named);
   if (problems.length === 0) return undefined;
   return `${named}: invalid\n${problems.map(line).join("")}`;
+}
+
+/** The problems of the survivor ledger, else those of the ack ledger (section 8.1), headed with the ledger's path; none when both are sound. */
+function ledgersReport(directory: string, config: WebTopsConfig): string | undefined {
+  return (
+    ledgerReport(directory, ledgerPathOf(config)) ??
+    ackLedgerReport(directory, namedLedger(config), catalogSeverity)
+  );
 }
 
 type Checked =
@@ -64,10 +80,10 @@ async function check(argv: readonly string[], io: Io): Promise<number> {
   const file = resolve(io.cwd, path);
   const result = await checked(file);
   if (!result.ok) {
-    io.err(`${path}: invalid\n${result.problems.map(line).join("")}`);
+    io.err(invalidReport(path, result.problems));
     return 2;
   }
-  const ledger = ledgerReport(dirname(file), ledgerPathOf(result.config));
+  const ledger = ledgersReport(dirname(file), result.config);
   if (ledger !== undefined) {
     io.err(ledger);
     return 2;
