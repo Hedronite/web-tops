@@ -1,15 +1,23 @@
+import { attwReader } from "../../laws/readers/attw.ts";
+import { bunReader } from "../../laws/readers/bun.ts";
+import { depcruiseReader } from "../../laws/readers/depcruise.ts";
 import { eslintReader } from "../../laws/readers/eslint.ts";
+import { publintReader } from "../../laws/readers/publint.ts";
 import { tscReader } from "../../laws/readers/tsc.ts";
 import type { LawReader } from "../../laws/readers/types.ts";
 
 /**
- * The readers by the tool whose rules they read. A law that maps a tool with no reader here is `not-evaluated` for that
- * tool, never a pass: the readers of dependency-cruiser, publint, attw, audit, the secrets scanner, the lock and knip
- * (G9) register here, one line each.
+ * The readers by the tool whose rules they read, one line each. A law that maps a tool with no reader here is
+ * `not-evaluated` for that tool, never a pass: the readers of the secrets scanner, the lock and knip (G9) register here
+ * when they land.
  */
 export function defaultReaders(): ReadonlyMap<string, LawReader> {
   return new Map([
+    ["attw", attwReader],
+    ["bun", bunReader],
+    ["dependency-cruiser", depcruiseReader],
     ["eslint", eslintReader],
+    ["publint", publintReader],
     ["tsc", tscReader],
   ]);
 }
