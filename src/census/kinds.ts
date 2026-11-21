@@ -16,10 +16,14 @@ export const CONFIG_KINDS = ["eslint-rule-off", "eslint-ignores", "tsconfig-excl
 /** The census kinds read from the syntax of the project's source: the settings of an axe run. */
 export const AXE_KINDS = ["axe-disable-rules", "axe-exclude"] as const;
 
+/** The census kind of acknowledgements of soft laws: `// webtops-ack W-NN: reason` comments and the entries of the ack ledger (WEB_TOPS.md section 8.1). */
+export const ACK_KINDS = ["webtops-ack"] as const;
+
 export type SourceKind = (typeof SOURCE_KINDS)[number];
+export type AckKind = (typeof ACK_KINDS)[number];
 export type ConfigKind = (typeof CONFIG_KINDS)[number];
 export type AxeKind = (typeof AXE_KINDS)[number];
-export type CensusKind = SourceKind | ConfigKind | AxeKind;
+export type CensusKind = SourceKind | ConfigKind | AxeKind | AckKind;
 
 /** The finding rule that stands for a census kind in a report: `census/<kind>` (read back by the baseline). */
 export const CENSUS_RULE_PREFIX = "census/";
@@ -39,4 +43,5 @@ export const KIND_MESSAGES: Readonly<Record<CensusKind, string>> = {
   "eslint-rule-off": "a per-file ESLint setting turns a rule off for this file",
   "eslint-ignores": "an ESLint ignores entry leaves this file out of linting",
   "tsconfig-exclude": "the tsconfig exclude leaves this file out of the program",
+  "webtops-ack": "an acknowledgement records a broken soft law as accepted here",
 };

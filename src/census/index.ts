@@ -2,7 +2,9 @@ import type { RawFinding } from "../report/findings.ts";
 import { axeFindings } from "./axe.ts";
 import { eslintIgnores, ruleOff } from "./config.ts";
 import type { ConfigHit } from "./config.ts";
-import { directivesIn, readsDirectives } from "./directives.ts";
+import { ackProblem, parseAck } from "../acks/comment.ts";
+import { readAckLedger } from "../acks/ledger.ts";
+import { allDirectivesIn, readsDirectives } from "./directives.ts";
 import { eslintFacts, hasEslintConfig } from "./eslint.ts";
 import type { Runner } from "./eslint.ts";
 import { failed, passFinding } from "./finding.ts";
@@ -10,7 +12,7 @@ import { readSource, withinSource } from "./files.ts";
 import { KIND_MESSAGES } from "./kinds.ts";
 import { tsconfigHits } from "./tsconfig.ts";
 
-export { AXE_KINDS, CENSUS_RULE_PREFIX, CONFIG_KINDS, SOURCE_KINDS } from "./kinds.ts";
+export { ACK_KINDS, AXE_KINDS, CENSUS_RULE_PREFIX, CONFIG_KINDS, SOURCE_KINDS } from "./kinds.ts";
 export type { CensusKind } from "./kinds.ts";
 export { directivesIn } from "./directives.ts";
 export { eslintIgnores, ruleOff, tsconfigExcluded } from "./config.ts";
@@ -18,6 +20,8 @@ export { eslintIgnores, ruleOff, tsconfigExcluded } from "./config.ts";
 /** What the census reads: the project, its tracked files, and a way to run ESLint. */
 export interface CensusInput extends Runner {
   readonly files: readonly string[];
+  /** The ack ledger's path (`laws.ack_ledger`): its entries are census items too, and one that cannot be read fails. */
+  readonly ackLedger?: string;
 }
 
 const ESLINT_FILES = /\.(?:[cm]?[jt]sx?|astro)$/u;
@@ -25,11 +29,30 @@ const ESLINT_FILES = /\.(?:[cm]?[jt]sx?|astro)$/u;
 /** A tracked file ESLint would be asked about: a script or Astro file outside the output and dependency folders. */
 const isLintable = (file: string): boolean => ESLINT_FILES.test(file) && withinSource(file);
 
-function directivesFor(cwd: string, file: string): RawFinding[] {
+export function directivesFor(cwd: string, file: string): RawFinding[] {
   const text = readSource(cwd, file);
   if (text === undefined) return [];
-  return directivesIn(file, text).map((found) =>
+  return allDirectivesIn(file, text).flatMap((found) => [
     passFinding(found.kind, file, KIND_MESSAGES[found.kind], found.line),
+    ...(found.kind === "webtops-ack" ? ackProblem(parseAck(found.body), file, found.line) : []),
+  ]);
+}
+
+/** The ack ledger's entries, one census item each, or the one failing finding that says the ledger cannot be read. */
+export function ledgerFindings(cwd: string, path: string | undefined): RawFinding[] {
+  if (path === undefined) return [];
+  const read = readAckLedger(cwd, path);
+  if (!read.ok) {
+    return [
+      failed(
+        "ack-ledger-unreadable",
+        read.problems.map((found) => `${found.pointer || path}: ${found.message}`).join("; "),
+        { file: path },
+      ),
+    ];
+  }
+  return read.acks.map((ack) =>
+    passFinding("webtops-ack", ack.file, `${ack.law}: ${KIND_MESSAGES["webtops-ack"]}`),
   );
 }
 
@@ -72,6 +95,7 @@ function tsconfigFindings(input: CensusInput): RawFinding[] {
 export async function censusFindings(input: CensusInput): Promise<RawFinding[]> {
   return [
     ...directiveFindings(input.cwd, input.files),
+    ...ledgerFindings(input.cwd, input.ackLedger),
     ...(await eslintFindings(input)),
     ...tsconfigFindings(input),
     ...axeFindings(input.cwd, input.files),

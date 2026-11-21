@@ -3,10 +3,7 @@ import { astroParts } from "../complexity/astro.ts";
 import type { AstroPart } from "../complexity/astro.ts";
 import { htmlComments, scriptComments, styleComments } from "./comments.ts";
 import type { Comment } from "./comments.ts";
-import type { SourceKind } from "./kinds.ts";
-
-/** The kind of an acknowledgement of a soft law (section 8.1); the census counts it from its own step. */
-type AckKind = "webtops-ack";
+import type { AckKind, SourceKind } from "./kinds.ts";
 
 /** The kinds a comment can be: a suppression directive, or an acknowledgement of a soft law. */
 type DirectiveKind = SourceKind | AckKind;

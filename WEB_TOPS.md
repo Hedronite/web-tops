@@ -652,6 +652,7 @@ fails under `ratchet`.
 | `eslint-ignores` | each tracked file in scope that an ESLint `ignores` entry leaves out |
 | `eslint-rule-off` | each (rule, tracked file in scope) pair whose effective level, from ESLint's `calculateConfigForFile`, is `off` while the rule is on for another tracked file with the same extension: a per-file override that sets a rule off. A rule that is on only for files of another extension, as typed rules are on for `.ts` and off for `.js`, is not one |
 | `tsconfig-exclude` | each tracked file in scope that `tsconfig.json` `exclude` leaves out of the program |
+| `webtops-ack` | each `// webtops-ack W-NN: reason` comment, and each entry of the ack ledger (§8.1) |
 
 A rule that is off everywhere is not a census item: for a required law it is `refuse` (§8.1).
 
@@ -754,7 +755,7 @@ an unmarked one fires. Custom ESLint rules are tested with ESLint's `RuleTester`
 - **A comment** in the file: `// webtops-ack W-NN: reason`, or the same text in a block, CSS or `<!-- -->` comment. It covers a finding of that law on its own line or on the line below it. The reason holds a letter or a digit.
 - **A ledger entry** in `.web-tops/acks.yaml` (`laws.ack_ledger`, §9), which `schema/acks.schema.json` defines: `version: 1` and `acks`, each entry with `law`, `file`, `reason` and `owner`, and an optional `expires` (`YYYY-MM-DD`, UTC, valid through that day). It covers every finding of that law in that file; a file has one entry for each law. An expired entry acknowledges nothing.
 
-An acknowledgement fails, with a finding at its comment line or ledger file, when it gives no reason (`ack-no-reason`), does not read as above (`ack-malformed`), names a hard law (**R**), whose break is `refuse` and which nothing turns into a pass (`ack-not-needed`), or names no law (`ack-unknown-law`); an unreadable ledger fails too (`ack-ledger-unreadable`).
+An acknowledgement fails, with a finding at its comment line or ledger file, when it gives no reason (`ack-no-reason`), does not read as above (`ack-malformed`), names a hard law (**R**), whose break is `refuse` and which nothing turns into a pass (`ack-not-needed`), or names no law (`ack-unknown-law`); an unreadable ledger fails too (`ack-ledger-unreadable`). Acknowledgements are a suppression census kind, `webtops-ack` (§6.7): each comment and each ledger entry counts, and baseline and ratchet hold the count. A law that an ESLint rule judges inside ESLint (W-28) honours an acknowledgement by suppressing its own finding, so the report carries no `ack` for it; the comment or ledger entry still counts in the census.
 
 ### 8.2 Law catalog (draft: 49 laws, W-01…W-49)
 
