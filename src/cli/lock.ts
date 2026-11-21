@@ -1,16 +1,13 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import pkg from "../../package.json" with { type: "json" };
 import type { LockRead } from "../lock/config.ts";
-import { NO_NODE_RANGE, readLockFile } from "../lock/config.ts";
+import { readLockFile } from "../lock/config.ts";
 import { candidateTools } from "../lock/candidates.ts";
-import type { Env } from "../lock/environment.ts";
 import { hostVersion } from "../lock/environment.ts";
 import { serializeLock } from "../lock/format.ts";
 import type { Lock } from "../lock/format.ts";
-import { installedVersion } from "../lock/installed.ts";
-import { satisfiesNodeRange } from "../lock/node.ts";
 import { NODE_RANGE } from "../lock/pins.ts";
+import { installed, lockProblems, toolNames } from "../lock/verify.ts";
 import type { Io } from "./io.ts";
 
 const USAGE = "usage: webtops lock [--verify | --update]\n";
@@ -28,45 +25,6 @@ function parseMode(argv: readonly string[]): Mode | undefined {
   return argv.length === 1 ? MODES.get(argv[0] ?? "") : undefined;
 }
 
-/** What is installed now for a locked tool: `webtops` is the running kit, every other tool is read from node_modules. */
-const installed = (cwd: string, tool: string): string | undefined =>
-  tool === "webtops" ? pkg.version : installedVersion(cwd, tool);
-
-/** The locked tools: every entry but `node`, which holds a range, not a version. */
-const toolNames = (lock: Lock): string[] => Object.keys(lock).filter((tool) => tool !== "node");
-
-function toolProblems(lock: Lock, cwd: string): string[] {
-  return toolNames(lock).flatMap((tool) => {
-    const locked = lock[tool] ?? "?";
-    const now = installed(cwd, tool);
-    if (now === undefined) return [`${tool}: locked ${locked}, not installed`];
-    return now === locked ? [] : [`${tool}: locked ${locked}, installed ${now}`];
-  });
-}
-
-/** A tool pins.ts pins and package.json declares that is installed and that the lock does not name: a lock that lost an entry, or never had it. */
-function missingFromLock(lock: Lock, cwd: string): string[] {
-  const found = candidateTools(cwd);
-  if (!found.ok) return [found.error];
-  return found.names.flatMap((tool) => {
-    const now = lock[tool] === undefined ? installedVersion(cwd, tool) : undefined;
-    return now === undefined
-      ? []
-      : [`${tool}: installed ${now}, pinned in section 2, missing from web-tops.lock`];
-  });
-}
-
-/** The line to print when the Node on the PATH is missing or outside the lock's range, else none. */
-function nodeProblems(lock: Lock, env: Env): string[] {
-  const range = lock["node"];
-  if (range === undefined) return [NO_NODE_RANGE];
-  const found = hostVersion("node", env);
-  if (found === undefined) return [`node: the lock needs ${range}, and no node is on the PATH`];
-  return satisfiesNodeRange(found, range)
-    ? []
-    : [`node: running ${found}, the lock needs ${range}`];
-}
-
 function confirm(lock: Lock, io: Io): number {
   const found = hostVersion("node", io.env) ?? "?";
   const tools = String(toolNames(lock).length);
@@ -77,11 +35,7 @@ function confirm(lock: Lock, io: Io): number {
 }
 
 function verify(lock: Lock, io: Io): number {
-  const problems = [
-    ...toolProblems(lock, io.cwd),
-    ...missingFromLock(lock, io.cwd),
-    ...nodeProblems(lock, io.env),
-  ];
+  const problems = lockProblems(lock, io.cwd, io.env);
   if (problems.length === 0) return confirm(lock, io);
   const plural = problems.length === 1 ? "" : "s";
   io.err(
