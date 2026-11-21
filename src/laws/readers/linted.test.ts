@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isLinted, isProbe, probePaths, trackedLinted } from "./files.ts";
+import { askedOf, isLinted, isProbe, probePaths, trackedLinted } from "./files.ts";
 
 describe("the files ESLint is asked about", () => {
   it("are the tracked TypeScript and Astro files outside the output and dependency folders", () => {
@@ -52,5 +52,18 @@ describe("the probe paths", () => {
   it("are told from files by their name", () => {
     expect(isProbe("src/__webtops_probe__.tsx")).toBe(true);
     expect(isProbe("src/probe.tsx")).toBe(false);
+  });
+});
+
+describe("what ESLint is asked about", () => {
+  it("is the tracked files it judges, then a probe path for each type the project lacks", () => {
+    expect(askedOf(["src/a.ts", "src/p.astro"])).toEqual([
+      "src/a.ts",
+      "src/p.astro",
+      "src/__webtops_probe__.tsx",
+      "src/__webtops_probe__.mts",
+      "src/__webtops_probe__.cts",
+    ]);
+    expect(askedOf([])).toHaveLength(5);
   });
 });

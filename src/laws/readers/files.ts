@@ -39,6 +39,9 @@ export function probePaths(files: readonly string[]): string[] {
     .map((extension) => `${probeBase()}${extension}`);
 }
 
+/** What ESLint is asked about: the tracked files it judges, and a probe path for each type the project has none of. */
+export const askedOf = (linted: readonly string[]): string[] => [...linted, ...probePaths(linted)];
+
 /** Whether a file is one of the types ESLint judges the lint laws over. */
 export const isLinted = (file: string): boolean =>
   lintedExtensions().includes(extname(file).toLowerCase());

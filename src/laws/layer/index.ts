@@ -2,7 +2,7 @@ import { ratchetHeld } from "../../baseline/state.ts";
 import type { EslintRead } from "../../census/eslint.ts";
 import type { Layer, LayerContext, LayerResult } from "../../gate/types.ts";
 import { askEslint } from "../../laws/readers/eslint-facts.ts";
-import { probePaths, trackedLinted, unlinted } from "../../laws/readers/files.ts";
+import { askedOf, trackedLinted, unlinted } from "../../laws/readers/files.ts";
 import type { RawFinding } from "../../report/findings.ts";
 import type { Verdict } from "../../report/types.ts";
 import { trackedFiles } from "../../layers/coverage/tracked.ts";
@@ -121,7 +121,7 @@ async function run(
   }
   const source = trackedLinted(tracked.files);
   const runner = { cwd: ctx.cwd, env: ctx.env, exec: ctx.exec, outDir: ctx.outDir };
-  const eslint = once(() => askEslint(runner, [...source, ...probePaths(source)]));
+  const eslint = once(() => askEslint(runner, askedOf(source)));
   const laws = lawsOfClass(catalog(), ctx.config.class).map((law) =>
     forClass(law, ctx.config.class),
   );
