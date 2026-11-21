@@ -4,7 +4,7 @@ All notable changes to this project are listed here. The protocol version and th
 
 ## [Unreleased]
 
-- Acknowledgements of soft laws (M3 G8): `// webtops-ack W-NN: reason` comments and `.web-tops/acks.yaml` (`schema/acks.schema.json`). One without a reason, or not readable as an acknowledgement, fails, as does one of a hard law or of an id that is no law; `webtops acks` lists them, and `webtops check` reads the ledger.
+- Acknowledgements of soft laws (M3 G8): `// webtops-ack W-NN: reason` comments and `.web-tops/acks.yaml` (`schema/acks.schema.json`). One without a reason, or not readable as an acknowledgement, fails, as does one of a hard law or of an id that is no law; `webtops acks` lists them, and `webtops check` reads the ledger. `webtops acks` marks each ledger entry `expires` or `expired`, an empty `acks.yaml` is an empty ledger, `webtops check` reports the survivor ledger and the ack ledger both, and `ackFor` and `ackedFiles` give nothing for a hard law or an id that is no law.
 - Milestone M3 opens: `knip`, `secretlint` with its recommended preset and `eslint-plugin-react-hooks` are pinned exactly in §2, `package.json` and the lock, and the M3 paths are in every tool scope. §8.1 and §17 name the law fixtures `fixtures/laws/W-NN/{bad,clean}/`. (G0)
 - The diff step finds what the changed test files cover with one Vitest run for their HEAD versions and one for their merge-base versions, not one run of each file alone, and runs file by file only where a group gives nothing. The functions in scope, the mutants and the verdicts are the same; the cost of the step falls with the number of changed test files.
 

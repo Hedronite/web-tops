@@ -69,6 +69,33 @@ describe.skipIf(insideStryker)("webtops check reads the ack ledger", () => {
   );
 
   it(
+    "reports the survivor ledger and the ack ledger when both are bad",
+    () => {
+      const done = webtops(
+        project({
+          ".web-tops/acks.yaml": ledger("W-04"),
+          ".web-tops/survivors.yaml": "version: 1\nsurvivors:\n  - key: x\n",
+        }),
+        "check",
+      );
+      expect(done.code).toBe(2);
+      expect(done.err).toContain(".web-tops/survivors.yaml: invalid");
+      expect(done.err).toContain(".web-tops/acks.yaml: invalid");
+      expect(done.err).toContain("ack-not-needed: src/a.ts: W-04 is a hard law");
+    },
+    SLOW,
+  );
+
+  it(
+    "passes a project whose acks.yaml is empty or only comments",
+    () => {
+      expect(webtops(project({ ".web-tops/acks.yaml": "" }), "check").code).toBe(0);
+      expect(webtops(project({ ".web-tops/acks.yaml": "# none yet\n" }), "check").code).toBe(0);
+    },
+    SLOW,
+  );
+
+  it(
     "passes a project with no ledger, and one whose entry is of a soft law",
     () => {
       expect(webtops(project({}), "check").code).toBe(0);

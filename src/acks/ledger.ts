@@ -64,6 +64,7 @@ function parsed(text: string): AckLedgerRead {
   const issue = [...doc.errors, ...doc.warnings][0];
   if (issue !== undefined) return refused(firstLine(issue.message));
   const value: unknown = doc.toJS();
+  if (value === null) return { ok: true, acks: [] };
   return validate(value) ? checked(value) : { ok: false, problems: toProblems(validate.errors) };
 }
 
