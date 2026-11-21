@@ -29,7 +29,9 @@ const ESLINT_FILES = /\.(?:[cm]?[jt]sx?|astro)$/u;
 /** A tracked file ESLint would be asked about: a script or Astro file outside the output and dependency folders. */
 const isLintable = (file: string): boolean => ESLINT_FILES.test(file) && withinSource(file);
 
+/** The census items of one tracked file's comments: none for a file the census does not read, or one in the output and dependency folders. */
 export function directivesFor(cwd: string, file: string): RawFinding[] {
+  if (!readsDirectives(file) || !withinSource(file)) return [];
   const text = readSource(cwd, file);
   if (text === undefined) return [];
   return allDirectivesIn(file, text).flatMap((found) => [
@@ -57,9 +59,7 @@ export function ledgerFindings(cwd: string, path: string | undefined): RawFindin
 }
 
 function directiveFindings(cwd: string, files: readonly string[]): RawFinding[] {
-  return files
-    .filter((file) => readsDirectives(file) && withinSource(file))
-    .flatMap((file) => directivesFor(cwd, file));
+  return files.flatMap((file) => directivesFor(cwd, file));
 }
 
 const configFinding = (hit: ConfigHit): RawFinding =>

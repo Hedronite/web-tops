@@ -279,6 +279,7 @@ export function toGateConfig(config: WebTopsConfig, project: Project): GateConfi
     class: config.class,
     enforce: config.enforce,
     ...(base === undefined ? {} : { base }),
+    ...(config.laws?.ack_ledger === undefined ? {} : { ackLedger: config.laws.ack_ledger }),
     reportPath: config.report.path,
     baselinePath: config.baseline,
     toggles: togglesOf(config),

@@ -1,3 +1,4 @@
+import { ledgerOf } from "../../acks/files.ts";
 import { censusFindings } from "../../census/index.ts";
 import type { RawFinding } from "../../report/findings.ts";
 import type { Layer, LayerContext, LayerResult } from "../../gate/types.ts";
@@ -169,6 +170,7 @@ async function scopeFindings(
       exec: ctx.exec,
       env: ctx.env,
       outDir: ctx.outDir,
+      ackLedger: ledgerOf(ctx.config),
     })),
   ];
 }

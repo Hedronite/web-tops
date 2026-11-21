@@ -132,3 +132,23 @@ describe("the census kind webtops-ack", () => {
     expect(KIND_MESSAGES["webtops-ack"]).toContain("acknowledgement");
   });
 });
+
+describe("directivesFor: the files the census reads", () => {
+  const text = "// webtops-ack W-12: Each step needs the one before it.\n";
+
+  it("reads a tracked source file", () => {
+    const dir = project({ "src/a.ts": text });
+    expect(directivesFor(dir, "src/a.ts")).toHaveLength(1);
+  });
+
+  it("reads nothing of a file in the output or dependency folders, or of one it does not read", () => {
+    const dir = project({
+      "dist/a.ts": text,
+      "node_modules/pkg/a.ts": text,
+      "docs/notes.md": text,
+    });
+    for (const file of ["dist/a.ts", "node_modules/pkg/a.ts", "docs/notes.md"]) {
+      expect(directivesFor(dir, file), file).toEqual([]);
+    }
+  });
+});
