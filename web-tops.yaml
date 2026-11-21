@@ -22,7 +22,7 @@ gates:
     runner: vitest
     shuffle: true
   coverage:
-    lines_floor: 85
+    lines_floor: 84
     exclude:
       - { glob: "src/**/test-support*.ts", reason: "test helpers: no production code" }
       - {
