@@ -32,19 +32,23 @@ interface ToolSpec {
  * `bin` field and runs under `node`; none is looked up on `PATH` (WEB_TOPS.md section 3.1). `bun` and `node`
  * are runtimes, not tools, and come from `PATH`; the lock checks their versions.
  */
-export const TOOLS: ReadonlyMap<string, ToolSpec> = new Map([
-  ["tsc", { package: "typescript", bin: "tsc" }],
-  ["astro", { package: "astro", bin: "astro" }],
-  ["eslint", { package: "eslint", bin: "eslint" }],
-  ["stylelint", { package: "stylelint", bin: "stylelint" }],
-  ["prettier", { package: "prettier", bin: "prettier" }],
-  ["biome", { package: "@biomejs/biome", bin: "biome" }],
-  ["depcruise", { package: "dependency-cruiser", bin: "depcruise" }],
-  ["publint", { package: "publint", bin: "publint" }],
-  ["attw", { package: "@arethetypeswrong/cli", bin: "attw" }],
-  ["vitest", { package: "vitest", bin: "vitest" }],
-  ["stryker", { package: "@stryker-mutator/core", bin: "stryker" }],
-]);
+export function tools(): ReadonlyMap<string, ToolSpec> {
+  return new Map([
+    ["tsc", { package: "typescript", bin: "tsc" }],
+    ["astro", { package: "astro", bin: "astro" }],
+    ["eslint", { package: "eslint", bin: "eslint" }],
+    ["stylelint", { package: "stylelint", bin: "stylelint" }],
+    ["prettier", { package: "prettier", bin: "prettier" }],
+    ["biome", { package: "@biomejs/biome", bin: "biome" }],
+    ["depcruise", { package: "dependency-cruiser", bin: "depcruise" }],
+    ["publint", { package: "publint", bin: "publint" }],
+    ["attw", { package: "@arethetypeswrong/cli", bin: "attw" }],
+    ["vitest", { package: "vitest", bin: "vitest" }],
+    ["stryker", { package: "@stryker-mutator/core", bin: "stryker" }],
+    ["secretlint", { package: "secretlint", bin: "secretlint" }],
+    ["knip", { package: "knip", bin: "knip" }],
+  ]);
+}
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -108,7 +112,7 @@ async function underNode(
 }
 
 /**
- * Runs one command. A tool in `TOOLS` resolves from `node_modules`; one that is not installed there is
+ * Runs one command. A tool in `tools()` resolves from `node_modules`; one that is not installed there is
  * `tool-missing` and nothing is started. Any other command is a runtime and comes from `PATH`.
  */
 export async function runTool(
@@ -117,7 +121,7 @@ export async function runTool(
   args: readonly string[],
   timeoutMs?: number,
 ): Promise<ExecResult> {
-  const spec = TOOLS.get(name);
+  const spec = tools().get(name);
   if (spec === undefined) {
     return ctx.exec(name, args, { cwd: ctx.cwd, env: ctx.env });
   }
