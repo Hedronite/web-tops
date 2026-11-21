@@ -7,14 +7,19 @@ function names(): readonly string[] {
 
 const nameOf = (level: number): string => String(names()[level] ?? level);
 
+/** The options of a rule that has none, as ESLint prints them. */
+const noOptions = (): string => "[]";
+
 /** A setting as it is shown: its level, and its options when it has any. */
 const labelOf = (setting: RuleSetting): string =>
-  setting.options === "[]" ? nameOf(setting.level) : `${nameOf(setting.level)} ${setting.options}`;
+  setting.options === noOptions() || setting.level === 0
+    ? nameOf(setting.level)
+    : `${nameOf(setting.level)} ${setting.options}`;
 
 const levelRank = (level: number): Ranked => ({ shown: nameOf(level), rank: level });
 
 /** A rule a file does not set is off. */
-const off = (): RuleSetting => ({ level: 0, options: "[]" });
+const off = (): RuleSetting => ({ level: 0, options: noOptions() });
 
 /** The rules whose option is a ceiling: a higher number is a looser rule. */
 function ceilings(): readonly string[] {

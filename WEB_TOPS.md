@@ -1005,6 +1005,13 @@ The drop-in workflow `.github/workflows/web-tops.yml`:
 | `release-verify` | Tier 3, on release |
 | `law-diff` | Fails a PR that weakens or removes a law, rule, tsconfig flag or budget without the `protocol-change` label |
 
+`webtops law-diff <base> <head>` lists each surface it compares with how many parts it compared, whether or not any moved.
+Among them: the effective level and options of every ESLint rule for each TypeScript, JavaScript and Astro file, where a
+file ESLint no longer reaches (an ignore, a narrower `files`) is weaker; and the `include`, `exclude`, `files`,
+`references` and program of each checked tsconfig project, where an include, a file or a reference removed, an exclude
+added, a project no longer checked, or a tracked file the project no longer holds is weaker. The base is asked about the
+head's files as well as its own, and a renamed file is held to the path it came from.
+
 CI rules: checkout with `fetch-depth: 0`; actions pinned by commit SHA; minimal `permissions:`;
 `--dry-run` refused; empty reports fail. `init` writes a job only when its command exists:
 until the tier 2 and 3 layers and `law-diff` exist, it writes the `gate` job alone.

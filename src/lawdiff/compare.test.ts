@@ -1,12 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { compareSnapshots, weakenedCount } from "./compare.ts";
 import { compareProfiles, profileNote } from "./profile.ts";
-import type { Part, Profile, Ranked, Snapshot } from "./types.ts";
+import type { Part, Profile, ProjectSets, Ranked, Snapshot } from "./types.ts";
 
 const absent: Part<never> = { state: "absent" };
 const none = new Map<string, string>();
 const strong: Ranked = { shown: "true", rank: 1 };
 const weak: Ranked = { shown: "false", rank: 0 };
+
+const setsOf = (include: string[] = ["src"], program: string[] = ["src/a.ts"]): ProjectSets => ({
+  include,
+  exclude: [],
+  files: [],
+  references: [],
+  program: new Set(program),
+});
 
 const rulesAt = (level: number): Snapshot["levels"] => ({
   state: "ok",
@@ -20,6 +28,7 @@ const settingsOf = (key: string, value: Ranked, globs: string[] = []): Snapshot[
 
 const snapshot = (extra: Partial<Snapshot> = {}): Snapshot => ({
   tracked: ["a.ts"],
+  fileSets: { state: "ok", value: new Map([["tsconfig.json", setsOf()]]) },
   tools: { state: "ok", value: new Map([["lock: eslint", "10.0.0"]]) },
   levels: rulesAt(2),
   flags: { state: "ok", value: new Map([["tsconfig.json: strict", strong]]) },
@@ -66,6 +75,7 @@ describe("every surface of the diff", () => {
       ["law catalog", 0, 0],
       ["profile", 2, 0],
       ["tool versions", 1, 1],
+      ["tsconfig file set: include, exclude, files, references (W-04)", 2, 0],
     ]);
     expect(weakenedCount(surfaces)).toBe(0);
   });
@@ -85,6 +95,7 @@ describe("every surface of the diff", () => {
       [],
       [],
       ["unchanged"],
+      [],
     ]);
     expect(surfaces[2]?.note).toContain("size budgets: only whether size_limit is on, until M4");
     expect(surfaces[4]?.note).toBe("class ts-library became web-app");
@@ -109,6 +120,18 @@ describe("every surface of the diff", () => {
     expect(surface?.compared).toBe(1);
     expect(surface?.items.map((item) => [item.change, item.after])).toEqual([
       ["weakened", "no longer linted"],
+    ]);
+  });
+
+  it("weakens on a tsconfig include dropped, and on a tracked file a project no longer holds", () => {
+    const narrower = snapshot({
+      tracked: ["src/a.ts"],
+      fileSets: { state: "ok", value: new Map([["tsconfig.json", setsOf([], [])]]) },
+    });
+    const surface = compareSnapshots(snapshot(), narrower, none)[6];
+    expect(surface?.items.map((item) => [item.what, item.change])).toEqual([
+      ["tsconfig.json: include", "weakened"],
+      ["tsconfig.json: program", "weakened"],
     ]);
   });
 
