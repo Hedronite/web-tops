@@ -6,16 +6,21 @@ import type { WebTopsConfig } from "../config/types.ts";
 import { loadConfig } from "../config/validate.ts";
 import { CATALOG_DIR, loadCatalog } from "../laws/catalog/index.ts";
 import { parseLock } from "../lock/format.ts";
-import { trackedSource } from "../laws/readers/files.ts";
+import { withinSource } from "../census/files.ts";
 import { readProjects } from "../laws/readers/tsc-projects.ts";
 import { factsOf } from "./catalog.ts";
 import { flagsOf } from "./flags.ts";
+import { askCruise, configNames as cruiseConfigNames } from "./cruise.ts";
+import { readFileSets } from "./fileset.ts";
 import { askRules } from "./rules.ts";
+import { askStyle, configNames as styleConfigNames } from "./style.ts";
 import { settingsOf } from "./settings.ts";
 import { toolsOf } from "./tools.ts";
-import type { LawFacts, Part, Profile, Snapshot } from "./types.ts";
+import type { Asked, LawFacts, Part, Profile, Rules, Snapshot } from "./types.ts";
 
 const absent: Part<never> = { state: "absent" };
+
+const isObject = (value: unknown): value is object => typeof value === "object" && value !== null;
 
 const failed = (message: string): Part<never> => ({ state: "error", message });
 
@@ -31,27 +36,81 @@ async function tracked(runner: Runner): Promise<string[] | string> {
     : `git ls-files exited ${String(listed.code)}`;
 }
 
-/** The files ESLint was asked about, and the effective level of every rule for each. */
-export interface Read {
+/** The tracked files ESLint is asked about: TypeScript, JavaScript and Astro source outside the output folders. */
+function lintable(): RegExp {
+  return /\.(?:[cm]?[jt]sx?|astro)$/u;
+}
+
+export const lintedSource = (listed: readonly string[]): string[] =>
+  listed.filter((file) => lintable().test(file) && withinSource(file));
+
+/** The tracked CSS files Stylelint is asked about. */
+export const styleSource = (listed: readonly string[]): string[] =>
+  listed.filter((file) => file.endsWith(".css") && withinSource(file));
+
+/** Files a surface asked its tool about, and what the tool said. */
+export interface Read<T> {
   readonly tracked: readonly string[];
-  readonly levels: Snapshot["levels"];
+  readonly part: Part<T>;
 }
 
 /**
- * The effective level of every rule for every tracked source file, read with the checkout's own ESLint, and for the
- * files `extra` adds: ESLint reads no file to say which config block reaches its path, so a path this checkout does not
- * have can be asked about all the same.
+ * The effective level and options of every rule for every tracked source file, read with the checkout's own ESLint,
+ * and for the files `extra` adds: ESLint reads no file to say which config block reaches its path, so a path this
+ * checkout does not have can be asked about all the same.
  */
-export async function levelsPart(runner: Runner, extra: readonly string[]): Promise<Read> {
-  if (!hasEslintConfig(runner.cwd)) return { tracked: [], levels: absent };
-  const files = await tracked(runner);
-  if (typeof files === "string") return { tracked: [], levels: failed(files) };
-  const own = trackedSource(files);
-  const read = await askRules(runner, [...new Set([...own, ...trackedSource(extra)])]);
+export async function levelsPart(
+  runner: Runner,
+  listed: readonly string[] | string,
+  extra: readonly string[],
+): Promise<Read<Rules>> {
+  if (!hasEslintConfig(runner.cwd)) return { tracked: [], part: absent };
+  if (typeof listed === "string") return { tracked: [], part: failed(listed) };
+  const own = lintedSource(listed);
+  const read = await askRules(runner, [...new Set([...own, ...lintedSource(extra)])]);
   return {
     tracked: own,
-    levels: read.ok ? { state: "ok", value: read.value } : failed(read.message),
+    part: read.ok ? { state: "ok", value: read.value } : failed(read.message),
   };
+}
+
+/** Whether the checkout has a Stylelint config: one of the files Stylelint looks for, or a `stylelint` key. */
+function hasStyleConfig(dir: string): boolean {
+  const manifest = manifestPart(dir);
+  const keyed =
+    manifest.state === "ok" && isObject(manifest.value) && "stylelint" in manifest.value;
+  return keyed || styleConfigNames().some((name) => existsSync(join(dir, name)));
+}
+
+/** The effective level and options of every rule for every tracked CSS file, read with the checkout's own Stylelint. */
+export async function stylePart(
+  runner: Runner,
+  listed: readonly string[] | string,
+  extra: readonly string[],
+): Promise<Read<Rules>> {
+  if (!hasStyleConfig(runner.cwd)) return { tracked: [], part: absent };
+  if (typeof listed === "string") return { tracked: [], part: failed(listed) };
+  const own = styleSource(listed);
+  const read = await askStyle(runner, [...new Set([...own, ...styleSource(extra)])]);
+  return {
+    tracked: own,
+    part: read.ok ? { state: "ok", value: read.value } : failed(read.message),
+  };
+}
+
+/** The rules of the checkout's dependency-cruiser config, read through dependency-cruiser's own loader. */
+export async function cruisePart(runner: Runner): Promise<Snapshot["cruise"]> {
+  const name = cruiseConfigNames().find((file) => existsSync(join(runner.cwd, file)));
+  if (name === undefined) return absent;
+  const read = await askCruise(runner, name);
+  return read.ok ? { state: "ok", value: read.value } : failed(read.message);
+}
+
+/** What each checked tsconfig project selects. */
+export function fileSetsPart(dir: string): Snapshot["fileSets"] {
+  if (!existsSync(join(dir, "tsconfig.json"))) return absent;
+  const read = readFileSets(dir);
+  return read.ok ? { state: "ok", value: read.projects } : failed(read.message);
 }
 
 function flagsPart(dir: string): Snapshot["flags"] {
@@ -145,15 +204,21 @@ export function toolsPart(dir: string, parse: LockParser = parseLock): Snapshot[
   return brokenOf(manifest) ?? brokenOf(lock) ?? bothTools(manifest, lock);
 }
 
-/** Every surface of the diff, read from one checkout; `extra` is the files of the other ref ESLint is also asked about. */
-export async function snapshotOf(runner: Runner, extra: readonly string[]): Promise<Snapshot> {
+/** Every surface of the diff, read from one checkout; `extra` is the files of the other ref the tools are also asked about. */
+export async function snapshotOf(runner: Runner, extra: Asked): Promise<Snapshot> {
   const dir = runner.cwd;
   const config = configPart(dir);
   const laws = lawsPart(dir);
-  const read = await levelsPart(runner, extra);
+  const listed = await tracked(runner);
+  const eslint = await levelsPart(runner, listed, extra.source);
+  const style = await stylePart(runner, listed, extra.style);
   return {
-    tracked: read.tracked,
-    levels: read.levels,
+    tracked: eslint.tracked,
+    trackedStyle: style.tracked,
+    levels: eslint.part,
+    style: style.part,
+    cruise: await cruisePart(runner),
+    fileSets: fileSetsPart(dir),
     tools: toolsPart(dir),
     flags: flagsPart(dir),
     settings: mapPart(config, settingsOf),

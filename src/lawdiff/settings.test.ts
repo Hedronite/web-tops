@@ -168,5 +168,8 @@ describe("what a config grants", () => {
   it("says what it does not compare, size budgets included", () => {
     expect(notCompared()).toContain("not compared: gates.tests.runner");
     expect(notCompared()).toContain("size budgets: only whether size_limit is on, until M4");
+    expect(notCompared()).toContain(
+      "an .eslintignore file, which ESLint 10 does not read (flat config only)",
+    );
   });
 });
