@@ -30,7 +30,7 @@ describe("the tracked files of a checkout", () => {
     put(dir, { "eslint.config.js": "export default [];\n" });
     const calls: Call[] = [];
     const runner = { cwd: dir, env: { A: "1" }, exec: recorder(calls), outDir: join(dir, "out") };
-    await snapshotOf(runner, []);
+    await snapshotOf(runner, { source: [], style: [] });
     expect(calls.slice(0, 1)).toEqual([
       { command: "git", args: ["ls-files", "-z"], options: { cwd: dir, env: { A: "1" } } },
     ]);
@@ -42,7 +42,10 @@ async function snapshotWith(files: Record<string, string>): Promise<Snapshot> {
   mkdirSync(join(dir, "laws"));
   put(dir, files);
   const exec: Exec = () => Promise.resolve({ code: 0, stdout: "", stderr: "" });
-  return snapshotOf({ cwd: dir, env: {}, exec, outDir: join(dir, "out") }, []);
+  return snapshotOf(
+    { cwd: dir, env: {}, exec, outDir: join(dir, "out") },
+    { source: [], style: [] },
+  );
 }
 
 describe("a config or law catalog that cannot be read", () => {

@@ -3,10 +3,22 @@ import { join, resolve } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import type { Exec, ExecResult } from "../gate/types.ts";
 import { cleanTemp, put, tempDir } from "../laws/probe/testkit.ts";
-import { levelsPart, profileOf, snapshotOf, toolsPart } from "./snapshot.ts";
+import {
+  cruisePart,
+  fileSetsPart,
+  levelsPart,
+  lintedSource,
+  profileOf,
+  snapshotOf,
+  stylePart,
+  styleSource,
+  toolsPart,
+} from "./snapshot.ts";
 import type { Snapshot } from "./types.ts";
 
 afterAll(cleanTemp);
+
+const none = { source: [], style: [] };
 
 const REPO = resolve(import.meta.dirname, "../..");
 const ok = (stdout: string): ExecResult => ({ code: 0, stdout, stderr: "" });
@@ -31,9 +43,9 @@ const answering =
 describe("the ESLint levels of a checkout", () => {
   it("are none when the project has no ESLint config", async () => {
     const dir = tempDir();
-    expect(await levelsPart(runner(dir, answering(ok(""), ok(""))), [])).toEqual({
+    expect(await levelsPart(runner(dir, answering(ok(""), ok(""))), [], [])).toEqual({
       tracked: [],
-      levels: { state: "absent" },
+      part: { state: "absent" },
     });
   });
 
@@ -46,13 +58,13 @@ describe("the ESLint levels of a checkout", () => {
       seen.push([command, ...args.slice(0, 1)]);
       return Promise.resolve(command === "git" ? ok("src/a.ts\0README.md\0") : ok(answer));
     };
-    const read = await levelsPart(runner(dir, exec), []);
-    expect(read.levels).toEqual({
+    const read = await levelsPart(runner(dir, exec), ["src/a.ts", "README.md"], []);
+    expect(read.part).toEqual({
       state: "ok",
       value: new Map([["src/a.ts", new Map([["r", { level: 2, options: "[]" }]])]]),
     });
     expect(read.tracked).toEqual(["src/a.ts"]);
-    expect(seen[0]).toEqual(["git", "ls-files"]);
+    expect(seen).toEqual([["node", "--input-type=module"]]);
   });
 
   it("are also asked about the files of the other ref, source files only, once each", async () => {
@@ -64,8 +76,12 @@ describe("the ESLint levels of a checkout", () => {
       asked.push(JSON.parse(readFileSync(String(options?.env?.["WEBTOPS_LAWDIFF_FILES"]), "utf8")));
       return Promise.resolve(ok(JSON.stringify({ rules: {} })));
     };
-    const read = await levelsPart(runner(dir, exec), ["src/new.ts", "src/a.ts", "README.md"]);
-    expect(asked).toEqual([["src/a.ts", "src/new.ts"]]);
+    const read = await levelsPart(
+      runner(dir, exec),
+      ["src/a.ts"],
+      ["src/new.ts", "src/a.ts", "README.md", "lib/x.astro", "y.css"],
+    );
+    expect(asked).toEqual([["src/a.ts", "src/new.ts", "lib/x.astro"]]);
     expect(read.tracked).toEqual(["src/a.ts"]);
   });
 
@@ -73,16 +89,16 @@ describe("the ESLint levels of a checkout", () => {
     const dir = tempDir();
     put(dir, { "eslint.config.js": "export default [];\n" });
     const noGit = answering({ code: 128, stdout: "", stderr: "" }, ok(""));
-    expect(await levelsPart(runner(dir, noGit), [])).toEqual({
+    expect(await levelsPart(runner(dir, noGit), "git ls-files exited 128", [])).toEqual({
       tracked: [],
-      levels: { state: "error", message: "git ls-files exited 128" },
+      part: { state: "error", message: "git ls-files exited 128" },
     });
     const noEslint = answering(ok("src/a.ts\0"), {
       code: 1,
       stdout: "",
       stderr: "config did not load",
     });
-    const failed = (await levelsPart(runner(dir, noEslint), [])).levels;
+    const failed = (await levelsPart(runner(dir, noEslint), ["src/a.ts"], [])).part;
     expect(failed.state).toBe("error");
     expect(failed.state === "error" && failed.message.includes("config did not load")).toBe(true);
   });
@@ -90,11 +106,15 @@ describe("the ESLint levels of a checkout", () => {
 
 describe("the other surfaces of a checkout", () => {
   it("are none in a folder that has none of them", async () => {
-    const snap = await snapshotOf(runner(tempDir(), answering(ok(""), ok(""))), []);
+    const snap = await snapshotOf(runner(tempDir(), answering(ok(""), ok(""))), none);
     expect(snap).toEqual({
       tracked: [],
+      trackedStyle: [],
       tools: { state: "absent" },
       levels: { state: "absent" },
+      style: { state: "absent" },
+      cruise: { state: "absent" },
+      fileSets: { state: "absent" },
       flags: { state: "absent" },
       settings: { state: "absent" },
       laws: { state: "absent" },
@@ -112,7 +132,7 @@ describe("the other surfaces of a checkout", () => {
       "src/a.ts": "export const a = 1;\n",
       "web-tops.yaml": 'protocol: "0.3.0"\nversion: "1"\npackage: fixture\nclass: ts-library\n',
     });
-    const snap = await snapshotOf(runner(dir, answering(ok(""), ok(""))), []);
+    const snap = await snapshotOf(runner(dir, answering(ok(""), ok(""))), none);
     expect(shown(snap.flags, "tsconfig.json: strict")).toBe("true");
     expect(
       snap.settings.state === "ok" && snap.settings.value.values.get("gates.crap.cap")?.shown,
@@ -129,7 +149,7 @@ describe("the other surfaces of a checkout", () => {
       "tsconfig.json": "{ not json",
       "web-tops.yaml": "class: [\n",
     });
-    const snap = await snapshotOf(runner(dir, answering(ok(""), ok(""))), []);
+    const snap = await snapshotOf(runner(dir, answering(ok(""), ok(""))), none);
     expect(snap.flags.state).toBe("error");
     expect(snap.settings.state).toBe("error");
     expect(snap.profile.state).toBe("error");
@@ -214,5 +234,139 @@ describe("what a class requires", () => {
     expect(own.required.has("W-49")).toBe(true);
     const unknown = profileOf("cli", { state: "absent" });
     expect(unknown).toEqual({ className: "cli", required: new Set(), layers: new Set() });
+  });
+});
+
+describe("the files the tools are asked about", () => {
+  it("are, for ESLint, TypeScript, JavaScript and Astro source outside the output folders", () => {
+    const listed = [
+      "a.ts",
+      "b.tsx",
+      "c.mts",
+      "d.cts",
+      "e.js",
+      "f.jsx",
+      "g.mjs",
+      "h.cjs",
+      "i.astro",
+      "j.css",
+      "k.json",
+      "l.md",
+      "dist/m.js",
+      "node_modules/n/o.js",
+      "src/.astro/p.ts",
+      "coverage/q.js",
+      "r.ts.snap",
+      "s.vue",
+    ];
+    expect(lintedSource(listed)).toEqual([
+      "a.ts",
+      "b.tsx",
+      "c.mts",
+      "d.cts",
+      "e.js",
+      "f.jsx",
+      "g.mjs",
+      "h.cjs",
+      "i.astro",
+    ]);
+  });
+
+  it("are, for Stylelint, CSS outside the output folders", () => {
+    expect(
+      styleSource(["a.css", "b.scss", "dist/c.css", "src/d.css", "e.css.map", "f.ts"]),
+    ).toEqual(["a.css", "src/d.css"]);
+  });
+});
+
+describe("the Stylelint rules of a checkout", () => {
+  const printed = JSON.stringify({ rules: { "a.css": { color: { level: 2, options: "[]" } } } });
+
+  it("are none without a Stylelint config, and read for each tracked CSS file when there is one, by file or by package.json", async () => {
+    const bare = tempDir();
+    expect(await stylePart(runner(bare, answering(ok(""), ok(""))), ["a.css"], [])).toEqual({
+      tracked: [],
+      part: { state: "absent" },
+    });
+    for (const files of [
+      { "stylelint.config.mjs": "export default {};\n" },
+      { ".stylelintrc.json": "{}" },
+      { "package.json": '{ "stylelint": {} }' },
+    ]) {
+      const dir = tempDir();
+      put(dir, files);
+      const read = await stylePart(
+        runner(dir, answering(ok(""), ok(printed))),
+        ["a.css", "b.ts"],
+        ["x.css"],
+      );
+      expect(read.tracked).toEqual(["a.css"]);
+      expect(read.part.state).toBe("ok");
+    }
+    const unkeyed = tempDir();
+    put(unkeyed, { "package.json": '{ "name": "x" }' });
+    expect(
+      (await stylePart(runner(unkeyed, answering(ok(""), ok(""))), ["a.css"], [])).part.state,
+    ).toBe("absent");
+  });
+
+  it("are an error, with the reason, when the files cannot be listed or Stylelint cannot be asked", async () => {
+    const dir = tempDir();
+    put(dir, { ".stylelintrc.json": "{}" });
+    expect(
+      await stylePart(runner(dir, answering(ok(""), ok(""))), "git ls-files exited 1", []),
+    ).toEqual({
+      tracked: [],
+      part: { state: "error", message: "git ls-files exited 1" },
+    });
+    const failing = answering(ok(""), { code: 1, stdout: "", stderr: "boom" });
+    expect((await stylePart(runner(dir, failing), ["a.css"], [])).part.state).toBe("error");
+  });
+});
+
+describe("the dependency-cruiser rules of a checkout", () => {
+  it("are none without a config, and read from the first config file there is, in dependency-cruiser's own order", async () => {
+    expect(await cruisePart(runner(tempDir(), answering(ok(""), ok("{}"))))).toEqual({
+      state: "absent",
+    });
+    const dir = tempDir();
+    put(dir, {
+      ".dependency-cruiser.mjs": "export default {};\n",
+      ".dependency-cruiser.cjs": "module.exports = {};\n",
+    });
+    const seen: unknown[] = [];
+    const exec: Exec = (_command, _args, options) => {
+      seen.push(options?.env?.["WEBTOPS_LAWDIFF_CONFIG"]);
+      return Promise.resolve(ok("{}"));
+    };
+    const part = await cruisePart(runner(dir, exec));
+    expect(part.state).toBe("ok");
+    expect(seen).toEqual([join(dir, ".dependency-cruiser.cjs")]);
+  });
+
+  it("are an error, with the reason, when the config cannot be read", async () => {
+    const dir = tempDir();
+    put(dir, { ".dependency-cruiser.json": "{}" });
+    const part = await cruisePart(
+      runner(dir, answering(ok(""), { code: 1, stdout: "", stderr: "bad" })),
+    );
+    expect(
+      part.state === "error" &&
+        part.message.startsWith("dependency-cruiser's config could not be read"),
+    ).toBe(true);
+  });
+});
+
+describe("the file sets of a checkout", () => {
+  it("are none without a tsconfig, and read for each checked project when there is one, or an error", () => {
+    expect(fileSetsPart(tempDir())).toEqual({ state: "absent" });
+    const dir = tempDir();
+    symlinkSync(join(REPO, "node_modules"), join(dir, "node_modules"));
+    put(dir, { "tsconfig.json": '{ "include": ["src"] }', "src/a.ts": "export const a = 1;\n" });
+    const read = fileSetsPart(dir);
+    expect(read.state === "ok" && [...read.value.keys()]).toEqual(["tsconfig.json"]);
+    const broken = tempDir();
+    put(broken, { "tsconfig.json": "{}" });
+    expect(fileSetsPart(broken).state).toBe("error");
   });
 });

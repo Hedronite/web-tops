@@ -1,6 +1,6 @@
-import { existsSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import type { Exec } from "../gate/types.ts";
 import type { Checkout } from "./run.ts";
 
@@ -26,9 +26,22 @@ export async function mergeBase(
     : { error: `no merge base of ${base} and ${head}: ${done.stderr.trim()}` };
 }
 
+const isNestedManifest = (file: string): boolean =>
+  basename(file) === "package.json" && dirname(file) !== ".";
+
+/** The folders below the root of a tree that hold a `package.json` and, in the project, a `node_modules` beside it. */
+function nestedModules(project: string, tree: string): string[] {
+  return readdirSync(tree, { recursive: true, encoding: "utf8" })
+    .filter(isNestedManifest)
+    .map((file) => dirname(file))
+    .filter((folder) => existsSync(join(project, folder, "node_modules")));
+}
+
 /**
  * A detached worktree of a ref in a folder of its own, with this project's `node_modules` beside it so the tools the
- * diff runs are the project's own. Taking it down removes the worktree and the folder, and nothing else.
+ * diff runs are the project's own, and the `node_modules` of each nested package the project has installed, beside the
+ * `package.json` the ref tracks for it: a project that gates itself inside this one is read with its own tools. Taking
+ * it down removes the worktree and the folder, and nothing else.
  */
 export async function checkout(where: Where, ref: string): Promise<Checkout> {
   const root = mkdtempSync(join(tmpdir(), "wt-lawdiff-"));
@@ -40,6 +53,9 @@ export async function checkout(where: Where, ref: string): Promise<Checkout> {
   if (added.code !== 0) {
     rmSync(root, { recursive: true });
     throw new Error(`cannot check out ${ref}: ${added.stderr.trim()}`);
+  }
+  for (const folder of nestedModules(where.cwd, dir)) {
+    symlinkSync(join(where.cwd, folder, "node_modules"), join(dir, folder, "node_modules"));
   }
   const modules = join(where.cwd, "node_modules");
   if (existsSync(modules)) symlinkSync(modules, join(dir, "node_modules"));
