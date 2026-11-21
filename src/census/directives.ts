@@ -5,13 +5,31 @@ import { htmlComments, scriptComments, styleComments } from "./comments.ts";
 import type { Comment } from "./comments.ts";
 import type { SourceKind } from "./kinds.ts";
 
-/** One directive comment: the census kind it counts under, and the line it starts on. */
-export interface Directive {
-  readonly kind: SourceKind;
+/** The kind of an acknowledgement of a soft law (section 8.1); the census counts it from its own step. */
+type AckKind = "webtops-ack";
+
+/** The kinds a comment can be: a suppression directive, or an acknowledgement of a soft law. */
+type DirectiveKind = SourceKind | AckKind;
+
+/** One comment that is a directive: the kind it counts under, the line it starts on, and its text without the delimiters. */
+interface Found<Kind extends DirectiveKind> {
+  readonly kind: Kind;
   readonly line: number;
+  readonly body: string;
 }
 
-type Matcher = readonly [SourceKind, RegExp];
+/** A suppression directive, counted by the census (section 6.7). */
+export type Directive = Found<SourceKind>;
+
+/** An acknowledgement of a soft law written as a comment (section 8.1). */
+export type AckDirective = Found<AckKind>;
+
+type AnyDirective = Found<DirectiveKind>;
+
+type Matcher = readonly [DirectiveKind, RegExp];
+
+/** An acknowledgement of a soft law, in any comment form (WEB_TOPS.md section 8.1). */
+const ACK: Matcher = ["webtops-ack", /^webtops-ack(?![\w-])/u];
 
 /** What a directive looks like at the start of a comment's text, in JavaScript and TypeScript. */
 const SCRIPT: readonly Matcher[] = [
@@ -21,28 +39,31 @@ const SCRIPT: readonly Matcher[] = [
   ["ts-nocheck", /^@ts-nocheck(?![\w-])/u],
   ["biome-ignore", /^biome-ignore(?:-all|-start)?(?![\w-])/u],
   ["stryker-disable", /^Stryker disable(?![\w-])/u],
+  ACK,
 ];
 
 const STYLE: readonly Matcher[] = [
   ["stylelint-disable", /^stylelint-disable(?:-next-line|-line)?(?![\w-])/u],
+  ACK,
 ];
 
 const MARKUP: readonly Matcher[] = [
   ["eslint-disable", /^eslint-disable(?:-next-line|-line)?(?![\w-])/u],
   ["stylelint-disable", /^stylelint-disable(?:-next-line|-line)?(?![\w-])/u],
   ["html-validate-disable", /^\[html-validate-disable(?:-block|-next)?(?=[\s\]])/u],
+  ACK,
 ];
 
 /** The kind a comment's text counts under, or undefined: only the start of the text is a directive, so prose that mentions one is not. */
-function kindOf(body: string, matchers: readonly Matcher[]): SourceKind | undefined {
+function kindOf(body: string, matchers: readonly Matcher[]): DirectiveKind | undefined {
   const text = body.trim();
   return matchers.find(([, pattern]) => pattern.test(text))?.[0];
 }
 
-function directivesOf(comments: readonly Comment[], matchers: readonly Matcher[]): Directive[] {
-  return comments.flatMap((comment): Directive[] => {
+function directivesOf(comments: readonly Comment[], matchers: readonly Matcher[]): AnyDirective[] {
+  return comments.flatMap((comment): AnyDirective[] => {
     const kind = kindOf(comment.body, matchers);
-    return kind === undefined ? [] : [{ kind, line: comment.line }];
+    return kind === undefined ? [] : [{ kind, line: comment.line, body: comment.body.trim() }];
   });
 }
 
@@ -60,10 +81,10 @@ function styleBlocks(text: string): { readonly line: number; readonly css: strin
 }
 
 /** The comments of a `<style>` block, their lines counted from the file's top. */
-function styleDirectives(text: string): Directive[] {
+function styleDirectives(text: string): AnyDirective[] {
   return styleBlocks(text).flatMap((block) =>
     directivesOf(styleComments(block.css, false), STYLE).map((found) => ({
-      kind: found.kind,
+      ...found,
       line: found.line + block.line - 1,
     })),
   );
@@ -89,7 +110,7 @@ function astroTemplate(text: string, code: readonly AstroPart[]): string {
 const NOT_HTML_VALIDATE = MARKUP.filter(([kind]) => kind !== "html-validate-disable");
 
 /** The directives of an Astro file: its frontmatter and scripts as TypeScript, its template as markup, its styles as CSS. */
-function astroDirectives(text: string, file: string): Directive[] {
+function astroDirectives(text: string, file: string): AnyDirective[] {
   const code = codeParts(text, file);
   const template = astroTemplate(text, code);
   return [
@@ -99,7 +120,7 @@ function astroDirectives(text: string, file: string): Directive[] {
   ];
 }
 
-type Reader = (text: string, file: string) => Directive[];
+type Reader = (text: string, file: string) => AnyDirective[];
 
 const readScript: Reader = (text) => directivesOf(scriptComments(text), SCRIPT);
 const readBlockStyle: Reader = (text) => directivesOf(styleComments(text, false), STYLE);
@@ -127,11 +148,24 @@ const readerFor = (file: string): Reader | undefined => READERS.get(extname(file
 export const readsDirectives = (file: string): boolean => readerFor(file) !== undefined;
 
 /**
- * The suppression directives in one source file, by census kind and line (WEB_TOPS.md section 6.7), in the
+ * The directives in one source file, suppressions and acknowledgements, by kind and line, in the
  * comment forms the tools honour. A directive written in a string, a template literal or a regular
  * expression, or mentioned in the middle of prose, is not counted. An Astro file that does not parse as
  * Astro is read as far as it can be.
  */
-export function directivesIn(file: string, text: string): Directive[] {
+export function allDirectivesIn(file: string, text: string): AnyDirective[] {
   return readerFor(file)?.(text, file) ?? [];
+}
+
+const isAck = (found: AnyDirective): found is AckDirective => found.kind === "webtops-ack";
+const isSuppression = (found: AnyDirective): found is Directive => found.kind !== "webtops-ack";
+
+/** The suppression directives of a file, which the census counts (WEB_TOPS.md section 6.7). */
+export function directivesIn(file: string, text: string): Directive[] {
+  return allDirectivesIn(file, text).filter(isSuppression);
+}
+
+/** The acknowledgement comments of a file, in any comment form the file's kind has (WEB_TOPS.md section 8.1). */
+export function ackDirectivesIn(file: string, text: string): AckDirective[] {
+  return allDirectivesIn(file, text).filter(isAck);
 }
