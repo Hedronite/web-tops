@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { collectAcks } from "./collect.ts";
+import { collectAcks, problemAt } from "./collect.ts";
 import type { SeverityOf } from "./severity.ts";
 
 /** Soft laws W-01, W-02, W-28 and W-30, the hard law W-04, and no other id. */
@@ -193,5 +193,28 @@ describe("collectAcks: an acknowledgement of a law that needs none, or of an id 
       "ack-no-reason",
       "ack-not-needed",
     ]);
+  });
+});
+
+describe("problemAt: where a problem of an acknowledgement is", () => {
+  const problem = { rule: "ack-not-needed", message: "m" };
+
+  it("is the comment's file, with no line key when the comment has none", () => {
+    const ack = { source: "comment" as const, law: "W-04", file: "src/a.ts", reason: "r" };
+    expect(problemAt(ack, problem, "acks.yaml")).toStrictEqual({
+      file: "src/a.ts",
+      rule: "ack-not-needed",
+      message: "m",
+    });
+  });
+
+  it("is the comment's file and line when it has one", () => {
+    const ack = { source: "comment" as const, law: "W-04", file: "src/a.ts", line: 7, reason: "r" };
+    expect(problemAt(ack, problem, "acks.yaml")).toStrictEqual({
+      file: "src/a.ts",
+      line: 7,
+      rule: "ack-not-needed",
+      message: "m",
+    });
   });
 });

@@ -26,6 +26,11 @@ function line(problem: Problem): string {
   return `  ${problem.pointer === "" ? "(document)" : problem.pointer}: ${problem.message}\n`;
 }
 
+/** What `webtops check` writes for a configuration that is not valid: the file name, then a line for each problem. */
+export function invalidReport(path: string, problems: readonly Problem[]): string {
+  return `${path}: invalid\n${problems.map(line).join("")}`;
+}
+
 /** The ledger path the config names, else the default. */
 const ledgerPathOf = (config: {
   readonly gates?: { readonly mutation?: { readonly ledger?: string } };
@@ -75,7 +80,7 @@ async function check(argv: readonly string[], io: Io): Promise<number> {
   const file = resolve(io.cwd, path);
   const result = await checked(file);
   if (!result.ok) {
-    io.err(`${path}: invalid\n${result.problems.map(line).join("")}`);
+    io.err(invalidReport(path, result.problems));
     return 2;
   }
   const ledger = ledgersReport(dirname(file), result.config);
