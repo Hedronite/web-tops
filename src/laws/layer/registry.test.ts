@@ -6,6 +6,7 @@ import { attwReader } from "../readers/attw.ts";
 import { bunReader } from "../readers/bun.ts";
 import { depcruiseReader } from "../readers/depcruise.ts";
 import { eslintReader } from "../readers/eslint.ts";
+import { lockReader } from "../readers/lock.ts";
 import { publintReader } from "../readers/publint.ts";
 import { tscReader } from "../readers/tsc.ts";
 import { defaultReaders } from "./readers.ts";
@@ -45,6 +46,7 @@ describe("the registry of the laws layer's readers", () => {
     expect(readers.get("bun")).toBe(bunReader);
     expect(readers.get("dependency-cruiser")).toBe(depcruiseReader);
     expect(readers.get("eslint")).toBe(eslintReader);
+    expect(readers.get("lock")).toBe(lockReader);
     expect(readers.get("publint")).toBe(publintReader);
     expect(readers.get("tsc")).toBe(tscReader);
   });
@@ -52,13 +54,12 @@ describe("the registry of the laws layer's readers", () => {
   it("names the tools a judged law maps that have no reader yet: a law that maps one is not evaluated for it", () => {
     const readers = defaultReaders();
     const unread = [...judgedTools()].filter((tool) => !readers.has(tool)).sort();
-    // G9's second half registers knip, lock and secretlint; W-27, W-20 and W-21 and W-22 read built pages, in later steps.
+    // knip and secretlint register with the next step of G9; W-27, W-20 and W-21 and W-22 read built pages, in later steps.
     expect(unread).toEqual([
       "astro-check",
       "axe",
       "html-validate",
       "knip",
-      "lock",
       "secretlint",
       "stylelint",
     ]);

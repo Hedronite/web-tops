@@ -1,12 +1,15 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
+import pkg from "../../../package.json" with { type: "json" };
+import { NODE_RANGE } from "../../lock/pins.ts";
 import { recorded } from "../../layers/hygiene/testkit.ts";
 import type { LawEntry, LawReader, LawReading, ReadInput } from "./types.ts";
 import { attwReader } from "./attw.ts";
 import { bunReader } from "./bun.ts";
 import { depcruiseReader } from "./depcruise.ts";
+import { lockReader } from "./lock.ts";
 import { publintReader } from "./publint.ts";
 import { inputFor, lawOf, type InputOptions } from "./testkit.ts";
 
@@ -15,13 +18,14 @@ const READERS: ReadonlyMap<string, LawReader> = new Map([
   ["attw", attwReader],
   ["bun", bunReader],
   ["dependency-cruiser", depcruiseReader],
+  ["lock", lockReader],
   ["publint", publintReader],
 ]);
 
-// One planted violation for each law the gate-1 artifact readers judge: the registered reader gives `refuse` for it,
-// `pass` for its clean twin, and `not-evaluated` when the tool did not run (WEB_TOPS.md 3.3, 8.1). W-39, W-41 and W-48
-// are G9's second half; W-20, W-21 and W-22 (built pages: html-validate, axe) and W-27 (`astro check`) are other steps.
-// The real catalog entries run through the real laws layer in `layer/real-readers-e2e.test.ts`.
+// One planted violation for each law the readers here judge: the registered reader gives `refuse` for it, `pass` for its
+// clean twin, and `not-evaluated` when the tool did not run (WEB_TOPS.md 3.3, 8.1). The table is the laws that read a
+// result gate 1 kept; W-41 reads the project's own installed tools, below. The real catalog entries run through the real
+// laws layer in `layer/real-readers-e2e.test.ts`. `planted-coverage.test.ts` fails when a law with a reader has no plant.
 
 const made: string[] = [];
 
@@ -155,5 +159,46 @@ describe.each(TABLE)("$law.id, read from $tool", (planted) => {
   it("is not evaluated when the tool did not run: never a pass", async () => {
     const reading = await read(planted.none());
     expect([reading.law, reading.verdict]).toEqual([planted.law.id, "not-evaluated"]);
+  });
+});
+
+function lockProject(installed: string): string {
+  const dir = mkdtempSync(join(tmpdir(), "wt-planted-lock-"));
+  made.push(dir);
+  const files: Record<string, string> = {
+    "web-tops.lock": `typescript: 6.0.3\nwebtops: ${pkg.version}\nnode: "${NODE_RANGE}"\n`,
+    "node_modules/typescript/package.json": JSON.stringify({
+      name: "typescript",
+      version: installed,
+    }),
+  };
+  for (const [name, text] of Object.entries(files)) {
+    mkdirSync(dirname(join(dir, name)), { recursive: true });
+    writeFileSync(join(dir, name), text);
+  }
+  return dir;
+}
+
+describe("W-41, read from the lock", () => {
+  const law = lawOf("W-41", [{ tool: "lock", name: "web-tops.lock" }]);
+
+  it("refuses an installed tool that is not the locked version, and passes the one that is", async () => {
+    const bad = await readBy("lock", inputFor([law], { cwd: lockProject("5.0.0") }));
+    const clean = await readBy("lock", inputFor([law], { cwd: lockProject("6.0.3") }));
+    expect([bad.law, bad.verdict, clean.verdict]).toEqual(["W-41", "refuse", "pass"]);
+  });
+
+  it("refuses an installed tool whose package.json cannot be read: what is installed does not match the lock", async () => {
+    const dir = lockProject("6.0.3");
+    writeFileSync(join(dir, "node_modules/typescript/package.json"), "not json");
+    const reading = await readBy("lock", inputFor([law], { cwd: dir }));
+    expect([reading.law, reading.verdict]).toEqual(["W-41", "refuse"]);
+    expect(reading.findings[0]?.message).toContain("typescript: locked 6.0.3, not installed");
+  });
+
+  it("refuses a project with no lock at all: there is nothing to match", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "wt-planted-nolock-"));
+    made.push(dir);
+    expect((await readBy("lock", inputFor([law], { cwd: dir }))).verdict).toBe("refuse");
   });
 });
