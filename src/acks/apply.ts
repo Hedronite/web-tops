@@ -1,6 +1,7 @@
 import { isExpired } from "../survivors/dates.ts";
 import type { Finding } from "../config/report.ts";
 import type { LedgerAck } from "./ledger.ts";
+import type { SeverityOf } from "./severity.ts";
 
 /** An acknowledgement of one law, from a source comment (with its line) or from the ledger. */
 export interface Ack {
@@ -30,7 +31,9 @@ const covers = (ack: Ack, law: string, file: string, line: number | undefined): 
 
 /**
  * The acknowledgement that turns a soft-law finding from `ack-missing` into `pass` (WEB_TOPS.md section 3.3), as
- * the `ack` the report carries, or undefined. A ledger entry past its `expires` acknowledges nothing.
+ * the `ack` the report carries, or undefined. A ledger entry past its `expires` acknowledges nothing, and neither does
+ * any ack of a law that `lawProblem` rejects (a hard law, an id that is no law): a caller that does not filter them
+ * out still gets no acknowledgement.
  */
 export function ackFor(
   acks: readonly Ack[],
@@ -38,7 +41,9 @@ export function ackFor(
   file: string,
   line: number | undefined,
   today: string,
+  severity: SeverityOf,
 ): Finding["ack"] | undefined {
+  if (lawProblem(law, severity) !== undefined) return undefined;
   const found = acks.find((ack) => covers(ack, law, file, line) && !isExpired(ack.expires, today));
   return found === undefined ? undefined : { source: found.source, reason: found.reason };
 }
@@ -46,7 +51,7 @@ export function ackFor(
 /** What an ack of a law needs to be, from the law's severity: only a soft law (`A`) takes one. */
 export function lawProblem(
   law: string,
-  severityOf: (law: string) => "R" | "A" | undefined,
+  severityOf: SeverityOf,
 ): { readonly rule: string; readonly message: string } | undefined {
   const severity = severityOf(law);
   if (severity === undefined) return { rule: "ack-unknown-law", message: `${law} is not a law` };
