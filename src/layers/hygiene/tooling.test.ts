@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { tempProject, type TempProject } from "../../gate/testkit.ts";
-import { resolveTool, TOOLS } from "./tooling.ts";
+import { resolveTool, tools } from "./tooling.ts";
 
 /** R29 N6: a tool resolves through the installed package's `bin` field, in the project's node_modules, and nowhere else. */
 
@@ -70,7 +70,7 @@ describe("G3d tools: resolveTool reads the installed package's bin field", () =>
   });
 
   it("names the package each gate tool installs from", () => {
-    expect([...TOOLS].map(([name, spec]) => [name, spec.package])).toEqual([
+    expect([...tools()].map(([name, spec]) => [name, spec.package])).toEqual([
       ["tsc", "typescript"],
       ["astro", "astro"],
       ["eslint", "eslint"],
@@ -82,6 +82,14 @@ describe("G3d tools: resolveTool reads the installed package's bin field", () =>
       ["attw", "@arethetypeswrong/cli"],
       ["vitest", "vitest"],
       ["stryker", "@stryker-mutator/core"],
+      ["secretlint", "secretlint"],
+      ["knip", "knip"],
     ]);
+  });
+
+  it("runs each gate tool through the bin of its own name", () => {
+    expect([...tools()].map(([name, spec]) => [name, spec.bin])).toEqual(
+      [...tools().keys()].map((name) => [name, name]),
+    );
   });
 });

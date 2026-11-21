@@ -1,7 +1,7 @@
 import { readFileSync, realpathSync } from "node:fs";
 import { join, relative } from "node:path";
 import type { Exec, ExecResult } from "../../gate/types.ts";
-import { TOOLS, parseJson, readOutput, resolveTool } from "../../layers/hygiene/tooling.ts";
+import { tools, parseJson, readOutput, resolveTool } from "../../layers/hygiene/tooling.ts";
 import { judgeLaw } from "./judge.ts";
 import { parseMarkers } from "./markers.ts";
 import { readEslint, readStylelint, readTsc, type Reading } from "./observe.ts";
@@ -65,7 +65,7 @@ async function runTool(
   name: string,
   args: readonly string[],
 ): Promise<ExecResult> {
-  const spec = TOOLS.get(name);
+  const spec = tools().get(name);
   const entry = spec === undefined ? undefined : resolveTool(request.cwd, spec);
   if (entry === undefined) {
     return {
