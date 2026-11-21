@@ -5,6 +5,7 @@ import type { Part, Snapshot } from "./types.ts";
 const absent: Part<never> = { state: "absent" };
 const empty: Snapshot = {
   tracked: ["src/new.ts"],
+  fileSets: absent,
   tools: absent,
   levels: absent,
   flags: absent,
@@ -71,6 +72,7 @@ describe("the diff of a head against its merge base", () => {
       "law catalog",
       "profile",
       "tool versions",
+      "tsconfig file set: include, exclude, files, references (W-04)",
     ]);
   });
 

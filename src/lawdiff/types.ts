@@ -51,6 +51,15 @@ export interface Settings {
   readonly globs: readonly string[];
 }
 
+/** What a tsconfig project selects: its entries as the config says them, and the files that come of them. */
+export interface ProjectSets {
+  readonly include: readonly string[];
+  readonly exclude: readonly string[];
+  readonly files: readonly string[];
+  readonly references: readonly string[];
+  readonly program: ReadonlySet<string>;
+}
+
 /** What a surface holds at a ref: the data, none (the project has no such thing), or why it could not be read. */
 export type Part<T> =
   | { readonly state: "ok"; readonly value: T }
@@ -77,6 +86,7 @@ export interface Snapshot {
   /** The tracked source files ESLint was asked about, before any file of the other ref was added. */
   readonly tracked: readonly string[];
   readonly levels: Part<Rules>;
+  readonly fileSets: Part<ReadonlyMap<string, ProjectSets>>;
   readonly flags: Part<ReadonlyMap<string, Ranked>>;
   readonly settings: Part<Settings>;
   readonly laws: Part<ReadonlyMap<string, LawFacts>>;

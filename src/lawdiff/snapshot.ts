@@ -6,10 +6,11 @@ import type { WebTopsConfig } from "../config/types.ts";
 import { loadConfig } from "../config/validate.ts";
 import { CATALOG_DIR, loadCatalog } from "../laws/catalog/index.ts";
 import { parseLock } from "../lock/format.ts";
-import { trackedSource } from "../laws/readers/files.ts";
+import { withinSource } from "../census/files.ts";
 import { readProjects } from "../laws/readers/tsc-projects.ts";
 import { factsOf } from "./catalog.ts";
 import { flagsOf } from "./flags.ts";
+import { readFileSets } from "./fileset.ts";
 import { askRules } from "./rules.ts";
 import { settingsOf } from "./settings.ts";
 import { toolsOf } from "./tools.ts";
@@ -31,7 +32,15 @@ async function tracked(runner: Runner): Promise<string[] | string> {
     : `git ls-files exited ${String(listed.code)}`;
 }
 
-/** The files ESLint was asked about, and the effective level of every rule for each. */
+/** The tracked files ESLint is asked about: TypeScript, JavaScript and Astro source outside the output folders. */
+function lintable(): RegExp {
+  return /\.(?:[cm]?[jt]sx?|astro)$/u;
+}
+
+export const lintedSource = (listed: readonly string[]): string[] =>
+  listed.filter((file) => lintable().test(file) && withinSource(file));
+
+/** The files ESLint was asked about, and the effective level and options of every rule for each. */
 export interface Read {
   readonly tracked: readonly string[];
   readonly levels: Snapshot["levels"];
@@ -46,12 +55,19 @@ export async function levelsPart(runner: Runner, extra: readonly string[]): Prom
   if (!hasEslintConfig(runner.cwd)) return { tracked: [], levels: absent };
   const files = await tracked(runner);
   if (typeof files === "string") return { tracked: [], levels: failed(files) };
-  const own = trackedSource(files);
-  const read = await askRules(runner, [...new Set([...own, ...trackedSource(extra)])]);
+  const own = lintedSource(files);
+  const read = await askRules(runner, [...new Set([...own, ...lintedSource(extra)])]);
   return {
     tracked: own,
     levels: read.ok ? { state: "ok", value: read.value } : failed(read.message),
   };
+}
+
+/** What each checked tsconfig project selects. */
+export function fileSetsPart(dir: string): Snapshot["fileSets"] {
+  if (!existsSync(join(dir, "tsconfig.json"))) return absent;
+  const read = readFileSets(dir);
+  return read.ok ? { state: "ok", value: read.projects } : failed(read.message);
 }
 
 function flagsPart(dir: string): Snapshot["flags"] {
@@ -154,6 +170,7 @@ export async function snapshotOf(runner: Runner, extra: readonly string[]): Prom
   return {
     tracked: read.tracked,
     levels: read.levels,
+    fileSets: fileSetsPart(dir),
     tools: toolsPart(dir),
     flags: flagsPart(dir),
     settings: mapPart(config, settingsOf),

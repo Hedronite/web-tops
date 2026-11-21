@@ -3,7 +3,14 @@ import { join, resolve } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import type { Exec, ExecResult } from "../gate/types.ts";
 import { cleanTemp, put, tempDir } from "../laws/probe/testkit.ts";
-import { levelsPart, profileOf, snapshotOf, toolsPart } from "./snapshot.ts";
+import {
+  fileSetsPart,
+  levelsPart,
+  lintedSource,
+  profileOf,
+  snapshotOf,
+  toolsPart,
+} from "./snapshot.ts";
 import type { Snapshot } from "./types.ts";
 
 afterAll(cleanTemp);
@@ -64,8 +71,14 @@ describe("the ESLint levels of a checkout", () => {
       asked.push(JSON.parse(readFileSync(String(options?.env?.["WEBTOPS_LAWDIFF_FILES"]), "utf8")));
       return Promise.resolve(ok(JSON.stringify({ rules: {} })));
     };
-    const read = await levelsPart(runner(dir, exec), ["src/new.ts", "src/a.ts", "README.md"]);
-    expect(asked).toEqual([["src/a.ts", "src/new.ts"]]);
+    const read = await levelsPart(runner(dir, exec), [
+      "src/new.ts",
+      "src/a.ts",
+      "README.md",
+      "lib/x.astro",
+      "y.css",
+    ]);
+    expect(asked).toEqual([["src/a.ts", "src/new.ts", "lib/x.astro"]]);
     expect(read.tracked).toEqual(["src/a.ts"]);
   });
 
@@ -95,6 +108,7 @@ describe("the other surfaces of a checkout", () => {
       tracked: [],
       tools: { state: "absent" },
       levels: { state: "absent" },
+      fileSets: { state: "absent" },
       flags: { state: "absent" },
       settings: { state: "absent" },
       laws: { state: "absent" },
@@ -214,5 +228,55 @@ describe("what a class requires", () => {
     expect(own.required.has("W-49")).toBe(true);
     const unknown = profileOf("cli", { state: "absent" });
     expect(unknown).toEqual({ className: "cli", required: new Set(), layers: new Set() });
+  });
+});
+
+describe("the files the tools are asked about", () => {
+  it("are, for ESLint, TypeScript, JavaScript and Astro source outside the output folders", () => {
+    const listed = [
+      "a.ts",
+      "b.tsx",
+      "c.mts",
+      "d.cts",
+      "e.js",
+      "f.jsx",
+      "g.mjs",
+      "h.cjs",
+      "i.astro",
+      "j.css",
+      "k.json",
+      "l.md",
+      "dist/m.js",
+      "node_modules/n/o.js",
+      "src/.astro/p.ts",
+      "coverage/q.js",
+      "r.ts.snap",
+      "s.vue",
+    ];
+    expect(lintedSource(listed)).toEqual([
+      "a.ts",
+      "b.tsx",
+      "c.mts",
+      "d.cts",
+      "e.js",
+      "f.jsx",
+      "g.mjs",
+      "h.cjs",
+      "i.astro",
+    ]);
+  });
+});
+
+describe("the file sets of a checkout", () => {
+  it("are none without a tsconfig, and read for each checked project when there is one, or an error", () => {
+    expect(fileSetsPart(tempDir())).toEqual({ state: "absent" });
+    const dir = tempDir();
+    symlinkSync(join(REPO, "node_modules"), join(dir, "node_modules"));
+    put(dir, { "tsconfig.json": '{ "include": ["src"] }', "src/a.ts": "export const a = 1;\n" });
+    const read = fileSetsPart(dir);
+    expect(read.state === "ok" && [...read.value.keys()]).toEqual(["tsconfig.json"]);
+    const broken = tempDir();
+    put(broken, { "tsconfig.json": "{}" });
+    expect(fileSetsPart(broken).state).toBe("error");
   });
 });
