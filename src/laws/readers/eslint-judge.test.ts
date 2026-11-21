@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Levels } from "../../census/config.ts";
 import type { LawEntry } from "./types.ts";
-import { isTypeScript, matches, readLaw, type Evidence } from "./eslint-judge.ts";
+import { matches, readLaw, type Evidence } from "./eslint-judge.ts";
+import { isLinted } from "./files.ts";
 
 const ANY = "@typescript-eslint/no-explicit-any";
 const CAST = "@typescript-eslint/consistent-type-assertions";
@@ -132,7 +133,7 @@ describe("G4a the ESLint reader judges a law by each file's effective config", (
     const reading = readLaw(evidence(table), law("no-explicit-any"));
     expect(reading.verdict).toBe("refuse");
     expect(reading.findings[0]?.message).toBe(
-      "no-explicit-any is not enabled for any TypeScript file",
+      "no-explicit-any is not enabled for any file the project lints",
     );
   });
 
@@ -144,8 +145,13 @@ describe("G4a the ESLint reader judges a law by each file's effective config", (
   it("a rule off for JavaScript files by design (type checking disabled) is not a lapse", () => {
     const table = { "src/a.ts": { [ANY]: 2 }, "eslint.config.js": { [ANY]: 0 } };
     expect(readLaw(evidence(table), law("no-explicit-any")).verdict).toBe("pass");
-    expect(isTypeScript("a.mts") && isTypeScript("a.cts") && isTypeScript("a.TSX")).toBe(true);
-    expect(isTypeScript("a.js") || isTypeScript("a.astro")).toBe(false);
+    expect(["a.mts", "a.cts", "a.TSX", "a.astro"].map((file) => isLinted(file))).toEqual([
+      true,
+      true,
+      true,
+      true,
+    ]);
+    expect(["a.js", "a.css"].map((file) => isLinted(file))).toEqual([false, false]);
   });
 
   it("with no TypeScript file linted, no rule can be judged: not-evaluated, with the reason", () => {
@@ -154,7 +160,7 @@ describe("G4a the ESLint reader judges a law by each file's effective config", (
       law: "W-01",
       verdict: "not-evaluated",
       reason:
-        "no TypeScript file was linted: ESLint's config reaches no TypeScript file (no config block has files for **/*.ts and the TypeScript parser, or an ignore drops them), so no rule can be judged",
+        "no TypeScript or Astro file was linted: ESLint's config reaches no TypeScript or Astro file (no config block has files for **/*.ts or **/*.astro and their parsers, or an ignore drops them), so no rule can be judged",
       findings: [],
     });
   });

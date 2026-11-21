@@ -283,9 +283,12 @@ export interface GateReport {
 const validate = ajv.compile<GateReport>(schema);
 
 /** Names the built-in layer a failed `contains` stands for: the schema lists them in LAYER_IDS order. */
-function describe(error: ErrorObject): string | undefined {
-  const index = /\/allOf\/(\d)\/contains/.exec(error.schemaPath)?.[1];
-  const id = LAYER_IDS[Number(index)];
+export function describe(
+  error: ErrorObject,
+  ids: readonly string[] = LAYER_IDS,
+): string | undefined {
+  const index = /\/allOf\/(\d+)\/contains/.exec(error.schemaPath)?.[1];
+  const id = ids[Number(index)];
   return id === undefined ? undefined : `layer "${id}" is missing`;
 }
 

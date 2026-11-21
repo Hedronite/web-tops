@@ -20,20 +20,30 @@ const { ESLint } = await import("eslint");
 const files = JSON.parse(readFileSync(process.env.WEBTOPS_LAWS_FILES, "utf8"));
 const eslint = new ESLint({ cwd: process.cwd() });
 const NAMED = { off: 0, warn: 1, error: 2 };
+// A probe path or a page's script block is not a file: a config that cannot answer for one reaches none.
+const VIRTUAL = /__webtops_probe__|\\.astro\\/\\d+\\.(?:ts|js)$/u;
 const levelOf = (value) => {
   const first = Array.isArray(value) ? value[0] : value;
   return typeof first === "number" ? first : (NAMED[first] ?? 0);
 };
 const ignored = {};
 const levels = {};
-for (const file of files) {
+const read = async (file) => {
   ignored[file] = await eslint.isPathIgnored(file);
-  if (ignored[file]) continue;
+  if (ignored[file]) return;
   const config = await eslint.calculateConfigForFile(file);
-  if (!config) continue;
+  if (!config) return;
   const rules = Object.fromEntries(Object.entries(config.rules ?? {}).map(([rule, value]) => [rule, levelOf(value)]));
   const unused = config.linterOptions?.${UNUSED_DIRECTIVES};
   levels[file] = { ...rules, ${UNUSED_DIRECTIVES}: unused === undefined ? 0 : levelOf(unused) };
+};
+for (const file of files) {
+  try {
+    await read(file);
+  } catch (error) {
+    if (!VIRTUAL.test(file)) throw error;
+    delete ignored[file];
+  }
 }
 process.stdout.write(JSON.stringify({ ignored, levels }));
 `;
