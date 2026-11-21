@@ -41,6 +41,7 @@ describe("G4 the artifact each tool's reader reads", () => {
       "eslint",
       "lock",
       "publint",
+      "secretlint",
       "tsc",
     ]);
   });
