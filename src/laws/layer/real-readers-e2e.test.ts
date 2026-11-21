@@ -112,10 +112,23 @@ const FIXED: readonly Scenario[] = [
   },
 ];
 
-/** The output of the real dependency-cruiser, with the kit's preset, over a package that declares `react` as an optional peer. */
-function realCruise(file: string): string {
+/** The output of the real dependency-cruiser, with the kit's preset, over the project that `files` lay down. */
+function cruiseOf(files: Readonly<Record<string, string>>): string {
   const cwd = tempDir();
-  put(cwd, {
+  put(cwd, files);
+  symlinkSync(join(KIT, "node_modules", "typescript"), join(cwd, "node_modules", "typescript"));
+  const bin = join(KIT, "node_modules", ".bin", "depcruise");
+  const config = join(KIT, "src", "presets", "depcruise.cjs");
+  const done = spawnSync(bin, ["--config", config, "--output-type", "json", "src"], {
+    cwd,
+    encoding: "utf8",
+  });
+  return done.stdout;
+}
+
+/** A package that declares `react` as an optional peer, with `file` importing it. */
+function realCruise(file: string): string {
+  return cruiseOf({
     "package.json": JSON.stringify({
       name: "probe",
       type: "module",
@@ -130,18 +143,40 @@ function realCruise(file: string): string {
     "node_modules/react/index.js": "module.exports = {};\n",
     [file]: 'import * as peer from "react";\nexport const value = peer;\n',
   });
-  symlinkSync(join(KIT, "node_modules", "typescript"), join(cwd, "node_modules", "typescript"));
-  const bin = join(KIT, "node_modules", ".bin", "depcruise");
-  const config = join(KIT, "src", "presets", "depcruise.cjs");
-  const done = spawnSync(bin, ["--config", config, "--output-type", "json", "src"], {
-    cwd,
-    encoding: "utf8",
+}
+
+/** A package that imports `specifier` from a dependency whose `exports` expose only its entry. */
+function realImport(specifier: string): string {
+  return cruiseOf({
+    "package.json": JSON.stringify({ name: "probe", type: "module" }),
+    "tsconfig.json": JSON.stringify({
+      compilerOptions: { module: "preserve", moduleResolution: "bundler", noEmit: true },
+      include: ["src"],
+    }),
+    "node_modules/dep/package.json": JSON.stringify({
+      name: "dep",
+      exports: { ".": "./dist/index.js" },
+    }),
+    "node_modules/dep/dist/index.js": "export const entry = 1;\n",
+    "node_modules/dep/dist/internal.js": "export const internal = 1;\n",
+    "src/index.ts": `import { entry } from "${specifier}";\nexport const value = entry;\n`,
   });
-  return done.stdout;
 }
 
 /** W-19 over the real tool's output: its preset rule catches an optional peer imported outside a react entry or an adapter. */
 const real = (): readonly Scenario[] => [
+  {
+    name: "W-17 planted, real depcruise output",
+    verdict: "refuse",
+    laws: ["W-17"],
+    kept: { "dependency-cruiser-json": realImport("dep/dist/internal.js") },
+  },
+  {
+    name: "W-17 clean, real depcruise output",
+    verdict: "pass",
+    laws: ["W-17"],
+    kept: { "dependency-cruiser-json": realImport("dep") },
+  },
   {
     name: "W-19 planted, real depcruise output",
     verdict: "refuse",
