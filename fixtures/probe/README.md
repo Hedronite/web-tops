@@ -21,7 +21,7 @@ score at the end of M2. `src/layers/probe.test.ts` holds each case's stated fact
 One more small case per census kind the cheats above do not cover (section 6.7): `census-eslint-disable`,
 `census-ts-expect-error`, `census-ts-ignore`, `census-ts-nocheck`, `census-stylelint-disable`,
 `census-istanbul-ignore`, `census-c8-ignore`, `census-html-validate-disable`, `census-biome-ignore`,
-`census-axe-disable-rules`, `census-axe-exclude`, `census-eslint-ignores` and `census-tsconfig-exclude`.
+`census-axe-disable-rules`, `census-axe-exclude`, `census-eslint-ignores`, `census-tsconfig-exclude` and `census-webtops-ack`.
 With `e3-v8-ignore`, `stryker-disable` and `rule-off-override`, every kind in the census table has a case,
 and the test counts each case's directives and recorded facts against the census `EXPECTED.yaml` states.
 

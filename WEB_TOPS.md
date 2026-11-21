@@ -653,6 +653,7 @@ fails under `ratchet`.
 | `eslint-ignores` | each tracked file in scope that an ESLint `ignores` entry leaves out |
 | `eslint-rule-off` | each (rule, tracked file in scope) pair whose effective level, from ESLint's `calculateConfigForFile`, is `off` while the rule is on for another tracked file with the same extension: a per-file override that sets a rule off. A rule that is on only for files of another extension, as typed rules are on for `.ts` and off for `.js`, is not one |
 | `tsconfig-exclude` | each tracked file in scope that `tsconfig.json` `exclude` leaves out of the program |
+| `webtops-ack` | each comment that starts with `webtops-ack`, in any comment form of §8.1, well formed or not, and each entry of the ack ledger (§8.1) |
 
 A rule that is off everywhere is not a census item: for a required law it is `refuse` (§8.1).
 
@@ -749,6 +750,13 @@ Every delegated rule is proven to fire. `fixtures/laws/W-NN/{bad,clean}/` holds 
 law: the bad twin breaks each enabled rule on purpose, with an `// expect: <rule>` marker on the
 line, and the clean twin stays quiet. A test fails if a marked rule stays quiet on the bad twin or
 an unmarked one fires. Custom ESLint rules are tested with ESLint's `RuleTester`.
+
+**Acknowledgements.** A soft law (**A**, §8.2) that a file breaks is `ack-missing` unless the break is acknowledged, and an acknowledged break is `pass` and carries `ack: { source, reason }` (§3.3, §6.6). There are two forms:
+
+- **A comment** in the file: `// webtops-ack W-NN: reason`, or the same text in a block, CSS or `<!-- -->` comment. It covers a finding of that law on its own line or on the line below it. The reason holds a letter or a digit.
+- **A ledger entry** in `.web-tops/acks.yaml` (`laws.ack_ledger`, §9), which `schema/acks.schema.json` defines: `version: 1` and `acks`, each entry with `law`, `file`, `reason` and `owner`, and an optional `expires` (`YYYY-MM-DD`, UTC, valid through that day). It covers every finding of that law in that file; a file has one entry for each law. An expired entry acknowledges nothing.
+
+An acknowledgement fails, with a finding at its comment line or ledger file, when it gives no reason (`ack-no-reason`), does not read as above (`ack-malformed`), names a hard law (**R**), whose break is `refuse` and which nothing turns into a pass (`ack-not-needed`), or names no law (`ack-unknown-law`); an unreadable ledger fails too (`ack-ledger-unreadable`). `webtops check` reads the ledger and reports each of these for its entries (exit 2), and `webtops acks` lists them for the comments too (exit 1), and marks a ledger entry `expires YYYY-MM-DD` or `expired`. A ledger file that is empty, or only comments, is an empty ledger. An acknowledgement of a hard law or of an id that is no law acknowledges nothing, whoever reads it. Acknowledgements are a suppression census kind, `webtops-ack` (§6.7): each comment and each ledger entry is counted, one of a hard law or of an id that is no law too though it acknowledges nothing, and baseline and ratchet hold the count. The gate reads the ledger the config names, or `.web-tops/acks.yaml`, whether or not the laws layer is enabled; one that cannot be read is a failing `ack-ledger-unreadable`. A law that an ESLint rule judges inside ESLint (W-28) honours an acknowledgement by suppressing its own finding, so the report carries no `ack` for it; the comment or ledger entry still counts in the census.
 
 ### 8.2 Law catalog (draft: 49 laws, W-01…W-49)
 
@@ -998,12 +1006,24 @@ The drop-in workflow `.github/workflows/web-tops.yml`:
 | `release-verify` | Tier 3, on release |
 | `law-diff` | Fails a PR that weakens or removes a law, rule, tsconfig flag or budget without the `protocol-change` label |
 
-`webtops law-diff <base> <head>` lists each surface it compares with how many parts it compared, whether or not any moved.
-Among them: the effective level and options of every ESLint rule for each TypeScript, JavaScript and Astro file, where a
-file ESLint no longer reaches (an ignore, a narrower `files`) is weaker; and the `include`, `exclude`, `files`,
-`references` and program of each checked tsconfig project, where an include, a file or a reference removed, an exclude
-added, a project no longer checked, or a tracked file the project no longer holds is weaker. The base is asked about the
-head's files as well as its own, and a renamed file is held to the path it came from.
+`webtops law-diff <base> <head>` compares the merge base of the two refs with the head, surface by surface, and lists every
+surface with how many parts it compared, whether or not any moved: the effective level and options of every ESLint rule
+for each TypeScript, JavaScript and Astro file, where a file ESLint no longer reaches (an ignore, a narrower `files`) is
+weaker, and a ceiling rule (`complexity`, `max-lines`, `max-depth`, `max-params`, `max-statements`,
+`max-nested-callbacks`) whose number rose is weaker; the same for each CSS file under Stylelint; the rules and severities
+of dependency-cruiser; the `include`, `exclude`, `files`, `references` and program of each checked tsconfig project and
+its W-04 flags; the gate's switches, floors, caps, coverage exclusions, exemption and shuffling; the law catalog; the
+class profile; and the tool versions of `web-tops.lock` and `package.json`, where a removed or unpinned tool is weaker and
+a new version is listed as `changed`, for review. The base is asked about the head's files as well as its own, and a
+renamed file is held to the path it came from. A surface that cannot be read at a ref is weaker, never a pass. The
+report ends with what it does not compare, and why: size budgets until M4, package scripts, CI workflow files, tsconfig
+options beyond the flags, dependency-cruiser options beyond `exclude` and `doNotFollow`, and files of other kinds. It
+exits 1 when something weakened and the `protocol-change` label is absent. The workflow runs on `pull_request` events
+for the label, never `pull_request_target`, with the base branch's own command over the PR's checkout; when the base has
+no `law-diff`, it runs the head's own and says so, and never skips. Only an account with `maintain` or `admin`
+permission on the repository may apply the label (O12): the command asks the API who applied it (the last `labeled`
+event for it, an `unlabeled` taking it off) and what role that account has, by permission and never by name, and a
+label from any other account, or from one whose role cannot be read, counts as not applied: the output says which.
 
 CI rules: checkout with `fetch-depth: 0`; actions pinned by commit SHA; minimal `permissions:`;
 `--dry-run` refused; empty reports fail. `init` writes a job only when its command exists:
@@ -1028,6 +1048,7 @@ steps that bypass `webtops` judge nothing.
 | `lock [--verify \| --update]` | Tool pins |
 | `doctor` | Environment: Bun version, Node inside the lock's range (exit 3 outside it), TypeScript pin, Playwright browsers |
 | `survivors [list \| explain \| expire]` | Mutation ledger |
+| `acks [--json]` | The acknowledgements of soft laws (§8.1): the comments in tracked files and the ledger entries, and each one that is not well formed (exit 1) |
 | `version` | Protocol, package and pinned tool versions |
 
 Exit codes: 0 pass; 1 gate failed; 2 config invalid or lock mismatch; 3 environment error;
@@ -1155,7 +1176,7 @@ O8. The theme contract: whether a project must declare its themes as custom prop
 O9. The accessibility bar for W-21 and W-44: WCAG 2.2 AA as the default (M4).
 O10. The second adopter: an Astro site, to calibrate beside the first (M7).
 O11. The tier-1 time budget, and the time budget past which mutation is `not-evaluated` (§6.4) (M2).
-O12. Who may apply the `protocol-change` label that `law-diff` honors (M3).
+O12. Who may apply the `protocol-change` label that `law-diff` honors (M3). Answered: an account with `maintain` or `admin` permission, by permission (§11).
 O13. Whether Lighthouse stays advisory at tier 2 or is dropped (M7).
 
 ---
@@ -1167,6 +1188,7 @@ The kit is written in TypeScript and is installed and started with Bun, so it ga
 ```
 web-tops/
 ├── src/
+│   ├── acks/                # the ack comment and ledger (§8.1), and which acknowledgement covers a finding
 │   ├── baseline/            # webtops baseline: the projection from a report, the ratchet comparison, the baseline across a change
 │   ├── census/              # the suppression census readers (§6.7): directive comments, ESLint and tsconfig configuration
 │   ├── cli/                 # webtops entry and one file per command
@@ -1186,7 +1208,7 @@ web-tops/
 ├── profiles/                # one profile per launch class: the data init renders from
 ├── packages/                # eslint-plugin-webtops: the custom ESLint rules behind W-23, W-36 and W-37, built into the web-tops package
 ├── laws/                    # one W-NN.yaml per law (§8.3): the source of the §8.2 tables
-├── schema/                  # web-tops, gate-report, baseline, core (verdicts, modes) and law schemas
+├── schema/                  # web-tops, gate-report, baseline, acks, core (verdicts, modes) and law schemas
 ├── config/                  # drop-in templates, AGENTS.md.tmpl
 ├── fixtures/                # config (with examples/), hygiene, init, lock, report, probe, laws
 ├── probes/                  # w22/: the W-22 proof, its own package and lock
@@ -1201,7 +1223,7 @@ web-tops/
 
 The law twins are in `fixtures/laws/W-NN/{bad,clean}/`: a bad and a clean twin per law, which `webtops laws probe` proves.
 
-Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4) and the M3 path: `src/acks/`. The kit's tools already cover them: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
+Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4). The kit's tools already cover the rest: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
 
 Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any release.
 

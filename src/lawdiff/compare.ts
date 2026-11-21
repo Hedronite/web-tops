@@ -4,9 +4,10 @@ import { compareGlobs } from "./globs.ts";
 import { compareLevels, comparedOf, type Renames } from "./levels.ts";
 import { compareProfiles, profileNote } from "./profile.ts";
 import { compareRanked, comparePart, type Outcome } from "./rank.ts";
+import { compareSets } from "./sets.ts";
 import { compareTools } from "./tools.ts";
 import { notCompared } from "./settings.ts";
-import type { Ranked, Settings, Snapshot, Surface } from "./types.ts";
+import type { Cruise, Ranked, Settings, Snapshot, Surface } from "./types.ts";
 
 const unionSize = <T>(left: ReadonlyMap<string, T>, right: ReadonlyMap<string, T>): number =>
   new Set([...left.keys(), ...right.keys()]).size;
@@ -39,6 +40,33 @@ function profileOutcome(base: Snapshot["profile"], head: Snapshot["profile"]): S
 
 function withNote(surface: Surface, note: string): Surface {
   return { ...surface, note: surface.note === undefined ? note : `${surface.note}; ${note}` };
+}
+
+function cruiseOutcome(base: Cruise, head: Cruise): Outcome {
+  return {
+    items: [
+      ...compareRanked(base.values, head.values),
+      ...compareSets("allowed", base.allowed, head.allowed, "added"),
+      ...compareSets("left out", base.excluded, head.excluded, "added"),
+    ],
+    compared: unionSize(base.values, head.values) + base.allowed.length + base.excluded.length,
+  };
+}
+
+function styleSurface(base: Snapshot, head: Snapshot, renames: Renames): Surface {
+  return comparePart(
+    "Stylelint rule levels and options (W-26)",
+    base.style,
+    head.style,
+    (before, after) => {
+      const seen = comparedOf(before, after, renames, head.trackedStyle);
+      return {
+        items: compareLevels(before, after, renames, head.trackedStyle),
+        compared: seen.rules,
+        note: `${String(seen.files)} files, ${String(seen.rules)} rules compared`,
+      };
+    },
+  );
 }
 
 function fileSetSurface(base: Snapshot, head: Snapshot, renames: Renames): Surface {
@@ -80,6 +108,13 @@ export function compareSnapshots(base: Snapshot, head: Snapshot, renames: Rename
       items: compareTools(before, after),
       compared: unionSize(before, after),
     })),
+    styleSurface(base, head, renames),
+    comparePart(
+      "dependency-cruiser rules (W-16, W-17, W-19)",
+      base.cruise,
+      head.cruise,
+      cruiseOutcome,
+    ),
     fileSetSurface(base, head, renames),
   ];
 }

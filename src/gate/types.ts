@@ -206,6 +206,8 @@ export interface GateConfig {
   readonly base?: string;
   /** `report.path`. */
   readonly reportPath: string;
+  /** `laws.ack_ledger`: the ledger of acknowledgements (WEB_TOPS.md section 8.1); absent, the default path. */
+  readonly ackLedger?: string;
   /** `baseline`: the file `ratchet` holds the run to (WEB_TOPS.md section 6.7). */
   readonly baselinePath?: string;
   /** Enable switches by layer id; an id with no entry is enabled (section 9). */

@@ -18,10 +18,11 @@ Each case in `EXPECTED.yaml` is scored against the engines the kit has at the en
 | `census-eslint-disable` | census `eslint-disable` 3 | yes | `src/census/probe.test.ts` |
 | `census-ts-expect-error`, `census-ts-ignore`, `census-ts-nocheck` | census of each directive | yes | `src/census/probe.test.ts` |
 | `census-stylelint-disable`, `census-html-validate-disable`, `census-biome-ignore` | census of each directive | yes | `src/census/probe.test.ts` |
+| `census-webtops-ack` | census `webtops-ack` 1 | yes: an acknowledgement comment, read with its law and reason | `src/census/probe.test.ts`, `src/acks/acks.test.ts` |
 | `census-eslint-ignores`, `census-tsconfig-exclude` | census of each config-level exclusion | yes: ESLint's `isPathIgnored` and the program TypeScript builds | `src/census/probe.test.ts` |
 | `census-axe-disable-rules`, `census-axe-exclude` | census of each axe setting: 2 and 2 | yes: each string of the literal array given to `.disableRules(...)` or `.exclude(...)` on a chain that starts at `new AxeBuilder(...)`; an argument that is not a literal is a failing `census-axe-unreadable` finding | `src/census/axe.test.ts`, `src/census/probe.test.ts` |
 
-The census is the coverage hints (`v8`, `istanbul`, `c8`, reported by the coverage layer) and the thirteen kinds `src/census` reads: eight directive comments, three config-level kinds and the two axe settings. The coverage layer reports them as `census/<kind>` findings, and the baseline counts them by kind (`src/baseline/census.ts`).
+The census is the coverage hints (`v8`, `istanbul`, `c8`, reported by the coverage layer) and the fourteen kinds `src/census` reads: eight directive comments, the acknowledgement of a soft law, three config-level kinds and the two axe settings. The coverage layer reports them as `census/<kind>` findings, and the baseline counts them by kind (`src/baseline/census.ts`).
 
 ## Reproduce
 

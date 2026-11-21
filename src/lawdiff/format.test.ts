@@ -8,6 +8,10 @@ const clean: DiffReport = {
   head: "HEAD",
   mergeBase: "0123456789abcdef0123",
   surfaces: [{ name: "compiler flags", compared: 17, items: [] }],
+  notCompared: [
+    { what: "size budgets", reason: "M4" },
+    { what: "scripts", reason: "not read" },
+  ],
 };
 
 const weakened: DiffReport = {
@@ -40,6 +44,9 @@ describe("the text of the diff", () => {
       [
         "law-diff origin/main..HEAD (merge base 0123456789ab)",
         "compiler flags: 17 compared, 0 weakened, 0 strengthened, 0 changed",
+        "not compared:",
+        "  size budgets: M4",
+        "  scripts: not read",
         "nothing weakened",
         "",
       ].join("\n"),
@@ -54,6 +61,9 @@ describe("the text of the diff", () => {
         "  changed: typescript: 6.0.2 -> 6.0.3",
         "  unchanged: kept: 1.0.0 -> 1.0.0",
         "compiler flags: 17 compared, 0 weakened, 0 strengthened, 0 changed",
+        "not compared:",
+        "  size budgets: M4",
+        "  scripts: not read",
         "1 weakened: not excused, the protocol-change label is absent",
         "",
       ].join("\n"),
@@ -70,6 +80,12 @@ describe("the JSON of the diff", () => {
     expect(parsed).toMatchObject({ base: "origin/main", weakened: 1, excused: true });
     const plain: unknown = JSON.parse(diffJson(clean, trusted));
     expect(plain).toMatchObject({ weakened: 0, excused: false });
+    expect(parsed).toMatchObject({
+      notCompared: [
+        { what: "size budgets", reason: "M4" },
+        { what: "scripts", reason: "not read" },
+      ],
+    });
     expect(diffJson(clean, untrusted).endsWith("}\n")).toBe(true);
   });
 });

@@ -49,6 +49,16 @@ jobs:
         working-directory: trusted
       - run: bun install --frozen-lockfile
         working-directory: head
+      # Each example is a project that gates itself with its own packages, and the diff reads it with them: install
+      # each one that has a manifest (frozen) beside the root's. A tree with no examples/ has none, and this does nothing.
+      - name: install the examples' own packages
+        run: |
+          for tree in trusted head; do
+            for manifest in "$tree"/examples/*/package.json; do
+              [ -f "$manifest" ] || continue
+              (cd "$(dirname "$manifest")" && bun install --frozen-lockfile)
+            done
+          done
       - name: law-diff
         working-directory: head
         run: |
