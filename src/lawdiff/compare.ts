@@ -1,4 +1,5 @@
 import { compareLaws } from "./catalog.ts";
+import { compareFileSets } from "./fileset.ts";
 import { compareGlobs } from "./globs.ts";
 import { compareLevels, comparedOf, type Renames } from "./levels.ts";
 import { compareProfiles, profileNote } from "./profile.ts";
@@ -40,6 +41,15 @@ function withNote(surface: Surface, note: string): Surface {
   return { ...surface, note: surface.note === undefined ? note : `${surface.note}; ${note}` };
 }
 
+function fileSetSurface(base: Snapshot, head: Snapshot, renames: Renames): Surface {
+  return comparePart(
+    "tsconfig file set: include, exclude, files, references (W-04)",
+    base.fileSets,
+    head.fileSets,
+    (before, after) => compareFileSets(before, after, renames, head.tracked),
+  );
+}
+
 /** Every surface of the diff, in a fixed order, each listed whether or not anything moved. */
 export function compareSnapshots(base: Snapshot, head: Snapshot, renames: Renames): Surface[] {
   return [
@@ -70,6 +80,7 @@ export function compareSnapshots(base: Snapshot, head: Snapshot, renames: Rename
       items: compareTools(before, after),
       compared: unionSize(before, after),
     })),
+    fileSetSurface(base, head, renames),
   ];
 }
 
