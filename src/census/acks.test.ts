@@ -5,6 +5,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { censusKindOf } from "../baseline/census.ts";
 import type { Finding } from "../config/report.ts";
 import { directivesFor, ledgerFindings } from "./index.ts";
+import { KIND_MESSAGES, SOURCE_KINDS } from "./kinds.ts";
 
 // G8c: acknowledgements are a census kind, `webtops-ack`: each comment and each ledger entry counts (WEB_TOPS.md 6.7).
 
@@ -122,5 +123,12 @@ describe("baseline and ratchet hold acknowledgements", () => {
     });
     expect(censusKindOf(finding("census/webtops-ack"))).toBe("webtops-ack");
     expect(censusKindOf(finding("ack-no-reason"))).toBeUndefined();
+  });
+});
+
+describe("the census kind webtops-ack", () => {
+  it("is one of the kinds read from comments, and says what an acknowledgement is", () => {
+    expect(SOURCE_KINDS).toContain("webtops-ack");
+    expect(KIND_MESSAGES["webtops-ack"]).toContain("acknowledgement");
   });
 });

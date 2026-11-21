@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { ACK_KINDS, AXE_KINDS, CONFIG_KINDS, KIND_MESSAGES, SOURCE_KINDS } from "./kinds.ts";
+import { AXE_KINDS, CONFIG_KINDS, KIND_MESSAGES, SOURCE_KINDS } from "./kinds.ts";
 
-const ALL = [...SOURCE_KINDS, ...CONFIG_KINDS, ...AXE_KINDS, ...ACK_KINDS];
+const ALL = [...SOURCE_KINDS, ...CONFIG_KINDS, ...AXE_KINDS];
 
 describe("KIND_MESSAGES", () => {
   it("says something of every kind: a sentence, not empty", () => {
@@ -30,7 +30,6 @@ describe("KIND_MESSAGES", () => {
     ["eslint-rule-off", "ESLint"],
     ["eslint-ignores", "ESLint"],
     ["tsconfig-exclude", "tsconfig"],
-    ["webtops-ack", "acknowledgement"],
   ] as const)("names the tool of %s", (kind, word) => {
     expect(KIND_MESSAGES[kind]).toContain(word);
   });

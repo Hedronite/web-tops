@@ -1,4 +1,4 @@
-/** The census kinds read from comments in source files. The coverage hints (v8, istanbul, c8) are the coverage layer's. */
+/** The census kinds read from comments in source files, and from the ack ledger for the last. The coverage hints (v8, istanbul, c8) are the coverage layer's. */
 export const SOURCE_KINDS = [
   "eslint-disable",
   "ts-expect-error",
@@ -8,6 +8,7 @@ export const SOURCE_KINDS = [
   "biome-ignore",
   "stryker-disable",
   "html-validate-disable",
+  "webtops-ack",
 ] as const;
 
 /** The census kinds read from the project's configuration against the tracked files. */
@@ -16,14 +17,12 @@ export const CONFIG_KINDS = ["eslint-rule-off", "eslint-ignores", "tsconfig-excl
 /** The census kinds read from the syntax of the project's source: the settings of an axe run. */
 export const AXE_KINDS = ["axe-disable-rules", "axe-exclude"] as const;
 
-/** The census kind of acknowledgements of soft laws: `// webtops-ack W-NN: reason` comments and the entries of the ack ledger (WEB_TOPS.md section 8.1). */
-export const ACK_KINDS = ["webtops-ack"] as const;
-
 export type SourceKind = (typeof SOURCE_KINDS)[number];
-export type AckKind = (typeof ACK_KINDS)[number];
+/** The kind of an acknowledgement of a soft law: `// webtops-ack W-NN: reason` comments and the entries of the ack ledger (WEB_TOPS.md section 8.1). */
+export type AckKind = Extract<SourceKind, "webtops-ack">;
 export type ConfigKind = (typeof CONFIG_KINDS)[number];
 export type AxeKind = (typeof AXE_KINDS)[number];
-export type CensusKind = SourceKind | ConfigKind | AxeKind | AckKind;
+export type CensusKind = SourceKind | ConfigKind | AxeKind;
 
 /** The finding rule that stands for a census kind in a report: `census/<kind>` (read back by the baseline). */
 export const CENSUS_RULE_PREFIX = "census/";

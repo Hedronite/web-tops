@@ -8,7 +8,6 @@ import { REAL_TOOL_TIMEOUT } from "../gate/test-support-timeouts.ts";
 import { eslintIgnores, ruleOff, tsconfigExcluded } from "./config.ts";
 import type { Levels } from "./config.ts";
 import {
-  ACK_KINDS,
   AXE_KINDS,
   CENSUS_RULE_PREFIX,
   CONFIG_KINDS,
@@ -63,7 +62,7 @@ const CASES: Case[] = (() => {
   }));
 })();
 
-const MINE: readonly string[] = [...SOURCE_KINDS, ...CONFIG_KINDS, ...AXE_KINDS, ...ACK_KINDS];
+const MINE: readonly string[] = [...SOURCE_KINDS, ...CONFIG_KINDS, ...AXE_KINDS];
 
 /** The cases that state a count of a kind this reader owns. */
 const OWNED = CASES.filter((item) => Object.keys(item.census).some((kind) => MINE.includes(kind)));
