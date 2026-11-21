@@ -1,3 +1,8 @@
+import { collectAcks } from "../../acks/collect.ts";
+import type { Collected } from "../../acks/collect.ts";
+import { ledgerOf } from "../../acks/files.ts";
+import { severityOf } from "../../acks/severity.ts";
+import type { SeverityOf } from "../../acks/severity.ts";
 import { ratchetHeld } from "../../baseline/state.ts";
 import type { EslintRead } from "../../census/eslint.ts";
 import type { Layer, LayerContext, LayerResult } from "../../gate/types.ts";
@@ -6,6 +11,8 @@ import { askedOf, trackedLinted, unlinted } from "../../laws/readers/files.ts";
 import type { RawFinding } from "../../report/findings.ts";
 import type { Verdict } from "../../report/types.ts";
 import { trackedFiles } from "../../layers/coverage/tracked.ts";
+import { utcDate } from "../../survivors/dates.ts";
+import { ackAll, lawAckFindings } from "./acked.ts";
 import { forClass, lawsOfClass, toolsOf } from "./entries.ts";
 import type { LawCatalog } from "./catalog.ts";
 import { evidenceOf, judgeEntry, lawFinding, readingsOf, worse, type Judged } from "./judge.ts";
@@ -110,9 +117,18 @@ function resultOf(judged: readonly Judged[], own: readonly RawFinding[]): LayerR
   return { verdict: layerVerdict(judged, own), findings, artifacts: {} };
 }
 
+/** What reads the acknowledgements of a project: its comments and its ledger. */
+export type AcksOf = (
+  cwd: string,
+  files: readonly string[],
+  ledger: string,
+  severity: SeverityOf,
+) => Collected;
+
 async function run(
   catalog: LawCatalog,
   readers: ReadonlyMap<string, LawReader>,
+  acksOf: AcksOf,
   ctx: LayerContext,
 ): Promise<LayerResult> {
   const tracked = await trackedFiles(ctx);
@@ -126,9 +142,13 @@ async function run(
     forClass(law, ctx.config.class),
   );
   const input = { ctx, tracked: tracked.files, held: ratchetHeld(ctx), eslint };
-  const byLaw = await readAll(laws, input, readers);
+  const acks = acksOf(ctx.cwd, tracked.files, ledgerOf(ctx.config), severityOf(catalog()));
+  const byLaw = ackAll(laws, await readAll(laws, input, readers), acks.acks, utcDate(new Date()));
   const facts = await eslint();
-  const own = facts.ok ? unlinted(source, facts.facts) : [];
+  const own = [
+    ...(facts.ok ? unlinted(source, facts.facts) : []),
+    ...lawAckFindings(acks.problems),
+  ];
   return resultOf(judgeAll(laws, ctx.config.class, byLaw, new Set(readers.keys())), own);
 }
 
@@ -140,7 +160,11 @@ const CONSUMES: Layer["consumes"] = [
 ];
 
 /** The laws layer over a catalog of laws and the readers of each tool's rules. */
-export const lawsLayer = (catalog: LawCatalog, readers = defaultReaders()): Layer => ({
+export const lawsLayer = (
+  catalog: LawCatalog,
+  readers = defaultReaders(),
+  acksOf: AcksOf = collectAcks,
+): Layer => ({
   id: "laws",
   gate: "laws",
   tier: 1,
@@ -148,5 +172,5 @@ export const lawsLayer = (catalog: LawCatalog, readers = defaultReaders()): Laye
   requires: ["hygiene"],
   produces: [],
   consumes: CONSUMES,
-  run: (ctx) => run(catalog, readers, ctx),
+  run: (ctx) => run(catalog, readers, acksOf, ctx),
 });
