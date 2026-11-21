@@ -454,7 +454,8 @@ severity `R`, and `ack-missing` for one of severity `A`. A rule is judged over e
 `.astro` files carry, such as the Astro laws' rules, is judged on them. For a file type the project has none of, such
 as `.tsx` in an astro-site, ESLint is asked about a probe path of that type under `src/`, and a rule the config holds at
 `error` there passes with a note that says it was judged on a probe path; the note is the difference from a silent pass.
-A rule no file and no probe path has at `error` is `refuse` as not enabled, and a project whose ESLint config reaches no
+A rule no file and no probe path has at `error` is `refuse` as not enabled; this includes a config whose block for a type
+matches no path under `src/` (a `files` pattern such as `app/**/*.tsx`) in a project with no file of that type. A project whose ESLint config reaches no
 TypeScript or Astro file is `not-evaluated`, never a pass. The compiler reader reads every
 checked tsconfig project, `tsconfig.json` and the projects it references, through the `extends` chain: `strict` must
 be on, no member of its family may be `false` beside it, and every flag W-04 lists must be set. File-set completeness: a checked project is `tsconfig.json` and the projects it references, followed
