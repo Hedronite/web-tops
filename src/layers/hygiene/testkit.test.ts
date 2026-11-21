@@ -33,4 +33,15 @@ describe("the hygiene test kit", () => {
       PATH: "/opt/other",
     });
   });
+
+  it("compares against origin/main and names a baseline only when the run does", () => {
+    const item = setup();
+    const { exec } = fakeExec(item.project.dir);
+    const plain = contextOf(item, exec);
+    expect(plain.base).toBe("origin/main");
+    expect(plain.config).not.toHaveProperty("baselinePath");
+    expect(contextOf(item, exec, { baselinePath: "baseline.json" }).config.baselinePath).toBe(
+      "baseline.json",
+    );
+  });
 });
