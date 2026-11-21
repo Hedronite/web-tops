@@ -96,6 +96,12 @@ tester.run("astro-client-load-ack", rule, {
       errors: unacknowledged,
     },
     {
+      name: "no ledger option, in a file that happens to be named like one of its mutants",
+      code: page("<Widget client:load />").code,
+      filename: "Stryker was here",
+      errors: unacknowledged,
+    },
+    {
       name: "the ledger names no file",
       ...page("<Widget client:load />"),
       options: [{ ackedFiles: [] }],

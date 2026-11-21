@@ -1,9 +1,6 @@
 import { existsSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { ackedFiles, type AckedFiles } from "../../acks/files.ts";
-import { catalogSeverity } from "../../acks/severity.ts";
 import type { RawFinding } from "../../report/findings.ts";
-import { utcDate } from "../../survivors/dates.ts";
 import {
   arrayOf,
   exitFinding,
@@ -13,7 +10,6 @@ import {
   readJsonOutput,
   readResultsFile,
   records,
-  runTool,
   failFinding,
   shapeFinding,
   str,
@@ -50,34 +46,10 @@ function eslintFinding(
   );
 }
 
-/** The files the ack ledger covers for W-28 today: the ledger's entries for it that have not expired. */
-export const readLedger = (cwd: string): AckedFiles =>
-  ackedFiles(cwd, "W-28", utcDate(new Date()), catalogSeverity());
-
-/**
- * The environment that tells the preset which files the ledger covers for W-28 (`WEBTOPS_ACKED_FILES`, JSON by law),
- * so the rule does not flag them. A ledger that lists none, or cannot be read, adds nothing: the finding stays,
- * and the laws layer and `webtops acks` report the ledger.
- */
-export const ackedEnv = (acked: AckedFiles): Record<string, string> =>
-  acked.ok && acked.files.length > 0
-    ? { WEBTOPS_ACKED_FILES: JSON.stringify({ "W-28": acked.files }) }
-    : {};
-
-/** The step with `extra` added to the environment of the tools it runs. */
-export function withEnv(step: StepContext, extra: Readonly<Record<string, string>>): StepContext {
-  const ctx = { ...step.ctx, env: { ...step.ctx.env, ...extra } };
-  return { ...step, run: (tool, args) => runTool(ctx, tool, args) };
-}
-
 /** ESLint runs once with its JSON kept in `outDir`; the laws layer reads that file, not a second run. */
-export async function eslintWith(
-  step: StepContext,
-  ledger: (cwd: string) => AckedFiles,
-): Promise<StepResult> {
+export async function eslint(step: StepContext): Promise<StepResult> {
   const path = step.out("eslint.json");
-  const aware = withEnv(step, ackedEnv(ledger(step.ctx.cwd)));
-  const outcome = await ran(aware, "eslint", eslintArgs(step.settings.eslintConfig, path));
+  const outcome = await ran(step, "eslint", eslintArgs(step.settings.eslintConfig, path));
   if ("failed" in outcome) {
     return outcome.failed;
   }
@@ -99,9 +71,6 @@ export async function eslintWith(
     artifacts: { "eslint-json": path },
   };
 }
-
-/** The eslint step, with the ledger's files for W-28 in ESLint's environment. */
-export const eslint = (step: StepContext): Promise<StepResult> => eslintWith(step, readLedger);
 
 function stylelintFinding(
   step: StepContext,

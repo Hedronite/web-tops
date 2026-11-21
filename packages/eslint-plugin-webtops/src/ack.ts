@@ -6,7 +6,7 @@
  */
 /** The reason a comment's text gives for acknowledging the law, or undefined when it does not acknowledge it. */
 export function ackReason(text: string, law: string): string | undefined {
-  const first = text.trim().split("\n")[0] ?? "";
+  const first = String(text.trim().split("\n")[0]);
   const match = /^webtops-ack\s+(W-\d{2,})\s*:\s*(.*[\p{L}\p{N}].*)/u.exec(first);
   return match?.[1] === law ? match[2] : undefined;
 }

@@ -1,3 +1,6 @@
+import { ackedFiles, type AckedFiles } from "../../acks/files.ts";
+import { catalogSeverity } from "../../acks/severity.ts";
+import { utcDate } from "../../survivors/dates.ts";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative } from "node:path";
 import type { RawFinding } from "../../report/findings.ts";
@@ -96,6 +99,28 @@ export function resolveTool(cwd: string, spec: ToolSpec): string | undefined {
   return existsSync(entry) ? entry : undefined;
 }
 
+/** The files the ack ledger covers for W-28 today: the ledger's entries for it that have not expired. */
+export const readLedger = (cwd: string): AckedFiles =>
+  ackedFiles(cwd, "W-28", utcDate(new Date()), catalogSeverity());
+
+/**
+ * The environment that tells the ESLint preset which files the ledger covers for W-28 (`WEBTOPS_ACKED_FILES`, JSON by
+ * law), so the rule does not flag them. A ledger that lists none, or cannot be read, adds nothing: the finding stays,
+ * and the laws layer and `webtops acks` report the ledger.
+ */
+export const ackedEnv = (acked: AckedFiles): Record<string, string> =>
+  acked.ok && acked.files.length > 0
+    ? { WEBTOPS_ACKED_FILES: JSON.stringify({ "W-28": acked.files }) }
+    : {};
+
+/** The environment a tool runs in: the layer's own, and for ESLint the ledger's files as well. */
+export const toolEnv = (
+  ctx: LayerContext,
+  name: string,
+  ledger: (cwd: string) => AckedFiles = readLedger,
+): LayerContext["env"] =>
+  name === "eslint" ? { ...ctx.env, ...ackedEnv(ledger(ctx.cwd)) } : ctx.env;
+
 /** Runs a tool's executable under `node`; a missing `node` is worded so it is not blamed on the tool. */
 async function underNode(
   ctx: LayerContext,
@@ -105,7 +130,11 @@ async function underNode(
   timeoutMs?: number,
 ): Promise<ExecResult> {
   const limit = timeoutMs === undefined ? {} : { timeoutMs };
-  const result = await ctx.exec("node", [entry, ...args], { cwd: ctx.cwd, env: ctx.env, ...limit });
+  const result = await ctx.exec("node", [entry, ...args], {
+    cwd: ctx.cwd,
+    env: toolEnv(ctx, name),
+    ...limit,
+  });
   return result.failure === "tool-missing"
     ? { ...result, stderr: `node is not on PATH, so ${name} cannot run` }
     : result;
@@ -134,7 +163,7 @@ export async function runTool(
 }
 
 /** The finding's tool for a name the steps run or print: the runtime key, or a label such as `bun audit`. */
-const TOOL_NAMES: Readonly<Record<string, Tool>> = {
+const toolNames = (): Readonly<Record<string, Tool>> => ({
   astro: "astro",
   attw: "attw",
   biome: "biome",
@@ -150,11 +179,11 @@ const TOOL_NAMES: Readonly<Record<string, Tool>> = {
   stylelint: "stylelint",
   tsc: "tsc",
   vitest: "vitest",
-};
+});
 
 /** `webtops` for anything that is not one of the named tools: the gate's own checks. */
 export function toolOf(name: string): Tool {
-  return TOOL_NAMES[name] ?? "webtops";
+  return toolNames()[name] ?? "webtops";
 }
 
 export function failFinding(

@@ -17,6 +17,7 @@ describe("ackReason", () => {
     expect(ackReason("webtops-ack W-28 : reason", "W-28")).toBe("reason");
     expect(ackReason("webtops-ack W-28: 2026", "W-28")).toBe("2026");
     expect(ackReason("webtops-ack W-28: été", "W-28")).toBe("été");
+    expect(ackReason("webtops-ack W-28: -- x", "W-28")).toBe("-- x");
   });
 
   it("needs no space after the colon, and takes more than one before the law", () => {
