@@ -43,11 +43,17 @@ function ledgerReport(directory: string, named: string): string | undefined {
   return `${named}: invalid\n${problems.map(line).join("")}`;
 }
 
-/** The problems of the survivor ledger, else those of the ack ledger (section 8.1), headed with the ledger's path; none when both are sound. */
+/** The reports that say something, one after the other, or undefined when there is none. */
+export function joinReports(...reports: readonly (string | undefined)[]): string | undefined {
+  const said = reports.filter((one): one is string => one !== undefined);
+  return said.length === 0 ? undefined : said.join("");
+}
+
+/** The problems of the survivor ledger and those of the ack ledger (section 8.1), each headed with its ledger's path; none when both are sound. */
 function ledgersReport(directory: string, config: WebTopsConfig): string | undefined {
-  return (
-    ledgerReport(directory, ledgerPathOf(config)) ??
-    ackLedgerReport(directory, namedLedger(config), catalogSeverity)
+  return joinReports(
+    ledgerReport(directory, ledgerPathOf(config)),
+    ackLedgerReport(directory, namedLedger(config), catalogSeverity),
   );
 }
 
