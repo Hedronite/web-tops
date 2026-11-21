@@ -115,3 +115,57 @@ describe("a rule scoped to a file type the project has none of", () => {
     );
   });
 });
+
+describe("a rule the preset sets on a page's script blocks", () => {
+  const SCRIPT = "src/page.astro/0.ts";
+
+  it("is refused at its config line when an override sets it off for the script blocks", () => {
+    const text = [
+      "export default [",
+      `  { files: ["**/*.astro/*.ts"], rules: { "${ENV}": "off" } },`,
+      "];",
+    ].join("\n");
+    const table = {
+      "src/__webtops_probe__.tsx": { [ENV]: 2 },
+      [SCRIPT]: { [ENV]: 0 },
+      "src/page.astro/0.js": { [ENV]: 2 },
+    };
+    const found = readLaw(
+      { ...evidence(table), config: [{ file: "eslint.config.js", text }] },
+      law(ENV),
+    );
+    expect(found.verdict).toBe("refuse");
+    expect(found.findings).toMatchObject([{ rule: ENV, file: "eslint.config.js", line: 2 }]);
+    expect(found.findings[0]?.message).toBe(
+      `${ENV} is below error for 1 file(s), such as ${SCRIPT}`,
+    );
+  });
+
+  it("names the probe path of the type, never a real file, when the page is a probe", () => {
+    const table = { "src/__webtops_probe__.astro/0.ts": { [ENV]: 0 } };
+    const found = readLaw(evidence(table), law(ENV));
+    expect(found.findings[0]?.message).toBe(
+      `${ENV} is below error for 1 file(s), such as the probe path for .astro script blocks`,
+    );
+    const tsx = readLaw(evidence({ "src/__webtops_probe__.tsx": { [ENV]: 1 } }), law(ENV));
+    expect(tsx.findings[0]?.message).toBe(
+      `${ENV} is below error for 1 file(s), such as the probe path for .tsx files`,
+    );
+  });
+
+  it("passes with a note naming every kind of probe path it rests on", () => {
+    const table = {
+      "src/__webtops_probe__.tsx": { [ENV]: 2 },
+      "src/__webtops_probe__.astro/0.ts": { [ENV]: 2 },
+      "src/__webtops_probe__.astro/0.js": { [ENV]: 2 },
+    };
+    expect(readLaw(evidence(table), law(ENV)).note).toBe(
+      `${ENV} judged on a probe path: the project has no .tsx file, no .astro script block`,
+    );
+  });
+
+  it("is not a probe pass when a real script block has it at error", () => {
+    const table = { "src/__webtops_probe__.tsx": { [ENV]: 2 }, [SCRIPT]: { [ENV]: 2 } };
+    expect(readLaw(evidence(table), law(ENV)).note).toBeUndefined();
+  });
+});

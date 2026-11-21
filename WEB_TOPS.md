@@ -454,6 +454,11 @@ severity `R`, and `ack-missing` for one of severity `A`. A rule is judged over e
 `.astro` files carry, such as the Astro laws' rules, is judged on them. For a file type the project has none of, such
 as `.tsx` in an astro-site, ESLint is asked about a probe path of that type under `src/`, and a rule the config holds at
 `error` there passes with a note that says it was judged on a probe path; the note is the difference from a silent pass.
+A page's script blocks are linted as files of their own (`page.astro/0.ts`, `page.astro/0.js`), and the rules the preset
+sets for client scripts are set on those paths, so ESLint is asked about them for each tracked `.astro` file, and for a
+probe page (`src/__webtops_probe__.astro`) when the project has none; a rule below `error` on one is `refuse` at the
+config line that does it, and a refusal that rests on a probe path names it as the probe path of its type, never as a
+real file.
 A rule no file and no probe path has at `error` is `refuse` as not enabled; this includes a config whose block for a type
 matches no path under `src/` (a `files` pattern such as `app/**/*.tsx`) in a project with no file of that type. A project whose ESLint config reaches no
 TypeScript or Astro file is `not-evaluated`, never a pass. The compiler reader reads every

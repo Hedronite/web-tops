@@ -39,12 +39,40 @@ export function probePaths(files: readonly string[]): string[] {
     .map((extension) => `${probeBase()}${extension}`);
 }
 
-/** What ESLint is asked about: the tracked files it judges, and a probe path for each type the project has none of. */
-export const askedOf = (linted: readonly string[]): string[] => [...linted, ...probePaths(linted)];
+/** A page's script block, which eslint-plugin-astro lints as a file of its own: `page.astro/0.ts`, `page.astro/0.js`. */
+function scriptBlock(): RegExp {
+  return /\.astro\/\d+\.(?:ts|js)$/u;
+}
 
-/** Whether a file is one of the types ESLint judges the lint laws over. */
+export const isScriptBlock = (file: string): boolean => scriptBlock().test(file);
+
+/** The paths of the first script block of a page, as TypeScript and as JavaScript. */
+export const scriptPaths = (page: string): string[] => [`${page}/0.ts`, `${page}/0.js`];
+
+const isPage = (file: string): boolean => extname(file).toLowerCase() === ".astro";
+
+/**
+ * What ESLint is asked about: the tracked files it judges, a probe path for each type the project has none of, and the
+ * script blocks of each page (of the probe page when the project has none), because a rule the Astro preset sets for
+ * client scripts is set on those paths and on no file of its own.
+ */
+export function askedOf(linted: readonly string[]): string[] {
+  const probes = probePaths(linted);
+  const pages = linted.filter(isPage);
+  const bases = pages.length > 0 ? pages : probes.filter(isPage);
+  return [...linted, ...probes, ...bases.flatMap(scriptPaths)];
+}
+
+/** What a probe path stands for: a kind of file the project has none of, one and many. */
+export function probeKind(file: string): { one: string; many: string } {
+  return isScriptBlock(file)
+    ? { one: ".astro script block", many: ".astro script blocks" }
+    : { one: `${extname(file)} file`, many: `${extname(file)} files` };
+}
+
+/** Whether a file is one of the types ESLint judges the lint laws over, or a script block of a page. */
 export const isLinted = (file: string): boolean =>
-  lintedExtensions().includes(extname(file).toLowerCase());
+  isScriptBlock(file) || lintedExtensions().includes(extname(file).toLowerCase());
 
 /**
  * The data trees of section 17: test data and probes break rules on purpose and are never source the tools judge. The

@@ -1,9 +1,8 @@
-import { extname } from "node:path";
 import type { Levels } from "../../census/config.ts";
 import type { RawFinding } from "../../report/findings.ts";
 import type { LawEntry, LawReading } from "./types.ts";
 import { lowerings, type ConfigText, type Spot } from "./config-lines.ts";
-import { isLinted, isProbe } from "./files.ts";
+import { isLinted, isProbe, probeKind } from "./files.ts";
 
 /** What the ESLint reader knows: each TypeScript file's effective levels, the config's text, and what ESLint reported. */
 export interface Evidence {
@@ -65,8 +64,9 @@ interface RuleCheck {
  * one says so: it is a pass the config earns for the files the project would add, never a silent one.
  */
 function probeNote(name: string, found: Spread): string | undefined {
+  const kinds = [...new Set(found.on.map((file) => probeKind(file).one))];
   return found.on.every(isProbe)
-    ? `${name} judged on a probe path: the project has no ${extname(String(found.on[0]))} file`
+    ? `${name} judged on a probe path: the project has no ${kinds.join(", no ")}`
     : undefined;
 }
 
@@ -74,6 +74,10 @@ function pass(name: string, found: Spread): RuleCheck {
   const note = probeNote(name, found);
   return { verdict: "pass", findings: [], ...(note === undefined ? {} : { note }) };
 }
+
+/** A file named in a refusal: a real one by its path, a probe path as the probe of its type, never as a real file. */
+const suchAs = (file: string): string =>
+  isProbe(file) ? `the probe path for ${probeKind(file).many}` : file;
 
 /** The id a rule has in the effective config (`@typescript-eslint/no-explicit-any` for `no-explicit-any`). */
 function idOf(levels: Levels, name: string): string {
@@ -108,7 +112,7 @@ function lapsed(
     return undefined;
   }
   const id = idOf(evidence.levels, name);
-  const message = `${id} is below error for ${String(found.below.length)} file(s), such as ${String(found.below[0])}`;
+  const message = `${id} is below error for ${String(found.below.length)} file(s), such as ${suchAs(String(found.below[0]))}`;
   const findings = spotsOf(evidence, name).map((spot) => refusal(law, id, spot, message));
   return { verdict: "refuse", findings };
 }

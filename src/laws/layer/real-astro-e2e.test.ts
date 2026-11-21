@@ -45,14 +45,14 @@ function git(cwd: string, ...args: string[]): void {
 }
 
 /** An astro-site: the kit's astro preset, a TypeScript module and a page, and `extra` as one more config block. */
-function astroSite(extra: string): string {
+function astroSite(extra: string, withPage = true): string {
   const cwd = tempDir();
   symlinkSync(join(KIT, "node_modules"), join(cwd, "node_modules"));
   put(cwd, {
     "package.json": '{ "type": "module", "dependencies": { "astro": "5.0.0" } }\n',
     "tsconfig.json": JSON.stringify({ extends: join(KIT, "tsconfig.json"), include: ["src/**/*"] }),
     "src/a.ts": "export const a: number = 1;\n",
-    "src/page.astro": "---\nconst title = 'a';\n---\n<h1>{title}</h1>\n",
+    ...(withPage ? { "src/page.astro": "---\nconst title = 'a';\n---\n<h1>{title}</h1>\n" } : {}),
     "out/e.json": "[]\n",
     "out/t.json": "[]\n",
     "eslint.config.js": [
@@ -82,19 +82,13 @@ function findingsOf(cwd: string): unknown {
 
 describe.skipIf(insideStryker)("an astro-site with the preset and a .astro page", () => {
   it(
-    "passes W-28, W-30, W-31 and W-37, the last on a probe path since the project has no .tsx file",
+    "passes W-28, W-30, W-31 and W-37, the last on the page's script blocks, with no note: a real file carries it",
     () => {
       expect(findingsOf(astroSite(""))).toEqual([
         ["law/W-28", "pass", "W-28 pass", null, null],
         ["law/W-30", "pass", "W-30 pass", null, null],
         ["law/W-31", "pass", "W-31 pass", null, null],
-        [
-          "law/W-37",
-          "pass",
-          "W-37 pass: webtops/public-env-only judged on a probe path: the project has no .tsx file",
-          null,
-          null,
-        ],
+        ["law/W-37", "pass", "W-37 pass", null, null],
       ]);
     },
     SLOW,
@@ -116,13 +110,48 @@ describe.skipIf(insideStryker)("an astro-site with the preset and a .astro page"
           3,
         ],
         ["law/W-31", "pass", "W-31 pass", null, null],
+        ["law/W-37", "pass", "W-37 pass", null, null],
+      ]);
+    },
+    SLOW,
+  );
+
+  it(
+    "refuses W-37 at the config line of an override that sets public-env-only off for the page's script blocks",
+    () => {
+      // line 3 of the config, as above
+      const override =
+        '{ files: ["**/*.astro/*.ts"], rules: { "webtops/public-env-only": "off" } }';
+      const found = findingsOf(astroSite(override));
+      expect(found).toEqual([
+        ["law/W-28", "pass", "W-28 pass", null, null],
+        ["law/W-30", "pass", "W-30 pass", null, null],
+        ["law/W-31", "pass", "W-31 pass", null, null],
+        ["law/W-37", "refuse", "W-37 refuse: 1 place(s) listed", null, null],
         [
-          "law/W-37",
-          "pass",
-          "W-37 pass: webtops/public-env-only judged on a probe path: the project has no .tsx file",
-          null,
-          null,
+          "webtops/public-env-only",
+          "refuse",
+          "webtops/public-env-only is below error for 1 file(s), such as src/page.astro/0.ts",
+          "eslint.config.js",
+          3,
         ],
+      ]);
+    },
+    SLOW,
+  );
+
+  it(
+    "refuses it the same, naming the probe path, in an astro-site that has no page yet",
+    () => {
+      const override =
+        '{ files: ["**/*.astro/*.ts"], rules: { "webtops/public-env-only": "off" } }';
+      const found = findingsOf(astroSite(override, false));
+      expect(found).toContainEqual([
+        "webtops/public-env-only",
+        "refuse",
+        "webtops/public-env-only is below error for 1 file(s), such as the probe path for .astro script blocks",
+        "eslint.config.js",
+        3,
       ]);
     },
     SLOW,
