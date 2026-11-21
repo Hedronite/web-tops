@@ -117,11 +117,12 @@ describe("G6a: the data trees of section 17 are not part of the diff", () => {
     "+new",
   ];
 
-  it("leaves out a file changed under fixtures/ or probes/, and keeps the others with their own ranges", () => {
+  it("leaves out a file changed under fixtures/, probes/ or examples/, and keeps the others with their own ranges", () => {
     const text = diff(
       ...change("src/a.ts"),
       ...change("fixtures/laws/W-34/bad/focused.test.ts"),
       ...change("probes/w22/b.tsx"),
+      ...change("examples/node-service/src/a.test.ts"),
       "@@ -5,0 +6,2 @@",
       "+x",
       "+y",
@@ -161,18 +162,20 @@ describe("G6a: the data trees of section 17 are not part of the diff", () => {
     ]);
   });
 
-  it("only the two trees at the top: a path that merely contains or starts like one is kept", () => {
+  it("only the trees at the top: a path that merely contains or starts like one is kept", () => {
     const text = diff(
       ...change("src/fixtures/a.ts"),
-      ...change("examples/probes/b.ts"),
+      ...change("docs/examples/b.ts"),
       ...change("fixtures-old/c.ts"),
       ...change("probes.ts"),
+      ...change("examples.ts"),
     );
     expect(parseDiff(text).map((file) => file.path)).toEqual([
       "src/fixtures/a.ts",
-      "examples/probes/b.ts",
+      "docs/examples/b.ts",
       "fixtures-old/c.ts",
       "probes.ts",
+      "examples.ts",
     ]);
   });
 

@@ -54,7 +54,7 @@
   "packageManager": "bun@1.4.4",
   "scripts": {
     "prepare": "tsc -p packages/eslint-plugin-webtops/tsconfig.build.json",
-    "typecheck": "tsc -b --noEmit",
+    "typecheck": "tsc -b",
     "lint": "eslint .",
     "test": "vitest run --coverage --sequence.shuffle",
     "format:check": "prettier --check ."

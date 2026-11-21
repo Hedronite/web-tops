@@ -19,9 +19,8 @@ export default defineConfig(
       "fixtures/probe/",
       // Reserved (M2): golden fixtures for the complexity counter, data that is deliberately complex.
       "fixtures/complexity/",
-      // Reserved (M3): the law fixtures break rules on purpose, and examples/node-service gates itself (G11).
+      // Reserved (M3): the law fixtures break rules on purpose.
       "fixtures/laws/",
-      "examples/node-service/",
     ],
   },
   js.configs.recommended,

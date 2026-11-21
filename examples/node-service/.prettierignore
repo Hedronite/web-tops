@@ -1,0 +1,7 @@
+# Not formatted by Prettier: dependencies, output, the lockfile and the drop-in AGENTS.md as `webtops init` wrote it.
+/node_modules/
+/coverage/
+/dist/
+/.web-tops/
+bun.lock
+*.md

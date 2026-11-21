@@ -44,10 +44,11 @@ function statusOf(oldPath: string | null | undefined, newPath: string | null): C
 }
 
 /**
- * The data trees of section 17: fixtures and probes break rules on purpose (a bad twin of W-34 is a focused test), so a
- * file changed under them is neither source to mutate nor a test to run, and it is not listed.
+ * The trees of section 17 that are not this project's code: fixtures and probes break rules on purpose (a bad twin of
+ * W-34 is a focused test), and each example is a project that gates itself. A file changed under them is neither
+ * source to mutate nor a test to run, and it is not listed.
  */
-const DATA_TREE = /^(?:fixtures|probes)\//;
+const DATA_TREE = /^(?:fixtures|probes|examples)\//;
 
 /** Makes the file current, and lists it, unless it is in a data tree: its hunks then belong to no file. */
 function register(state: State, path: string, status: ChangeStatus): void {
