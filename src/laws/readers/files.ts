@@ -1,3 +1,4 @@
+import { extname } from "node:path";
 import { withinSource } from "../../census/files.ts";
 import type { EslintFacts } from "../../census/eslint.ts";
 import type { RawFinding } from "../../report/findings.ts";
@@ -9,6 +10,38 @@ function sourceFile(): RegExp {
 /** The tracked TypeScript source the compiler and the lint laws judge: outside the output and dependency folders. */
 export const trackedSource = (tracked: readonly string[]): string[] =>
   tracked.filter((file) => sourceFile().test(file) && withinSource(file));
+
+/** The files ESLint reads for the lint laws: TypeScript, and the Astro pages and components. */
+function lintedExtensions(): readonly string[] {
+  return [".ts", ".tsx", ".mts", ".cts", ".astro"];
+}
+
+/** The tracked source ESLint judges: TypeScript and `.astro`, outside the output and dependency folders. */
+export const trackedLinted = (tracked: readonly string[]): string[] =>
+  tracked.filter(
+    (file) => lintedExtensions().includes(extname(file).toLowerCase()) && withinSource(file),
+  );
+
+/** Where a path ESLint is asked about, though no file is there, begins: the project's own `src/`. */
+const probeBase = (): string => "src/__webtops_probe__";
+
+/** Whether a path is one ESLint was asked about in place of a file the project does not have. */
+export const isProbe = (file: string): boolean => file.startsWith(probeBase());
+
+/**
+ * One path for each linted file type the project has no file of. A rule that only a type the project lacks carries
+ * is judged over the path ESLint's config gives it: ESLint says what config reaches a path without reading it.
+ */
+export function probePaths(files: readonly string[]): string[] {
+  const have = new Set(files.map((file) => extname(file).toLowerCase()));
+  return lintedExtensions()
+    .filter((extension) => !have.has(extension))
+    .map((extension) => `${probeBase()}${extension}`);
+}
+
+/** Whether a file is one of the types ESLint judges the lint laws over. */
+export const isLinted = (file: string): boolean =>
+  lintedExtensions().includes(extname(file).toLowerCase());
 
 /**
  * The data trees of section 17: test data and probes break rules on purpose and are never source the tools judge. The

@@ -112,7 +112,7 @@ describe.skipIf(insideStryker)("R106 the laws layer on a real project, by class"
       const found = findingsFor("astro-site");
       expect(found).toEqual([
         ["law/W-22", "refuse", "W-22 refuse: 1 place(s) listed"],
-        [ASTRO, "refuse", `${ASTRO} is not enabled for any TypeScript file`],
+        [ASTRO, "refuse", `${ASTRO} is not enabled for any file the project lints`],
       ]);
     },
     SLOW,

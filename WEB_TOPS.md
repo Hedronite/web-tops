@@ -447,14 +447,20 @@ a finding above the baseline (§6.7); under `hard`, any finding is `refuse`.
 
 The laws layer reads what gate 1 wrote and runs no tool again. For each law it takes the readings of every tool the
 law maps and the worst of them is the law's verdict; a tool with no reader is `not-evaluated` for the law, and a law
-passes only when every reader passes. The ESLint reader reads each tracked TypeScript file's effective configuration
-(`eslint --print-config`, for every file in one process), so a per-directory override is seen, and a required rule that
-an override sets to `off` or `warn` is `refuse` at the config line that does it (X3). The compiler reader reads every
+passes only when every reader passes. The ESLint reader reads each tracked TypeScript and `.astro` file's effective
+configuration (`eslint --print-config`, for every file in one process), so a per-directory override is seen, and a
+required rule that an override sets to `off` or `warn` is `refuse` at the config line that does it (X3), for a law of
+severity `R`, and `ack-missing` for one of severity `A`. A rule is judged over every file that sets it, so a rule only
+`.astro` files carry, such as the Astro laws' rules, is judged on them. For a file type the project has none of, such
+as `.tsx` in an astro-site, ESLint is asked about a probe path of that type under `src/`, and a rule the config holds at
+`error` there passes with a note that says it was judged on a probe path; the note is the difference from a silent pass.
+A rule no file and no probe path has at `error` is `refuse` as not enabled, and a project whose ESLint config reaches no
+TypeScript or Astro file is `not-evaluated`, never a pass. The compiler reader reads every
 checked tsconfig project, `tsconfig.json` and the projects it references, through the `extends` chain: `strict` must
 be on, no member of its family may be `false` beside it, and every flag W-04 lists must be set. File-set completeness: a checked project is `tsconfig.json` and the projects it references, followed
 transitively, and nothing else; a nested tsconfig that no reference reaches is not checked, and its files are in no
 project. A tracked source file (`.ts`, `.tsx`, `.mts`, `.cts`) in no checked project's program is `refuse` at that
-file. The same holds for ESLint: a tracked source file that no config block reaches, or that an `ignores` entry drops,
+file. The same holds for ESLint, over `.ts`, `.tsx`, `.mts`, `.cts` and `.astro` files: a tracked source file that no config block reaches, or that an `ignores` entry drops,
 is a `refuse` file-set finding, because no lint law judges it. A nested project reaches ESLint through its own
 `eslint.config`, which ESLint looks up from each file's directory. The data trees `fixtures/` and `probes/`
 (section 17) are the only exemption from both, fixed here and in the code; no ESLint `ignores` entry, no `exclude`

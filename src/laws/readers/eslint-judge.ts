@@ -3,6 +3,7 @@ import type { Levels } from "../../census/config.ts";
 import type { RawFinding } from "../../report/findings.ts";
 import type { LawEntry, LawReading } from "./types.ts";
 import { lowerings, type ConfigText, type Spot } from "./config-lines.ts";
+import { isLinted, isProbe } from "./files.ts";
 
 /** What the ESLint reader knows: each TypeScript file's effective levels, the config's text, and what ESLint reported. */
 export interface Evidence {
@@ -15,14 +16,6 @@ export interface Evidence {
   /** The ratchet holds finding counts: they are the ratchet's to refuse (section 6.7). */
   readonly held: boolean;
 }
-
-function typescript(): ReadonlySet<string> {
-  return new Set([".ts", ".tsx", ".mts", ".cts"]);
-}
-
-/** The files a typed rule is judged over: a rule that is off for `.js` by design is not a lapse. */
-export const isTypeScript = (file: string): boolean =>
-  typescript().has(extname(file).toLowerCase());
 
 /** A rule id is the name, or the name under a plugin prefix. */
 export const matches = (id: string, name: string): boolean =>
@@ -43,26 +36,43 @@ const isLowered = (seen: Seen): boolean => seen.level !== undefined && seen.leve
 const isError = (seen: Seen): boolean => seen.level === 2;
 const fileOf = (seen: Seen): string => seen.file;
 
-/** How a rule stands across the TypeScript files: the files that set it below error, and how many set it to error. */
+/**
+ * How a rule stands across the files ESLint judges (TypeScript and Astro, and a probe path for a type the project has
+ * none of): the files that set it below error, and those that set it to error. A file that never sets it says nothing:
+ * the rule is scoped to the types that do.
+ */
 interface Spread {
   readonly below: readonly string[];
-  readonly on: number;
+  readonly on: readonly string[];
 }
 
 function spread(levels: Levels, name: string): Spread {
-  const files = [...levels].filter(([file]) => isTypeScript(file));
+  const files = [...levels].filter(([file]) => isLinted(file));
   const seen = files.map(([file, byRule]): Seen => ({ file, level: levelFor(byRule, name) }));
-  return { below: seen.filter(isLowered).map(fileOf), on: seen.filter(isError).length };
+  return { below: seen.filter(isLowered).map(fileOf), on: seen.filter(isError).map(fileOf) };
 }
 
 /** What one rule or flag of a law comes to. */
 interface RuleCheck {
   readonly verdict: "pass" | "refuse";
   readonly findings: readonly RawFinding[];
+  /** Said of a pass that rests on a probe path: no file of the type the rule is scoped to. */
+  readonly note?: string;
 }
 
-function pass(): RuleCheck {
-  return { verdict: "pass", findings: [] };
+/**
+ * A rule that only paths of a type the project has no file of carry is judged on a probe path, and a pass that rests on
+ * one says so: it is a pass the config earns for the files the project would add, never a silent one.
+ */
+function probeNote(name: string, found: Spread): string | undefined {
+  return found.on.every(isProbe)
+    ? `${name} judged on a probe path: the project has no ${extname(String(found.on[0]))} file`
+    : undefined;
+}
+
+function pass(name: string, found: Spread): RuleCheck {
+  const note = probeNote(name, found);
+  return { verdict: "pass", findings: [], ...(note === undefined ? {} : { note }) };
 }
 
 /** The id a rule has in the effective config (`@typescript-eslint/no-explicit-any` for `no-explicit-any`). */
@@ -103,18 +113,18 @@ function lapsed(
   return { verdict: "refuse", findings };
 }
 
-/** A rule no TypeScript file has at error: it is not enabled at all. */
+/** A rule no file ESLint judges has at error: it is not enabled at all. */
 function neverOn(
   evidence: Evidence,
   law: string,
   name: string,
   found: Spread,
 ): RuleCheck | undefined {
-  if (found.on > 0) {
+  if (found.on.length > 0) {
     return undefined;
   }
   const spot = { file: evidence.configFile, line: 1 };
-  const message = `${name} is not enabled for any TypeScript file`;
+  const message = `${name} is not enabled for any file the project lints`;
   return {
     verdict: "refuse",
     findings: [refusal(law, idOf(evidence.levels, name), spot, message)],
@@ -123,7 +133,9 @@ function neverOn(
 
 function checkRule(evidence: Evidence, law: string, name: string): RuleCheck {
   const found = spread(evidence.levels, name);
-  return lapsed(evidence, law, name, found) ?? neverOn(evidence, law, name, found) ?? pass();
+  return (
+    lapsed(evidence, law, name, found) ?? neverOn(evidence, law, name, found) ?? pass(name, found)
+  );
 }
 
 /** The findings of gate 1 for a rule name, summed over its ids. */
@@ -162,24 +174,36 @@ function countedReading(
 
 /** Why no rule can be judged, worded for an adopter whose ESLint config cannot reach `.ts` files at all. */
 function unlintedReason(): string {
-  return "no TypeScript file was linted: ESLint's config reaches no TypeScript file (no config block has files for **/*.ts and the TypeScript parser, or an ignore drops them), so no rule can be judged";
+  return "no TypeScript or Astro file was linted: ESLint's config reaches no TypeScript or Astro file (no config block has files for **/*.ts or **/*.astro and their parsers, or an ignore drops them), so no rule can be judged";
 }
 
-/** No TypeScript file was linted: the typed rules have no file to be judged over. */
+/** No TypeScript or Astro file was linted: the rules have no file to be judged over. */
 function unjudgedReading(law: string, evidence: Evidence): LawReading | undefined {
-  return [...evidence.levels.keys()].some(isTypeScript)
+  return [...evidence.levels.keys()].some(isLinted)
     ? undefined
     : { law, verdict: "not-evaluated", reason: unlintedReason(), findings: [] };
 }
 
-function passReading(law: string, counted: readonly string[]): LawReading {
-  const note = counted.length === 0 ? undefined : `${counted.join(", ")} held by the baseline`;
-  return { law, verdict: "pass", findings: [], ...(note === undefined ? {} : { note }) };
+function passReading(
+  law: string,
+  counted: readonly string[],
+  notes: readonly string[],
+): LawReading {
+  const held = counted.length === 0 ? [] : [`${counted.join(", ")} held by the baseline`];
+  const parts = [...held, ...notes];
+  return {
+    law,
+    verdict: "pass",
+    findings: [],
+    ...(parts.length === 0 ? {} : { note: parts.join("; ") }),
+  };
 }
+
+const noteOf = (check: RuleCheck): string[] => (check.note === undefined ? [] : [check.note]);
 
 /**
  * The law's reading over its ESLint rules: a rule below error is `refuse` at the config line that does it (X3), a
- * finding of gate 1 on one of its rules is `refuse`, and a rule no TypeScript file could be judged by is not evaluated.
+ * finding of gate 1 on one of its rules is `refuse`, and a rule no file could be judged by is not evaluated.
  */
 export function readLaw(evidence: Evidence, law: LawEntry): LawReading {
   const names = law.rules.filter(isEslintRule).map((rule) => rule.name);
@@ -189,6 +213,6 @@ export function readLaw(evidence: Evidence, law: LawEntry): LawReading {
     unjudgedReading(law.id, evidence) ??
     refusedReading(law.id, checks) ??
     countedReading(law.id, counted, evidence.held) ??
-    passReading(law.id, counted)
+    passReading(law.id, counted, checks.flatMap(noteOf))
   );
 }
