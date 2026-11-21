@@ -31,6 +31,8 @@ export function diffText(report: DiffReport, authority: Authority): string {
   const lines = [
     `law-diff ${report.base}..${report.head} (merge base ${report.mergeBase.slice(0, 12)})`,
     ...report.surfaces.flatMap(surfaceLines),
+    "not compared:",
+    ...report.notCompared.map((left) => `  ${left.what}: ${left.reason}`),
     result,
   ];
   return `${lines.join("\n")}\n`;
