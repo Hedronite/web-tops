@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import process from "node:process";
 import { pathToFileURL } from "node:url";
 import eslintComments from "@eslint-community/eslint-plugin-eslint-comments";
 import js from "@eslint/js";
