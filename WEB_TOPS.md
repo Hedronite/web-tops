@@ -404,7 +404,8 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
   judged. A pure deletion belongs to the smallest function that holds the lines on both sides of
   it, else to the file's `<module>` (§6.7). The data trees of §17, `fixtures/` and `probes/` at the top of the tree, are
   not part of the diff: a file changed under them is neither mutated nor run, because it breaks rules on purpose. Nor
-  is `examples/`: each example is a project that gates itself, with its own tools and tests.
+  is a file under `examples/<name>/` when that folder holds its own `web-tops.yaml`: such an example is a project that
+  gates itself, with its own tools and tests. Any other file under `examples/` is part of the diff.
 - **Statuses.** Stryker's status of each mutant decides what counts:
 
 | Status | Counts as |
@@ -469,7 +470,7 @@ transitively, and nothing else; a nested tsconfig that no reference reaches is n
 project. A tracked source file (`.ts`, `.tsx`, `.mts`, `.cts`) in no checked project's program is `refuse` at that
 file. The same holds for ESLint, over `.ts`, `.tsx`, `.mts`, `.cts` and `.astro` files: a tracked source file that no config block reaches, or that an `ignores` entry drops,
 is a `refuse` file-set finding, because no lint law judges it. A nested project reaches ESLint through its own
-`eslint.config`, which ESLint looks up from each file's directory. The data trees `fixtures/` and `probes/`
+`eslint.config`, which ESLint looks up from each file's directory: ESLint finds the nearest config for each file, so a nested `eslint.config.js` governs its folder, and law-diff reads each tracked file, so it sees a nested config that is weaker than the root's. The data trees `fixtures/` and `probes/`
 (section 17) are the only exemption from both, fixed here and in the code; no ESLint `ignores` entry, no `exclude`
 and no configuration adds to it. A rule entry of a law may list `classes`, a subset of the law's: a rule outside the run's class is neither required nor refused, so a project is not refused for a rule that holds for another class only. A compiler diagnostic that names a flag (`TS7005` and `TS7006` for
 `noImplicitAny`, and so on; gate 1 writes them as the `tsc-diagnostics` artifact) refuses the laws that map that flag:

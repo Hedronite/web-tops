@@ -30,4 +30,9 @@ jobs:
         with:
           bun-version: 1.4.4
       - run: bun install --frozen-lockfile
+      # The example project is reached by the root tsconfig references and gates itself with the kit's source.
+      - run: bun install --frozen-lockfile
+        working-directory: examples/node-service
       - run: bun src/cli/main.ts gate --max-tier 1
+      - run: bun ../../src/cli/main.ts gate --max-tier 1
+        working-directory: examples/node-service

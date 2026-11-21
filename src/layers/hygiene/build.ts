@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { loadTypeScript } from "../../complexity/load.ts";
 import type { ExecResult } from "../../gate/types.ts";
 import type { RawFinding } from "../../report/findings.ts";
 import {
@@ -7,7 +8,6 @@ import {
   toolOf,
   ran,
   failFinding,
-  readOutput,
   type StepContext,
   type StepResult,
 } from "./tooling.ts";
@@ -146,12 +146,19 @@ function keepDiagnostics(
 }
 
 /**
- * Whether `tsconfig.json` lists projects in `references`. tsc refuses a referenced project whose emit is off
- * (TS6310), and `--noEmit` turns it off for every project of the build, so such a root is built without it.
+ * Whether `tsconfig.json` lists projects in `references`, read as the JSONC it is (a comment that mentions
+ * `references` does not count). tsc refuses a referenced project whose emit is off (TS6310), and `--noEmit` turns it
+ * off for every project of the build, so such a root is built without it. A file that cannot be read has none.
  */
 function hasReferences(cwd: string): boolean {
-  const text = readOutput(join(cwd, "tsconfig.json"));
-  return text !== undefined && /"references"\s*:\s*\[\s*\{/u.test(text);
+  try {
+    const ts = loadTypeScript(cwd);
+    const read = ts.readConfigFile(join(cwd, "tsconfig.json"), (file) => ts.sys.readFile(file));
+    const listed: unknown = Reflect.get(Object(read.config), "references");
+    return read.error === undefined && Array.isArray(listed) && listed.length > 0;
+  } catch {
+    return false;
+  }
 }
 
 /**

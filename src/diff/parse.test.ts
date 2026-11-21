@@ -128,9 +128,28 @@ describe("G6a: the data trees of section 17 are not part of the diff", () => {
       "+y",
       ...change("src/c.ts"),
     );
-    expect(parseDiff(text).map((file) => [file.path, file.ranges])).toEqual([
+    const owns = (folder: string): boolean => folder === "examples/node-service";
+    expect(parseDiff(text, owns).map((file) => [file.path, file.ranges])).toEqual([
       ["src/a.ts", [{ start: 1, end: 1 }]],
       ["src/c.ts", [{ start: 1, end: 1 }]],
+    ]);
+  });
+
+  it("keeps a file under examples/ whose folder holds no web-tops.yaml of its own, and leaves out one that does", () => {
+    const text = diff(
+      ...change("examples/gates/src/a.ts"),
+      ...change("examples/plain/src/b.ts"),
+      ...change("examples/loose.ts"),
+    );
+    const owns: Parameters<typeof parseDiff>[1] = (folder) => folder === "examples/gates";
+    expect(parseDiff(text, owns).map((file) => file.path)).toEqual([
+      "examples/plain/src/b.ts",
+      "examples/loose.ts",
+    ]);
+    expect(parseDiff(text).map((file) => file.path)).toEqual([
+      "examples/gates/src/a.ts",
+      "examples/plain/src/b.ts",
+      "examples/loose.ts",
     ]);
   });
 
