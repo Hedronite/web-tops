@@ -5,6 +5,9 @@ import type { Part, Snapshot } from "./types.ts";
 const absent: Part<never> = { state: "absent" };
 const empty: Snapshot = {
   tracked: ["src/new.ts"],
+  trackedStyle: ["a.css"],
+  style: absent,
+  cruise: absent,
   fileSets: absent,
   tools: absent,
   levels: absent,
@@ -39,7 +42,7 @@ function deps(trail: Trail, extra: Partial<Deps> = {}): Deps {
       return Promise.resolve(new Map());
     },
     snapshot: (dir, extra) => {
-      trail.events.push(`snapshot ${dir} ${extra.join(",")}`);
+      trail.events.push(`snapshot ${dir} ${extra.source.join(",")}|${extra.style.join(",")}`);
       return Promise.resolve(empty);
     },
     ...extra,
@@ -54,12 +57,13 @@ describe("the diff of a head against its merge base", () => {
       "merge-base origin/main feature",
       "renames abc123def4567890 feature",
       "checkout feature",
-      "snapshot /tree/feature ",
+      "snapshot /tree/feature |",
       "cleanup feature",
       "checkout abc123def4567890",
-      "snapshot /tree/abc123def4567890 src/new.ts",
+      "snapshot /tree/abc123def4567890 src/new.ts|a.css",
       "cleanup abc123def4567890",
     ]);
+    expect(done.ok && done.report.notCompared.map((left) => left.what)).toContain("size budgets");
     expect(done.ok && done.report).toMatchObject({
       base: "origin/main",
       head: "feature",
@@ -72,6 +76,8 @@ describe("the diff of a head against its merge base", () => {
       "law catalog",
       "profile",
       "tool versions",
+      "Stylelint rule levels and options (W-26)",
+      "dependency-cruiser rules (W-16, W-17, W-19)",
       "tsconfig file set: include, exclude, files, references (W-04)",
     ]);
   });
