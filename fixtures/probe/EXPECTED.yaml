@@ -387,3 +387,18 @@ cases:
         baseline_count: 0
         verdict: fail
       note: The census counts each tracked file in scope that the recorded tsc --listFilesOnly omits.
+
+  - id: census-webtops-ack
+    cheat: An acknowledgement of a soft law, written as a comment.
+    section: "6.7"
+    inputs:
+      - src/hero.ts
+    facts:
+      directive_lines: [1]
+    outcome:
+      census:
+        webtops-ack: 1
+      ratchet:
+        baseline_count: 0
+        verdict: fail
+      note: Counted as its own kind; a ledger entry counts the same way, and a ratchet refuses a rise.
