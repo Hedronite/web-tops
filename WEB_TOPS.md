@@ -1004,12 +1004,24 @@ The drop-in workflow `.github/workflows/web-tops.yml`:
 | `release-verify` | Tier 3, on release |
 | `law-diff` | Fails a PR that weakens or removes a law, rule, tsconfig flag or budget without the `protocol-change` label |
 
-`webtops law-diff <base> <head>` lists each surface it compares with how many parts it compared, whether or not any moved.
-Among them: the effective level and options of every ESLint rule for each TypeScript, JavaScript and Astro file, where a
-file ESLint no longer reaches (an ignore, a narrower `files`) is weaker; and the `include`, `exclude`, `files`,
-`references` and program of each checked tsconfig project, where an include, a file or a reference removed, an exclude
-added, a project no longer checked, or a tracked file the project no longer holds is weaker. The base is asked about the
-head's files as well as its own, and a renamed file is held to the path it came from.
+`webtops law-diff <base> <head>` compares the merge base of the two refs with the head, surface by surface, and lists every
+surface with how many parts it compared, whether or not any moved: the effective level and options of every ESLint rule
+for each TypeScript, JavaScript and Astro file, where a file ESLint no longer reaches (an ignore, a narrower `files`) is
+weaker, and a ceiling rule (`complexity`, `max-lines`, `max-depth`, `max-params`, `max-statements`,
+`max-nested-callbacks`) whose number rose is weaker; the same for each CSS file under Stylelint; the rules and severities
+of dependency-cruiser; the `include`, `exclude`, `files`, `references` and program of each checked tsconfig project and
+its W-04 flags; the gate's switches, floors, caps, coverage exclusions, exemption and shuffling; the law catalog; the
+class profile; and the tool versions of `web-tops.lock` and `package.json`, where a removed or unpinned tool is weaker and
+a new version is listed as `changed`, for review. The base is asked about the head's files as well as its own, and a
+renamed file is held to the path it came from. A surface that cannot be read at a ref is weaker, never a pass. The
+report ends with what it does not compare, and why: size budgets until M4, package scripts, CI workflow files, tsconfig
+options beyond the flags, dependency-cruiser options beyond `exclude` and `doNotFollow`, and files of other kinds. It
+exits 1 when something weakened and the `protocol-change` label is absent. The workflow runs on `pull_request` events
+for the label, never `pull_request_target`, with the base branch's own command over the PR's checkout; when the base has
+no `law-diff`, it runs the head's own and says so, and never skips. Only an account with `maintain` or `admin`
+permission on the repository may apply the label (O12): the command asks the API who applied it (the last `labeled`
+event for it, an `unlabeled` taking it off) and what role that account has, by permission and never by name, and a
+label from any other account, or from one whose role cannot be read, counts as not applied: the output says which.
 
 CI rules: checkout with `fetch-depth: 0`; actions pinned by commit SHA; minimal `permissions:`;
 `--dry-run` refused; empty reports fail. `init` writes a job only when its command exists:
@@ -1162,7 +1174,7 @@ O8. The theme contract: whether a project must declare its themes as custom prop
 O9. The accessibility bar for W-21 and W-44: WCAG 2.2 AA as the default (M4).
 O10. The second adopter: an Astro site, to calibrate beside the first (M7).
 O11. The tier-1 time budget, and the time budget past which mutation is `not-evaluated` (§6.4) (M2).
-O12. Who may apply the `protocol-change` label that `law-diff` honors (M3).
+O12. Who may apply the `protocol-change` label that `law-diff` honors (M3). Answered: an account with `maintain` or `admin` permission, by permission (§11).
 O13. Whether Lighthouse stays advisory at tier 2 or is dropped (M7).
 
 ---
