@@ -21,11 +21,18 @@ export interface Surface {
   readonly note?: string;
 }
 
+/** A surface the diff leaves out, and why: a pass says nothing of it. */
+export interface NotCompared {
+  readonly what: string;
+  readonly reason: string;
+}
+
 export interface DiffReport {
   readonly base: string;
   readonly head: string;
   readonly mergeBase: string;
   readonly surfaces: readonly Surface[];
+  readonly notCompared: readonly NotCompared[];
 }
 
 /** A value and how tight it holds: a higher rank is the stricter one. */
@@ -51,6 +58,13 @@ export interface Settings {
   readonly globs: readonly string[];
 }
 
+/** What a dependency-cruiser config holds: a ranked value each for its named rules, the allowed set, and what it leaves out. */
+export interface Cruise {
+  readonly values: ReadonlyMap<string, Ranked>;
+  readonly allowed: readonly string[];
+  readonly excluded: readonly string[];
+}
+
 /** What a tsconfig project selects: its entries as the config says them, and the files that come of them. */
 export interface ProjectSets {
   readonly include: readonly string[];
@@ -58,6 +72,12 @@ export interface ProjectSets {
   readonly files: readonly string[];
   readonly references: readonly string[];
   readonly program: ReadonlySet<string>;
+}
+
+/** The files of the other ref a checkout is asked about as well as its own: ESLint's, and Stylelint's. */
+export interface Asked {
+  readonly source: readonly string[];
+  readonly style: readonly string[];
 }
 
 /** What a surface holds at a ref: the data, none (the project has no such thing), or why it could not be read. */
@@ -85,7 +105,11 @@ export interface Profile {
 export interface Snapshot {
   /** The tracked source files ESLint was asked about, before any file of the other ref was added. */
   readonly tracked: readonly string[];
+  /** The tracked CSS files Stylelint was asked about. */
+  readonly trackedStyle: readonly string[];
   readonly levels: Part<Rules>;
+  readonly style: Part<Rules>;
+  readonly cruise: Part<Cruise>;
   readonly fileSets: Part<ReadonlyMap<string, ProjectSets>>;
   readonly flags: Part<ReadonlyMap<string, Ranked>>;
   readonly settings: Part<Settings>;
