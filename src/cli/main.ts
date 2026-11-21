@@ -5,6 +5,7 @@ import { runDoctorCli } from "./doctor.ts";
 import { runGateCli } from "./gate.ts";
 import { runInitCli } from "./init.ts";
 import { stdio, type Io } from "./io.ts";
+import { runLawDiffCli } from "./law-diff.ts";
 import { runLawsCli } from "./laws.ts";
 import { runLockCli } from "./lock.ts";
 import { runReportCli } from "./report.ts";
@@ -26,6 +27,7 @@ const COMMANDS: ReadonlyMap<string, Command> = new Map<string, Command>([
   ["survivors", runSurvivorsCli],
   ["version", runVersionCli],
   ["laws", runLawsCli],
+  ["law-diff", (argv, io) => runLawDiffCli(argv, io)],
 ]);
 
 const USAGE = `usage: webtops <command>\ncommands: ${[...COMMANDS.keys()].join(", ")}\n`;
