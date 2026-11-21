@@ -145,3 +145,41 @@ describe("webtops acks: a hard law or an unknown id is a problem", () => {
     );
   });
 });
+
+describe("webtops acks says when a ledger entry runs out", () => {
+  const withExpiry = (date: string): string => `${LEDGER}    expires: ${date}\n`;
+  const on = (dir: string, today: string) => {
+    let out = "";
+    const io: Io = { out: (t) => (out += t), err: () => undefined, cwd: dir, env: {} };
+    return runAcksCli([], io, () => SEVERITY, today).then((code) => ({ code, out }));
+  };
+
+  it("prints `expires` and the day while the entry is valid, through that day", async () => {
+    const dir = repo({ ".web-tops/acks.yaml": withExpiry("2026-11-20") });
+    for (const today of ["2026-11-19", "2026-11-20"]) {
+      const { code, out } = await on(dir, today);
+      expect(code).toBe(0);
+      expect(out).toContain(
+        "  W-30  src/about.astro  ledger  No known size.  expires 2026-11-20\n",
+      );
+    }
+  });
+
+  it("prints `expired` from the day after it, and still lists the entry", async () => {
+    const dir = repo({ ".web-tops/acks.yaml": withExpiry("2026-11-20") });
+    const { code, out } = await on(dir, "2026-11-21");
+    expect(code).toBe(0);
+    expect(out).toContain("  W-30  src/about.astro  ledger  No known size.  expired\n");
+    expect(out).toContain("acks: 1 (0 comments, 1 ledger entries)");
+  });
+
+  it("prints nothing of expiry for an entry with none, and for a comment", async () => {
+    const dir = repo({
+      ".web-tops/acks.yaml": LEDGER,
+      "src/a.ts": "// webtops-ack W-01: a reason\n",
+    });
+    const { out } = await on(dir, "2999-01-01");
+    expect(out).toContain("  W-30  src/about.astro  ledger  No known size.\n");
+    expect(out).toContain("  W-01  src/a.ts:1  comment  a reason\n");
+  });
+});

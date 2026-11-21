@@ -3,6 +3,16 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { ackedFiles, ledgerPath, namedLedger } from "./files.ts";
+import type { SeverityOf } from "./severity.ts";
+
+/** Soft laws W-28, W-30 and W-31, the hard law W-04, and no other id. */
+const SEVERITY: SeverityOf = (law) =>
+  new Map<string, "R" | "A">([
+    ["W-28", "A"],
+    ["W-30", "A"],
+    ["W-31", "A"],
+    ["W-04", "R"],
+  ]).get(law);
 
 const made: string[] = [];
 
@@ -40,11 +50,11 @@ describe("ackedFiles: the files a law has a valid ledger entry for", () => {
         entry("W-28", "src/pages/a.astro"),
       ),
     });
-    expect(ackedFiles(dir, "W-28", "2026-11-20")).toEqual({
+    expect(ackedFiles(dir, "W-28", "2026-11-20", SEVERITY)).toEqual({
       ok: true,
       files: ["src/pages/a.astro", "src/pages/b.astro"],
     });
-    expect(ackedFiles(dir, "W-31", "2026-11-20")).toEqual({ ok: true, files: [] });
+    expect(ackedFiles(dir, "W-31", "2026-11-20", SEVERITY)).toEqual({ ok: true, files: [] });
   });
 
   it("an entry is valid through the day it names, and an expired one acknowledges nothing", () => {
@@ -55,14 +65,22 @@ describe("ackedFiles: the files a law has a valid ledger entry for", () => {
         entry("W-28", "src/c.astro", "2026-12-31"),
       ),
     });
-    expect(ackedFiles(dir, "W-28", "2026-11-20")).toEqual({
+    expect(ackedFiles(dir, "W-28", "2026-11-20", SEVERITY)).toEqual({
       ok: true,
       files: ["src/a.astro", "src/c.astro"],
     });
   });
 
+  it("a hard law, and an id that is no law, have no file, though the ledger has entries for them", () => {
+    const dir = project({
+      ".web-tops/acks.yaml": ledger(entry("W-04", "src/a.astro"), entry("W-99", "src/b.astro")),
+    });
+    expect(ackedFiles(dir, "W-04", "2026-11-20", SEVERITY)).toEqual({ ok: true, files: [] });
+    expect(ackedFiles(dir, "W-99", "2026-11-20", SEVERITY)).toEqual({ ok: true, files: [] });
+  });
+
   it("no ledger is an empty list, not a problem", () => {
-    expect(ackedFiles(project({ "a.txt": "x" }), "W-28", "2026-11-20")).toEqual({
+    expect(ackedFiles(project({ "a.txt": "x" }), "W-28", "2026-11-20", SEVERITY)).toEqual({
       ok: true,
       files: [],
     });
@@ -70,7 +88,7 @@ describe("ackedFiles: the files a law has a valid ledger entry for", () => {
 
   it("an unreadable ledger is a problem that names the rule and the ledger, never an empty list", () => {
     const dir = project({ ".web-tops/acks.yaml": "version: 2\nacks: []\n" });
-    const found = ackedFiles(dir, "W-28", "2026-11-20");
+    const found = ackedFiles(dir, "W-28", "2026-11-20", SEVERITY);
     expect(found.ok).toBe(false);
     expect(found).toMatchObject({ rule: "ack-ledger-unreadable", file: ".web-tops/acks.yaml" });
     expect(!found.ok && found.message).toContain("version");
@@ -78,7 +96,7 @@ describe("ackedFiles: the files a law has a valid ledger entry for", () => {
 
   it("a ledger path that leaves the project is a problem too", () => {
     const dir = project({ "web-tops.yaml": "laws:\n  ack_ledger: ../acks.yaml\n" });
-    expect(ackedFiles(dir, "W-28", "2026-11-20")).toMatchObject({
+    expect(ackedFiles(dir, "W-28", "2026-11-20", SEVERITY)).toMatchObject({
       ok: false,
       rule: "ack-ledger-unreadable",
       file: "../acks.yaml",
@@ -91,7 +109,10 @@ describe("ackedFiles: the files a law has a valid ledger entry for", () => {
       "ops/acks.yaml": ledger(entry("W-28", "src/x.astro")),
       ".web-tops/acks.yaml": ledger(entry("W-28", "src/default.astro")),
     });
-    expect(ackedFiles(dir, "W-28", "2026-11-20")).toEqual({ ok: true, files: ["src/x.astro"] });
+    expect(ackedFiles(dir, "W-28", "2026-11-20", SEVERITY)).toEqual({
+      ok: true,
+      files: ["src/x.astro"],
+    });
   });
 });
 

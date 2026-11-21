@@ -7,6 +7,7 @@ import { ackFor, fromLedger, lawProblem } from "./apply.ts";
 import type { Ack } from "./apply.ts";
 import { ackProblem, parseAck } from "./comment.ts";
 import { readAckLedger } from "./ledger.ts";
+import type { SeverityOf } from "./severity.ts";
 
 // G8: `// webtops-ack W-NN: reason` and `.web-tops/acks.yaml` (WEB_TOPS.md section 8.1).
 
@@ -201,6 +202,18 @@ describe("readAckLedger: .web-tops/acks.yaml against schema/acks.schema.json", (
     expect(read("version: 1\nacks: []\n")).toEqual({ ok: true, acks: [] });
   });
 
+  it.each(["", "\n", "# nothing acknowledged yet\n", "---\n"])(
+    "is an empty ledger when the file is empty or only comments: %j",
+    (text) => {
+      expect(read(text)).toEqual({ ok: true, acks: [] });
+    },
+  );
+
+  it("is still refused when the file holds a value that is not a ledger", () => {
+    expect(read("[]\n")).toMatchObject({ ok: false });
+    expect(read("3\n")).toMatchObject({ ok: false });
+  });
+
   const problems = (text: string): string[] => {
     const result = read(text);
     return result.ok ? [] : result.problems.map((item) => `${item.pointer}: ${item.message}`);
@@ -295,6 +308,14 @@ describe("readAckLedger: .web-tops/acks.yaml against schema/acks.schema.json", (
   });
 });
 
+/** Soft laws W-28 and W-30, the hard law W-04, and no other id. */
+const SEVERITY: SeverityOf = (law) =>
+  new Map<string, "R" | "A">([
+    ["W-28", "A"],
+    ["W-30", "A"],
+    ["W-04", "R"],
+  ]).get(law);
+
 describe("ackFor: which acknowledgement turns ack-missing into pass", () => {
   const comment: Ack = { source: "comment", law: "W-28", file: "a.astro", line: 4, reason: "why" };
   const ledger: Ack = fromLedger({
@@ -307,11 +328,11 @@ describe("ackFor: which acknowledgement turns ack-missing into pass", () => {
   const today = "2027-01-31";
 
   it("accepts a comment on the finding's line, and on the line above it", () => {
-    expect(ackFor([comment], "W-28", "a.astro", 4, today)).toEqual({
+    expect(ackFor([comment], "W-28", "a.astro", 4, today, SEVERITY)).toEqual({
       source: "comment",
       reason: "why",
     });
-    expect(ackFor([comment], "W-28", "a.astro", 5, today)).toEqual({
+    expect(ackFor([comment], "W-28", "a.astro", 5, today, SEVERITY)).toEqual({
       source: "comment",
       reason: "why",
     });
@@ -324,35 +345,44 @@ describe("ackFor: which acknowledgement turns ack-missing into pass", () => {
     ["another law", "W-30", "a.astro", 4],
     ["another file", "W-28", "b.astro", 4],
   ])("does not accept a comment for a finding with %s", (_name, law, file, line) => {
-    expect(ackFor([comment], law, file, line, today)).toBeUndefined();
+    expect(ackFor([comment], law, file, line, today, SEVERITY)).toBeUndefined();
   });
 
   it("accepts a ledger entry for any line of its file, with or without one, through the day it expires", () => {
-    expect(ackFor([ledger], "W-30", "b.astro", 99, today)).toEqual({
+    expect(ackFor([ledger], "W-30", "b.astro", 99, today, SEVERITY)).toEqual({
       source: "ledger",
       reason: "because",
     });
-    expect(ackFor([ledger], "W-30", "b.astro", undefined, today)).toEqual({
+    expect(ackFor([ledger], "W-30", "b.astro", undefined, today, SEVERITY)).toEqual({
       source: "ledger",
       reason: "because",
     });
   });
 
   it("accepts nothing from a ledger entry the day after it expires", () => {
-    expect(ackFor([ledger], "W-30", "b.astro", 1, "2027-02-01")).toBeUndefined();
+    expect(ackFor([ledger], "W-30", "b.astro", 1, "2027-02-01", SEVERITY)).toBeUndefined();
   });
 
   it("accepts a ledger entry that has no expiry on any day", () => {
     const forever = fromLedger({ law: "W-30", file: "b.astro", reason: "r", owner: "me" });
     expect(forever).toStrictEqual({ source: "ledger", law: "W-30", file: "b.astro", reason: "r" });
-    expect(ackFor([forever], "W-30", "b.astro", 1, "2099-12-31")).toEqual({
+    expect(ackFor([forever], "W-30", "b.astro", 1, "2099-12-31", SEVERITY)).toEqual({
       source: "ledger",
       reason: "r",
     });
   });
 
   it("is nothing when there is no acknowledgement", () => {
-    expect(ackFor([], "W-28", "a.astro", 4, today)).toBeUndefined();
+    expect(ackFor([], "W-28", "a.astro", 4, today, SEVERITY)).toBeUndefined();
+  });
+
+  it("gives nothing for a law that is hard or is no law, whatever the acknowledgement says", () => {
+    for (const law of ["W-04", "W-99"]) {
+      const comment: Ack = { source: "comment", law, file: "a.astro", line: 4, reason: "why" };
+      const ledger: Ack = { source: "ledger", law, file: "a.astro", reason: "why" };
+      expect(ackFor([comment], law, "a.astro", 4, today, SEVERITY)).toBeUndefined();
+      expect(ackFor([ledger], law, "a.astro", 4, today, SEVERITY)).toBeUndefined();
+    }
   });
 });
 
