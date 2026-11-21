@@ -6,7 +6,7 @@ import { trackedSource, unlinted } from "../../laws/readers/files.ts";
 import type { RawFinding } from "../../report/findings.ts";
 import type { Verdict } from "../../report/types.ts";
 import { trackedFiles } from "../../layers/coverage/tracked.ts";
-import { lawsOfClass, toolsOf } from "./entries.ts";
+import { forClass, lawsOfClass, toolsOf } from "./entries.ts";
 import type { LawCatalog } from "./catalog.ts";
 import { evidenceOf, judgeEntry, lawFinding, readingsOf, worse, type Judged } from "./judge.ts";
 import { optionalArtifacts, defaultReaders, artifactOf } from "./readers.ts";
@@ -122,7 +122,9 @@ async function run(
   const source = trackedSource(tracked.files);
   const runner = { cwd: ctx.cwd, env: ctx.env, exec: ctx.exec, outDir: ctx.outDir };
   const eslint = once(() => askEslint(runner, source));
-  const laws = lawsOfClass(catalog(), ctx.config.class);
+  const laws = lawsOfClass(catalog(), ctx.config.class).map((law) =>
+    forClass(law, ctx.config.class),
+  );
   const input = { ctx, tracked: tracked.files, held: ratchetHeld(ctx), eslint };
   const byLaw = await readAll(laws, input, readers);
   const facts = await eslint();

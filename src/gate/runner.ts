@@ -1,8 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 import { applyRatchet } from "../baseline/ratchet.ts";
+import type { ClassName } from "../config/profiles.ts";
 import { diffScope, type CoverageMap, type ScopeOptions, type ScopeResult } from "../diff/index.ts";
 import { COUNTED_LAYERS, completeFindings, countsByRuleFile } from "../report/findings.ts";
+import { summarizeLaws } from "../report/laws.ts";
 import {
   endsRun,
   hasRun,
@@ -10,6 +12,7 @@ import {
   type Counts,
   type Finding,
   type GateRef,
+  type LawsSummary,
   type Metrics,
   type Problem,
   type Report,
@@ -418,6 +421,17 @@ function seedOf(state: RunState): number | null {
   return state.layers.find((layer) => layer.id === "tests")?.seed ?? null;
 }
 
+/** "N of M laws judged", when the laws layer ran: counted from its findings, so a reader can recount it. */
+export function lawsOf(
+  layers: readonly Report["layers"][number][],
+  className: ClassName,
+): { laws?: LawsSummary } {
+  const layer = layers.find((one) => one.id === "laws");
+  return layer !== undefined && hasRun(layer.verdict)
+    ? { laws: summarizeLaws(layer.findings, className) }
+    : {};
+}
+
 function reportOf(
   input: RunInput,
   base: string,
@@ -453,6 +467,7 @@ function reportOf(
     counts: countsOf(state),
     problems,
     layers: state.layers,
+    ...lawsOf(state.layers, config.class),
   };
 }
 

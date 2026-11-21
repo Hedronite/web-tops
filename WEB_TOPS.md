@@ -147,6 +147,10 @@ the LCOV gate 2 produced. A layer whose input is missing because its producer fa
 run is `not-run` with reason `input <artifact> missing: <layer> <verdict>`. A layer whose input
 exists is judged even when its producer failed (with `--keep-going`); the producer's failure
 still fails the run.
+A layer may declare an input optional: the runner passes it when the producer left it and skips it
+when not, and the layer says what a missing one means for what it judges. The laws layer reads
+`audit-json`, `install-json`, `publint-json`, `attw-json` and `dependency-cruiser-json` this way: a law
+whose tool's artifact is missing is `not-evaluated`, and when the law is required that fails the run.
 
 ### 3.2 Tiers
 
@@ -441,6 +445,23 @@ is `required` by the class and is counted otherwise; it is never a pass. The rep
 law's reader. A law runs at the tier of the layer it reads (§3.2). Under `ratchet`, `refuse` means
 a finding above the baseline (§6.7); under `hard`, any finding is `refuse`.
 
+The laws layer reads what gate 1 wrote and runs no tool again. For each law it takes the readings of every tool the
+law maps and the worst of them is the law's verdict; a tool with no reader is `not-evaluated` for the law, and a law
+passes only when every reader passes. The ESLint reader reads each tracked TypeScript file's effective configuration
+(`eslint --print-config`, for every file in one process), so a per-directory override is seen, and a required rule that
+an override sets to `off` or `warn` is `refuse` at the config line that does it (X3). The compiler reader reads every
+checked tsconfig project, `tsconfig.json` and the projects it references, through the `extends` chain: `strict` must
+be on, no member of its family may be `false` beside it, and every flag W-04 lists must be set. File-set completeness: a checked project is `tsconfig.json` and the projects it references, followed
+transitively, and nothing else; a nested tsconfig that no reference reaches is not checked, and its files are in no
+project. A tracked source file (`.ts`, `.tsx`, `.mts`, `.cts`) in no checked project's program is `refuse` at that
+file. The same holds for ESLint: a tracked source file that no config block reaches, or that an `ignores` entry drops,
+is a `refuse` file-set finding, because no lint law judges it. A nested project reaches ESLint through its own
+`eslint.config`, which ESLint looks up from each file's directory. The data trees `fixtures/` and `probes/`
+(section 17) are the only exemption from both, fixed here and in the code; no ESLint `ignores` entry, no `exclude`
+and no configuration adds to it. A rule entry of a law may list `classes`, a subset of the law's: a rule outside the run's class is neither required nor refused, so a project is not refused for a rule that holds for another class only. A compiler diagnostic that names a flag (`TS7005` and `TS7006` for
+`noImplicitAny`, and so on; gate 1 writes them as the `tsc-diagnostics` artifact) refuses the laws that map that flag:
+a live flag with a failing diagnostic is never a pass. A code that many errors share names no flag.
+
 A stopped run still judges the laws over what ran. The laws layer runs after a stop once hygiene
 has run and counts as ran, and `webtops gate` prints its findings as a laws mapping that names
 the layers it read from, beside the later layers that are `not-run` with `stopped: gate <n> failed`.
@@ -524,13 +545,13 @@ layer reports each coverage hint as a `coverage-hint/<kind>` finding (`v8`, `ist
 tool `webtops`, verdict `pass`, a file, a line and an `fp1`, and the baseline counts those by kind
 (`v8-ignore`, `istanbul-ignore`, `c8-ignore`).
 
-A report may carry `laws`: `{ class, of, judged, refused, not_evaluated }`, "N of M laws judged" for the class. M
-(`of`) is the required laws the class maps, and N (`judged`) the ones a reader judged (`pass`, `refuse` or
-`ack-missing`); `refused` and `not_evaluated` count those verdicts among them. The laws layer writes one finding for
-every law it maps, rule `law/W-NN`, tool `webtops`, with the law's verdict and `required`, and `laws` is exactly the
-count of those findings: a report whose `laws` differs from them fails validation, so any reader of the report can
-recount it. A required law that no reader judged is `not-evaluated` and ends the run, so N below M fails the gate. The
-text report prints `laws: N of M judged (class)` when the block is present.
+The report carries `laws` when the laws layer ran: `{ class, of, judged, refused, not_evaluated }`, "N of M laws judged"
+for the class. M (`of`) is the required laws the class maps, and N (`judged`) the ones a reader judged (`pass`, `refuse`
+or `ack-missing`); `refused` and `not_evaluated` count those verdicts among them. The layer writes one finding for every
+law it maps, rule `law/W-NN`, tool `webtops`, with the law's verdict and `required`, and `laws` is exactly the count of
+those findings: a report whose `laws` differs from them fails validation, so any reader of the report can recount it.
+A required law that no reader judged is `not-evaluated` and ends the run, so N below M fails the gate. The text report
+prints `laws: N of M judged (class)`.
 
 `counts` gains `required_not_evaluated`. `failed` counts every verdict §3.3 marks as ending the
 run, a required `not-evaluated` included; `not_evaluated` counts every `not-evaluated`, and
@@ -1135,7 +1156,7 @@ web-tops/
 │   ├── diff/                # changed lines and functions against the merge base
 │   ├── gate/                # runner, tiers, verdicts, run info
 │   ├── init/                # webtops init: renders the drop-in set
-│   ├── laws/                # the law catalog (§8.3): the loader, the queries and the §8.2 table generator
+│   ├── laws/                # the law catalog (§8.3): the loader, the queries and the §8.2 table generator; the probe, the ESLint and compiler readers and the laws layer (§6.5)
 │   ├── layers/              # hygiene, tests, coverage, crap, mutation
 │   ├── lock/                # tool pins, web-tops.lock, the Node range
 │   ├── presets/             # the drop-in rules behind web-tops/eslint, /stylelint, /depcruise and /tsconfig/strict.json (plain JavaScript: Node does not strip types in node_modules)
@@ -1158,7 +1179,7 @@ web-tops/
 
 The law twins are in `fixtures/laws/W-NN/{bad,clean}/`: a bad and a clean twin per law, which `webtops laws probe` proves.
 
-Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4) and the M3 paths: `examples/node-service/`, `src/layers/laws/`, `src/acks/` and `src/lawdiff/`. The kit's tools already cover them: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
+Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4) and the M3 paths: `examples/node-service/`, `src/acks/` and `src/lawdiff/`. The kit's tools already cover them: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
 
 Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any release.
 
