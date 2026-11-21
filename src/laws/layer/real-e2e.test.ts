@@ -166,7 +166,7 @@ describe.skipIf(insideStryker)(
         const answer = judge(`export default [{ rules: { "${ANY}": "error" } }];\n`);
         const reading = answer.findings.find((found) => found.rule === "law/W-01");
         expect(reading?.verdict).toBe("not-evaluated");
-        expect(reading?.message).toContain("ESLint's config reaches no TypeScript file");
+        expect(reading?.message).toContain("ESLint's config reaches no TypeScript or Astro file");
         expect(answer.findings.find((found) => found.rule === "file-set")).toMatchObject({
           verdict: "refuse",
           file: "src/a.ts",
