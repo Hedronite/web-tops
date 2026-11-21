@@ -19,7 +19,7 @@ import {
   type Toggle,
 } from "../../gate/types.ts";
 import { hygieneLayer } from "./index.ts";
-import { TOOLS } from "./tooling.ts";
+import { tools } from "./tooling.ts";
 
 /** Test support for gate 1: a fake process runner with a clean answer for every tool, and a project to run it in. */
 
@@ -102,7 +102,7 @@ function toolOfEntry(project: string, entry: string | undefined): string | undef
   if (entry === undefined) {
     return undefined;
   }
-  for (const [name, spec] of TOOLS) {
+  for (const [name, spec] of tools()) {
     if (entry.startsWith(join(project, "node_modules", spec.package) + sep)) {
       return name;
     }
@@ -165,7 +165,7 @@ export interface PrepareOptions {
 
 /** A fake package for each tool, except the ones left out. */
 function installFakeTools(dir: string, without: readonly string[]): void {
-  for (const [name, spec] of TOOLS) {
+  for (const [name, spec] of tools()) {
     if (!without.includes(name)) {
       installTool(dir, name, spec.package);
     }
