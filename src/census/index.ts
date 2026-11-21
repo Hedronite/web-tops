@@ -29,9 +29,12 @@ const ESLINT_FILES = /\.(?:[cm]?[jt]sx?|astro)$/u;
 /** A tracked file ESLint would be asked about: a script or Astro file outside the output and dependency folders. */
 const isLintable = (file: string): boolean => ESLINT_FILES.test(file) && withinSource(file);
 
-/** The census items of one tracked file's comments: none for a file the census does not read, or one in the output and dependency folders. */
+/** A tracked file whose comments the census reads: a kind of file it reads, outside the output and dependency folders. */
+const readable = (file: string): boolean => readsDirectives(file) && withinSource(file);
+
+/** The census items of one tracked file's comments: none for a file the census does not read. */
 export function directivesFor(cwd: string, file: string): RawFinding[] {
-  if (!readsDirectives(file) || !withinSource(file)) return [];
+  if (!readable(file)) return [];
   const text = readSource(cwd, file);
   if (text === undefined) return [];
   return allDirectivesIn(file, text).flatMap((found) => [
