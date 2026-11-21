@@ -71,7 +71,7 @@ describe("asking ESLint", () => {
       Promise.resolve({ code: 0, stdout: rules({}), stderr: "", failure: "tool-missing" });
     expect(await askRules(runner(exec), [])).toEqual({
       ok: false,
-      message: "ESLint could not be asked about the project's files (tool-missing)",
+      message: `ESLint could not be asked about the project's files (tool-missing: node could not be started in ${runner(exec).cwd}, the folder is missing)`,
     });
   });
 });
