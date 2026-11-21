@@ -33,7 +33,14 @@ describe("G4 the artifact each tool's reader reads", () => {
     ]);
   });
 
-  it("registers the ESLint and compiler readers and no other", () => {
-    expect([...defaultReaders().keys()]).toEqual(["eslint", "tsc"]);
+  it("registers the reader of each tool the catalog's laws name that one reads, and no other", () => {
+    expect([...defaultReaders().keys()]).toEqual([
+      "attw",
+      "bun",
+      "dependency-cruiser",
+      "eslint",
+      "publint",
+      "tsc",
+    ]);
   });
 });
