@@ -10,3 +10,11 @@ export function ackReason(text: string, law: string): string | undefined {
   const match = /^webtops-ack\s+(W-\d{2,})\s*:\s*(.*[\p{L}\p{N}].*)/u.exec(first);
   return match?.[1] === law ? match[2] : undefined;
 }
+
+/** The path of `file` from `cwd` with `/` between its parts, as the ledger writes it; the path as given when it is not under `cwd`. */
+export function projectPath(cwd: string, file: string): string {
+  const slashed = (text: string): string => text.replaceAll("\\", "/");
+  const base = `${slashed(cwd).replace(/\/$/u, "")}/`;
+  const path = slashed(file);
+  return path.startsWith(base) ? path.slice(base.length) : path;
+}

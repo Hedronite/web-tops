@@ -1,12 +1,13 @@
 import type { Rule } from "eslint";
-import { relative, sep } from "node:path";
-import { ackReason } from "../ack.ts";
+import { ackReason, projectPath } from "../ack.ts";
 import { attributeName, child, children, kind, linesBetween, stringList } from "../ast.ts";
 
 /**
  * W-28: `client:load` ships and runs JavaScript on every page view, so it needs an acknowledgement: an HTML
  * comment on the line above the element (or on its line), or an entry for the file in the ack ledger, which
- * the preset passes in as `ackedFiles`. The finding is the opening tag's first line.
+ * the preset passes in as `ackedFiles`. The finding is the opening tag's first line. The gate lists the ledger's
+ * files in `WEBTOPS_ACKED_FILES`; an editor's ESLint, run without the gate, does not, so it does not honour the
+ * ledger and flags a file the ledger acknowledges.
  */
 
 const isBlank = (node: unknown): boolean => {
@@ -57,7 +58,7 @@ const rule: Rule.RuleModule = {
   },
   create(context) {
     const acked = stringList(context.options[0], "ackedFiles", []);
-    if (acked.includes(relative(context.cwd, context.filename).split(sep).join("/"))) return {};
+    if (acked.includes(projectPath(context.cwd, context.filename))) return {};
     return {
       JSXOpeningElement(node: Rule.Node) {
         const loads = children(node, "attributes").some(

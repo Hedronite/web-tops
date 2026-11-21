@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ackReason } from "./ack.ts";
+import { ackReason, projectPath } from "./ack.ts";
 
 describe("ackReason", () => {
   it("gives the reason, trimmed", () => {
@@ -44,5 +44,18 @@ describe("ackReason", () => {
   it("is nothing for a law that is not the one asked for", () => {
     expect(ackReason("webtops-ack W-28: reason", "W-2")).toBeUndefined();
     expect(ackReason("webtops-ack W-28: reason", "W-30")).toBeUndefined();
+  });
+});
+
+describe("projectPath", () => {
+  it("gives a file's path from the project root, with / between parts", () => {
+    expect(projectPath("/work/site", "/work/site/src/page.astro")).toBe("src/page.astro");
+    expect(projectPath("/work/site/", "/work/site/page.astro")).toBe("page.astro");
+    expect(projectPath("C:\\work\\site", "C:\\work\\site\\src\\page.astro")).toBe("src/page.astro");
+  });
+
+  it("leaves a path that is not under the root as it is, and a longer folder name alone", () => {
+    expect(projectPath("/work/site", "/elsewhere/page.astro")).toBe("/elsewhere/page.astro");
+    expect(projectPath("/work/site", "/work/site2/page.astro")).toBe("/work/site2/page.astro");
   });
 });
