@@ -6,7 +6,10 @@ import { cleanTemp, put, tempDir } from "../laws/probe/testkit.ts";
 
 /**
  * The command on a real repository, in a child process, with the project's own ESLint and TypeScript: a commit that
- * turns a rule off and drops a compiler flag is refused with every surface listed, and the label lets it through.
+ * turns a rule off and drops a compiler flag is refused with every surface listed, and the label lets it through. The
+ * run is in a child process, so this covers the process boundary and the tools, not the command's code, which the tests
+ * beside it judge; it is not run inside a Stryker worker, where it would run again for every mutant and cover none of
+ * the code under mutation.
  */
 
 afterAll(cleanTemp);
@@ -15,6 +18,7 @@ const REPO = resolve(import.meta.dirname, "../..");
 const MAIN = join(REPO, "src/cli/main.ts");
 const SLOW = 120_000;
 const ANY = "@typescript-eslint/no-explicit-any";
+const insideStryker = process.env["STRYKER_MUTATOR_WORKER"] !== undefined;
 
 const eslintConfig = (override: string): string =>
   [
@@ -82,7 +86,7 @@ function lawDiff(
   return { status: done.status, out: done.stdout, err: done.stderr };
 }
 
-describe("webtops law-diff on a real repository", () => {
+describe.skipIf(insideStryker)("webtops law-diff on a real repository", () => {
   it(
     "refuses a commit that turns a rule off and drops a flag, naming each surface, and passes it with the label",
     () => {
