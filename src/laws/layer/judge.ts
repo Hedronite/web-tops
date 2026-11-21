@@ -105,10 +105,17 @@ export function lawFinding(judged: Judged): RawFinding {
   };
 }
 
-/** The places a law is broken, as findings that carry the law's verdict and whether it is required. */
+/**
+ * The places a law is broken, as findings that carry the law's verdict and whether it is required; a place an
+ * acknowledgement covers keeps its own `pass`, and its `ack`.
+ */
 export function evidenceOf(judged: Judged): RawFinding[] {
   const verdict = judged.verdict;
   return judged.readings
     .flatMap((reading) => reading.findings)
-    .map((finding) => ({ ...finding, verdict, required: judged.required }));
+    .map((finding) => ({
+      ...finding,
+      verdict: finding.ack === undefined ? verdict : finding.verdict,
+      required: judged.required,
+    }));
 }
