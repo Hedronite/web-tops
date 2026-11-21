@@ -82,6 +82,14 @@ describe("G3d tools: resolveTool reads the installed package's bin field", () =>
       ["attw", "@arethetypeswrong/cli"],
       ["vitest", "vitest"],
       ["stryker", "@stryker-mutator/core"],
+      ["secretlint", "secretlint"],
+      ["knip", "knip"],
     ]);
+  });
+
+  it("runs each gate tool through the bin of its own name", () => {
+    expect([...TOOLS].map(([name, spec]) => [name, spec.bin])).toEqual(
+      [...TOOLS.keys()].map((name) => [name, name]),
+    );
   });
 });

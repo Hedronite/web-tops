@@ -44,6 +44,8 @@ export const TOOLS: ReadonlyMap<string, ToolSpec> = new Map([
   ["attw", { package: "@arethetypeswrong/cli", bin: "attw" }],
   ["vitest", { package: "vitest", bin: "vitest" }],
   ["stryker", { package: "@stryker-mutator/core", bin: "stryker" }],
+  ["secretlint", { package: "secretlint", bin: "secretlint" }],
+  ["knip", { package: "knip", bin: "knip" }],
 ]);
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
