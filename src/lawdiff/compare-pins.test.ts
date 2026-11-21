@@ -7,6 +7,7 @@ const absent: Part<never> = { state: "absent" };
 
 const snapshot = (settings: Snapshot["settings"]): Snapshot => ({
   tracked: [],
+  fileSets: absent,
   levels: absent,
   flags: absent,
   settings,
