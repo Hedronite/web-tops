@@ -21,6 +21,7 @@ interface State {
   oldPath: string | null | undefined;
   hunk: Hunk | undefined;
   newLine: number;
+  readonly owns: OwnsConfig;
 }
 
 const HEADER = /^@@ -\d+(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
@@ -44,14 +45,28 @@ function statusOf(oldPath: string | null | undefined, newPath: string | null): C
 }
 
 /**
- * The data trees of section 17: fixtures and probes break rules on purpose (a bad twin of W-34 is a focused test), so a
- * file changed under them is neither source to mutate nor a test to run, and it is not listed.
+ * The trees of section 17 that are not this project's code: fixtures and probes break rules on purpose (a bad twin of
+ * W-34 is a focused test). A file changed under them is neither source to mutate nor a test to run, and it is not listed.
  */
 const DATA_TREE = /^(?:fixtures|probes)\//;
 
-/** Makes the file current, and lists it, unless it is in a data tree: its hunks then belong to no file. */
+/** The folder of an example project: `examples/<name>`, for a file under `examples/<name>/`. */
+const EXAMPLE = /^(examples\/[^/]+)\//;
+
+/** Whether a folder (`examples/<name>`) holds its own `web-tops.yaml`, so it is a project that gates itself. */
+export type OwnsConfig = (folder: string) => boolean;
+
+/** True for a file the diff leaves out: one in a data tree, or in an example that gates itself. */
+function isData(path: string, owns: OwnsConfig): boolean {
+  const example = EXAMPLE.exec(path)?.[1];
+  return DATA_TREE.test(path) || (example !== undefined && owns(example));
+}
+
+/** Makes the file current, and lists it, unless it is left out: its hunks then belong to no file. */
 function register(state: State, path: string, status: ChangeStatus): void {
-  state.file = DATA_TREE.test(path) ? undefined : { path, status, ranges: [], removedAfter: [] };
+  state.file = isData(path, state.owns)
+    ? undefined
+    : { path, status, ranges: [], removedAfter: [] };
   if (state.file !== undefined) state.files.push(state.file);
 }
 
@@ -149,14 +164,17 @@ function feed(state: State, line: string): void {
 /**
  * The files of a unified diff (`git diff -U0`, or with context): for each, the new-side lines it adds or
  * changes as inclusive ranges, and the places lines were only removed. Binary files have no hunks and are not listed.
+ * A file under `fixtures/` or `probes/`, or under an example that `owns` its own `web-tops.yaml`, is not listed; any
+ * other file under `examples/` is.
  */
-export function parseDiff(text: string): readonly ChangedFile[] {
+export function parseDiff(text: string, owns: OwnsConfig = () => false): readonly ChangedFile[] {
   const state: State = {
     files: [],
     file: undefined,
     oldPath: undefined,
     hunk: undefined,
     newLine: 1,
+    owns,
   };
   for (const line of text.split("\n")) feed(state, line);
   return state.files;
