@@ -256,13 +256,10 @@ const RUN_DEFAULTS: RunDefaults = {
   env: { PATH: "/usr/bin" },
 };
 
-export function runHygiene(
-  prepared: Prepared,
-  exec: Exec,
-  options: RunOptions = {},
-): Promise<LayerResult> {
+/** What the layer is given for a run: the project, the class's steps with the options on top, and the process runner. */
+export function contextOf(prepared: Prepared, exec: Exec, options: RunOptions = {}): LayerContext {
   const full = { ...RUN_DEFAULTS, ...options };
-  const context: LayerContext = {
+  return {
     cwd: prepared.project.dir,
     config: cfg({
       class: full.className,
@@ -283,7 +280,14 @@ export function runHygiene(
     outDir: prepared.outDir,
     artifacts: new Map(),
   };
-  return hygieneLayer.run(context);
+}
+
+export function runHygiene(
+  prepared: Prepared,
+  exec: Exec,
+  options: RunOptions = {},
+): Promise<LayerResult> {
+  return hygieneLayer.run(contextOf(prepared, exec, options));
 }
 
 /** The findings that make a layer fail, as `rule: message` strings. */
