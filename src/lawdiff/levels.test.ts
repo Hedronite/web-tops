@@ -64,6 +64,15 @@ describe("the ESLint levels that moved", () => {
   });
 });
 
+describe("a rule that is off", () => {
+  it("is shown by its level alone, whatever options it still carries", () => {
+    const items = diff({ "a.ts": { r: [2, '["always"]'] } }, { "a.ts": { r: [0, '["always"]'] } });
+    expect(items).toEqual([
+      { what: "r", change: "weakened", before: 'error ["always"]', after: "off", where: "a.ts" },
+    ]);
+  });
+});
+
 describe("the options of a rule that is on", () => {
   it("are for review when they differ at the same level, and shown beside the level", () => {
     const items = diff(

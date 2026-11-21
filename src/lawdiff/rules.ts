@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Runner } from "../census/eslint.ts";
 import type { RuleSetting, Rules } from "./types.ts";
@@ -87,12 +87,25 @@ export function parseRules(text: string): Rules | undefined {
   return isRecord(found) ? filesOf(found) : undefined;
 }
 
-function problem(result: { code: number | null; stderr: string; failure?: string }): string {
-  const why =
+/** Why a process did not answer: a spawn that failed is said with where it was started, so the folder can be looked at. */
+function whyNot(
+  result: { code: number | null; stderr: string; failure?: string },
+  cwd: string,
+): string {
+  if (result.failure === "tool-missing") {
+    const there = existsSync(cwd) ? "the folder is there" : "the folder is missing";
+    return `tool-missing: node could not be started in ${cwd}, ${there}`;
+  }
+  return (
     result.failure ??
-    `exit ${String(result.code)}: ${result.stderr.trim().split("\n").slice(-3).join(" ")}`;
-  return `ESLint could not be asked about the project's files (${why})`;
+    `exit ${String(result.code)}: ${result.stderr.trim().split("\n").slice(-3).join(" ")}`
+  );
 }
+
+const problem = (
+  result: { code: number | null; stderr: string; failure?: string },
+  cwd: string,
+): string => `ESLint could not be asked about the project's files (${whyNot(result, cwd)})`;
 
 /** Asks the checkout's ESLint for the effective level and options of every rule of each file, once. */
 export async function askRules(runner: Runner, files: readonly string[]): Promise<RulesRead> {
@@ -106,7 +119,7 @@ export async function askRules(runner: Runner, files: readonly string[]): Promis
     timeoutMs: timeoutMs(),
   });
   if (result.failure !== undefined || result.code !== 0)
-    return { ok: false, message: problem(result) };
+    return { ok: false, message: problem(result, runner.cwd) };
   const value = parseRules(result.stdout);
   return value === undefined
     ? { ok: false, message: "ESLint printed something that is not its rules" }

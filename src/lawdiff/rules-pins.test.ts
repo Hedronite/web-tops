@@ -71,7 +71,18 @@ describe("asking ESLint", () => {
       Promise.resolve({ code: 0, stdout: rules({}), stderr: "", failure: "tool-missing" });
     expect(await askRules(runner(exec), [])).toEqual({
       ok: false,
-      message: "ESLint could not be asked about the project's files (tool-missing)",
+      message: `ESLint could not be asked about the project's files (tool-missing: node could not be started in ${runner(exec).cwd}, the folder is missing)`,
+    });
+  });
+
+  it("says the folder is there when a process that did not start was to be started in a folder that exists", async () => {
+    const exec: Exec = () =>
+      Promise.resolve({ code: null, stdout: "", stderr: "", failure: "tool-missing" });
+    const cwd = tempDir();
+    const here: Runner = { cwd, env: {}, exec, outDir: join(cwd, "out") };
+    expect(await askRules(here, [])).toEqual({
+      ok: false,
+      message: `ESLint could not be asked about the project's files (tool-missing: node could not be started in ${cwd}, the folder is there)`,
     });
   });
 });
