@@ -8,10 +8,15 @@ describe("ackReason", () => {
     );
   });
 
-  it("takes a reason over several lines", () => {
-    expect(ackReason("\n  webtops-ack W-28: the cart\n  must work\n", "W-28")).toBe(
-      "the cart\n  must work",
-    );
+  it("reads the first line of the comment only", () => {
+    expect(ackReason("\n  webtops-ack W-28: the cart\n  must work\n", "W-28")).toBe("the cart");
+    expect(ackReason("webtops-ack W-28:\nthe cart", "W-28")).toBeUndefined();
+  });
+
+  it("takes a space before the colon, and a reason of letters or digits in any script", () => {
+    expect(ackReason("webtops-ack W-28 : reason", "W-28")).toBe("reason");
+    expect(ackReason("webtops-ack W-28: 2026", "W-28")).toBe("2026");
+    expect(ackReason("webtops-ack W-28: été", "W-28")).toBe("été");
   });
 
   it("needs no space after the colon, and takes more than one before the law", () => {
@@ -22,6 +27,9 @@ describe("ackReason", () => {
   it.each([
     ["no reason", "webtops-ack W-28:"],
     ["a blank reason", "webtops-ack W-28:   "],
+    ["a reason of punctuation only", "webtops-ack W-28: ."],
+    ["a reason of symbols only", "webtops-ack W-28: - ... --"],
+    ["a one digit law number", "webtops-ack W-2: reason"],
     ["another law", "webtops-ack W-30: reason"],
     ["a longer law number", "webtops-ack W-280: reason"],
     ["no colon", "webtops-ack W-28 reason"],
