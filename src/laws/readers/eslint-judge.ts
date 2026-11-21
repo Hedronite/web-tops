@@ -161,9 +161,40 @@ const isEslintRule = (rule: { readonly tool: string }): boolean => rule.tool ===
 
 const refused = (check: RuleCheck): boolean => check.verdict === "refuse";
 
-function refusedReading(law: string, checks: readonly RuleCheck[]): LawReading | undefined {
+/**
+ * The findings of gate 1 on a rule the law names, one for each rule that has any, said with no file and no line:
+ * a place that breaks the law is a config line or a file, and these are neither. An acknowledgement covers a place,
+ * so these stay open however the places beside them are acknowledged. None under a held ratchet.
+ */
+function countedFindings(evidence: Evidence, law: string, names: readonly string[]): RawFinding[] {
+  return names.flatMap((name) => {
+    const count = countFor(evidence.counts, name);
+    return count === 0 || evidence.held
+      ? []
+      : [
+          {
+            tool: "eslint",
+            rule: idOf(evidence.levels, name),
+            law,
+            verdict: "refuse",
+            message: `${String(count)} finding(s) of ${name} in gate 1's ESLint run, at no config line`,
+          },
+        ];
+  });
+}
+
+/** A rule below error, or never on, is a refusal; the findings of gate 1 on the law's rules are part of it, and stay open. */
+function refusedReading(
+  law: string,
+  checks: readonly RuleCheck[],
+  counted: readonly RawFinding[],
+): LawReading | undefined {
   return checks.some(refused)
-    ? { law, verdict: "refuse", findings: checks.flatMap((check) => check.findings) }
+    ? {
+        law,
+        verdict: "refuse",
+        findings: [...checks.flatMap((check) => check.findings), ...counted],
+      }
     : undefined;
 }
 
@@ -217,7 +248,7 @@ export function readLaw(evidence: Evidence, law: LawEntry): LawReading {
   const counted = tally(evidence.counts, names);
   return (
     unjudgedReading(law.id, evidence) ??
-    refusedReading(law.id, checks) ??
+    refusedReading(law.id, checks, countedFindings(evidence, law.id, names)) ??
     countedReading(law.id, counted, evidence.held) ??
     passReading(law.id, counted, checks.flatMap(noteOf))
   );
