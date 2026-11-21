@@ -1,0 +1,60 @@
+# The law-diff job of WEB_TOPS.md section 11: a PR that weakens a law, a rule, a compiler flag, a floor or a budget
+# fails unless it carries the `protocol-change` label.
+#
+# The command that judges the PR is the base branch's own (`trusted/`), run over the PR's checkout (`head/`), so a PR
+# cannot weaken the check that reads it. It runs on `pull_request`, never `pull_request_target`, and it reads no
+# secret beyond the job's read-only token. When the base has no law-diff yet (the PR that adds it), the head's own
+# command runs and says so; the job never skips. The label counts only when the account that applied it has maintain or
+# admin permission on the repository (WEB_TOPS.md O12, ruling R111): the command asks the API who applied it and what
+# role that account has, by permission and never by name, and a label from any other account counts as not applied.
+name: law-diff
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  law-diff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BASE_REF: ${{ github.base_ref }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      GITHUB_TOKEN: ${{ github.token }}
+      WEBTOPS_PROTOCOL_CHANGE_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'protocol-change') && '1' || '0' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: head
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: trusted
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.22.3
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+        working-directory: trusted
+      - run: bun install --frozen-lockfile
+        working-directory: head
+      - name: law-diff
+        working-directory: head
+        run: |
+          runner=../trusted
+          if [ ! -d "$runner/src/lawdiff" ]; then
+            echo 'bootstrap: the base has no law-diff'
+            runner=.
+          fi
+          bun "$runner/src/cli/main.ts" law-diff "origin/$BASE_REF" "$HEAD_SHA"

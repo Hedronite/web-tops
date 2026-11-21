@@ -12,7 +12,7 @@ import { main, run } from "./main.ts";
 // the one line such a call cannot reach; the spawn tests in main.test.ts cover it.
 
 const USAGE =
-  "usage: webtops <command>\ncommands: baseline, check, doctor, gate, init, lock, report, survivors, version, laws\n";
+  "usage: webtops <command>\ncommands: baseline, check, doctor, gate, init, lock, report, survivors, version, laws, law-diff\n";
 
 function capture(): { io: Io; out: () => string; err: () => string } {
   let out = "";
