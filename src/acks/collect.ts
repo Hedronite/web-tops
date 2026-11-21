@@ -1,9 +1,10 @@
 import { ackDirectivesIn, readsDirectives } from "../census/directives.ts";
 import { readSource, withinSource } from "../census/files.ts";
 import type { Ack } from "./apply.ts";
-import { fromLedger } from "./apply.ts";
+import { fromLedger, lawProblem } from "./apply.ts";
 import { parseAck } from "./comment.ts";
 import { readAckLedger } from "./ledger.ts";
+import type { SeverityOf } from "./severity.ts";
 
 /** Something wrong with an acknowledgement: where it is, the rule that names it and what it says. */
 export interface AckProblem {
@@ -52,18 +53,54 @@ export function fromLedgerFile(read: Ledger, ledger: string): Collected {
   return { acks: [], problems: [{ file: ledger, rule: "ack-ledger-unreadable", message }] };
 }
 
+/** Where a problem of an acknowledgement is: a comment's own line, or the ledger, naming the file of the entry. */
+export function problemAt(
+  ack: Ack,
+  problem: { readonly rule: string; readonly message: string },
+  ledger: string,
+): AckProblem {
+  if (ack.source === "ledger") {
+    return { file: ledger, rule: problem.rule, message: `${ack.file}: ${problem.message}` };
+  }
+  return {
+    file: ack.file,
+    ...(ack.line === undefined ? {} : { line: ack.line }),
+    rule: problem.rule,
+    message: problem.message,
+  };
+}
+
+/** The acknowledgements of a law that is unknown or hard (section 8.1) as problems: nothing turns a hard law's break into a pass. */
+export function lawProblems(
+  acks: readonly Ack[],
+  severity: SeverityOf,
+  ledger: string,
+): AckProblem[] {
+  return acks.flatMap((ack) => {
+    const problem = lawProblem(ack.law, severity);
+    return problem === undefined ? [] : [problemAt(ack, problem, ledger)];
+  });
+}
+
 /**
  * Every acknowledgement of a project (WEB_TOPS.md section 8.1): the comments of the tracked source files, and the
- * entries of the ledger at `ledger`. What is not a well-formed acknowledgement, and a ledger that cannot be read,
- * are problems, never silently dropped.
+ * entries of the ledger at `ledger`. What is not a well-formed acknowledgement, one of a hard law or of an id that is
+ * not a law, and a ledger that cannot be read, are problems, never silently dropped.
  */
-export function collectAcks(cwd: string, files: readonly string[], ledger: string): Collected {
+export function collectAcks(
+  cwd: string,
+  files: readonly string[],
+  ledger: string,
+  severity: SeverityOf,
+): Collected {
   const parts = files
     .filter((file) => readsDirectives(file) && withinSource(file))
     .map((file) => fromFile(cwd, file));
   parts.push(fromLedgerFile(readAckLedger(cwd, ledger), ledger));
+  const acks = parts.flatMap((part) => part.acks);
+  const wrong = lawProblems(acks, severity, ledger);
   return {
-    acks: parts.flatMap((part) => part.acks),
-    problems: parts.flatMap((part) => part.problems),
+    acks: acks.filter((ack) => lawProblem(ack.law, severity) === undefined),
+    problems: [...parts.flatMap((part) => part.problems), ...wrong],
   };
 }

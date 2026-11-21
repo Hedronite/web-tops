@@ -3,8 +3,19 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
+import type { SeverityOf } from "../acks/severity.ts";
 import { runAcksCli } from "./acks.ts";
 import type { Io } from "./io.ts";
+
+/** Soft laws W-01, W-02, W-28 and W-30, the hard law W-04, and no other id. */
+const SEVERITY: SeverityOf = (law) =>
+  new Map<string, "R" | "A">([
+    ["W-01", "A"],
+    ["W-02", "A"],
+    ["W-28", "A"],
+    ["W-30", "A"],
+    ["W-04", "R"],
+  ]).get(law);
 
 const made: string[] = [];
 
@@ -30,7 +41,7 @@ function run(argv: readonly string[], cwd: string) {
   let out = "";
   let err = "";
   const io: Io = { out: (t) => (out += t), err: (t) => (err += t), cwd, env: {} };
-  return runAcksCli(argv, io).then((code) => ({ code, out, err }));
+  return runAcksCli(argv, io, () => SEVERITY).then((code) => ({ code, out, err }));
 }
 
 const LEDGER =
@@ -115,5 +126,22 @@ describe("webtops acks", () => {
     const { code, err } = await run([], repo({ "src/a.ts": "" }, false));
     expect(code).toBe(2);
     expect(err).toBe("webtops acks: cannot list the tracked files: this is not a git repository\n");
+  });
+});
+
+describe("webtops acks: a hard law or an unknown id is a problem", () => {
+  it("exits 1 and lists, with its rule, a comment of a hard law and a ledger entry of an unknown id", async () => {
+    const dir = repo({
+      "src/a.ts": "// webtops-ack W-04: a reason\n",
+      ".web-tops/acks.yaml":
+        "version: 1\nacks:\n  - law: W-99\n    file: src/b.ts\n    reason: No such law.\n    owner: web-platform\n",
+    });
+    const result = await run([], dir);
+    expect(result.code).toBe(1);
+    expect(result.out).toContain("acks: 0 (0 comments, 0 ledger entries)");
+    expect(result.out).toContain("src/a.ts:1  ack-not-needed  W-04 is a hard law");
+    expect(result.out).toContain(
+      ".web-tops/acks.yaml  ack-unknown-law  src/b.ts: W-99 is not a law",
+    );
   });
 });

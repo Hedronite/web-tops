@@ -3,6 +3,8 @@ import { collectAcks } from "../acks/collect.ts";
 import { ledgerPath } from "../acks/files.ts";
 import type { AckProblem, Collected } from "../acks/collect.ts";
 import type { Ack } from "../acks/apply.ts";
+import { catalogSeverity } from "../acks/severity.ts";
+import type { SeverityOf } from "../acks/severity.ts";
 import type { Io } from "./io.ts";
 
 const USAGE = "usage: webtops acks [--json]\n";
@@ -50,9 +52,14 @@ function formatOf(argv: readonly string[]): "text" | "json" | undefined {
 
 /**
  * `webtops acks [--json]`: the acknowledgements of soft laws in the project (WEB_TOPS.md section 8.1), the comments in
- * its tracked files and the entries of its ledger, with every one that is not well formed. Exits 1 when there is one.
+ * its tracked files and the entries of its ledger, with every one that is not well formed or is of a hard law or an id
+ * that is not a law. Exits 1 when there is one.
  */
-export function runAcksCli(argv: readonly string[], io: Io): Promise<number> {
+export function runAcksCli(
+  argv: readonly string[],
+  io: Io,
+  severity: () => SeverityOf = catalogSeverity,
+): Promise<number> {
   const format = formatOf(argv);
   if (format === undefined) {
     io.err(`webtops acks: bad arguments\n${USAGE}`);
@@ -64,6 +71,6 @@ export function runAcksCli(argv: readonly string[], io: Io): Promise<number> {
     return Promise.resolve(2);
   }
   return Promise.resolve(
-    report(collectAcks(io.cwd, files, ledgerPath(io.cwd)), format === "json", io),
+    report(collectAcks(io.cwd, files, ledgerPath(io.cwd), severity()), format === "json", io),
   );
 }

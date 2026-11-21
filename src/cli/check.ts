@@ -1,5 +1,8 @@
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { namedLedger } from "../acks/files.ts";
+import { ackLedgerReport } from "../acks/report.ts";
+import { catalogSeverity } from "../acks/severity.ts";
 import { configHistoryProblems } from "../baseline/config-history.ts";
 import { checkConfigFile } from "../config/validate.ts";
 import type { Problem, WebTopsConfig } from "../config/types.ts";
@@ -35,6 +38,14 @@ function ledgerReport(directory: string, named: string): string | undefined {
   return `${named}: invalid\n${problems.map(line).join("")}`;
 }
 
+/** The problems of the survivor ledger, else those of the ack ledger (section 8.1), headed with the ledger's path; none when both are sound. */
+function ledgersReport(directory: string, config: WebTopsConfig): string | undefined {
+  return (
+    ledgerReport(directory, ledgerPathOf(config)) ??
+    ackLedgerReport(directory, namedLedger(config), catalogSeverity)
+  );
+}
+
 type Checked =
   | { readonly ok: true; readonly config: WebTopsConfig }
   | { readonly ok: false; readonly problems: readonly Problem[] };
@@ -67,7 +78,7 @@ async function check(argv: readonly string[], io: Io): Promise<number> {
     io.err(`${path}: invalid\n${result.problems.map(line).join("")}`);
     return 2;
   }
-  const ledger = ledgerReport(dirname(file), ledgerPathOf(result.config));
+  const ledger = ledgersReport(dirname(file), result.config);
   if (ledger !== undefined) {
     io.err(ledger);
     return 2;

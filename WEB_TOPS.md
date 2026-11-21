@@ -754,7 +754,7 @@ an unmarked one fires. Custom ESLint rules are tested with ESLint's `RuleTester`
 - **A comment** in the file: `// webtops-ack W-NN: reason`, or the same text in a block, CSS or `<!-- -->` comment. It covers a finding of that law on its own line or on the line below it. The reason holds a letter or a digit.
 - **A ledger entry** in `.web-tops/acks.yaml` (`laws.ack_ledger`, §9), which `schema/acks.schema.json` defines: `version: 1` and `acks`, each entry with `law`, `file`, `reason` and `owner`, and an optional `expires` (`YYYY-MM-DD`, UTC, valid through that day). It covers every finding of that law in that file; a file has one entry for each law. An expired entry acknowledges nothing.
 
-An acknowledgement fails, with a finding at its comment line or ledger file, when it gives no reason (`ack-no-reason`), does not read as above (`ack-malformed`), names a hard law (**R**), whose break is `refuse` and which nothing turns into a pass (`ack-not-needed`), or names no law (`ack-unknown-law`); an unreadable ledger fails too (`ack-ledger-unreadable`).
+An acknowledgement fails, with a finding at its comment line or ledger file, when it gives no reason (`ack-no-reason`), does not read as above (`ack-malformed`), names a hard law (**R**), whose break is `refuse` and which nothing turns into a pass (`ack-not-needed`), or names no law (`ack-unknown-law`); an unreadable ledger fails too (`ack-ledger-unreadable`). `webtops check` reads the ledger and reports each of these for its entries (exit 2), and `webtops acks` lists them for the comments too (exit 1).
 
 ### 8.2 Law catalog (draft: 49 laws, W-01…W-49)
 

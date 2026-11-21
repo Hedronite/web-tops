@@ -5,6 +5,10 @@ import { readAckLedger } from "./ledger.ts";
 
 const DEFAULT_LEDGER = ".web-tops/acks.yaml";
 
+/** The ledger a validated config names (`laws.ack_ledger`), else the default path. */
+export const namedLedger = (config: { readonly laws?: { readonly ack_ledger?: string } }): string =>
+  config.laws?.ack_ledger ?? DEFAULT_LEDGER;
+
 /** The ledger the config file names (`laws.ack_ledger`), else the default path. */
 export function ledgerPath(cwd: string): string {
   const read = readConfigDoc(cwd);
