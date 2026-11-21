@@ -43,6 +43,7 @@ const CENSUS_IDS = [
   "census-axe-exclude",
   "census-eslint-ignores",
   "census-tsconfig-exclude",
+  "census-webtops-ack",
 ];
 
 const ALL_IDS = [...SPEC_IDS, ...CENSUS_IDS];
@@ -148,6 +149,7 @@ const DIRECTIVES: Readonly<Record<string, RegExp>> = {
   "stryker-disable": /\bStryker disable\b/gu,
   "html-validate-disable": /\bhtml-validate-disable(?:-next|-block)?\b/gu,
   "biome-ignore": /\bbiome-ignore\b/gu,
+  "webtops-ack": /\bwebtops-ack\b/gu,
 };
 
 function directiveCount(kind: string, body: string): number {
@@ -269,7 +271,7 @@ describe("G4d fixtures/probe lists one cheat per case of SPEC-p3, and one case p
 describe("G4c every census kind of section 6.7 has a probe case (R54)", () => {
   it("covers each kind the table lists, and no case names a kind the table does not", () => {
     const kinds = censusKinds();
-    expect(kinds).toHaveLength(16);
+    expect(kinds).toHaveLength(17);
     const covered = new Set(WITH_CENSUS.flatMap((id) => names(statedCensus(id))));
     expect([...covered].sort()).toEqual([...kinds].sort());
   });

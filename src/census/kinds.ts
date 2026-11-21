@@ -1,4 +1,4 @@
-/** The census kinds read from comments in source files. The coverage hints (v8, istanbul, c8) are the coverage layer's. */
+/** The census kinds read from comments in source files, and from the ack ledger for the last. The coverage hints (v8, istanbul, c8) are the coverage layer's. */
 export const SOURCE_KINDS = [
   "eslint-disable",
   "ts-expect-error",
@@ -8,6 +8,7 @@ export const SOURCE_KINDS = [
   "biome-ignore",
   "stryker-disable",
   "html-validate-disable",
+  "webtops-ack",
 ] as const;
 
 /** The census kinds read from the project's configuration against the tracked files. */
@@ -17,6 +18,8 @@ export const CONFIG_KINDS = ["eslint-rule-off", "eslint-ignores", "tsconfig-excl
 export const AXE_KINDS = ["axe-disable-rules", "axe-exclude"] as const;
 
 export type SourceKind = (typeof SOURCE_KINDS)[number];
+/** The kind of an acknowledgement of a soft law: `// webtops-ack W-NN: reason` comments and the entries of the ack ledger (WEB_TOPS.md section 8.1). */
+export type AckKind = Extract<SourceKind, "webtops-ack">;
 export type ConfigKind = (typeof CONFIG_KINDS)[number];
 export type AxeKind = (typeof AXE_KINDS)[number];
 export type CensusKind = SourceKind | ConfigKind | AxeKind;
@@ -39,4 +42,5 @@ export const KIND_MESSAGES: Readonly<Record<CensusKind, string>> = {
   "eslint-rule-off": "a per-file ESLint setting turns a rule off for this file",
   "eslint-ignores": "an ESLint ignores entry leaves this file out of linting",
   "tsconfig-exclude": "the tsconfig exclude leaves this file out of the program",
+  "webtops-ack": "an acknowledgement records a broken soft law as accepted here",
 };
