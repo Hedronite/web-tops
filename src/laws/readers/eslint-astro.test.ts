@@ -168,4 +168,15 @@ describe("a rule the preset sets on a page's script blocks", () => {
     const table = { "src/__webtops_probe__.tsx": { [ENV]: 2 }, [SCRIPT]: { [ENV]: 2 } };
     expect(readLaw(evidence(table), law(ENV)).note).toBeUndefined();
   });
+
+  it("counts and names the real files, not the probe paths an override also reaches", () => {
+    const table = {
+      "src/a.ts": { [ENV]: 0 },
+      "src/__webtops_probe__.astro/0.ts": { [ENV]: 0 },
+      "src/__webtops_probe__.tsx": { [ENV]: 0 },
+    };
+    expect(readLaw(evidence(table), law(ENV)).findings[0]?.message).toBe(
+      `${ENV} is below error for 1 file(s), such as src/a.ts`,
+    );
+  });
 });

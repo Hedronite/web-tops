@@ -112,7 +112,9 @@ function lapsed(
     return undefined;
   }
   const id = idOf(evidence.levels, name);
-  const message = `${id} is below error for ${String(found.below.length)} file(s), such as ${suchAs(String(found.below[0]))}`;
+  const real = found.below.filter((file) => !isProbe(file));
+  const shown = real.length > 0 ? real : found.below;
+  const message = `${id} is below error for ${String(shown.length)} file(s), such as ${suchAs(String(shown[0]))}`;
   const findings = spotsOf(evidence, name).map((spot) => refusal(law, id, spot, message));
   return { verdict: "refuse", findings };
 }
