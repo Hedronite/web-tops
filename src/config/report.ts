@@ -354,7 +354,8 @@ function duplicateLayers(report: GateReport): readonly Problem[] {
 }
 
 /** The verdicts that end the run, named in a message. */
-const ENDING = `${VERDICTS.filter((verdict) => endsRun(verdict, false)).join(", ")}, and a required not-evaluated`;
+const ending = (): string =>
+  `${VERDICTS.filter((verdict) => endsRun(verdict, false)).join(", ")}, and a required not-evaluated`;
 
 function notEvaluatedCount(report: GateReport): readonly Problem[] {
   const claimed = report.counts.not_evaluated;
@@ -384,7 +385,7 @@ function failedCount(report: GateReport): readonly Problem[] {
   if (claimed === held) return [];
   return one(
     "/counts/failed",
-    `counts ${String(claimed)} failed layers (${ENDING}), the layers hold ${String(held)}`,
+    `counts ${String(claimed)} failed layers (${ending()}), the layers hold ${String(held)}`,
   );
 }
 
