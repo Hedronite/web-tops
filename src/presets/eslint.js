@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import process from "node:process";
 import { pathToFileURL } from "node:url";
 import eslintComments from "@eslint-community/eslint-plugin-eslint-comments";
 import js from "@eslint/js";
@@ -102,8 +103,13 @@ const WEBTOPS_RULES = [
   },
   // W-23 Tailwind class names are complete strings, in every file
   { rule: "webtops/complete-tailwind-classes", classes: ["astro-site", "web-app"] },
-  // W-28 `client:load` needs an acknowledgement
-  { rule: "webtops/astro-client-load-ack", files: ASTRO, classes: ["astro-site", "web-app"] },
+  // W-28 `client:load` needs an acknowledgement: a comment, or an entry in the ack ledger for the file
+  {
+    rule: "webtops/astro-client-load-ack",
+    files: ASTRO,
+    classes: ["astro-site", "web-app"],
+    acks: "W-28",
+  },
   // W-30 images go through astro:assets, and W-31 frontmatter stays short
   { rule: "webtops/astro-assets-image", files: ASTRO, classes: ["astro-site"] },
   { rule: "webtops/astro-frontmatter-size", files: ASTRO, classes: ["astro-site"] },
@@ -135,12 +141,35 @@ function dependsOnAstro(root) {
 const readsAstroPages = (className) =>
   WEBTOPS_RULES.some((entry) => entry.files === ASTRO && entry.classes.includes(className));
 
+/**
+ * The files the ack ledger covers for a law, which the gate passes in `WEBTOPS_ACKED_FILES` as JSON, `{ "W-28":
+ * ["src/page.astro"] }`: it reads the ledger once and ESLint, which runs under Node, cannot import the kit's
+ * TypeScript. An editor's ESLint, run without the gate, has no such list, so it does not honour the ledger and
+ * flags a file the ledger acknowledges; only a comment acknowledges there. The gate always sets the variable for ESLint,
+ * with no file when the ledger lists none, so a value inherited from the environment never reaches the rule in a gate
+ * run; an editor's shell that has the variable set gets the ledger behaviour it names. A list that is not one is no files.
+ */
+function ackedFilesOf(law) {
+  try {
+    const files = JSON.parse(process.env.WEBTOPS_ACKED_FILES ?? "{}")[law];
+    return Array.isArray(files) ? files.filter((file) => typeof file === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/** A rule's setting: at error, and with the ledger's files when its law takes an acknowledgement and some are listed. */
+function settingOf(entry) {
+  const files = entry.acks === undefined ? [] : ackedFilesOf(entry.acks);
+  return files.length === 0 ? "error" : ["error", { ackedFiles: files }];
+}
+
 /** The plugin's rules the class's laws map, each at error. */
 function webtopsConfigs(className) {
   return WEBTOPS_RULES.filter((entry) => entry.classes.includes(className)).map((entry) => ({
     ...(entry.files === undefined ? {} : { files: entry.files }),
     plugins: { webtops },
-    rules: { [entry.rule]: "error" },
+    rules: { [entry.rule]: settingOf(entry) },
   }));
 }
 
