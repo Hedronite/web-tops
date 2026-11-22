@@ -75,11 +75,6 @@ export default defineConfig(
     },
   },
   {
-    // PLANT (G11c): turns no-explicit-any off for the lock code; W-01 must refuse here.
-    files: ["src/lock/**"],
-    rules: { "@typescript-eslint/no-explicit-any": "off" },
-  },
-  {
     // W-34 no focused or skipped tests committed
     files: ["**/*.test.ts", "**/*.test.tsx"],
     plugins: { vitest },
