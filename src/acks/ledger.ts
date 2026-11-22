@@ -69,8 +69,8 @@ function parsed(text: string): AckLedgerRead {
 }
 
 /**
- * Reads the ledger the config names (`laws.ack_ledger`). No file is an empty ledger; a path that leaves the
- * project, a link or a directory is refused, as for the survivor ledger.
+ * Reads the ledger the config names (`laws.ack_ledger`). No file is an empty ledger, and so is a file that is empty or
+ * only comments; a path that leaves the project, a link or a directory is refused, as for the survivor ledger.
  */
 export function readAckLedger(directory: string, path: string): AckLedgerRead {
   const located = resolveLedgerPath(directory, path);

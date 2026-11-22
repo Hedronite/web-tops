@@ -60,6 +60,27 @@ const SCRIPT = [
   `process.stdout.write(JSON.stringify({ verdict: layer?.verdict, found }));`,
 ].join("\n");
 
+/** The laws layer as the gate builds it, `buildRegistry`, with the real catalog of 49 laws and the default acknowledgement reader. */
+const REGISTRY_SCRIPT = [
+  `const root = process.env.WT_KIT;`,
+  `const { runGate } = await import(root + "/src/gate/runner.ts");`,
+  `const { buildRegistry } = await import(root + "/src/gate/registry.ts");`,
+  `const { realExec } = await import(root + "/src/gate/exec.ts");`,
+  `const { cfg, fakeLayer, opts } = await import(root + "/src/gate/testkit.ts");`,
+  `const cwd = process.argv[1];`,
+  `const config = cfg({ class: "ts-library" });`,
+  `const laws = buildRegistry(config).find((one) => one.id === "laws");`,
+  `const hygiene = fakeLayer({ id: "hygiene", gate: 1, artifacts: { "eslint-json": cwd + "/.web-tops/out/hygiene/e.json", "tsc-diagnostics": cwd + "/.web-tops/out/hygiene/t.json" } });`,
+  `const report = await runGate({`,
+  `  layers: [hygiene, laws], config, options: opts(),`,
+  `  cwd, env: { PATH: process.env.PATH ?? "" }, exec: realExec, outDir: cwd + "/.web-tops/out", now: Date.now,`,
+  `});`,
+  `const layer = report.layers.find((one) => one.id === "laws");`,
+  `const found = (layer?.findings ?? []).filter((one) => one.rule.startsWith("ack-") || one.rule === "no-await-in-loop")`,
+  `  .map(({ rule, verdict, file, ack }) => ({ rule, verdict, file, ack }));`,
+  `process.stdout.write(JSON.stringify({ verdict: layer?.verdict, found }));`,
+].join("\n");
+
 function git(cwd: string, ...args: string[]): void {
   const done = spawnSync("git", args, { cwd, encoding: "utf8" });
   if (done.status !== 0) throw new Error(`git ${args.join(" ")}: ${done.stderr}`);
@@ -81,8 +102,8 @@ function project(files: Readonly<Record<string, string>> = {}): string {
   return cwd;
 }
 
-function gateOn(cwd: string): { verdict: unknown; found: unknown } {
-  const done = spawnSync("bun", ["-e", SCRIPT, cwd], {
+function gateOn(cwd: string, script = SCRIPT): { verdict: unknown; found: unknown } {
+  const done = spawnSync("bun", ["-e", script, cwd], {
     cwd,
     env: { ...process.env, WT_KIT: KIT },
     encoding: "utf8",
@@ -156,6 +177,26 @@ describe.skipIf(insideStryker)(
           { rule: "no-await-in-loop", verdict: "pass", ack: { source: "ledger" } },
           { rule: "ack-not-needed", verdict: "fail", file: ".web-tops/acks.yaml" },
           { rule: "ack-unknown-law", verdict: "fail", file: ".web-tops/acks.yaml" },
+        ]);
+      },
+      SLOW,
+    );
+
+    it(
+      "applies a ledger ack through the laws layer buildRegistry gives, with its default reader",
+      () => {
+        const open = gateOn(project(), REGISTRY_SCRIPT);
+        // The real catalog judges W-12 on more than ESLint, so the law as a whole is not evaluated here; the place is what the ack covers.
+        expect(open.found).toMatchObject([{ rule: "no-await-in-loop", verdict: "not-evaluated" }]);
+        expect(Reflect.get(Object(Reflect.get(Object(open.found), "0")), "ack")).toBeUndefined();
+        const acked = gateOn(project({ ".web-tops/acks.yaml": SOFT }), REGISTRY_SCRIPT);
+        expect(acked.found).toMatchObject([
+          {
+            rule: "no-await-in-loop",
+            verdict: "pass",
+            file: "eslint.config.js",
+            ack: { source: "ledger", reason: "Each step needs the one before it." },
+          },
         ]);
       },
       SLOW,

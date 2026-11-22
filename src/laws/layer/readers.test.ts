@@ -39,6 +39,7 @@ describe("G4 the artifact each tool's reader reads", () => {
       "bun",
       "dependency-cruiser",
       "eslint",
+      "knip",
       "lock",
       "publint",
       "secretlint",

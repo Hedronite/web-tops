@@ -80,9 +80,12 @@ interface Seen {
   severity?: SeverityOf;
 }
 
+const todayOf = (day: string | undefined): { today?: string } =>
+  day === undefined ? {} : { today: day };
+
 async function run(
   collected: Collected,
-  options: { config?: Partial<GateConfig>; reader?: LawReader; seen?: Seen } = {},
+  options: { config?: Partial<GateConfig>; reader?: LawReader; seen?: Seen; today?: string } = {},
 ): Promise<LayerResult> {
   const cwd = tempDir();
   put(cwd, { "out/e.json": "[]\n", "out/t.json": "[]\n" });
@@ -98,6 +101,7 @@ async function run(
       ["eslint-json", join(cwd, "out/e.json")],
       ["tsc-diagnostics", join(cwd, "out/t.json")],
     ]),
+    ...todayOf(options.today),
   };
   const seen = options.seen ?? {};
   return lawsLayer(
@@ -231,5 +235,22 @@ describe("an acknowledgement of a hard law or of an id that is no law fails the 
     });
     expect(lawOf(result)?.verdict).toBe("ack-missing");
     expect(result.verdict).toBe("fail");
+  });
+});
+
+describe("an expiry is compared with the runner's day", () => {
+  const until = (date: string): Collected => ({
+    acks: [{ ...ledgerAck, expires: date }],
+    problems: [],
+  });
+
+  it("covers through the day it names, and not after it", async () => {
+    expect((await run(until("2026-11-20"), { today: "2026-11-20" })).verdict).toBe("pass");
+    expect((await run(until("2026-11-20"), { today: "2026-11-21" })).verdict).toBe("ack-missing");
+  });
+
+  it("takes the machine's day when the context has none, so an entry that ran out long ago covers nothing", async () => {
+    expect((await run(until("2000-01-01"))).verdict).toBe("ack-missing");
+    expect((await run(until("2999-12-31"))).verdict).toBe("pass");
   });
 });

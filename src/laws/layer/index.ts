@@ -117,6 +117,9 @@ function resultOf(judged: readonly Judged[], own: readonly RawFinding[]): LayerR
   return { verdict: layerVerdict(judged, own), findings, artifacts: {} };
 }
 
+/** The day an expiry is compared with: the runner's, else the machine's. */
+const dayOf = (ctx: LayerContext): string => ctx.today ?? utcDate(new Date());
+
 /** What reads the acknowledgements of a project: its comments and its ledger. */
 export type AcksOf = (
   cwd: string,
@@ -143,7 +146,7 @@ async function run(
   );
   const input = { ctx, tracked: tracked.files, held: ratchetHeld(ctx), eslint };
   const acks = acksOf(ctx.cwd, tracked.files, ledgerOf(ctx.config), severityOf(catalog()));
-  const byLaw = ackAll(laws, await readAll(laws, input, readers), acks.acks, utcDate(new Date()));
+  const byLaw = ackAll(laws, await readAll(laws, input, readers), acks.acks, dayOf(ctx));
   const facts = await eslint();
   const own = [
     ...(facts.ok ? unlinted(source, facts.facts) : []),
