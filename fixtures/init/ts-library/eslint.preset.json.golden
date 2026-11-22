@@ -303,6 +303,9 @@
       "**/*.cjs",
       "**/*.mjs"
     ],
+    "ignores": [
+      "**/*.astro/*.js"
+    ],
     "plugins": [],
     "rules": {
       "@typescript-eslint/await-thenable": "off",
@@ -381,6 +384,9 @@
       "**/*.js",
       "**/*.cjs",
       "**/*.mjs"
+    ],
+    "ignores": [
+      "**/*.astro/*.js"
     ],
     "plugins": []
   }
