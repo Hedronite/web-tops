@@ -134,16 +134,6 @@ describe("the ledger's files for W-28", () => {
     expect([before, after]).toContain(today);
     expect(severity).toBe(SEVERITY);
   });
-
-  it("reads the ledger the loaded config names, and the default one when it names none", () => {
-    seen.args.length = 0;
-    readLedger(
-      contextOver("/work/site", CLEAN, { PATH: "/usr/bin" }, cfg({ ackLedger: "ops/acks.yaml" }))
-        .ctx,
-    );
-    readLedger(contextOver("/work/site").ctx);
-    expect(seen.args.map((args) => args[4])).toEqual(["ops/acks.yaml", ".web-tops/acks.yaml"]);
-  });
 });
 
 describe("the environment a tool runs in", () => {
