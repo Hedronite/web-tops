@@ -1,0 +1,7 @@
+# Acknowledgements of soft laws that a comment in the file cannot carry (WEB_TOPS.md section 8.1).
+version: 1
+acks:
+  - law: W-48
+    file: src/baseline/index.ts
+    reason: "The baseline module's public surface. Callers import its files directly, and only-writer.test.ts pins this file as one of the four that name the baseline writer."
+    owner: kit maintainers

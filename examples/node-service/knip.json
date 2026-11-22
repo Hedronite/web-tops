@@ -1,0 +1,14 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignore": ["coverage/**", "dist/**"],
+  "ignoreDependencies": [
+    "@eslint-community/eslint-plugin-eslint-comments",
+    "@eslint/js",
+    "@secretlint/secretlint-rule-preset-recommend",
+    "@vitest/eslint-plugin",
+    "dependency-cruiser",
+    "secretlint",
+    "typescript-eslint"
+  ],
+  "ignoreExportsUsedInFile": true
+}

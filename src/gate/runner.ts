@@ -36,7 +36,7 @@ import type {
   RunDescription,
 } from "./types.ts";
 
-export { planGate, type PlanItem } from "./plan.ts";
+export { planGate } from "./plan.ts";
 
 /** What `runGate` returns: the schema's report, with the exit code the run settled on. */
 export type RanReport = Report & { readonly exit_code: 0 | 1 };

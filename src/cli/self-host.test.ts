@@ -64,7 +64,6 @@ describe("G7a: the kit's own web-tops.yaml", () => {
   });
 
   it.each([
-    [["laws"], "M3"],
     [["layers", "size_limit"], "M4"],
     [["layers", "html_validate"], "M4"],
     [["layers", "axe"], "M4"],
@@ -519,10 +518,7 @@ describe("G7: .dependency-cruiser.cjs", () => {
         "src/p.test.ts": "export const t = 1;\n",
       },
     ],
-    [
-      "not-to-unresolvable",
-      { "src/p.ts": 'import { m } from "./missing.ts";\nexport const p = m;\n' },
-    ],
+    ["no-unresolvable", { "src/p.ts": 'import { m } from "./missing.ts";\nexport const p = m;\n' }],
     [
       "no-non-package-json",
       { "src/p.ts": 'import { parse } from "yaml";\nexport const p = parse;\n' },
