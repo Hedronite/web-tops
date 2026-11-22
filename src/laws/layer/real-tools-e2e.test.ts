@@ -5,7 +5,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { cleanTemp, tempDir } from "../probe/testkit.ts";
 
 /**
- * G9: the real secretlint (W-39), run by the reader registered in the laws layer. The layer
+ * G9: the real secretlint (W-39) and the real knip (W-48), run by the readers registered in the laws layer. The layer
  * runs in a child process over a project with the project's own ESLint, so this covers the registry, the tools and the
  * process boundary, not the readers' code, which the tests beside them judge; it is not run inside a Stryker worker.
  */
@@ -19,6 +19,7 @@ const insideStryker = process.env["STRYKER_MUTATOR_WORKER"] !== undefined;
 /** The documented fake: the sample secret access key of the AWS documentation. */
 const FAKE = "je7MtGbClwBF/2Zp9Utk/h3yCo8nvbEXAMPLEKEY";
 const LEAK = `export const ok = 1;\nconst aws_secret_access_key = "${FAKE}";\n`;
+const INDEX = 'import { used } from "./utils.ts";\nexport const a = used;\n';
 
 const CONFIG = [
   'import tseslint from "typescript-eslint";',
@@ -45,8 +46,8 @@ const ALLOWS = JSON.stringify({
 interface Scenario {
   readonly name: string;
   readonly law: string;
-  /** What the layer says of the law. */
-  readonly verdict: "pass" | "refuse";
+  /** What the layer says of the law: a soft law's refusal is `ack-missing`. */
+  readonly verdict: "pass" | "refuse" | "ack-missing";
   /** The tracked files of the project, besides the config the project's ESLint needs. */
   readonly files: Readonly<Record<string, string>>;
 }
@@ -64,6 +65,22 @@ const SCENARIOS: readonly Scenario[] = [
     law: "W-39",
     verdict: "pass",
     files: { "src/leak.ts": LEAK, ".secretlintrc.json": ALLOWS },
+  },
+  {
+    name: "W-48 planted",
+    law: "W-48",
+    verdict: "ack-missing",
+    files: {
+      "index.ts": INDEX,
+      "utils.ts": "export const used = 1;\nexport const unusedExport = 2;\n",
+      "unused.ts": "export const lonely = 1;\n",
+    },
+  },
+  {
+    name: "W-48 clean",
+    law: "W-48",
+    verdict: "pass",
+    files: { "index.ts": INDEX, "utils.ts": "export const used = 1;\n" },
   },
 ];
 
@@ -115,6 +132,7 @@ function project(one: Scenario): string {
       type: "module",
       main: "index.ts",
     }),
+    "knip.json": JSON.stringify({ ignore: ["eslint.config.js"] }),
     "tsconfig.json":
       '{ "compilerOptions": { "strict": true, "target": "es2022", "module": "nodenext", "allowImportingTsExtensions": true, "noEmit": true } }',
     "eslint.config.js": CONFIG,
@@ -160,9 +178,9 @@ function run(): { text: string; found: unknown } {
   return { text: done.stdout, found };
 }
 
-describe.skipIf(insideStryker)("G9 the real secretlint, through the laws layer", () => {
+describe.skipIf(insideStryker)("G9 the real secretlint and knip, through the laws layer", () => {
   it(
-    "refuses a planted secret with its law, and passes the clean twin",
+    "refuses a planted secret and an unused export with their laws, and passes the clean twins",
     () => {
       const { text, found } = run();
       expect(found).toEqual({
@@ -172,6 +190,12 @@ describe.skipIf(insideStryker)("G9 the real secretlint, through the laws layer",
         ],
         "W-39 clean": [["law/W-39", "pass", null, null]],
         "W-39 allowed by the project's own config": [["law/W-39", "pass", null, null]],
+        "W-48 planted": [
+          ["law/W-48", "ack-missing", null, null],
+          ["knip:files", "ack-missing", "unused.ts", null],
+          ["knip:exports", "ack-missing", "utils.ts", 2],
+        ],
+        "W-48 clean": [["law/W-48", "pass", null, null]],
       });
       expect(text).not.toContain(FAKE);
     },
