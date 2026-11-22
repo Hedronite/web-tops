@@ -1,4 +1,4 @@
-import { ackedFiles, type AckedFiles } from "../../acks/files.ts";
+import { ackedFiles, ledgerOf, type AckedFiles } from "../../acks/files.ts";
 import { catalogSeverity } from "../../acks/severity.ts";
 import { utcDate } from "../../survivors/dates.ts";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
@@ -99,9 +99,9 @@ export function resolveTool(cwd: string, spec: ToolSpec): string | undefined {
   return existsSync(entry) ? entry : undefined;
 }
 
-/** The files the ack ledger covers for W-28 today: the ledger's entries for it that have not expired. */
+/** The files the ack ledger the config names covers for W-28 today: the ledger's entries for it that have not expired. */
 export const readLedger = (ctx: LayerContext): AckedFiles =>
-  ackedFiles(ctx.cwd, "W-28", utcDate(new Date()), catalogSeverity());
+  ackedFiles(ctx.cwd, "W-28", utcDate(new Date()), catalogSeverity(), ledgerOf(ctx.config));
 
 /**
  * The environment that tells the ESLint preset which files the ledger covers for W-28 (`WEBTOPS_ACKED_FILES`, JSON by
