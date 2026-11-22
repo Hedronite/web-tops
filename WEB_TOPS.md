@@ -423,7 +423,8 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
   `mutation-timeouts`; a survivor still fails the layer. A starved machine times out the mutants a weak test would
   have let live, and a pass from such a run proves nothing. The gate sets Stryker's `concurrency` to the CPUs the
   process can use (`os.availableParallelism()` and a control-group CPU limit, whichever is less) minus one, at least
-  one, and `timeoutFactor` to 3. The message of the layer counts the mutants by every status (§6.6 `metrics.mutation`).
+  one, and `timeoutFactor` to 3, and `dryRunTimeoutMinutes` to 15, because the initial test run is the whole suite in
+  one runner with per-test coverage and a shared CI runner can pass the default five minutes. The message of the layer counts the mutants by every status (§6.6 `metrics.mutation`).
 - **Diff outcomes:** a diff that fails (no merge base, shallow clone) is `fail`, with no
   exemption. A diff with no changed source line and no function covered by a changed test is
   `vacuous` (§3.3); a diff that changes only tests is not. CI checks out with `fetch-depth: 0`.
