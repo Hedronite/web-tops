@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { realExec } from "../gate/exec.ts";
 import type { Exec } from "../gate/types.ts";
@@ -12,6 +12,7 @@ import {
 import { functionsIn, innermostAt } from "./functions.ts";
 import { diffText, mergeBaseOf, showAt } from "./git.ts";
 import { parseDiff } from "./parse.ts";
+import type { OwnsConfig } from "./parse.ts";
 import type {
   ChangedFile,
   CoverageMap,
@@ -63,6 +64,12 @@ export const isTestFile = (path: string): boolean =>
   /\.(test|spec)\.[cm]?tsx?$|(^|\/)__tests__\//.test(path) && hasScriptExtension(path);
 export const isSourceFile = (path: string): boolean =>
   hasScriptExtension(path) && !isDeclaration(path) && !isTestFile(path);
+
+/** An example folder is a project that gates itself when it holds its own `web-tops.yaml`. */
+export const ownsConfigAt =
+  (cwd: string): OwnsConfig =>
+  (folder) =>
+    existsSync(join(cwd, folder, "web-tops.yaml"));
 
 function readerFor(cwd: string): Reader {
   return (path) => {
@@ -394,5 +401,5 @@ export async function diffScope(options: ScopeOptions): Promise<ScopeResult> {
   if (!base.ok) return { outcome: "fail", reason: base.reason };
   const text = await diffText(exec, options.cwd, base.value);
   if (!text.ok) return { outcome: "fail", reason: text.reason };
-  return assemble(options, exec, base.value, parseDiff(text.value));
+  return assemble(options, exec, base.value, parseDiff(text.value, ownsConfigAt(options.cwd)));
 }
