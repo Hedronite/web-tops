@@ -117,19 +117,50 @@ describe("G6a: the data trees of section 17 are not part of the diff", () => {
     "+new",
   ];
 
-  it("leaves out a file changed under fixtures/ or probes/, and keeps the others with their own ranges", () => {
+  it("leaves out a file changed under fixtures/, probes/ or examples/, and keeps the others with their own ranges", () => {
     const text = diff(
       ...change("src/a.ts"),
       ...change("fixtures/laws/W-34/bad/focused.test.ts"),
       ...change("probes/w22/b.tsx"),
+      ...change("examples/node-service/src/a.test.ts"),
       "@@ -5,0 +6,2 @@",
       "+x",
       "+y",
       ...change("src/c.ts"),
     );
-    expect(parseDiff(text).map((file) => [file.path, file.ranges])).toEqual([
+    const owns = (folder: string): boolean => folder === "examples/node-service";
+    expect(parseDiff(text, owns).map((file) => [file.path, file.ranges])).toEqual([
       ["src/a.ts", [{ start: 1, end: 1 }]],
       ["src/c.ts", [{ start: 1, end: 1 }]],
+    ]);
+  });
+
+  it("only an examples/ folder at the top of the tree can be an example that gates itself", () => {
+    const text = diff(
+      ...change("docs/examples/gates/src/a.ts"),
+      ...change("examples/gates/src/b.ts"),
+    );
+    const owns: Parameters<typeof parseDiff>[1] = (folder) => folder.endsWith("examples/gates");
+    expect(parseDiff(text, owns).map((file) => file.path)).toEqual([
+      "docs/examples/gates/src/a.ts",
+    ]);
+  });
+
+  it("keeps a file under examples/ whose folder holds no web-tops.yaml of its own, and leaves out one that does", () => {
+    const text = diff(
+      ...change("examples/gates/src/a.ts"),
+      ...change("examples/plain/src/b.ts"),
+      ...change("examples/loose.ts"),
+    );
+    const owns: Parameters<typeof parseDiff>[1] = (folder) => folder === "examples/gates";
+    expect(parseDiff(text, owns).map((file) => file.path)).toEqual([
+      "examples/plain/src/b.ts",
+      "examples/loose.ts",
+    ]);
+    expect(parseDiff(text).map((file) => file.path)).toEqual([
+      "examples/gates/src/a.ts",
+      "examples/plain/src/b.ts",
+      "examples/loose.ts",
     ]);
   });
 
@@ -161,18 +192,20 @@ describe("G6a: the data trees of section 17 are not part of the diff", () => {
     ]);
   });
 
-  it("only the two trees at the top: a path that merely contains or starts like one is kept", () => {
+  it("only the trees at the top: a path that merely contains or starts like one is kept", () => {
     const text = diff(
       ...change("src/fixtures/a.ts"),
-      ...change("examples/probes/b.ts"),
+      ...change("docs/examples/b.ts"),
       ...change("fixtures-old/c.ts"),
       ...change("probes.ts"),
+      ...change("examples.ts"),
     );
     expect(parseDiff(text).map((file) => file.path)).toEqual([
       "src/fixtures/a.ts",
-      "examples/probes/b.ts",
+      "docs/examples/b.ts",
       "fixtures-old/c.ts",
       "probes.ts",
+      "examples.ts",
     ]);
   });
 
