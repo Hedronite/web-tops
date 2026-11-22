@@ -19,7 +19,10 @@ function lintedExtensions(): readonly string[] {
 /** The tracked source ESLint judges: TypeScript and `.astro`, outside the output and dependency folders. */
 export const trackedLinted = (tracked: readonly string[]): string[] =>
   tracked.filter(
-    (file) => lintedExtensions().includes(extname(file).toLowerCase()) && withinSource(file),
+    (file) =>
+      lintedExtensions().includes(extname(file).toLowerCase()) &&
+      withinSource(file) &&
+      !isData(file),
   );
 
 /** Where a path ESLint is asked about, though no file is there, begins: the project's own `src/`. */
