@@ -79,6 +79,8 @@ describe("the diff of a head against its merge base", () => {
       "Stylelint rule levels and options (W-26)",
       "dependency-cruiser rules (W-16, W-17, W-19)",
       "tsconfig file set: include, exclude, files, references (W-04)",
+      "secretlint rules, allow lists and ignores (W-39)",
+      "knip ignores, entries, projects and rule levels (W-48)",
     ]);
   });
 

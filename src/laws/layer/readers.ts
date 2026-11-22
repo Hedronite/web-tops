@@ -4,13 +4,13 @@ import { depcruiseReader } from "../../laws/readers/depcruise.ts";
 import { eslintReader } from "../../laws/readers/eslint.ts";
 import { lockReader } from "../../laws/readers/lock.ts";
 import { publintReader } from "../../laws/readers/publint.ts";
+import { secretsReader } from "../../laws/readers/secrets.ts";
 import { tscReader } from "../../laws/readers/tsc.ts";
 import type { LawReader } from "../../laws/readers/types.ts";
 
 /**
  * The readers by the tool whose rules they read, one line each. A law that maps a tool with no reader here is
- * `not-evaluated` for that tool, never a pass: the readers of the secrets scanner and knip (G9) register here when they
- * land.
+ * `not-evaluated` for that tool, never a pass: axe, html-validate, knip, stylelint and `astro check` have none yet.
  */
 export function defaultReaders(): ReadonlyMap<string, LawReader> {
   return new Map([
@@ -20,6 +20,7 @@ export function defaultReaders(): ReadonlyMap<string, LawReader> {
     ["eslint", eslintReader],
     ["lock", lockReader],
     ["publint", publintReader],
+    ["secretlint", secretsReader],
     ["tsc", tscReader],
   ]);
 }
