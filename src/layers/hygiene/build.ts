@@ -1,4 +1,6 @@
 import { writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { loadTypeScript } from "../../complexity/load.ts";
 import type { ExecResult } from "../../gate/types.ts";
 import type { RawFinding } from "../../report/findings.ts";
 import {
@@ -143,9 +145,29 @@ function keepDiagnostics(
   return { "tsc-diagnostics": path };
 }
 
-/** `tsc -b --noEmit`, the form checked on 6.0.3 (works composite or not, and writes `tsconfig.tsbuildinfo`). */
+/**
+ * Whether `tsconfig.json` lists projects in `references`, read as the JSONC it is (a comment that mentions
+ * `references` does not count). tsc refuses a referenced project whose emit is off (TS6310), and `--noEmit` turns it
+ * off for every project of the build, so such a root is built without it. A file that cannot be read has none.
+ */
+function hasReferences(cwd: string): boolean {
+  try {
+    const ts = loadTypeScript(cwd);
+    const read = ts.readConfigFile(join(cwd, "tsconfig.json"), (file) => ts.sys.readFile(file));
+    if (read.error !== undefined) return false;
+    const listed: unknown = Reflect.get(Object(read.config), "references");
+    return Array.isArray(listed) && listed.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * `tsc -b --noEmit`, the form checked on 6.0.3 (works composite or not, and writes `tsconfig.tsbuildinfo`); a
+ * `tsconfig.json` with `references` is built with `tsc -b`, the referenced projects emitting only their declarations.
+ */
 export async function tsc(step: StepContext): Promise<StepResult> {
-  const outcome = await ran(step, "tsc", ["-b", "--noEmit"]);
+  const outcome = await ran(step, "tsc", hasReferences(step.ctx.cwd) ? ["-b"] : ["-b", "--noEmit"]);
   if ("failed" in outcome) {
     return outcome.failed;
   }
