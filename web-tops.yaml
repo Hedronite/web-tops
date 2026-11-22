@@ -37,7 +37,7 @@ gates:
     scope: diff
     base: origin/main
     unexplained_survivors_max: 0
-    time_budget_minutes: 40
+    time_budget_minutes: 50
     ledger: .web-tops/survivors.yaml
 
 layers:

@@ -305,8 +305,11 @@ export async function eslintPreset({ variant, tsconfigRootDir, class: className 
     ...plugins,
     ...laws,
     {
-      // Plain JavaScript config files sit outside tsconfig: no type-aware rules there.
+      // Plain JavaScript config files sit outside tsconfig: no type-aware rules there. A page's
+      // `<script>` block is no config file: the laws layer asks ESLint about one even for a project
+      // with no page, and the type-aware rules stay on for it.
       files: ["**/*.js", "**/*.cjs", "**/*.mjs"],
+      ignores: ["**/*.astro/*.js"],
       extends: [tseslint.configs.disableTypeChecked],
     },
   );

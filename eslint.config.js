@@ -84,8 +84,11 @@ export default defineConfig(
     },
   },
   {
-    // The config files are plain JavaScript outside tsconfig: no type-aware rules there.
+    // The config files are plain JavaScript outside tsconfig: no type-aware rules there. A page's
+    // `<script>` block (`page.astro/0.js`) is no config file: the laws layer asks ESLint about one
+    // even when the project has no page, and the type-aware rules stay on for it.
     files: ["**/*.js", "**/*.cjs", "**/*.mjs"],
+    ignores: ["**/*.astro/*.js"],
     extends: [tseslint.configs.disableTypeChecked],
   },
   {
