@@ -47,8 +47,18 @@ function text(found: Collected, today: string): string {
   return `${[head, ...found.acks.map((ack) => ackLine(ack, today)), ...problems].join("\n")}\n`;
 }
 
+/** The acknowledgements for `--json`: each with `expired: true` once its ledger entry is past its `expires`. */
+function jsonOf(found: Collected, today: string): Collected {
+  return {
+    ...found,
+    acks: found.acks.map((ack) =>
+      isExpired(ack.expires, today) ? { ...ack, expired: true } : ack,
+    ),
+  };
+}
+
 function report(found: Collected, json: boolean, today: string, io: Io): number {
-  io.out(json ? `${JSON.stringify(found, null, 2)}\n` : text(found, today));
+  io.out(json ? `${JSON.stringify(jsonOf(found, today), null, 2)}\n` : text(found, today));
   return found.problems.length === 0 ? 0 : 1;
 }
 

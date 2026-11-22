@@ -116,6 +116,33 @@ describe("ackedFiles: the files a law has a valid ledger entry for", () => {
   });
 });
 
+describe("ackedFiles: the ledger a caller names", () => {
+  it("reads the ledger it is given, and not the one the config file names", () => {
+    const dir = project({
+      "web-tops.yaml": "laws:\n  ack_ledger: ops/acks.yaml\n",
+      "ops/acks.yaml": ledger(entry("W-28", "src/config.astro")),
+      "docs/acks.yaml": ledger(entry("W-28", "src/given.astro")),
+    });
+    expect(ackedFiles(dir, "W-28", "2026-11-20", SEVERITY, "docs/acks.yaml")).toEqual({
+      ok: true,
+      files: ["src/given.astro"],
+    });
+    expect(ackedFiles(dir, "W-28", "2026-11-20", SEVERITY)).toEqual({
+      ok: true,
+      files: ["src/config.astro"],
+    });
+  });
+
+  it("names the ledger it was given when that one cannot be read", () => {
+    const dir = project({ "docs/acks.yaml": "version: 2\nacks: []\n" });
+    expect(ackedFiles(dir, "W-28", "2026-11-20", SEVERITY, "docs/acks.yaml")).toMatchObject({
+      ok: false,
+      rule: "ack-ledger-unreadable",
+      file: "docs/acks.yaml",
+    });
+  });
+});
+
 describe("ledgerPath: the ledger the config names, else the default", () => {
   it("is .web-tops/acks.yaml with no config, and with a config that names none", () => {
     expect(ledgerPath(project({}))).toBe(".web-tops/acks.yaml");
