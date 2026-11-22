@@ -60,10 +60,12 @@ export const realExec: Exec = (command, args, options = {}) =>
       clearTimeout(timer);
       resolve({ code: null, stdout, stderr, failure: "tool-missing" });
     });
-    child.on("close", (code) => {
+    child.on("close", (code, signal) => {
       clearTimeout(timer);
       resolve(
-        failure === undefined ? { code, stdout, stderr } : { code: null, stdout, stderr, failure },
+        failure === undefined
+          ? { code, stdout, stderr, ...(signal === null ? {} : { signal }) }
+          : { code: null, stdout, stderr, failure },
       );
     });
   });
