@@ -435,8 +435,10 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
   run ordinal, and never by a line number, so a ledger entry survives edits elsewhere in the file.
   A ledger entry carries those six fields beside `reason`, `owner` and `expires`.
 - **Time budget.** `gates.mutation.time_budget_minutes`, 30 by default: the largest M2 diff, about 1,330
-  mutants, fit on both CI legs, and the budget sits under the 45 minute macOS job limit, so an over-budget run
-  reports `not-evaluated` and does not become a cancelled job. A run that passes it is stopped, with the
+  mutants, fit on both CI legs. The budget sits under the job limit, so an over-budget run reports
+  `not-evaluated` and does not become a cancelled job; a project that raises its budget raises its job limit
+  with it. The kit's own gate runs at 50 minutes under a 60 minute job limit, because the diff that adds a
+  self-hosted example and its pins holds about 500 mutants and runs past 45 minutes on the ubuntu leg. A run that passes the budget is stopped, with the
   processes it started, and the layer is `not-evaluated`, with the budget in the reason: a stopped run writes no
   report, so it names no count of mutants judged. A run cut short is never a pass.
 
