@@ -100,7 +100,7 @@ The gate judges what ships: the browser receives HTML, CSS, and JavaScript, not 
 
 Draft. Protocol **0.3.0**; this tree implements it: one verdict set, the report shape, required layers and laws per class, and the protocol id checked by range. The package is version 0.3.0 (the 0.1.0 release implements 0.2.1): a GitHub release, private, not published to npm.
 
-This repository has shipped milestones M1 and M2: the `webtops` CLI (`init`, `check`, `gate`, `report`, `lock`, `doctor`, `version`, `survivors`, `baseline`) runs from source on Bun and gates this repo on itself at tier 1, under `enforce: hard`, with native CRAP at cap 4 and StrykerJS mutation on the diff, no unexplained survivors, in the one `gate` job on Ubuntu and macOS. The laws layer and the build-output layers are off in [`web-tops.yaml`](web-tops.yaml), each with the milestone that turns it on. The package is not published to npm.
+This repository has shipped milestones M1, M2 and M3: the `webtops` CLI (`init`, `check`, `gate`, `report`, `lock`, `doctor`, `version`, `survivors`, `baseline`) runs from source on Bun and gates this repo on itself at tier 1, under `enforce: hard`, with native CRAP at cap 4 and StrykerJS mutation on the diff, no unexplained survivors, in the one `gate` job on Ubuntu and macOS. The laws layer runs on the kit at `hard`: every law the `ts-library` profile requires is judged (22 of 22), and `examples/node-service` gates itself the same way in the same job (21 of 21). The build-output layers are off in [`web-tops.yaml`](web-tops.yaml), each with the milestone that turns it on. The package is not published to npm.
 
 | Milestone | Contents |
 | --- | --- |
@@ -108,7 +108,7 @@ This repository has shipped milestones M1 and M2: the `webtops` CLI (`init`, `ch
 | **M1** | `init`, `check`, `gate`: hygiene, tests, coverage, `report.json`; Web-TOPS gates itself |
 | **P3** | Protocol 0.3.0, the truth pass: one verdict set, required layers and laws per class, the report shape, risk definitions, the protocol id by range, ESLint 10 (this repo) |
 | **M2** | The risk engine, shipped: native CRAP, the Stryker adapter, the survivor ledger, baseline and ratchet; the kit runs CRAP and mutation on itself at `hard` |
-| **M3** | Laws v1: `laws/W-NN.yaml`, law fixtures, `eslint-plugin-webtops`, the non-lint readers, `law-diff` |
+| **M3** | Laws v1, shipped: `laws/W-NN.yaml`, law fixtures, `eslint-plugin-webtops`, the non-lint readers, the ack ledger, `law-diff`; the kit and `examples/node-service` run the laws layer at `hard` |
 | **M4** | Build output: HTML validity, links, page and route bytes, axe, `size-limit` per entry |
 | **M5** | Rendered interface and themes: reflow, focus, motion, theme contrast |
 | **M6** | Workspaces and adoption: the `workspace-root` and `cli` profiles, the adopter PRs |
