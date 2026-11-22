@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type * as ackFiles from "../../acks/files.ts";
 import type { AckedFiles } from "../../acks/files.ts";
 import { cfg, tempProject, type TempProject } from "../../gate/testkit.ts";
 import type { Exec, ExecOptions, ExecResult, GateConfig, LayerContext } from "../../gate/types.ts";
@@ -8,7 +9,8 @@ import { ackedEnv, readLedger, runTool, toolEnv, toolOf } from "./tooling.ts";
 
 const seen: { args: unknown[][] } = vi.hoisted(() => ({ args: [] }));
 
-vi.mock("../../acks/files.ts", () => ({
+vi.mock("../../acks/files.ts", async (original) => ({
+  ...(await original<typeof ackFiles>()),
   ackedFiles: (...args: unknown[]): AckedFiles => {
     seen.args.push(args);
     return { ok: true, files: ["src/page.astro"] };
@@ -131,6 +133,15 @@ describe("the ledger's files for W-28", () => {
     expect([cwd, law]).toEqual(["/work/site", "W-28"]);
     expect([before, after]).toContain(today);
     expect(severity).toBe(SEVERITY);
+  });
+
+  it("reads the ledger the config names, else the default one", () => {
+    seen.args.length = 0;
+    readLedger(contextOver("/work/site").ctx);
+    readLedger(
+      contextOver("/work/site", CLEAN, undefined, cfg({ ackLedger: "ledgers/acks.yaml" })).ctx,
+    );
+    expect(seen.args.map((args) => args[4])).toEqual([".web-tops/acks.yaml", "ledgers/acks.yaml"]);
   });
 });
 
