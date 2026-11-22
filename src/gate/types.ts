@@ -26,6 +26,8 @@ export interface ExecResult {
   readonly code: number | null;
   readonly stdout: string;
   readonly stderr: string;
+  /** The signal that ended the process, when it ended by one and not by an exit (`code` is then null). */
+  readonly signal?: string;
   /** Set when the process could not run (`tool-missing`) or was killed (`tool-timeout`). */
   readonly failure?: "tool-missing" | "tool-timeout";
 }

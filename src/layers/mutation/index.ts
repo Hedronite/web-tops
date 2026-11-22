@@ -9,17 +9,10 @@ import { keyString } from "../../survivors/key.ts";
 import type { SurvivorKey } from "../../survivors/key.ts";
 import { excludesOf, inScope } from "../coverage/scope.ts";
 import { trackedFiles } from "../coverage/tracked.ts";
-import {
-  exitFinding,
-  failFinding,
-  launchFailure,
-  parseJson,
-  readOutput,
-  relativeTo,
-  runTool,
-} from "../hygiene/tooling.ts";
+import { failFinding, parseJson, readOutput, relativeTo, runTool } from "../hygiene/tooling.ts";
 import { strykerConfig } from "./config.ts";
 import { usableWorkers } from "./cpus.ts";
+import { strykerTrouble, VACUOUS } from "./failed.ts";
 import { readMutation } from "./read.ts";
 import type { MutationRead, SurvivorRow } from "./read.ts";
 import { snapEntries } from "./snap.ts";
@@ -76,8 +69,6 @@ async function entriesOf(ctx: LayerContext, ts: Ts): Promise<Entries> {
   const diff = diffOf(ctx);
   return diff === undefined ? allFiles(ctx) : fromDiff(ctx, ts, diff);
 }
-
-const VACUOUS = "no source file or function is in scope to mutate";
 
 /** Writes the run's Stryker config under `.web-tops/out/mutation/` and returns its path and the report's. */
 function writeConfig(
@@ -289,13 +280,8 @@ async function runStryker(
   if (result.failure === "tool-timeout") {
     return overBudget(ctx);
   }
-  const launch = launchFailure("stryker", "stryker", result);
-  if (launch !== undefined) {
-    return failed(launch);
-  }
-  return result.code === 0
-    ? readReport(ctx, ts, written.report)
-    : failed(exitFinding("stryker", "stryker-failed", "stryker", result, "stderr"));
+  const trouble = strykerTrouble(result);
+  return trouble === undefined ? readReport(ctx, ts, written.report) : failed(trouble);
 }
 
 type Inputs = { readonly wrapper: string; readonly ts: Ts } | { readonly stop: LayerResult };
