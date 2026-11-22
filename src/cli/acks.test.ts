@@ -183,3 +183,29 @@ describe("webtops acks says when a ledger entry runs out", () => {
     expect(out).toContain("  W-01  src/a.ts:1  comment  a reason\n");
   });
 });
+
+describe("webtops acks --json marks an expired entry", () => {
+  const entry = `${LEDGER}    expires: 2026-11-20\n`;
+  const jsonOn = async (today: string): Promise<readonly unknown[]> => {
+    let out = "";
+    const io: Io = {
+      out: (t) => (out += t),
+      err: () => undefined,
+      cwd: repo({ ".web-tops/acks.yaml": entry }),
+      env: {},
+    };
+    await runAcksCli(["--json"], io, () => SEVERITY, today);
+    const parsed: unknown = JSON.parse(out);
+    const acks: unknown = Reflect.get(Object(parsed), "acks");
+    return Array.isArray(acks) ? acks.map((one: unknown) => one) : [];
+  };
+
+  it("says expired: true once the entry is past its day, and not before or on it", async () => {
+    expect(await jsonOn("2026-11-21")).toMatchObject([{ law: "W-30", expired: true }]);
+    for (const today of ["2026-11-19", "2026-11-20"]) {
+      const acks = await jsonOn(today);
+      expect(acks).toMatchObject([{ law: "W-30", expires: "2026-11-20" }]);
+      expect(acks.map((ack) => "expired" in Object(ack))).toEqual([false]);
+    }
+  });
+});

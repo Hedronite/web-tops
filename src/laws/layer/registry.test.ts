@@ -6,6 +6,7 @@ import { attwReader } from "../readers/attw.ts";
 import { bunReader } from "../readers/bun.ts";
 import { depcruiseReader } from "../readers/depcruise.ts";
 import { eslintReader } from "../readers/eslint.ts";
+import { knipReader } from "../readers/knip.ts";
 import { lockReader } from "../readers/lock.ts";
 import { publintReader } from "../readers/publint.ts";
 import { secretsReader } from "../readers/secrets.ts";
@@ -47,6 +48,7 @@ describe("the registry of the laws layer's readers", () => {
     expect(readers.get("bun")).toBe(bunReader);
     expect(readers.get("dependency-cruiser")).toBe(depcruiseReader);
     expect(readers.get("eslint")).toBe(eslintReader);
+    expect(readers.get("knip")).toBe(knipReader);
     expect(readers.get("lock")).toBe(lockReader);
     expect(readers.get("publint")).toBe(publintReader);
     expect(readers.get("secretlint")).toBe(secretsReader);
@@ -57,7 +59,7 @@ describe("the registry of the laws layer's readers", () => {
     const readers = defaultReaders();
     const unread = [...judgedTools()].filter((tool) => !readers.has(tool)).sort();
     // W-20, W-21 and W-22 read built pages (html-validate, axe), W-26 style rules (stylelint) and W-27 `astro check`:
-    // each is a later step, and so is the reader of knip (W-48); a law that maps one is not evaluated for that tool.
-    expect(unread).toEqual(["astro-check", "axe", "html-validate", "knip", "stylelint"]);
+    // each is a later step, and a law that maps one is not evaluated for that tool.
+    expect(unread).toEqual(["astro-check", "axe", "html-validate", "stylelint"]);
   });
 });

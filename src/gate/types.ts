@@ -83,6 +83,8 @@ export interface LayerContext {
   readonly all?: boolean;
   /** The diff of this run, for a layer judged on what changed; without one a diff-scoped layer judges everything. */
   readonly diff?: DiffProvider;
+  /** The UTC day of the run, `YYYY-MM-DD`, from the runner's clock: what an expiry is compared with, the same in every layer. */
+  readonly today?: string;
   /** The `survivorKey` strings the survivor ledger explains; empty until the ledger is read (G8). */
   readonly explained?: ReadonlySet<string>;
 }
