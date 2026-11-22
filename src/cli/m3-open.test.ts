@@ -127,7 +127,7 @@ describe("M3 G0b: the M3 paths are in every tool's scope", () => {
     "src/lawdiff",
     "packages/eslint-plugin-webtops/src",
   ];
-  const data = ["fixtures/laws/W-01/bad", "fixtures/laws/W-01/clean", "examples/node-service/src"];
+  const data = ["fixtures/laws/W-01/bad", "fixtures/laws/W-01/clean"];
   const prettier = join(root, "node_modules/prettier/bin/prettier.cjs");
   const made: string[] = [];
   afterEach(() => {
@@ -164,6 +164,17 @@ describe("M3 G0b: the M3 paths are in every tool's scope", () => {
     expect(await eslint.isPathIgnored(join(root, `${dir}/x.ts`))).toBe(true);
     expect(await eslint.isPathIgnored(join(root, `${dir}/x.tsx`))).toBe(true);
     expect(ignoredByPrettier(`${dir}/x.ts`)).toBe(true);
+  });
+
+  it("examples/node-service is a project of its own: linted under its own config, formatted by its own gate, and reached by the root tsconfig references", async () => {
+    expect(await eslint.isPathIgnored(join(root, "examples/node-service/src/x.ts"))).toBe(false);
+    expect(ignoredByPrettier("examples/node-service/src/x.ts")).toBe(true);
+    const read = ts.readConfigFile(join(root, "tsconfig.json"), (file) => ts.sys.readFile(file));
+    const parsed = ts.parseJsonConfigFileContent(read.config, ts.sys, root);
+    expect(parsed.projectReferences?.map((reference) => reference.path)).toEqual([
+      join(root, "examples/node-service"),
+    ]);
+    expect(get(read.config, "exclude")).not.toContain("examples/node-service");
   });
 
   it("tsconfig includes every source path, and leaves the data paths out", () => {

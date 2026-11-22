@@ -13,7 +13,7 @@ toolchain:
 
 gates:
   hygiene:
-    eslint: { config: eslint.config.js }
+    # No `config`: ESLint looks its config up from each file's directory, so the example project is linted under its own.
     format: { tool: prettier }
     astro_check: { enabled: false, reason: "ts-library: no .astro files" }
     stylelint: { enabled: false, reason: "ts-library: no CSS" }

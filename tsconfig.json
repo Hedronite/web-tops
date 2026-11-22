@@ -24,11 +24,6 @@
     "forceConsistentCasingInFileNames": true
   },
   "include": ["src", "packages", "vitest.config.ts"],
-  "exclude": [
-    "probes",
-    "fixtures/probe",
-    "fixtures/complexity",
-    "fixtures/laws",
-    "examples/node-service"
-  ]
+  "exclude": ["probes", "fixtures/probe", "fixtures/complexity", "fixtures/laws"],
+  "references": [{ "path": "examples/node-service" }]
 }

@@ -267,13 +267,27 @@ describe("G7b: CI is the one gate job", () => {
     expect(keys(get(workflow(), "jobs"))).toEqual(["gate"]);
   });
 
-  it("runs the frozen install and one command, the gate at tier 1, and nothing else", () => {
+  it("runs the frozen installs and the gate at tier 1, for the kit and for the example, and nothing else", () => {
     const commands = steps()
       .map((step) => get(step, "run"))
       .filter((command) => command !== undefined);
     expect(commands).toEqual([
       "bun install --frozen-lockfile",
+      "bun install --frozen-lockfile",
       "bun src/cli/main.ts gate --max-tier 1",
+      "bun ../../src/cli/main.ts gate --max-tier 1",
+    ]);
+  });
+
+  it("runs the example's install and gate in the example's directory, and the kit's at the root", () => {
+    const directories = steps()
+      .filter((step) => get(step, "run") !== undefined)
+      .map((step) => get(step, "working-directory"));
+    expect(directories).toEqual([
+      undefined,
+      "examples/node-service",
+      undefined,
+      "examples/node-service",
     ]);
   });
 
