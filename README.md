@@ -35,7 +35,7 @@ TypeScript is the foundational language; HTML, CSS, Tailwind CSS, and Astro comp
 
 Web-TOPS (Web Testing and Optimization Protocol Suite) is a protocol and drop-in kit for web work. TypeScript is the foundational language; HTML, CSS, Tailwind CSS, and Astro complement it. The gate is meant to check the source and the build output the browser receives.
 
-The `webtops` CLI in this tree runs from source on Bun and gates this repository at tier 1, with native CRAP and StrykerJS mutation on the diff. The package is not published to npm.
+The `webtops` CLI in this tree runs from source on Bun and gates this repository, and the example in `examples/node-service`, at tier 1, with native CRAP, StrykerJS mutation on the diff and the laws layer. The package is not published to npm.
 
 ## Pins
 
@@ -55,14 +55,14 @@ bun src/cli/main.ts check
 bun src/cli/main.ts gate
 ```
 
-`check` validates `web-tops.yaml` against the schema, then the semantic checks. `gate` runs hygiene, tests, coverage, CRAP, and mutation on the diff at tier 1. This repository's CI runs `bun src/cli/main.ts gate --max-tier 1`.
+`check` validates `web-tops.yaml` against the schema, then the semantic checks. `gate` runs hygiene, tests, coverage, CRAP, mutation on the diff and the laws at tier 1. This repository's CI runs `bun src/cli/main.ts gate --max-tier 1`, for the kit and then for the example.
 
 ## What you get
 
 | | Tooling you wire yourself | This kit today |
 | --- | --- | --- |
 | Contract | Docs and tests you arrange | Protocol 0.3.0, JSON Schemas, and profiles for five launch classes |
-| Orchestrator | You sequence the commands | `webtops` `init`, `check`, `gate`, `report`, `lock`, `doctor`, `version`, `survivors`, `baseline`, run from source on Bun |
+| Orchestrator | You sequence the commands | `webtops` `init`, `check`, `gate`, `report`, `lock`, `doctor`, `version`, `survivors`, `baseline`, `laws`, `acks`, `law-diff`, run from source on Bun |
 | CI on this repo | — | The one `gate` job in [`.github/workflows/web-tops.yml`](.github/workflows/web-tops.yml), on Linux and macOS |
 
 The protocol's later layers, once they are on, check:
@@ -80,7 +80,7 @@ The protocol's later layers, once they are on, check:
 | Claim | Reality |
 | --- | --- |
 | An npm package | `package.json` is private. Install and run from this tree |
-| Laws or build-output checks on this repo today | Those layers are off in [`web-tops.yaml`](web-tops.yaml), each with the milestone that turns it on. Native CRAP at cap 4 and StrykerJS mutation on the diff are on, with no unexplained survivors |
+| Build-output checks on this repo today | That layer is off in [`web-tops.yaml`](web-tops.yaml), until M4. The laws layer, native CRAP at cap 4 and StrykerJS mutation on the diff are on, with no unexplained survivors |
 | A test framework or a design system | `webtops` runs Vitest, Playwright, Stryker, and related tools; it does not replace them, and it does not enforce an aesthetic |
 
 ## How it works
@@ -93,14 +93,14 @@ The gate judges what ships: the browser receives HTML, CSS, and JavaScript, not 
 | [`schema/`](schema) | `web-tops.schema.json` and `gate-report.schema.json` |
 | [`src/`](src) | The `webtops` CLI and the config, gate, init, lock, and report modules |
 | [`web-tops.yaml`](web-tops.yaml) | This repository's own config: class `ts-library`, `enforce: hard` |
-| [`config/AGENTS.md.tmpl`](config/AGENTS.md.tmpl) | The `AGENTS.md` section that `webtops init` will write into an adopting repo |
+| [`config/AGENTS.md.tmpl`](config/AGENTS.md.tmpl) | The `AGENTS.md` section that `webtops init` writes into an adopting repo |
 | [`AGENTS.md`](AGENTS.md) | Editing harness for this repository ([`CLAUDE.md`](CLAUDE.md) imports it) |
 
 ## Status
 
 Draft. Protocol **0.3.0**; this tree implements it: one verdict set, the report shape, required layers and laws per class, and the protocol id checked by range. The package is version 0.3.0 (the 0.1.0 release implements 0.2.1): a GitHub release, private, not published to npm.
 
-This repository has shipped milestones M1 and M2: the `webtops` CLI (`init`, `check`, `gate`, `report`, `lock`, `doctor`, `version`, `survivors`, `baseline`) runs from source on Bun and gates this repo on itself at tier 1, under `enforce: hard`, with native CRAP at cap 4 and StrykerJS mutation on the diff, no unexplained survivors, in the one `gate` job on Ubuntu and macOS. The laws layer and the build-output layers are off in [`web-tops.yaml`](web-tops.yaml), each with the milestone that turns it on. The package is not published to npm.
+This repository has shipped milestones M1, M2 and M3: the `webtops` CLI (`init`, `check`, `gate`, `report`, `lock`, `doctor`, `version`, `survivors`, `baseline`, `laws`, `acks`, `law-diff`) runs from source on Bun and gates this repo on itself at tier 1, under `enforce: hard`, with native CRAP at cap 4 and StrykerJS mutation on the diff, no unexplained survivors, in the one `gate` job on Ubuntu and macOS. The laws layer runs on the kit at `hard`: every law the `ts-library` profile requires is judged (22 of 22), and `examples/node-service` gates itself the same way in the same job (21 of 21). The build-output layers are off in [`web-tops.yaml`](web-tops.yaml), each with the milestone that turns it on. The package is not published to npm.
 
 | Milestone | Contents |
 | --- | --- |
@@ -108,7 +108,7 @@ This repository has shipped milestones M1 and M2: the `webtops` CLI (`init`, `ch
 | **M1** | `init`, `check`, `gate`: hygiene, tests, coverage, `report.json`; Web-TOPS gates itself |
 | **P3** | Protocol 0.3.0, the truth pass: one verdict set, required layers and laws per class, the report shape, risk definitions, the protocol id by range, ESLint 10 (this repo) |
 | **M2** | The risk engine, shipped: native CRAP, the Stryker adapter, the survivor ledger, baseline and ratchet; the kit runs CRAP and mutation on itself at `hard` |
-| **M3** | Laws v1: `laws/W-NN.yaml`, law fixtures, `eslint-plugin-webtops`, the non-lint readers, `law-diff` |
+| **M3** | Laws v1, shipped: `laws/W-NN.yaml`, law fixtures, `eslint-plugin-webtops`, the non-lint readers, the ack ledger, `law-diff`; the kit and `examples/node-service` run the laws layer at `hard` |
 | **M4** | Build output: HTML validity, links, page and route bytes, axe, `size-limit` per entry |
 | **M5** | Rendered interface and themes: reflow, focus, motion, theme contrast |
 | **M6** | Workspaces and adoption: the `workspace-root` and `cli` profiles, the adopter PRs |

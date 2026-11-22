@@ -38,8 +38,6 @@ export const TOOL_PINS = {
   zod: "4.6.7",
 } as const satisfies Readonly<Record<string, string>>;
 
-export type PinnedTool = keyof typeof TOOL_PINS;
-
 /**
  * The Node range every class's tools run in (WEB_TOPS.md section 2): where the pinned tools' engine
  * ranges meet. The lock records it as `node`; `lock --verify` and `doctor` check the running Node

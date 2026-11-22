@@ -1,4 +1,4 @@
-// The kit's own boundaries (WEB_TOPS.md W-16). `webtops gate` runs this once, in gate 1.
+// The kit's own boundaries (WEB_TOPS.md W-16, W-17, W-19). `webtops gate` runs this once, in gate 1.
 const TEST = "(\\.test\\.ts|/test-support[^/]*\\.ts)$";
 // The presets run in a project that installs the tools they import, so they may name devDependencies.
 const PRESETS = "^src/presets/";
@@ -12,6 +12,24 @@ module.exports = {
       severity: "error",
       from: {},
       to: { circular: true },
+    },
+    {
+      name: "no-unresolvable",
+      comment: "W-17: an unresolvable import is broken, deep ones too.",
+      severity: "error",
+      from: {},
+      to: { couldNotResolve: true },
+    },
+    {
+      name: "no-optional-peer-import",
+      comment:
+        "W-19: an optional peer (React, R3F) is imported only from a react entry or an adapter.",
+      severity: "error",
+      from: { pathNot: "(^|/)(react|adapters)(/|\\.[cm]?[jt]sx?$)" },
+      to: {
+        dependencyTypes: ["npm-peer"],
+        path: "(^|/)node_modules/(react|react-dom|three|@react-three/[^/]+)(/|$)",
+      },
     },
     {
       name: "config-below-cli",
@@ -41,13 +59,6 @@ module.exports = {
       severity: "error",
       from: {},
       to: { dependencyTypes: ["npm-no-pkg", "npm-unknown"] },
-    },
-    {
-      name: "not-to-unresolvable",
-      comment: "Every import resolves.",
-      severity: "error",
-      from: {},
-      to: { couldNotResolve: true },
     },
   ],
   options: {

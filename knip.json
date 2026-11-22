@@ -1,0 +1,15 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignore": ["fixtures/**", "probes/**", "examples/**"],
+  "ignoreDependencies": [
+    "@arethetypeswrong/cli",
+    "@secretlint/secretlint-rule-preset-recommend",
+    "@stryker-mutator/core",
+    "@stryker-mutator/typescript-checker",
+    "@stryker-mutator/vitest-runner",
+    "eslint-plugin-react-hooks",
+    "publint",
+    "secretlint"
+  ],
+  "ignoreExportsUsedInFile": true
+}

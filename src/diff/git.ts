@@ -1,4 +1,3 @@
-import { realExec } from "../gate/exec.ts";
 import type { Exec } from "../gate/types.ts";
 
 export type GitResult =
@@ -59,5 +58,3 @@ export function diffText(exec: Exec, cwd: string, mergeBase: string): Promise<Gi
 export function showAt(exec: Exec, cwd: string, ref: string, path: string): Promise<GitResult> {
   return runGit(exec, cwd, ["show", `${ref}:${path}`]);
 }
-
-export { realExec };

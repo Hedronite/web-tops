@@ -14,7 +14,6 @@ function yamlOf(name: string): unknown {
 
 describe("G7a: the kit's own web-tops.yaml", () => {
   it.each([
-    [["laws"], "M3"],
     [["layers", "size_limit"], "M4"],
     [["layers", "html_validate"], "M4"],
     [["layers", "axe"], "M4"],

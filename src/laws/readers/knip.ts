@@ -1,3 +1,4 @@
+import { withinSource } from "../../census/files.ts";
 import { isRecord, parseJson, records, runTool, str } from "../../layers/hygiene/tooling.ts";
 import type { LawReader, ReadInput } from "./types.ts";
 import type { RawFinding } from "../../report/findings.ts";
@@ -32,17 +33,24 @@ function itemFindings(
   });
 }
 
-/** The unused items of a `knip --reporter json` report: one finding each; undefined when the text is not a report. */
+const fileOf = (issue: Record<string, unknown>): string => str(issue["file"], "?");
+
+/**
+ * The unused items of a `knip --reporter json` report: one finding each; undefined when the text is not a report. A file
+ * in an output or dependency folder (the gate's own `.web-tops/out/`, `coverage/`, `dist/`) is no source of the project's.
+ */
 export function readKnip(text: string): RawFinding[] | undefined {
   const report = parseJson(text);
   if (!isRecord(report) || !Array.isArray(report["issues"])) {
     return undefined;
   }
-  return records(report["issues"]).flatMap((issue) =>
-    [...UNUSED].flatMap(([category, label]) =>
-      itemFindings(str(issue["file"], "?"), category, label, issue),
-    ),
-  );
+  return records(report["issues"])
+    .filter((issue) => withinSource(fileOf(issue)))
+    .flatMap((issue) =>
+      [...UNUSED].flatMap(([category, label]) =>
+        itemFindings(fileOf(issue), category, label, issue),
+      ),
+    );
 }
 
 type Scan = { readonly findings: RawFinding[] } | { readonly reason: string };

@@ -23,11 +23,6 @@ export type LedgerRead =
     }
   | { readonly ok: false; readonly problems: readonly Problem[] };
 
-/** What the last gate report says about a survivor. */
-export interface ReportSurvivor {
-  readonly key: SurvivorKey;
-}
-
 /** How a ledger and a set of survivors stand to each other on one day. */
 export interface Judgment {
   /** Survivors a live entry accepts. */

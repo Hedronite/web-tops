@@ -72,7 +72,5 @@ layers:
 laws:
   select: default
   ack_ledger: .web-tops/acks.yaml
-  enabled: false
-  reason: "milestone M3: the laws layer lands in M3"
 report:
   path: .web-tops/report.json

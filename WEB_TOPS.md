@@ -423,7 +423,8 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
   `mutation-timeouts`; a survivor still fails the layer. A starved machine times out the mutants a weak test would
   have let live, and a pass from such a run proves nothing. The gate sets Stryker's `concurrency` to the CPUs the
   process can use (`os.availableParallelism()` and a control-group CPU limit, whichever is less) minus one, at least
-  one, and `timeoutFactor` to 3. The message of the layer counts the mutants by every status (§6.6 `metrics.mutation`).
+  one, and `timeoutFactor` to 3, and `dryRunTimeoutMinutes` to 15, because the initial test run is the whole suite in
+  one runner with per-test coverage and a shared CI runner can pass the default five minutes. The message of the layer counts the mutants by every status (§6.6 `metrics.mutation`).
 - **Diff outcomes:** a diff that fails (no merge base, shallow clone) is `fail`, with no
   exemption. A diff with no changed source line and no function covered by a changed test is
   `vacuous` (§3.3); a diff that changes only tests is not. CI checks out with `fetch-depth: 0`.
@@ -1329,6 +1330,8 @@ also takes `enabled` and `reason`, and `enabled: false` requires `reason`.)
 | **M5** | Rendered interface and themes: the render rig; reflow (W-46), focus (W-45) and motion (W-43); the theme contract and the token-pair trace (W-42); parity with the first adopter's scripted review; `report --format html` | On the first adopter at a known-bad commit (`570304b`) the kit reports the animation under reduced motion, the small checkbox targets and the two failing color pairs; at the known-good commit (`04cc3a3`) it reports none |
 | **M6** | Workspaces and adoption: the `workspace-root` and `cli` profiles; distribution; the adopter PRs (libraries under ratchet, mutation on the diff, build output, rendered checks); the gate swap | The first adopter's required status is `webtops gate` under ratchet, for every package and both apps |
 | **M7** | Calibration and 1.0: a second adopter; caps, floors and budgets set from data; tier 2 nightly and tier 3 release checks; agent skills; engine legs; SARIF; a red-team pass | Two adopters across at least four classes; caps and budgets set from their data; law ids and schemas frozen |
+
+**Status.** M0 to M3 are done. M3's exit criterion holds on this repo: `webtops gate` prints `laws: 22 of 22 judged (ts-library)` for the kit and `21 of 21 judged (node-service)` for `examples/node-service`, and a planted override that turns `@typescript-eslint/no-explicit-any` off fails W-01 with `refuse` at the line of the override.
 
 An adopter PR (M6, M7) is written by this protocol's maintainers and approved and merged by the
 adopter's own maintainers under its own gate.

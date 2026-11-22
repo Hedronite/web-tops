@@ -13,9 +13,6 @@ import { KIND_MESSAGES } from "./kinds.ts";
 import { tsconfigHits } from "./tsconfig.ts";
 
 export { AXE_KINDS, CENSUS_RULE_PREFIX, CONFIG_KINDS, SOURCE_KINDS } from "./kinds.ts";
-export type { CensusKind } from "./kinds.ts";
-export { directivesIn } from "./directives.ts";
-export { eslintIgnores, ruleOff, tsconfigExcluded } from "./config.ts";
 
 /** What the census reads: the project, its tracked files, and a way to run ESLint. */
 export interface CensusInput extends Runner {
