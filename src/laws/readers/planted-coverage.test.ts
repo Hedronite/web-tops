@@ -15,7 +15,7 @@ import { defaultReaders } from "../layer/readers.ts";
 const LAWS = resolve(import.meta.dirname, "../../../laws");
 
 /** The laws with a plant: add a law's id here with its plant, or the test below fails. */
-const PLANTED = ["W-16", "W-17", "W-18", "W-19", "W-38", "W-39", "W-40", "W-41"];
+const PLANTED = ["W-16", "W-17", "W-18", "W-19", "W-38", "W-39", "W-40", "W-41", "W-48"];
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
