@@ -6,10 +6,10 @@ import type { RawFinding } from "../../report/findings.ts";
 import { gaveAnswer, notEvaluated, readingOf, saidOf } from "./reading.ts";
 
 /** W-39 reads the scanner `secretlint` with its recommended preset (WEB_TOPS.md section 2). */
-const PRESET = "@secretlint/secretlint-rule-preset-recommend";
+export const PRESET = "@secretlint/secretlint-rule-preset-recommend";
 
 /** The project's own rules, when it keeps them: a file named for secretlint in the project root. */
-const PROJECT_CONFIG = ".secretlintrc.json";
+export const PROJECT_CONFIG = ".secretlintrc.json";
 
 /** Tracked files that are not text a secret can sit in, and `bun.lock`, whose integrity hashes the scanner reads as secrets and no one wrote by hand. */
 export const isScannable = (file: string): boolean => {

@@ -93,6 +93,8 @@ describe("every surface of the diff", () => {
       ["Stylelint rule levels and options (W-26)", 1, 0],
       ["dependency-cruiser rules (W-16, W-17, W-19)", 1, 0],
       ["tsconfig file set: include, exclude, files, references (W-04)", 2, 0],
+      ["secretlint rules, allow lists and ignores (W-39)", 5, 0],
+      ["knip ignores, entries, projects and rule levels (W-48)", 34, 0],
     ]);
     expect(weakenedCount(surfaces)).toBe(0);
   });
@@ -112,6 +114,8 @@ describe("every surface of the diff", () => {
       [],
       [],
       ["unchanged"],
+      [],
+      [],
       [],
       [],
       [],

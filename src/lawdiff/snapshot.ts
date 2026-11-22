@@ -14,9 +14,11 @@ import { askCruise, configNames as cruiseConfigNames } from "./cruise.ts";
 import { readFileSets } from "./fileset.ts";
 import { askRules } from "./rules.ts";
 import { askStyle, configNames as styleConfigNames } from "./style.ts";
+import { knipPart } from "./knip.ts";
+import { secretlintPart } from "./secretlint.ts";
 import { settingsOf } from "./settings.ts";
 import { toolsOf } from "./tools.ts";
-import type { Asked, LawFacts, Part, Profile, Rules, Snapshot } from "./types.ts";
+import type { Asked, LawFacts, Part, Profile, Rules, Snapshot, ToolConfig } from "./types.ts";
 
 const absent: Part<never> = { state: "absent" };
 
@@ -204,6 +206,19 @@ export function toolsPart(dir: string, parse: LockParser = parseLock): Snapshot[
   return brokenOf(manifest) ?? brokenOf(lock) ?? bothTools(manifest, lock);
 }
 
+/** The scanner's and knip's config of a checkout, each only when the project keeps one: it else runs on the tool's defaults. */
+export function toolParts(
+  dir: string,
+  listed: readonly string[] | string,
+): { secretlint?: Part<ToolConfig>; knip?: Part<ToolConfig> } {
+  const secretlint = secretlintPart(dir, listed);
+  const knip = knipPart(dir);
+  return {
+    ...(secretlint.state === "absent" ? {} : { secretlint }),
+    ...(knip.state === "absent" ? {} : { knip }),
+  };
+}
+
 /** Every surface of the diff, read from one checkout; `extra` is the files of the other ref the tools are also asked about. */
 export async function snapshotOf(runner: Runner, extra: Asked): Promise<Snapshot> {
   const dir = runner.cwd;
@@ -218,6 +233,7 @@ export async function snapshotOf(runner: Runner, extra: Asked): Promise<Snapshot
     levels: eslint.part,
     style: style.part,
     cruise: await cruisePart(runner),
+    ...toolParts(dir, listed),
     fileSets: fileSetsPart(dir),
     tools: toolsPart(dir),
     flags: flagsPart(dir),

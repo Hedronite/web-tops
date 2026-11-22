@@ -65,6 +65,19 @@ export interface Cruise {
   readonly excluded: readonly string[];
 }
 
+/** A list in a tool's config, and which way it loosens the tool: by gaining an entry (an ignore), or by losing one (a project pattern). */
+export interface ToolSet {
+  readonly name: string;
+  readonly loosens: "added" | "removed";
+  readonly entries: readonly string[];
+}
+
+/** What a tool's config holds: a ranked value each, the lists with the way each loosens, and nothing it cannot say. */
+export interface ToolConfig {
+  readonly values: ReadonlyMap<string, Ranked>;
+  readonly sets: readonly ToolSet[];
+}
+
 /** What a tsconfig project selects: its entries as the config says them, and the files that come of them. */
 export interface ProjectSets {
   readonly include: readonly string[];
@@ -110,6 +123,9 @@ export interface Snapshot {
   readonly levels: Part<Rules>;
   readonly style: Part<Rules>;
   readonly cruise: Part<Cruise>;
+  /** Absent when the project keeps no such config: it then runs on the tool's defaults. */
+  readonly secretlint?: Part<ToolConfig>;
+  readonly knip?: Part<ToolConfig>;
   readonly fileSets: Part<ReadonlyMap<string, ProjectSets>>;
   readonly flags: Part<ReadonlyMap<string, Ranked>>;
   readonly settings: Part<Settings>;

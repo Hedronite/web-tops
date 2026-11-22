@@ -403,7 +403,9 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
   taken without rename detection, so a renamed file counts as new and every function in it is
   judged. A pure deletion belongs to the smallest function that holds the lines on both sides of
   it, else to the file's `<module>` (§6.7). The data trees of §17, `fixtures/` and `probes/` at the top of the tree, are
-  not part of the diff: a file changed under them is neither mutated nor run, because it breaks rules on purpose.
+  not part of the diff: a file changed under them is neither mutated nor run, because it breaks rules on purpose. Nor
+  is a file under `examples/<name>/` when that folder holds its own `web-tops.yaml`: such an example is a project that
+  gates itself, with its own tools and tests. Any other file under `examples/` is part of the diff.
 - **Statuses.** Stryker's status of each mutant decides what counts:
 
 | Status | Counts as |
@@ -468,7 +470,7 @@ transitively, and nothing else; a nested tsconfig that no reference reaches is n
 project. A tracked source file (`.ts`, `.tsx`, `.mts`, `.cts`) in no checked project's program is `refuse` at that
 file. The same holds for ESLint, over `.ts`, `.tsx`, `.mts`, `.cts` and `.astro` files: a tracked source file that no config block reaches, or that an `ignores` entry drops,
 is a `refuse` file-set finding, because no lint law judges it. A nested project reaches ESLint through its own
-`eslint.config`, which ESLint looks up from each file's directory. The data trees `fixtures/` and `probes/`
+`eslint.config`, which ESLint looks up from each file's directory: ESLint finds the nearest config for each file, so a nested `eslint.config.js` governs its folder, and law-diff reads each tracked file, so it sees a nested config that is weaker than the root's. The data trees `fixtures/` and `probes/`
 (section 17) are the only exemption from both, fixed here and in the code; no ESLint `ignores` entry, no `exclude`
 and no configuration adds to it. A rule entry of a law may list `classes`, a subset of the law's: a rule outside the run's class is neither required nor refused, so a project is not refused for a rule that holds for another class only. A compiler diagnostic that names a flag (`TS7005` and `TS7006` for
 `noImplicitAny`, and so on; gate 1 writes them as the `tsc-diagnostics` artifact) refuses the laws that map that flag:
@@ -1010,13 +1012,19 @@ surface with how many parts it compared, whether or not any moved: the effective
 for each TypeScript, JavaScript and Astro file, where a file ESLint no longer reaches (an ignore, a narrower `files`) is
 weaker, and a ceiling rule (`complexity`, `max-lines`, `max-depth`, `max-params`, `max-statements`,
 `max-nested-callbacks`) whose number rose is weaker; the same for each CSS file under Stylelint; the rules and severities
-of dependency-cruiser; the `include`, `exclude`, `files`, `references` and program of each checked tsconfig project and
+of dependency-cruiser; the rules, allow lists and ignore files of secretlint (W-39), where a rule or preset removed or
+disabled, a lowered severity, or an `allows`, `allowMessageIds` or `.secretlintignore` pattern added is weaker, and knip's
+(W-48) ignore lists, `entry` and `project` patterns, rule levels and issue types, where an added ignore or exclude, a
+widened `entry`, a narrowed `project`, a rule turned down or off, or a plugin turned off is weaker, and anything it cannot
+read as data (a knip config written as code) is `changed`, for review; the `include`, `exclude`, `files`, `references` and program of each checked tsconfig project and
 its W-04 flags; the gate's switches, floors, caps, coverage exclusions, exemption and shuffling; the law catalog; the
 class profile; and the tool versions of `web-tops.lock` and `package.json`, where a removed or unpinned tool is weaker and
 a new version is listed as `changed`, for review. The base is asked about the head's files as well as its own, and a
 renamed file is held to the path it came from. A surface that cannot be read at a ref is weaker, never a pass. The
 report ends with what it does not compare, and why: size budgets until M4, package scripts, CI workflow files, tsconfig
-options beyond the flags, dependency-cruiser options beyond `exclude` and `doNotFollow`, and files of other kinds. It
+options beyond the flags, dependency-cruiser options beyond `exclude` and `doNotFollow`, secretlint configuration in any
+file but `.secretlintrc.json` (the W-39 reader reads no other), what `.gitignore` leaves out of a secretlint scan, the
+options of a knip plugin beyond `entry` and `project`, and files of other kinds. It
 exits 1 when something weakened and the `protocol-change` label is absent. The workflow runs on `pull_request` events
 for the label, never `pull_request_target`, with the base branch's own command over the PR's checkout; when the base has
 no `law-diff`, it runs the head's own and says so, and never skips. Only an account with `maintain` or `admin`
