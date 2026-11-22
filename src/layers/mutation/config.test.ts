@@ -30,6 +30,24 @@ describe("G7a strykerConfig", () => {
     expect(strykerConfig({ ...PLAN, concurrency: 1 })).toMatchObject({ concurrency: 1 });
   });
 
+  it("gives the initial test run fifteen minutes, not Stryker's five, whatever the number of mutants", () => {
+    expect(strykerConfig(BASE)).toEqual({
+      testRunner: "vitest",
+      vitest: { configFile: ".web-tops/out/tests/vitest.config.mjs" },
+      checkers: ["typescript"],
+      coverageAnalysis: "perTest",
+      disableTypeChecks: false,
+      concurrency: 3,
+      timeoutFactor: 3,
+      dryRunTimeoutMinutes: 15,
+      mutate: ["src/a.ts:1-3", "src/b.ts:5-7", "!**/*.{test,spec}.?(c|m)[jt]s?(x)"],
+      reporters: ["json"],
+      jsonReporter: { fileName: ".web-tops/out/mutation/mutation.json" },
+      tempDirName: ".web-tops/out/mutation/.stryker-tmp",
+      cleanTempDir: true,
+    });
+  });
+
   it("mutates the given ranges, and never a test file", () => {
     expect(config["mutate"]).toEqual([
       "src/a.ts:1-3",
@@ -55,6 +73,7 @@ describe("G7a strykerConfig", () => {
         "concurrency",
         "coverageAnalysis",
         "disableTypeChecks",
+        "dryRunTimeoutMinutes",
         "jsonReporter",
         "mutate",
         "reporters",

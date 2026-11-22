@@ -21,6 +21,12 @@ export interface StrykerPlan {
  */
 const TIMEOUT_FACTOR = 3;
 
+/**
+ * How long Stryker's initial test run may take, in minutes. The run is the whole suite in one runner with per-test
+ * coverage, whatever the number of mutants, and a shared CI runner can pass the default of five minutes.
+ */
+const DRY_RUN_TIMEOUT_MINUTES = 15;
+
 /** A test file is never mutated, however the ranges were chosen. */
 const NOT_TESTS = "!**/*.{test,spec}.?(c|m)[jt]s?(x)";
 
@@ -40,6 +46,7 @@ export function strykerConfig(plan: StrykerPlan): Record<string, unknown> {
     disableTypeChecks: false,
     concurrency: plan.concurrency,
     timeoutFactor: TIMEOUT_FACTOR,
+    dryRunTimeoutMinutes: DRY_RUN_TIMEOUT_MINUTES,
     mutate: [...plan.mutate, NOT_TESTS],
     reporters: ["json"],
     jsonReporter: { fileName: plan.report },
