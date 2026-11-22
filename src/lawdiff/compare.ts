@@ -5,9 +5,12 @@ import { compareLevels, comparedOf, type Renames } from "./levels.ts";
 import { compareProfiles, profileNote } from "./profile.ts";
 import { compareRanked, comparePart, type Outcome } from "./rank.ts";
 import { compareSets } from "./sets.ts";
+import { defaultKnip } from "./knip.ts";
+import { defaultSecretlint, nestedDefault } from "./secretlint.ts";
+import { compareToolConfig } from "./toolconfig.ts";
 import { compareTools } from "./tools.ts";
 import { notCompared } from "./settings.ts";
-import type { Cruise, Ranked, Settings, Snapshot, Surface } from "./types.ts";
+import type { Cruise, Part, Ranked, Settings, Snapshot, Surface, ToolConfig } from "./types.ts";
 
 const unionSize = <T>(left: ReadonlyMap<string, T>, right: ReadonlyMap<string, T>): number =>
   new Set([...left.keys(), ...right.keys()]).size;
@@ -78,6 +81,10 @@ function fileSetSurface(base: Snapshot, head: Snapshot, renames: Renames): Surfa
   );
 }
 
+/** A tool's config at a ref, or what the tool runs with when the project keeps none there. */
+const orDefault = (part: Snapshot["knip"], make: () => ToolConfig): Part<ToolConfig> =>
+  part ?? { state: "ok", value: make() };
+
 /** Every surface of the diff, in a fixed order, each listed whether or not anything moved. */
 export function compareSnapshots(base: Snapshot, head: Snapshot, renames: Renames): Surface[] {
   return [
@@ -116,6 +123,18 @@ export function compareSnapshots(base: Snapshot, head: Snapshot, renames: Rename
       cruiseOutcome,
     ),
     fileSetSurface(base, head, renames),
+    comparePart(
+      "secretlint rules, allow lists and ignores (W-39)",
+      orDefault(base.secretlint, defaultSecretlint),
+      orDefault(head.secretlint, defaultSecretlint),
+      (before, after) => compareToolConfig(before, after, nestedDefault),
+    ),
+    comparePart(
+      "knip ignores, entries, projects and rule levels (W-48)",
+      orDefault(base.knip, defaultKnip),
+      orDefault(head.knip, defaultKnip),
+      compareToolConfig,
+    ),
   ];
 }
 
