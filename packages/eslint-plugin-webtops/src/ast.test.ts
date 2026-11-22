@@ -7,9 +7,11 @@ import {
   children,
   dottedName,
   kind,
+  linesBetween,
   lookup,
   propertyName,
   quasisOf,
+  startLine,
   staticText,
   stringList,
 } from "./ast.ts";
@@ -108,5 +110,16 @@ describe("reading nodes by shape", () => {
     expect(stringList({ names: ["a", 1, "b"] }, "names", ["z"])).toEqual(["a", "b"]);
     expect(stringList({}, "names", ["z"])).toEqual(["z"]);
     expect(stringList(undefined, "names", ["z"])).toEqual(["z"]);
+  });
+
+  it("gives the line a node starts on, and the gap between two nodes", () => {
+    const at = (line: number): unknown => ({ loc: { start: { line, column: 0 } } });
+    expect(startLine(at(7))).toBe(7);
+    expect(startLine({ loc: { start: { line: "7" } } })).toBeUndefined();
+    expect(startLine({})).toBeUndefined();
+    expect(linesBetween(at(3), at(4))).toBe(1);
+    expect(linesBetween(at(4), at(4))).toBe(0);
+    expect(linesBetween(at(3), {})).toBeUndefined();
+    expect(linesBetween({}, at(3))).toBeUndefined();
   });
 });
