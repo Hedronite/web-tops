@@ -4,9 +4,26 @@ import { failed } from "../../census/finding.ts";
 import type { RawFinding } from "../../report/findings.ts";
 import type { LawEntry, LawReading } from "../readers/types.ts";
 
-/** A refusal of a soft law (severity `A`) that lists the places that break it: the only reading an acknowledgement can change. */
+/** What a reader's note says of findings the ratchet holds: they are the baseline's to refuse, not open. */
+const HELD = "held by the baseline";
+
+/**
+ * Whether a reading's note counts findings that are still open, such as the compiler diagnostics of gate 1 behind a flag
+ * (`TS7006 2`): they are no place a comment or an entry covers, so an acknowledgement of the places beside them must
+ * not pass the reading. A note that says the baseline holds them does not.
+ */
+const countsOpen = (reading: LawReading): boolean =>
+  reading.note !== undefined && !reading.note.includes(HELD);
+
+/**
+ * A refusal of a soft law (severity `A`) that lists the places that break it, and counts nothing open beside them: the
+ * only reading an acknowledgement can change.
+ */
 const takesAck = (law: LawEntry, reading: LawReading): boolean =>
-  law.severity === "A" && reading.verdict === "refuse" && reading.findings.length > 0;
+  law.severity === "A" &&
+  reading.verdict === "refuse" &&
+  reading.findings.length > 0 &&
+  !countsOpen(reading);
 
 /** A place an acknowledgement covers passes and carries the `ack` the report shows; any other is left as it is. */
 function ackedPlace(

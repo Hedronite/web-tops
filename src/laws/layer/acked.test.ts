@@ -148,10 +148,14 @@ describe("the reading passes only when every place is acknowledged", () => {
   });
 
   it("keeps the rest of the reading", () => {
-    const given: LawReading = { ...refusal(place("src/a.ts", 3)), note: "1 rule", reason: "why" };
+    const given: LawReading = {
+      ...refusal(place("src/a.ts", 3)),
+      note: "1 rule held by the baseline",
+      reason: "why",
+    };
     expect(ackReading(SOFT, given, [ledger("src/a.ts")], TODAY)).toMatchObject({
       law: "W-12",
-      note: "1 rule",
+      note: "1 rule held by the baseline",
       reason: "why",
     });
   });
@@ -242,5 +246,38 @@ describe("lawAckFindings: the problems the laws layer says", () => {
         problem("ack-ledger-unreadable"),
       ]),
     ).toEqual([]);
+  });
+});
+
+describe("a reading that counts findings still open is not acknowledged", () => {
+  const counted = (note: string): LawReading => ({ ...refusal(place("src/a.ts", 3)), note });
+
+  it("keeps the refusal, and the place open, when the note counts diagnostics of gate 1", () => {
+    const read = ackReading(
+      SOFT,
+      counted("TS7006 2"),
+      [ledger("src/a.ts"), comment("src/a.ts", 3)],
+      TODAY,
+    );
+    expect([read.verdict, read.findings[0]?.verdict, read.findings[0]?.ack]).toEqual([
+      "refuse",
+      "refuse",
+      undefined,
+    ]);
+  });
+
+  it("acknowledges the places when the note says the baseline holds what it counts", () => {
+    const read = ackReading(
+      SOFT,
+      counted("TS7006 2 held by the baseline"),
+      [ledger("src/a.ts")],
+      TODAY,
+    );
+    expect(read.verdict).toBe("pass");
+  });
+
+  it("acknowledges the places of a reading with no note", () => {
+    const read = ackReading(SOFT, refusal(place("src/a.ts", 3)), [ledger("src/a.ts")], TODAY);
+    expect(read.verdict).toBe("pass");
   });
 });
