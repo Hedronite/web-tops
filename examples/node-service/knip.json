@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "ignore": ["coverage/**", "dist/**"],
+  "ignore": [".web-tops/**", "coverage/**", "dist/**"],
   "ignoreDependencies": [
     "@eslint-community/eslint-plugin-eslint-comments",
     "@eslint/js",
