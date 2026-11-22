@@ -9,11 +9,11 @@ The protocol text is [`WEB_TOPS.md`](WEB_TOPS.md). This file is the harness for 
 
 ## State
 
-Milestone M1: the `webtops` CLI exists and gates this repo on itself. It runs from source on Bun, not from npm: `bun src/cli/main.ts <command>` for `check`, `gate`, `init`, `report`, `lock`, `doctor` and `version`. CI is the one `gate` job (`.github/workflows/web-tops.yml`). [`web-tops.yaml`](web-tops.yaml) sets class `ts-library` under `enforce: hard`, with CRAP, mutation, build output and laws off until M2, M3 and M4.
+Milestone M3: the `webtops` CLI gates this repo on itself and on `examples/node-service`. It runs from source on Bun, not from npm: `bun src/cli/main.ts <command>` for `check`, `gate`, `init`, `report`, `lock`, `doctor`, `version`, `survivors`, `baseline`, `laws`, `acks` and `law-diff`. CI is the one `gate` job (`.github/workflows/web-tops.yml`): it gates the kit, then the example. [`web-tops.yaml`](web-tops.yaml) sets class `ts-library` under `enforce: hard`, with native CRAP, StrykerJS mutation on the diff and the laws layer on. The laws layer judges every required law (22 of 22, printed as N of M). Baseline and ratchet are built. Only build output is off, until M4.
 
-Version 0.3.0 implements protocol 0.3.0 (the 0.1.0 release implements 0.2.1). The M2 engines (native CRAP, mutation, baseline and ratchet) are not built yet.
+Version 0.3.0 implements protocol 0.3.0 (the 0.1.0 release implements 0.2.1).
 
-Before you finish, from a clean tree: `bun install --frozen-lockfile`, `bun run format:check`, `bun run typecheck`, `bun run lint`, `bun run test`, then `bun src/cli/main.ts gate`. Do not document, run or claim a command that has not landed: `baseline` and `survivors` are M2, `laws` is M3.
+Before you finish, from a clean tree: `bun install --frozen-lockfile`, `bun run format:check`, `bun run typecheck`, `bun run lint`, `bun run test`, then `bun src/cli/main.ts gate`. Do not document, run or claim a command that has not landed: build output and the rendered checks are M4 and M5.
 
 The kit is TypeScript on Bun and gates itself `hard` with its own protocol (§17).
 

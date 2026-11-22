@@ -231,14 +231,17 @@ describe("G7d: AGENTS.md says where the repo stands", () => {
     return text.slice(text.indexOf("## State"), text.indexOf("## Do this"));
   };
 
-  it("records M1 and how to run the gate, and no longer says there is no code", () => {
-    expect(state()).toContain("Milestone M1");
+  it("records M3 and how to run the gate, and no longer says there is no code", () => {
+    expect(state()).toContain("Milestone M3");
     expect(state()).toContain("bun src/cli/main.ts");
     expect(state()).not.toMatch(/no code|does not exist|no CLI/);
   });
 
-  it("names the commands that have not landed, and only those", () => {
-    for (const command of ["baseline", "survivors", "laws"]) expect(state()).toContain(command);
+  it("names the commands the CLI has, and says no milestone but M4 and M5 is still to come", () => {
+    for (const command of ["baseline", "survivors", "laws", "acks", "law-diff"]) {
+      expect(state()).toContain(command);
+    }
+    expect(state()).not.toMatch(/off until M[23]|not built yet/);
   });
 });
 
