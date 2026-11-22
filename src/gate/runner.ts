@@ -216,7 +216,8 @@ function providerOf(input: RunInput, base: string): DiffProvider {
   return fresh;
 }
 
-function contextOf(
+/** The context a layer runs in: the run's settings and the day, from the runner's clock. */
+export function contextOf(
   input: RunInput,
   base: string,
   artifacts: ReadonlyMap<string, string>,
@@ -233,6 +234,7 @@ function contextOf(
     artifacts,
     all: input.options.all,
     diff: providerOf(input, base),
+    today: utcDate(new Date(input.now())),
     ...(ledger === undefined ? {} : { explained: ledger.explained }),
   };
 }
