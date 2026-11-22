@@ -94,7 +94,11 @@ describe("G4a the ESLint reader takes gate 1's JSON and each file's effective co
     ]);
     const off = await eslintReader(input(cwd, ok({ [ANY]: 0 }), artifacts));
     expect(off[0]?.verdict).toBe("refuse");
-    expect(off[0]?.findings.map((finding) => finding.file)).toEqual(["eslint.config.js"]);
+    // the finding of the artifact is part of the refusal, said with no file (an acknowledgement covers a place)
+    expect(off[0]?.findings.map((finding) => finding.file)).toEqual([
+      "eslint.config.js",
+      undefined,
+    ]);
   });
 
   it("a missing or unreadable artifact fails the law, and so does ESLint failing to load the config", async () => {
