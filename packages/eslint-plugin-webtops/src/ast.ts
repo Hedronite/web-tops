@@ -109,3 +109,16 @@ export function stringList(option: unknown, key: string, fallback: readonly stri
   if (!Array.isArray(value)) return [...fallback];
   return value.filter((entry): entry is string => typeof entry === "string");
 }
+
+/** The line a node starts on, or undefined. */
+export function startLine(node: unknown): number | undefined {
+  const line = child(child(child(node, "loc"), "start"), "line");
+  return typeof line === "number" ? line : undefined;
+}
+
+/** How many lines `to` starts below `from` (0 on the same line), or undefined when either has no position. */
+export function linesBetween(from: unknown, to: unknown): number | undefined {
+  const start = startLine(from);
+  const end = startLine(to);
+  return start === undefined || end === undefined ? undefined : end - start;
+}
