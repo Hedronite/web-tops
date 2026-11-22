@@ -77,6 +77,17 @@ const SCENARIOS: readonly Scenario[] = [
     },
   },
   {
+    name: "W-48 planted, but ignored by the project's own knip config",
+    law: "W-48",
+    verdict: "pass",
+    files: {
+      "index.ts": INDEX,
+      "utils.ts": "export const used = 1;\n",
+      "unused.ts": "export const lonely = 1;\n",
+      "knip.json": JSON.stringify({ ignore: ["eslint.config.js", "unused.ts"] }),
+    },
+  },
+  {
     name: "W-48 clean",
     law: "W-48",
     verdict: "pass",
@@ -194,6 +205,9 @@ describe.skipIf(insideStryker)("G9 the real secretlint and knip, through the law
           ["law/W-48", "ack-missing", null, null],
           ["knip:files", "ack-missing", "unused.ts", null],
           ["knip:exports", "ack-missing", "utils.ts", 2],
+        ],
+        "W-48 planted, but ignored by the project's own knip config": [
+          ["law/W-48", "pass", null, null],
         ],
         "W-48 clean": [["law/W-48", "pass", null, null]],
       });
