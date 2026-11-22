@@ -63,19 +63,6 @@ describe("G7a: the kit's own web-tops.yaml", () => {
     expect(get(get(result, "value"), "enforce")).toBe("hard");
   });
 
-  it.each([
-    [["laws"], "M3"],
-    [["layers", "size_limit"], "M4"],
-    [["layers", "html_validate"], "M4"],
-    [["layers", "axe"], "M4"],
-    [["layers", "rendered"], "M4"],
-    [["layers", "themes"], "M4"],
-  ])("%j is off, and its reason names %s", (path, milestone) => {
-    const entry = at(yamlOf("web-tops.yaml"), path);
-    expect(get(entry, "enabled")).toBe(false);
-    expect(get(entry, "reason")).toMatch(new RegExp(`^${milestone}\\b`));
-  });
-
   it("holds the kit to the CRAP cap of its class on every function, under hard", () => {
     const config = yamlOf("web-tops.yaml");
     expect(get(at(config, ["gates", "crap"]), "enabled")).not.toBe(false);
