@@ -49,25 +49,41 @@ describe("G10a: the kit runs mutation on the diff under hard", () => {
     expect(at(gates, ["crap", "cap"])).toBe(TS_LIBRARY.crapCap);
   });
 
-  it("runs in one gate job, once, on both operating systems", () => {
+  it("runs 2-shard gate-shard and join gate jobs on both operating systems", () => {
     const workflow = yamlOf(".github/workflows/web-tops.yml");
     const jobs = at(workflow, ["jobs"]);
-    expect(keysOf(jobs)).toEqual(["gate"]);
-    const steps = at(workflow, ["jobs", "gate", "steps"]);
-    const runs = Array.isArray(steps) ? steps.map((step) => at(step, ["run"])) : [];
-    expect(runs.filter((run) => run === "bun src/cli/main.ts gate --max-tier 1")).toHaveLength(1);
+    expect(keysOf(jobs)).toEqual(["gate-shard", "gate"]);
+    expect(at(workflow, ["jobs", "gate-shard", "strategy", "matrix"])).toEqual({
+      os: ["ubuntu-latest", "macos-latest"],
+      shard: [1, 2],
+    });
+    const shardSteps = at(workflow, ["jobs", "gate-shard", "steps"]);
+    const shardRuns = Array.isArray(shardSteps) ? shardSteps.map((step) => at(step, ["run"])) : [];
+    expect(
+      shardRuns.filter(
+        (run) => run === "bun src/cli/main.ts gate --max-tier 1 --shard ${{ matrix.shard }}/2",
+      ),
+    ).toHaveLength(1);
+    const gateSteps = at(workflow, ["jobs", "gate", "steps"]);
+    const gateRuns = Array.isArray(gateSteps) ? gateSteps.map((step) => at(step, ["run"])) : [];
+    expect(
+      gateRuns.filter((run) => run === "bun src/cli/main.ts gate --join .web-tops/out/shards"),
+    ).toHaveLength(1);
     expect(at(workflow, ["jobs", "gate", "strategy", "matrix", "os"])).toEqual([
       "ubuntu-latest",
       "macos-latest",
     ]);
   });
 
-  it("gives the gate job room for a mutation run", () => {
-    const minutes = at(yamlOf(".github/workflows/web-tops.yml"), [
-      "jobs",
-      "gate",
-      "timeout-minutes",
-    ]);
-    expect(typeof minutes === "number" && minutes >= 30).toBe(true);
+  it("gives the gate jobs 45m headroom above the 30m per-shard mutation budget", () => {
+    expect(at(yamlOf("web-tops.yaml"), ["gates", "mutation", "time_budget_minutes"])).toBe(30);
+    for (const job of ["gate-shard", "gate"]) {
+      const minutes = at(yamlOf(".github/workflows/web-tops.yml"), [
+        "jobs",
+        job,
+        "timeout-minutes",
+      ]);
+      expect(minutes).toBe(45);
+    }
   });
 });

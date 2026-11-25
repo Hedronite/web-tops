@@ -435,13 +435,16 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
   mutator, original and replacement within that function. Never by Stryker's mutant id, which is a
   run ordinal, and never by a line number, so a ledger entry survives edits elsewhere in the file.
   A ledger entry carries those six fields beside `reason`, `owner` and `expires`.
-- **Time budget.** `gates.mutation.time_budget_minutes`, 30 by default: the largest M2 diff, about 1,330
-  mutants, fit on both CI legs. The budget sits under the job limit, so an over-budget run reports
+- **Time budget.** `gates.mutation.time_budget_minutes`, 30 by default (applied per shard when sharded): the largest M2 diff, about 1,330
+  mutants, fit on both CI legs. The budget sits under the 45-minute job limit, so an over-budget run reports
   `not-evaluated` and does not become a cancelled job; a project that raises its budget raises its job limit
-  with it. The kit's own gate runs at 50 minutes under a 60 minute job limit, because the diff that adds a
-  self-hosted example and its pins holds about 500 mutants and runs past 45 minutes on the ubuntu leg. A run that passes the budget is stopped, with the
+  with it. The kit's own gate runs 2 shards with a 30-minute per-shard budget under a 45-minute job limit. A run that passes the budget is stopped, with the
   processes it started, and the layer is `not-evaluated`, with the budget in the reason: a stopped run writes no
   report, so it names no count of mutants judged. A run cut short is never a pass.
+- **Sharding.** Large suites may partition mutation across up to 4 shards (`--shard i/n`, 2 by default in the kit's workflow) and unify them with `--join <dir>`:
+  - `shardOf(entries, i, n)` splits the snapped `mutate` entries (`file:start-end`) deterministically by line weight, heaviest first on the lightest shard, never cutting a scored unit so survivor `occurrence` keys match an unsharded run.
+  - Under `--shard i/n`, layers 1–4 run in full, layer 5 runs Stryker only on shard `i` and writes `.web-tops/out/mutation/partial.json` carrying `shard`, `shards`, `base`, canonical `entriesHash`, status counts, raw survivors, and timeout/starvation/vacuous state. Per-shard runs never write `.web-tops/baseline.json` or `.web-tops/survivors.yaml` and do not judge per-shard survivors against `unexplained_survivors_max` alone.
+  - Under `--join <dir>`, the gate fails closed on any missing or duplicate shard, mismatched `n`, mismatched `base`, or mismatched `entriesHash`; sums all status counts; applies the timeout starvation rule to the summed counts and propagates any shard `not-evaluated` (timeout or starvation); unions survivors; and evaluates `.web-tops/survivors.yaml` and `unexplained_survivors_max` once.
 
 ### 6.5 Law verdicts
 
@@ -1038,10 +1041,7 @@ label from any other account, or from one whose role cannot be read, counts as n
 CI rules: checkout with `fetch-depth: 0`; actions pinned by commit SHA; minimal `permissions:`;
 `--dry-run` refused; empty reports fail. `init` writes a job only when its command exists:
 until the tier 2 and 3 layers and `law-diff` exist, it writes the `gate` job alone.
-The gate is one job running one command. A matrix over operating systems is still that one job:
-the kit's own workflow runs it on `ubuntu-latest` and `macos-latest`, with the same steps and the
-same Node on both legs. The drop-in does not repeat the tools as separate job steps, because
-steps that bypass `webtops` judge nothing.
+Every gate job runs one `webtops gate` command (`gate --max-tier 1`, or `gate --max-tier 1 --shard i/n` followed by `gate --join <dir>`). `init` writes a single `gate` job (`timeout-minutes: 45`) because adopter diffs are small. The kit's own workflow runs a 2-shard matrix (`gate-shard` across `ubuntu-latest` and `macos-latest` × `shard: [1, 2]`, `timeout-minutes: 45`) uploading `.web-tops/out/mutation/partial.json`, followed by the `gate` join job (`needs: [gate-shard]`, `timeout-minutes: 45`, `matrix.os: [ubuntu-latest, macos-latest]`) running `gate --join` and gating `examples/node-service` so required check contexts stay `gate (ubuntu-latest)` and `gate (macos-latest)`. The drop-in does not repeat the tools as separate job steps, because steps that bypass `webtops` judge nothing.
 
 ---
 
@@ -1051,7 +1051,7 @@ steps that bypass `webtops` judge nothing.
 |---|---|
 | `init --class <c>` | Writes the drop-in set (§4). Refuses to overwrite without `--force` |
 | `check` | Validates `web-tops.yaml` against the JSON Schema, plus semantic checks: the protocol id lies in the range this `webtops` supports (the schema does not pin it to one constant), class has a profile, `crap.cap ≥ 1`, `ts-library` keeps `unexplained_survivors_max = 0`, `advisory` has an `exemption` whose `until` has not passed (UTC, through that day; §9), under `ratchet` the baseline exists, is clean and is no looser than the merge base's copy (§6.7), under `hard` no gate or step the class maps at tier 1 or below is off except `crap`, `mutation`, build output and `laws` (§9), and no coverage floor below, nor CRAP cap or survivors limit above, the class profile's (§5.2), `skip_private` only for a `"private": true` package |
-| `gate` | Runs enabled layers at or below `--max-tier` (default 1). `--base`, `--keep-going`, `--json`, `--all` (judge every function, not the diff's), `--only <layer>`, `--dry-run` (refused in CI) |
+| `gate` | Runs enabled layers at or below `--max-tier` (default 1). `--base`, `--keep-going`, `--json`, `--all` (judge every function, not the diff's), `--only <layer>`, `--shard i/n` (run mutation on shard `i` of `n` and write `partial.json`), `--join <dir>` (recursively collects all `*.json` under `<dir>`, so pass a dedicated directory such as `.web-tops/out/shards`; unifies shard partials and judges ledger once), `--dry-run` (refused in CI) |
 | `baseline` | Writes `.web-tops/baseline.json` from the last report, after a passing run made at `HEAD` on a clean tree; the only writer. Refused under `hard`, and for a result looser than the baseline already there |
 | `laws [list \| explain W-NN \| sync]` | The law catalog (§8.3): `list [--class <c>] [--required] [--json]`, one law explained, and §8.2 regenerated from the files (`sync --check` fails on drift) |
 | `report [--format text \| json]` | Renders the last report |
