@@ -1,14 +1,17 @@
-import type { GateOptions, Tier } from "./types.ts";
+import type { GateOptions, ShardSpec, Tier } from "./types.ts";
 
 export type ParsedOptions =
   | { readonly ok: true; readonly options: GateOptions }
   | { readonly ok: false; readonly error: string };
 
 /** The options as the arguments fill them in. */
+const MAX_SHARDS = 4;
+
 interface Draft {
   maxTier: Tier;
   only?: string;
   base?: string;
+  shard?: ShardSpec;
   keepGoing: boolean;
   json: boolean;
   dryRun: boolean;
@@ -66,10 +69,45 @@ const base: ValuedFlag = (draft, take) => {
   return undefined;
 };
 
+const shardRangeError = (index: number, count: number, value: string): string | undefined =>
+  count > MAX_SHARDS
+    ? `--shard supports at most ${String(MAX_SHARDS)} shards, got ${value}`
+    : index > count
+      ? `--shard index must not exceed count (1 <= i <= n), got ${value}`
+      : undefined;
+
+function parseShardSpec(value: string): ShardSpec | string {
+  const match = /^([1-9]\d*)\/([1-9]\d*)$/u.exec(value);
+  if (match === null) {
+    return `--shard takes i/n (positive integers), got ${value}`;
+  }
+  const index = Number(match[1]);
+  const count = Number(match[2]);
+  return shardRangeError(index, count, value) ?? { index, count };
+}
+
+function readShard(draft: Draft, value: string): string | undefined {
+  if (draft.shard !== undefined) {
+    return "--shard is given once";
+  }
+  const parsed = parseShardSpec(value);
+  if (typeof parsed === "string") {
+    return parsed;
+  }
+  draft.shard = parsed;
+  return undefined;
+}
+
+const shard: ValuedFlag = (draft, take) => {
+  const value = take();
+  return value === undefined || value === "" ? "--shard takes i/n" : readShard(draft, value);
+};
+
 const VALUED: ReadonlyMap<string, ValuedFlag> = new Map([
   ["--max-tier", maxTier],
   ["--only", only],
   ["--base", base],
+  ["--shard", shard],
 ]);
 
 /** Splits `--flag=value` into its parts; a bare `--flag` has no value. */
@@ -97,11 +135,18 @@ function applyFlag(
   return valued === undefined ? unknownFlag(flag, argument) : valued(draft, take);
 }
 
+function optionalOf(draft: Draft): Pick<GateOptions, "only" | "base" | "shard"> {
+  return {
+    ...(draft.only === undefined ? {} : { only: draft.only }),
+    ...(draft.base === undefined ? {} : { base: draft.base }),
+    ...(draft.shard === undefined ? {} : { shard: draft.shard }),
+  };
+}
+
 function optionsOf(draft: Draft): GateOptions {
   return {
     maxTier: draft.maxTier,
-    ...(draft.only === undefined ? {} : { only: draft.only }),
-    ...(draft.base === undefined ? {} : { base: draft.base }),
+    ...optionalOf(draft),
     keepGoing: draft.keepGoing,
     json: draft.json,
     dryRun: draft.dryRun,

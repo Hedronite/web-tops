@@ -89,6 +89,8 @@ export interface LayerContext {
   readonly today?: string;
   /** The `survivorKey` strings the survivor ledger explains; empty until the ledger is read (G8). */
   readonly explained?: ReadonlySet<string>;
+  /** `--shard i/n`: when set, the mutation layer runs only this shard and defers survivor judgment to `--join`. */
+  readonly shard?: ShardSpec;
 }
 
 /** An input a layer reads: the artifact's name and the layer that produces it (R29 N5, WEB_TOPS.md section 3.1). */
@@ -226,11 +228,18 @@ export interface GateConfig {
   readonly mutation: MutationSettings;
 }
 
+export interface ShardSpec {
+  readonly index: number;
+  readonly count: number;
+}
+
 export interface GateOptions {
   readonly maxTier: Tier;
   /** `--only`: one layer id. */
   readonly only?: string;
   readonly base?: string;
+  /** `--shard i/n`: partition mutation entries across `count` jobs (`1 <= index <= count <= 4`). */
+  readonly shard?: ShardSpec;
   readonly keepGoing: boolean;
   readonly json: boolean;
   readonly dryRun: boolean;

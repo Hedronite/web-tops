@@ -2,7 +2,13 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadTypeScript } from "../../complexity/index.ts";
 import type { Ts } from "../../complexity/index.ts";
-import type { DiffProvider, Layer, LayerContext, LayerResult } from "../../gate/types.ts";
+import type {
+  DiffProvider,
+  Layer,
+  LayerContext,
+  LayerResult,
+  ShardSpec,
+} from "../../gate/types.ts";
 import type { RawFinding } from "../../report/findings.ts";
 import type { MutationMetric } from "../../config/report.ts";
 import { keyString } from "../../survivors/key.ts";
@@ -13,8 +19,16 @@ import { failFinding, parseJson, readOutput, relativeTo, runTool } from "../hygi
 import { strykerConfig } from "./config.ts";
 import { usableWorkers } from "./cpus.ts";
 import { strykerTrouble, VACUOUS } from "./failed.ts";
+import {
+  readPartial,
+  timedOutPartial,
+  vacuousPartial,
+  writePartial,
+  type ShardMeta,
+} from "./partial.ts";
 import { readMutation } from "./read.ts";
 import type { MutationRead, SurvivorRow } from "./read.ts";
+import { hashEntries, shardOf } from "./shard.ts";
 import { snapEntries } from "./snap.ts";
 
 /** Gate 5: StrykerJS over the diff's functions, or over every source file, judged by the survivors left (section 6.4). */
@@ -35,7 +49,13 @@ function typescriptOf(cwd: string): { readonly ts: Ts } | { readonly finding: Ra
   }
 }
 
-type Entries = { readonly entries: readonly string[] } | { readonly stop: LayerResult };
+type FoundEntries = {
+  readonly entries: readonly string[];
+  readonly base: string;
+  readonly vacuousReason?: string;
+};
+
+type Entries = FoundEntries | { readonly stop: LayerResult };
 
 /** `--all`, or the config's scope all, or no diff to ask: every source file in scope. */
 function diffOf(ctx: LayerContext): DiffProvider | undefined {
@@ -48,26 +68,46 @@ async function allFiles(ctx: LayerContext): Promise<Entries> {
     return { stop: failed(tracked.finding) };
   }
   const excludes = excludesOf(ctx.config);
-  return { entries: tracked.files.filter((file) => inScope(file, excludes)) };
+  return { entries: tracked.files.filter((file) => inScope(file, excludes)), base: ctx.base };
+}
+
+/** A vacuous diff still emits `partial.json` when `--shard` is set, preserving `mergeBase` and `entriesHash`. */
+export function vacuousDiff(
+  shard: ShardSpec | undefined,
+  reason: string,
+  mergeBase: string,
+): Entries {
+  return shard === undefined
+    ? { stop: { verdict: "vacuous", reason, findings: [], artifacts: {} } }
+    : { entries: [], base: mergeBase, vacuousReason: reason };
 }
 
 /** The diff's ranges, with the functions the changed tests run, widened to whole scored units (R64). */
-async function fromDiff(ctx: LayerContext, ts: Ts, diff: DiffProvider): Promise<Entries> {
+export async function fromDiff(
+  ctx: LayerContext,
+  diff: DiffProvider,
+  snap: (entries: readonly string[]) => readonly string[],
+): Promise<Entries> {
   const found = await diff({ coveredByTests: true });
   if (found.outcome === "fail") {
     return { stop: failed(failFinding("webtops", "diff-failed", found.reason)) };
   }
   if (found.outcome === "vacuous") {
-    return { stop: { verdict: "vacuous", reason: found.reason, findings: [], artifacts: {} } };
+    return vacuousDiff(ctx.shard, found.reason, found.scope.mergeBase);
   }
   return {
-    entries: snapEntries(ts, found.scope.mutate, (file) => readOutput(join(ctx.cwd, file))),
+    entries: snap(found.scope.mutate),
+    base: found.scope.mergeBase,
   };
 }
 
 async function entriesOf(ctx: LayerContext, ts: Ts): Promise<Entries> {
   const diff = diffOf(ctx);
-  return diff === undefined ? allFiles(ctx) : fromDiff(ctx, ts, diff);
+  return diff === undefined
+    ? allFiles(ctx)
+    : fromDiff(ctx, diff, (entries) =>
+        snapEntries(ts, entries, (file) => readOutput(join(ctx.cwd, file))),
+      );
 }
 
 /** Writes the run's Stryker config under `.web-tops/out/mutation/` and returns its path and the report's. */
@@ -93,7 +133,10 @@ function writeConfig(
   return { config: relativeTo(ctx.cwd, config), report };
 }
 
-function overBudget(ctx: LayerContext): LayerResult {
+export function overBudget(ctx: LayerContext, meta?: ShardMeta): LayerResult {
+  if (meta !== undefined) {
+    writePartial(ctx.outDir, timedOutPartial(meta));
+  }
   const minutes = String(ctx.config.mutation.timeBudgetMinutes);
   return {
     verdict: "not-evaluated",
@@ -104,7 +147,8 @@ function overBudget(ctx: LayerContext): LayerResult {
 }
 
 function tooLong(text: string): string {
-  const line = text.split("\n")[0] ?? "";
+  const nl = text.indexOf("\n");
+  const line = nl === -1 ? text : text.slice(0, nl);
   return line.length > 60 ? `${line.slice(0, 57)}...` : line;
 }
 
@@ -247,7 +291,57 @@ function judge(ctx: LayerContext, read: MutationRead): LayerResult {
   };
 }
 
-function readReport(ctx: LayerContext, ts: Ts, report: string): LayerResult {
+function shardSummary(ctx: LayerContext, read: MutationRead, meta: ShardMeta): RawFinding {
+  return {
+    tool: "webtops",
+    rule: "mutation",
+    verdict: "pass",
+    message:
+      `${ctx.config.package} (shard ${String(meta.shard)}/${String(meta.shards)}): ` +
+      `${String(read.killed)} mutants killed, ${String(read.survivors.length)} survivors ` +
+      `(deferred to join), ${String(read.excluded)} excluded (${countsOf(read.counts)})`,
+  };
+}
+
+/**
+ * Under `--shard`, writes `.web-tops/out/mutation/partial.json` with raw survivors and counts, and defers
+ * survivor ledger / `unexplained_survivors_max` judgment to `--join`.
+ */
+export function judgeShard(ctx: LayerContext, read: MutationRead, meta: ShardMeta): LayerResult {
+  writePartial(ctx.outDir, readPartial(meta, read, starved(read), judgedOf(read) === 0));
+  const findings = [
+    ...read.unknown.map(unknownFinding),
+    ...starvedFindings(read),
+    ...read.survivors.map((row) => survivorFinding(row, false)),
+    shardSummary(ctx, read, meta),
+  ];
+  const failedAny = findings.some((finding) => finding.verdict === "fail");
+  return {
+    ...outcome(read, failedAny),
+    findings,
+    artifacts: {},
+    metrics: { mutation: read.counts },
+  };
+}
+
+export function judgeReport(
+  ctx: LayerContext,
+  read: MutationRead,
+  meta: ShardMeta | undefined,
+): LayerResult {
+  return meta === undefined ? judge(ctx, read) : judgeShard(ctx, read, meta);
+}
+
+const reportError = (error: unknown): string =>
+  error instanceof Error ? error.message : "the report could not be read";
+
+export function readReport(
+  ctx: LayerContext,
+  ts: Ts,
+  report: string,
+  meta?: ShardMeta,
+  parse: (text: string) => unknown = parseJson,
+): LayerResult {
   const shown = relativeTo(ctx.cwd, report);
   const text = readOutput(report);
   if (text === undefined) {
@@ -258,13 +352,14 @@ function readReport(ctx: LayerContext, ts: Ts, report: string): LayerResult {
   try {
     const read = readMutation({
       ts,
-      report: parseJson(text),
+      report: parse(text),
       text: (file) => readOutput(join(ctx.cwd, file)),
     });
-    return judge(ctx, read);
+    return judgeReport(ctx, read, meta);
   } catch (error) {
-    const said = error instanceof Error ? error.message : "the report could not be read";
-    return failed(failFinding("stryker", "output-unparseable", said, { file: shown }));
+    return failed(
+      failFinding("stryker", "output-unparseable", reportError(error), { file: shown }),
+    );
   }
 }
 
@@ -273,15 +368,16 @@ async function runStryker(
   ts: Ts,
   wrapper: string,
   entries: readonly string[],
+  meta?: ShardMeta,
 ): Promise<LayerResult> {
   const written = writeConfig(ctx, wrapper, entries);
   const budget = ctx.config.mutation.timeBudgetMinutes * MINUTE;
   const result = await runTool(ctx, "stryker", ["run", written.config], budget);
   if (result.failure === "tool-timeout") {
-    return overBudget(ctx);
+    return overBudget(ctx, meta);
   }
   const trouble = strykerTrouble(result);
-  return trouble === undefined ? readReport(ctx, ts, written.report) : failed(trouble);
+  return trouble === undefined ? readReport(ctx, ts, written.report, meta) : failed(trouble);
 }
 
 type Inputs = { readonly wrapper: string; readonly ts: Ts } | { readonly stop: LayerResult };
@@ -300,6 +396,39 @@ function inputsOf(ctx: LayerContext): Inputs {
     : { wrapper, ts: typescript.ts };
 }
 
+/** Partitions `entries` for `--shard` and builds the shared metadata recorded in `partial.json`. */
+export function shardPlan(
+  ctx: LayerContext,
+  found: FoundEntries,
+): { readonly entries: readonly string[]; readonly meta?: ShardMeta } {
+  if (ctx.shard === undefined) {
+    return { entries: found.entries };
+  }
+  const entries = shardOf(found.entries, ctx.shard.index, ctx.shard.count);
+  return {
+    entries,
+    meta: {
+      shard: ctx.shard.index,
+      shards: ctx.shard.count,
+      base: found.base,
+      entriesHash: hashEntries(found.entries),
+      entriesCount: found.entries.length,
+      shardEntries: entries,
+    },
+  };
+}
+
+export function vacuousResult(
+  ctx: LayerContext,
+  meta: ShardMeta | undefined,
+  reason: string | undefined,
+): LayerResult {
+  if (meta !== undefined) {
+    writePartial(ctx.outDir, vacuousPartial(meta));
+  }
+  return { verdict: "vacuous", reason: reason ?? VACUOUS, findings: [], artifacts: {} };
+}
+
 async function run(ctx: LayerContext): Promise<LayerResult> {
   const inputs = inputsOf(ctx);
   if ("stop" in inputs) {
@@ -309,9 +438,10 @@ async function run(ctx: LayerContext): Promise<LayerResult> {
   if ("stop" in found) {
     return found.stop;
   }
-  return found.entries.length === 0
-    ? { verdict: "vacuous", reason: VACUOUS, findings: [], artifacts: {} }
-    : runStryker(ctx, inputs.ts, inputs.wrapper, found.entries);
+  const planned = shardPlan(ctx, found);
+  return planned.entries.length === 0
+    ? vacuousResult(ctx, planned.meta, found.vacuousReason)
+    : runStryker(ctx, inputs.ts, inputs.wrapper, planned.entries, planned.meta);
 }
 
 export const mutationLayer: Layer = {
