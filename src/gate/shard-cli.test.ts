@@ -97,10 +97,12 @@ describe.skipIf(insideStryker)("webtops gate --shard i/n CLI end-to-end", () => 
       expect(res.status).toBe(2);
       expect(res.stderr).toContain("--shard");
     }
+    const env = { ...process.env };
+    delete env["CI"];
     const dry = spawnSync(
       "bun",
       [join(root, "src/cli/main.ts"), "gate", "--shard", "1/2", "--dry-run"],
-      { cwd: root, encoding: "utf8" },
+      { cwd: root, encoding: "utf8", env },
     );
     expect(dry.status).toBe(0);
     expect(dry.stdout).toContain("would run");
