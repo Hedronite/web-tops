@@ -19,6 +19,7 @@ import { failFinding, parseJson, readOutput, relativeTo, runTool } from "../hygi
 import { strykerConfig } from "./config.ts";
 import { usableWorkers } from "./cpus.ts";
 import { strykerTrouble, VACUOUS } from "./failed.ts";
+import { loadJoined, type JoinedMutation } from "./join.ts";
 import {
   readPartial,
   timedOutPartial,
@@ -429,7 +430,53 @@ export function vacuousResult(
   return { verdict: "vacuous", reason: reason ?? VACUOUS, findings: [], artifacts: {} };
 }
 
-async function run(ctx: LayerContext): Promise<LayerResult> {
+function joinedTimeout(
+  reason: string,
+  unknown: readonly string[],
+  counts: MutationMetric,
+): LayerResult {
+  const findings = unknown.map(unknownFinding);
+  const hasFail = findings.length > 0;
+  return {
+    verdict: hasFail ? "fail" : "not-evaluated",
+    ...(hasFail ? {} : { reason }),
+    findings,
+    artifacts: {},
+    metrics: { mutation: counts },
+  };
+}
+
+function withShardStarvation(result: LayerResult, reason: string): LayerResult {
+  return {
+    ...result,
+    verdict: "not-evaluated",
+    reason,
+    findings: [
+      { tool: "webtops", rule: "mutation-timeouts", verdict: "not-evaluated", message: reason },
+      ...result.findings,
+    ],
+  };
+}
+
+function applyShardStarvation(
+  base: LayerResult,
+  shardStarved: boolean,
+  reason: string,
+): LayerResult {
+  return shardStarved && base.verdict === "pass" ? withShardStarvation(base, reason) : base;
+}
+
+export function judgeJoined(ctx: LayerContext, joined: JoinedMutation): LayerResult {
+  if ("finding" in joined) {
+    return failed(joined.finding);
+  }
+  if ("timedOutReason" in joined) {
+    return joinedTimeout(joined.timedOutReason, joined.unknown, joined.counts);
+  }
+  return applyShardStarvation(judge(ctx, joined.read), joined.shardStarved, joined.starvedReason);
+}
+
+async function runLocal(ctx: LayerContext): Promise<LayerResult> {
   const inputs = inputsOf(ctx);
   if ("stop" in inputs) {
     return inputs.stop;
@@ -442,6 +489,10 @@ async function run(ctx: LayerContext): Promise<LayerResult> {
   return planned.entries.length === 0
     ? vacuousResult(ctx, planned.meta, found.vacuousReason)
     : runStryker(ctx, inputs.ts, inputs.wrapper, planned.entries, planned.meta);
+}
+
+async function run(ctx: LayerContext): Promise<LayerResult> {
+  return ctx.joinDir === undefined ? runLocal(ctx) : judgeJoined(ctx, loadJoined(ctx.joinDir));
 }
 
 export const mutationLayer: Layer = {

@@ -12,6 +12,7 @@ interface Draft {
   only?: string;
   base?: string;
   shard?: ShardSpec;
+  join?: string;
   keepGoing: boolean;
   json: boolean;
   dryRun: boolean;
@@ -103,11 +104,24 @@ const shard: ValuedFlag = (draft, take) => {
   return value === undefined || value === "" ? "--shard takes i/n" : readShard(draft, value);
 };
 
+const joinFlag: ValuedFlag = (draft, take) => {
+  const value = take();
+  if (value === undefined || value === "") {
+    return "--join takes a directory";
+  }
+  if (draft.join !== undefined) {
+    return "--join is given once";
+  }
+  draft.join = value;
+  return undefined;
+};
+
 const VALUED: ReadonlyMap<string, ValuedFlag> = new Map([
   ["--max-tier", maxTier],
   ["--only", only],
   ["--base", base],
   ["--shard", shard],
+  ["--join", joinFlag],
 ]);
 
 /** Splits `--flag=value` into its parts; a bare `--flag` has no value. */
@@ -135,11 +149,16 @@ function applyFlag(
   return valued === undefined ? unknownFlag(flag, argument) : valued(draft, take);
 }
 
-function optionalOf(draft: Draft): Pick<GateOptions, "only" | "base" | "shard"> {
+function optionalJoin(draft: Draft): Pick<GateOptions, "join"> {
+  return draft.join === undefined ? {} : { join: draft.join };
+}
+
+function optionalOf(draft: Draft): Pick<GateOptions, "only" | "base" | "shard" | "join"> {
   return {
     ...(draft.only === undefined ? {} : { only: draft.only }),
     ...(draft.base === undefined ? {} : { base: draft.base }),
     ...(draft.shard === undefined ? {} : { shard: draft.shard }),
+    ...optionalJoin(draft),
   };
 }
 
@@ -155,6 +174,12 @@ function optionsOf(draft: Draft): GateOptions {
 }
 
 /** Parses `webtops gate` arguments (WEB_TOPS.md section 12). A usage error is exit 2. */
+function joinConflict(draft: Draft): string | undefined {
+  if (draft.join === undefined) return undefined;
+  if (draft.shard !== undefined) return "--join and --shard cannot be used together";
+  return draft.only === undefined ? undefined : "--join and --only cannot be used together";
+}
+
 export function parseGateArgs(argv: readonly string[]): ParsedOptions {
   const draft: Draft = { maxTier: 1, keepGoing: false, json: false, dryRun: false, all: false };
   const queue = [...argv];
@@ -165,5 +190,8 @@ export function parseGateArgs(argv: readonly string[]): ParsedOptions {
       return { ok: false, error };
     }
   }
-  return { ok: true, options: optionsOf(draft) };
+  const conflict = joinConflict(draft);
+  return conflict === undefined
+    ? { ok: true, options: optionsOf(draft) }
+    : { ok: false, error: conflict };
 }
