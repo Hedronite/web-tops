@@ -233,10 +233,10 @@ describe("G7d: AGENTS.md says where the repo stands", () => {
   });
 });
 
-describe("G7b: CI is the one gate job", () => {
+describe("G7b: CI runs the sharded gate-shard and join gate jobs", () => {
   const workflow = (): unknown => yamlOf(".github/workflows/web-tops.yml");
-  const steps = (): unknown[] => {
-    const list = at(workflow(), ["jobs", "gate", "steps"]);
+  const stepsOf = (jobName: string): unknown[] => {
+    const list = at(workflow(), ["jobs", jobName, "steps"]);
     return keys(list).map((index) => get(list, index));
   };
 
@@ -253,24 +253,33 @@ describe("G7b: CI is the one gate job", () => {
     expect(at(on, ["push", "branches"])).toEqual(["main"]);
   });
 
-  it("has one job, named gate", () => {
-    expect(keys(get(workflow(), "jobs"))).toEqual(["gate"]);
+  it("has gate-shard followed by gate (needs: [gate-shard])", () => {
+    expect(keys(get(workflow(), "jobs"))).toEqual(["gate-shard", "gate"]);
+    expect(at(workflow(), ["jobs", "gate", "needs"])).toEqual(["gate-shard"]);
   });
 
-  it("runs the frozen installs and the gate at tier 1, for the kit and for the example, and nothing else", () => {
-    const commands = steps()
+  it("runs frozen installs, sharded gate at tier 1, and join + example gate", () => {
+    const shardCommands = stepsOf("gate-shard")
       .map((step) => get(step, "run"))
       .filter((command) => command !== undefined);
-    expect(commands).toEqual([
+    expect(shardCommands).toEqual([
       "bun install --frozen-lockfile",
       "bun install --frozen-lockfile",
-      "bun src/cli/main.ts gate --max-tier 1",
+      "bun src/cli/main.ts gate --max-tier 1 --shard ${{ matrix.shard }}/2",
+    ]);
+    const gateCommands = stepsOf("gate")
+      .map((step) => get(step, "run"))
+      .filter((command) => command !== undefined);
+    expect(gateCommands).toEqual([
+      "bun install --frozen-lockfile",
+      "bun install --frozen-lockfile",
+      "bun src/cli/main.ts gate --join .web-tops/out/shards",
       "bun ../../src/cli/main.ts gate --max-tier 1",
     ]);
   });
 
   it("runs the example's install and gate in the example's directory, and the kit's at the root", () => {
-    const directories = steps()
+    const directories = stepsOf("gate")
       .filter((step) => get(step, "run") !== undefined)
       .map((step) => get(step, "working-directory"));
     expect(directories).toEqual([
@@ -281,34 +290,38 @@ describe("G7b: CI is the one gate job", () => {
     ]);
   });
 
-  it("pins every action by full commit SHA", () => {
-    const used = steps()
+  it("pins every action in both jobs by full commit SHA", () => {
+    const used = [...stepsOf("gate-shard"), ...stepsOf("gate")]
       .map((step) => get(step, "uses"))
       .filter((value) => value !== undefined);
-    expect(used).toHaveLength(3);
+    expect(used).toHaveLength(8);
     for (const action of used) expect(action).toEqual(matching(/^[\w./-]+@[0-9a-f]{40}$/));
   });
 
   it("installs Node with setup-node at the pinned SHA and version, before the gate runs", () => {
-    const list = steps();
-    const index = list.findIndex((step) =>
-      String(get(step, "uses")).startsWith("actions/setup-node@"),
-    );
-    expect(index).toBeGreaterThan(-1);
-    expect(get(list[index], "uses")).toBe(
-      "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
-    );
-    expect(at(list[index], ["with", "node-version"])).toBe("24.22.3");
-    const gate = list.findIndex((step) => String(get(step, "run")).includes("gate"));
-    expect(index).toBeLessThan(gate);
+    for (const jobName of ["gate-shard", "gate"]) {
+      const list = stepsOf(jobName);
+      const index = list.findIndex((step) =>
+        String(get(step, "uses")).startsWith("actions/setup-node@"),
+      );
+      expect(index).toBeGreaterThan(-1);
+      expect(get(list[index], "uses")).toBe(
+        "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+      );
+      expect(at(list[index], ["with", "node-version"])).toBe("24.22.3");
+      const gate = list.findIndex((step) => String(get(step, "run")).includes("gate"));
+      expect(index).toBeLessThan(gate);
+    }
   });
 
   it("checks out with full history, no stored credentials, and minimal permissions", () => {
-    const checkout = steps().find((step) =>
-      String(get(step, "uses")).startsWith("actions/checkout@"),
-    );
-    expect(at(checkout, ["with", "fetch-depth"])).toBe(0);
-    expect(at(checkout, ["with", "persist-credentials"])).toBe(false);
+    for (const jobName of ["gate-shard", "gate"]) {
+      const checkout = stepsOf(jobName).find((step) =>
+        String(get(step, "uses")).startsWith("actions/checkout@"),
+      );
+      expect(at(checkout, ["with", "fetch-depth"])).toBe(0);
+      expect(at(checkout, ["with", "persist-credentials"])).toBe(false);
+    }
     expect(get(workflow(), "permissions")).toEqual({ contents: "read" });
   });
 
@@ -318,28 +331,38 @@ describe("G7b: CI is the one gate job", () => {
   });
 });
 
-describe("G5a: the one gate job runs as a matrix over ubuntu and macOS", () => {
-  const job = (): unknown => at(yamlOf(".github/workflows/web-tops.yml"), ["jobs", "gate"]);
-  const steps = (): unknown[] => {
-    const list = get(job(), "steps");
+describe("G5a: the gate jobs run as a matrix over ubuntu and macOS", () => {
+  const job = (name: string): unknown =>
+    at(yamlOf(".github/workflows/web-tops.yml"), ["jobs", name]);
+  const steps = (name: string): unknown[] => {
+    const list = get(job(name), "steps");
     return keys(list).map((index) => get(list, index));
   };
 
   it("takes its runner from a matrix of ubuntu-latest and macos-latest, and lets both legs finish", () => {
-    expect(at(job(), ["strategy", "matrix", "os"])).toEqual(["ubuntu-latest", "macos-latest"]);
-    expect(get(job(), "runs-on")).toBe("${{ matrix.os }}");
-    expect(at(job(), ["strategy", "fail-fast"])).toBe(false);
+    for (const name of ["gate-shard", "gate"]) {
+      expect(at(job(name), ["strategy", "matrix", "os"])).toEqual([
+        "ubuntu-latest",
+        "macos-latest",
+      ]);
+      expect(get(job(name), "runs-on")).toBe("${{ matrix.os }}");
+      expect(at(job(name), ["strategy", "fail-fast"])).toBe(false);
+    }
+    expect(at(job("gate-shard"), ["strategy", "matrix", "shard"])).toEqual([1, 2]);
   });
 
-  it("has nothing in the matrix but the operating system, so both legs run the same steps", () => {
-    expect(keys(at(job(), ["strategy", "matrix"]))).toEqual(["os"]);
+  it("keeps the join gate matrix purely over os and uses default success() gating (no if:)", () => {
+    expect(keys(at(job("gate"), ["strategy", "matrix"]))).toEqual(["os"]);
     const text = readFileSync(join(root, ".github/workflows/web-tops.yml"), "utf8");
-    expect(text.match(/matrix\./g)).toHaveLength(1);
     expect(text).not.toMatch(/\bif:/);
+    expect(text).toContain(
+      "mutation-partial-${{ matrix.os }}-${{ matrix.shard }}-${{ github.run_id }}",
+    );
+    expect(text).toContain("mutation-partial-${{ matrix.os }}-*-${{ github.run_id }}");
   });
 
   it("sets Node up at the one exact version on both legs, inside the engines range", () => {
-    const setup = steps().find((step) =>
+    const setup = steps("gate").find((step) =>
       String(get(step, "uses")).startsWith("actions/setup-node@"),
     );
     const version = at(setup, ["with", "node-version"]);
