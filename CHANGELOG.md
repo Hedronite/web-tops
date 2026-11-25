@@ -4,9 +4,12 @@ All notable changes to this project are listed here. The protocol version and th
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-25
+
+The `webtops` CLI in this release implements protocol 0.3.0, and adds Laws v1 of milestone M3 and mutation sharding. The laws are data in `laws/W-NN.yaml` with law fixtures, judged at tier 1 by the laws layer from the lint presets, `eslint-plugin-webtops` and the other tools' reports; soft laws take acknowledgements, `webtops law-diff` fails a change that weakens a law without the `protocol-change` label, and the kit and `examples/node-service` run the layer at `hard`. A mutation run can be split into shards and joined into one judgment. The protocol stays 0.3.0; `report_version` is 2.4.0.
+
 - Mutation sharding (2 shards by default, max 4): `webtops gate --shard i/n` partitions snapped `mutate` entries deterministically via `shardOf` and writes `.web-tops/out/mutation/partial.json` while deferring survivor judgment, and `webtops gate --join <dir>` fails closed on missing/mismatched shards, sums status counts, propagates starvation/timeouts, and runs the survivor ledger once. The kit's own workflow moves to a 2-shard `gate-shard` matrix plus a `gate` join job at `timeout-minutes: 45` (preserving `gate (ubuntu-latest)` and `gate (macos-latest)`), and `web-tops.yaml` restores `gates.mutation.time_budget_minutes` from `50` to `30` per shard (WEB_TOPS.md §6.4, §11, §12).
 - The drop-in workflow template (`config/templates/workflow.yml.template`) and class goldens raise `timeout-minutes` from `30` to `45` so adopters have 15 minutes of headroom above the 30-minute default `gates.mutation.time_budget_minutes`.
-
 - The kit and `examples/node-service` run the laws layer at `hard` (M3 G11): the kit judges 22 of 22 required laws and the example 21 of 21, and the report prints it (`laws: 22 of 22 judged (ts-library)`). The kit has a `knip.json` and a one-entry `.web-tops/acks.yaml`; the example has `knip`, `secretlint` and its preset as pinned devDependencies, in its lock and `web-tops.lock`, and its own `knip.json` and `.secretlintrc.json`. The kit's dependency-cruiser config names the rules W-17 and W-19 read (`no-unresolvable`, `no-optional-peer-import`), and the one gate job installs and gates the example after the kit.
 - The lint laws no longer judge the data trees `fixtures/` and `probes/`: they are not asked of ESLint, so a fixture's own config cannot lower a rule for the kit (W-01, W-35). Unused exports and re-exports are gone from nine files.
 - `web-tops/eslint` leaves the type-aware rules at error for a page's script block (`page.astro/0.js`), which the laws layer asks ESLint about even in a project with no page, and which the plain-JavaScript block had turned off; a project without Astro could not pass W-01, W-06, W-10, W-11, W-13 and W-14 at `hard` before.
@@ -107,7 +110,8 @@ The `webtops` CLI in this release implements protocol 0.2.1; the 0.3.0 text is m
 - `docs/brand/web-tops-logo.jpg`.
 - Dual license, MIT OR Apache-2.0.
 
-[Unreleased]: https://github.com/Hedronite/web-tops/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/Hedronite/web-tops/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Hedronite/web-tops/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Hedronite/web-tops/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Hedronite/web-tops/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Hedronite/web-tops/releases/tag/v0.1.0
