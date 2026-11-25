@@ -237,6 +237,7 @@ export function contextOf(
     today: utcDate(new Date(input.now())),
     ...(ledger === undefined ? {} : { explained: ledger.explained }),
     ...(input.options.shard === undefined ? {} : { shard: input.options.shard }),
+    ...(input.options.join === undefined ? {} : { joinDir: input.options.join }),
   };
 }
 
@@ -354,12 +355,20 @@ function stoppedReason(layer: Layer, state: RunState): string | undefined {
   return `stopped: gate ${String(state.stoppedAt)} failed`;
 }
 
+export function inputProblem(
+  layer: Layer,
+  state: RunState,
+  joinDir: string | undefined,
+): string | undefined {
+  return joinDir !== undefined && layer.id === "mutation" ? undefined : missingInput(layer, state);
+}
+
 /** Whether a layer in range gets to run: it needs a registration, a run that has not stopped, and its inputs. */
-function admit(item: PlanItem, state: RunState): Admission {
+function admit(item: PlanItem, state: RunState, joinDir?: string): Admission {
   if (item.layer === undefined) {
     return { reason: "no layer is registered for this id" };
   }
-  const reason = stoppedReason(item.layer, state) ?? missingInput(item.layer, state);
+  const reason = stoppedReason(item.layer, state) ?? inputProblem(item.layer, state, joinDir);
   return reason === undefined ? { layer: item.layer } : { reason };
 }
 
@@ -380,7 +389,7 @@ async function step(item: PlanItem, input: RunInput, base: string, state: RunSta
     return;
   }
   state.inRange += 1;
-  const admitted = admit(item, state);
+  const admitted = admit(item, state, input.options.join);
   if ("reason" in admitted) {
     state.layers.push(entry(item, "not-run", admitted.reason));
     return;

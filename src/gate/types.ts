@@ -91,6 +91,8 @@ export interface LayerContext {
   readonly explained?: ReadonlySet<string>;
   /** `--shard i/n`: when set, the mutation layer runs only this shard and defers survivor judgment to `--join`. */
   readonly shard?: ShardSpec;
+  /** `--join <dir>`: when set, the mutation layer joins partial artifacts from `<dir>` instead of running Stryker. */
+  readonly joinDir?: string;
 }
 
 /** An input a layer reads: the artifact's name and the layer that produces it (R29 N5, WEB_TOPS.md section 3.1). */
@@ -240,6 +242,8 @@ export interface GateOptions {
   readonly base?: string;
   /** `--shard i/n`: partition mutation entries across `count` jobs (`1 <= index <= count <= 4`). */
   readonly shard?: ShardSpec;
+  /** `--join <dir>`: directory of shard partial mutation artifacts to unify. */
+  readonly join?: string;
   readonly keepGoing: boolean;
   readonly json: boolean;
   readonly dryRun: boolean;

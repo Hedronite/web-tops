@@ -82,8 +82,11 @@ const notSelected: SkipCheck = (subject, scope) =>
     ? `not selected by --only ${scope.options.only}`
     : undefined;
 
-/** In the order the report words them: the config's switch, the class, the tier, then `--only`. */
-const SKIP_CHECKS: readonly SkipCheck[] = [disabled, unmapped, aboveTier, notSelected];
+const notJoined: SkipCheck = (subject, scope) =>
+  scope.options.join !== undefined && subject.id !== "mutation" ? "ran in shard jobs" : undefined;
+
+/** In the order the report words them: the config's switch, the class, the tier, `--only`, then `--join`. */
+const SKIP_CHECKS: readonly SkipCheck[] = [disabled, unmapped, aboveTier, notSelected, notJoined];
 
 function skipReason(subject: Subject, scope: Scope): string | undefined {
   for (const check of SKIP_CHECKS) {

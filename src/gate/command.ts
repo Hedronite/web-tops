@@ -143,14 +143,21 @@ function symlinkRefusal(cwd: string): string | undefined {
 }
 
 /** Each real run wipes `.web-tops/out` and any stale report first, so no layer reads a file from an earlier run. */
+export function prepareOutDir(cwd: string, joinDir: string | undefined): string {
+  const outDir = join(cwd, ".web-tops", "out");
+  if (joinDir === undefined) {
+    rmSync(outDir, { recursive: true, force: true });
+  }
+  mkdirSync(outDir, { recursive: true });
+  return outDir;
+}
+
 async function execute(prepared: Prepared, io: Io, deps: GateDeps): Promise<number> {
   const refusal = symlinkRefusal(deps.cwd);
   if (refusal !== undefined) {
     return fail(io, 3, [refusal]);
   }
-  const outDir = join(deps.cwd, ".web-tops", "out");
-  rmSync(outDir, { recursive: true, force: true });
-  mkdirSync(outDir, { recursive: true });
+  const outDir = prepareOutDir(deps.cwd, prepared.options.join);
   rmSync(prepared.reportPath, { force: true });
   const tools = recordTools(deps.exec);
   const report = await runGate({
