@@ -1,4 +1,12 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -279,6 +287,23 @@ describe("fromDiff, shardPlan, vacuousDiff, vacuousResult, overBudget, readShard
     expect(outsideMissing.findings[0]).toMatchObject({
       rule: "output-empty",
       file: outsidePath,
+    });
+
+    // Deterministic symlink-directory checks for relativeTo across both Linux and macOS:
+    const realSub = join(dir, "real");
+    const linkSub = join(dir, "link");
+    mkdirSync(realSub);
+    symlinkSync(realSub, linkSub);
+    const linkCtx = makeCtx(linkSub, { index: 1, count: 2 });
+    const viaLink = readReport(linkCtx, ts, join(linkSub, "missing.json"), META);
+    expect(viaLink.findings[0]).toMatchObject({
+      rule: "output-empty",
+      file: "missing.json",
+    });
+    const viaReal = readReport(linkCtx, ts, join(realpathSync(realSub), "missing.json"), META);
+    expect(viaReal.findings[0]).toMatchObject({
+      rule: "output-empty",
+      file: "missing.json",
     });
 
     const noFilesPath = join(dir, "nofiles.json");
