@@ -236,6 +236,7 @@ export function contextOf(
     diff: providerOf(input, base),
     today: utcDate(new Date(input.now())),
     ...(ledger === undefined ? {} : { explained: ledger.explained }),
+    ...(input.options.shard === undefined ? {} : { shard: input.options.shard }),
   };
 }
 
@@ -251,6 +252,11 @@ function ledgerOf(input: RunInput): LedgerState {
   const fresh = ledgerState(input.cwd, path, utcDate(new Date(input.now())));
   ledgers.set(input, fresh);
   return fresh;
+}
+
+/** The survivor ledger is read once per full run, never during `--shard` (joined later by `--join`). */
+export function mutationLedger(layerId: string, input: RunInput): LedgerState | undefined {
+  return layerId === "mutation" && input.options.shard === undefined ? ledgerOf(input) : undefined;
 }
 
 /** An invalid ledger or an expired entry fails the mutation layer, whatever else it found. */
@@ -270,7 +276,7 @@ async function execute(
 ): Promise<Executed> {
   const started = input.now();
   try {
-    const ledger = layer.id === "mutation" ? ledgerOf(input) : undefined;
+    const ledger = mutationLedger(layer.id, input);
     const result = withLedger(
       checked(await layer.run(contextOf(input, base, artifacts, ledger))),
       ledger,
