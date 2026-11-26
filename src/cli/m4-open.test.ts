@@ -94,7 +94,6 @@ describe("M4 G0b: WEB_TOPS.md section 7 and section 17 reflect native dist/ chec
     const pending = sec17.split("\n").find((line) => line.startsWith("Not yet in the tree")) ?? "";
     for (const path of [
       "src/budgets/",
-      "src/layers/build/",
       "src/layers/html/",
       "src/layers/links/",
       "src/layers/bytes/",

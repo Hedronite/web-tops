@@ -1221,7 +1221,7 @@ web-tops/
 │   ├── init/                # webtops init: renders the drop-in set
 │   ├── lawdiff/             # webtops law-diff: what a PR weakens, surface by surface (§11)
 │   ├── laws/                # the law catalog (§8.3): the loader, the queries and the §8.2 table generator; the probe, the ESLint and compiler readers and the laws layer (§6.5)
-│   ├── layers/              # hygiene, tests, coverage, crap, mutation, laws (M4 adds build, html, links, bytes, route-bytes, axe, size-limit)
+│   ├── layers/              # hygiene, tests, coverage, crap, mutation, laws, build (M4 adds html, links, bytes, route-bytes, axe, size-limit)
 │   ├── lock/                # tool pins, web-tops.lock, the Node range
 │   ├── presets/             # the drop-in rules behind web-tops/eslint, /stylelint, /depcruise and /tsconfig/strict.json (plain JavaScript: Node does not strip types in node_modules)
 │   ├── report/              # report writing, text and JSON rendering
@@ -1244,7 +1244,7 @@ web-tops/
 
 The law twins are in `fixtures/laws/W-NN/{bad,clean}/`: a bad and a clean twin per law, which `webtops laws probe` proves.
 
-Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4), `src/layers/build/`, `src/layers/html/`, `src/layers/links/`, `src/layers/bytes/`, `src/layers/route-bytes/`, `src/layers/axe/`, `src/layers/size-limit/`, `examples/astro-site/`, and `examples/web-app/`. The kit's tools already cover the rest: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
+Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4), `src/layers/html/`, `src/layers/links/`, `src/layers/bytes/`, `src/layers/route-bytes/`, `src/layers/axe/`, `src/layers/size-limit/`, `examples/astro-site/`, and `examples/web-app/`. The kit's tools already cover the rest: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
 
 Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any release.
 
