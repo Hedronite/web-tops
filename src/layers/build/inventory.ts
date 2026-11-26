@@ -40,16 +40,20 @@ export function checkTargetPath(cwd: string, configuredDir = "dist"): ResolveDis
   return insideTarget(cwd, trimmed, configuredDir);
 }
 
+function checkRealTarget(cwd: string, target: string): ResolveDistResult {
+  const realRoot = realpathSync(cwd);
+  const realTarget = realpathSync(target);
+  if (!isWithinDir(realRoot, realTarget)) {
+    return { ok: false, reason: `build directory "${target}" resolves outside project root` };
+  }
+  return statSync(realTarget).isDirectory()
+    ? { ok: true, dir: realTarget }
+    : { ok: false, reason: `build directory "${target}" is not a directory` };
+}
+
 function realDirCheck(cwd: string, target: string): ResolveDistResult {
   try {
-    const realRoot = realpathSync(cwd);
-    const realTarget = realpathSync(target);
-    if (!isWithinDir(realRoot, realTarget)) {
-      return { ok: false, reason: `build directory "${target}" resolves outside project root` };
-    }
-    return statSync(realTarget).isDirectory()
-      ? { ok: true, dir: realTarget }
-      : { ok: false, reason: `build directory "${target}" is not a directory` };
+    return checkRealTarget(cwd, target);
   } catch (error) {
     return { ok: false, reason: `cannot inspect build directory: ${String(error)}` };
   }

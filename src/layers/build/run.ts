@@ -40,25 +40,28 @@ function parsePage(entry: unknown): DistPage | undefined {
   return { file: String(file), route: String(route), bytes: Number(bytes) };
 }
 
-function parseStringList(value: unknown): string[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  const out: string[] = [];
-  for (const item of value) {
-    if (typeof item !== "string") return undefined;
-    out.push(item);
+function parseString(item: unknown): string | undefined {
+  return typeof item === "string" ? item : undefined;
+}
+
+function collectParsed<T>(
+  items: readonly unknown[],
+  itemParser: (item: unknown) => T | undefined,
+): T[] | undefined {
+  const out: T[] = [];
+  for (const item of items) {
+    const parsed = itemParser(item);
+    if (parsed === undefined) return undefined;
+    out.push(parsed);
   }
   return out;
 }
 
-function parsePages(value: unknown): DistPage[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  const out: DistPage[] = [];
-  for (const item of value) {
-    const page = parsePage(item);
-    if (page === undefined) return undefined;
-    out.push(page);
-  }
-  return out;
+function parseArray<T>(
+  value: unknown,
+  itemParser: (item: unknown) => T | undefined,
+): T[] | undefined {
+  return Array.isArray(value) ? collectParsed(value, itemParser) : undefined;
 }
 
 function parseVersioned(raw: unknown): Record<string, unknown> | undefined {
@@ -77,7 +80,11 @@ function assembleInventory(
 function parseArtifactPayload(raw: unknown): DistInventory | undefined {
   const doc = parseVersioned(raw);
   if (doc === undefined || typeof doc["distDir"] !== "string") return undefined;
-  return assembleInventory(doc["distDir"], parsePages(doc["pages"]), parseStringList(doc["files"]));
+  return assembleInventory(
+    doc["distDir"],
+    parseArray(doc["pages"], parsePage),
+    parseArray(doc["files"], parseString),
+  );
 }
 
 /** Reads and validates a build inventory artifact JSON written by `buildLayer`. */

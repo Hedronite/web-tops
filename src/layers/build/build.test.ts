@@ -367,6 +367,23 @@ describe("M4 G1: static server on 127.0.0.1:0 with fixed brotli and deterministi
     expect(mimeType("file.unknown")).toBe("application/octet-stream");
   });
 
+  it("rejects non-directory dist targets and malformed inventory artifacts", () => {
+    const { dir } = makeProject();
+    put(dir, "dist", "not a directory");
+    expect(resolveDistDir(dir, "dist").ok).toBe(false);
+
+    const artifact = put(
+      dir,
+      "bad.json",
+      JSON.stringify({ version: 1, distDir: "x", pages: "bad", files: [] }),
+    );
+    expect(readInventoryArtifact(artifact)).toBeUndefined();
+    writeFileSync(artifact, JSON.stringify({ version: 1, distDir: "x", pages: [{}], files: [] }));
+    expect(readInventoryArtifact(artifact)).toBeUndefined();
+    writeFileSync(artifact, JSON.stringify({ version: 1, distDir: "x", pages: [], files: [123] }));
+    expect(readInventoryArtifact(artifact)).toBeUndefined();
+  });
+
   it("shares one static server across downstream layers and tears down sockets even if a layer throws", async () => {
     const { dir } = makeProject();
     put(dir, "dist/index.html", "<h1>Keep-Alive Test</h1>");
