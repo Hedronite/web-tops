@@ -6,6 +6,7 @@ import type { PackageExportsLayer, Switch, WebTopsConfig } from "../config/types
 import {
   HYGIENE_STEPS,
   type AuditLevel,
+  type BuildSettings,
   type CoverageSettings,
   type CrapSettings,
   type GateConfig,
@@ -266,6 +267,13 @@ function optionalOf(config: WebTopsConfig): readonly string[] {
   return LAYER_IDS.filter((id) => !required.includes(id));
 }
 
+function buildSettings(config: WebTopsConfig): { readonly build?: BuildSettings } {
+  const raw = config.build;
+  if (raw === undefined) return {};
+  const dir = raw.dir ?? "dist";
+  return { build: { dir, ...(raw.command === undefined ? {} : { command: raw.command }) } };
+}
+
 function customOf(config: WebTopsConfig): GateConfig["custom"] {
   return (config.layers?.custom ?? []).map(({ id, tier, command }) => ({ id, tier, command }));
 }
@@ -290,5 +298,6 @@ export function toGateConfig(config: WebTopsConfig, project: Project): GateConfi
     coverage: coverageSettings(config),
     crap: crapSettings(config),
     mutation: mutationSettings(config),
+    ...buildSettings(config),
   };
 }

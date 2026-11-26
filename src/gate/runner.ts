@@ -205,6 +205,35 @@ function diffProvider(input: RunInput, base: string): DiffProvider {
 }
 
 const providers = new WeakMap<RunInput, DiffProvider>();
+const runCaches = new WeakMap<RunInput, Map<string, unknown>>();
+const cleanups = new WeakMap<RunInput, (() => Promise<void>)[]>();
+
+function cacheOf(input: RunInput): Map<string, unknown> {
+  const known = runCaches.get(input);
+  if (known !== undefined) return known;
+  const fresh = new Map<string, unknown>();
+  runCaches.set(input, fresh);
+  return fresh;
+}
+
+function registerCleanup(input: RunInput, close: () => Promise<void>): void {
+  const list = cleanups.get(input) ?? [];
+  list.push(close);
+  cleanups.set(input, list);
+}
+
+async function drainCleanups(input: RunInput): Promise<void> {
+  const list = cleanups.get(input);
+  if (list === undefined) return;
+  cleanups.delete(input);
+  for (const close of [...list].reverse()) {
+    try {
+      await close();
+    } catch {
+      // Teardown continues across all registered handles.
+    }
+  }
+}
 
 function providerOf(input: RunInput, base: string): DiffProvider {
   const known = providers.get(input);
@@ -235,6 +264,10 @@ export function contextOf(
     all: input.options.all,
     diff: providerOf(input, base),
     today: utcDate(new Date(input.now())),
+    runCache: cacheOf(input),
+    onCleanup: (close) => {
+      registerCleanup(input, close);
+    },
     ...(ledger === undefined ? {} : { explained: ledger.explained }),
     ...(input.options.shard === undefined ? {} : { shard: input.options.shard }),
     ...(input.options.join === undefined ? {} : { joinDir: input.options.join }),
@@ -522,10 +555,15 @@ export async function runGate(input: RunInput): Promise<RanReport> {
     ran: 0,
     stoppedAt: undefined,
   };
-  for (const item of planGate(input.layers, input.config, input.options)) {
-    await step(item, input, base, state);
+  let described: RunDescription;
+  try {
+    for (const item of planGate(input.layers, input.config, input.options)) {
+      await step(item, input, base, state);
+    }
+    described = await describeOf(input);
+  } finally {
+    await drainCleanups(input);
   }
-  const described = await describeOf(input);
   ratchet(input, state, described);
   return reportOf(input, base, state, described);
 }

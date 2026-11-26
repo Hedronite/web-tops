@@ -438,10 +438,10 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
 - **Time budget.** `gates.mutation.time_budget_minutes`, 30 by default (applied per shard when sharded): the largest M2 diff, about 1,330
   mutants, fit on both CI legs. The budget sits under the 45-minute job limit, so an over-budget run reports
   `not-evaluated` and does not become a cancelled job; a project that raises its budget raises its job limit
-  with it. The kit's own gate runs 2 shards with a 30-minute per-shard budget under a 45-minute job limit. A run that passes the budget is stopped, with the
+  with it. The kit's own gate runs 4 shards with a 30-minute per-shard budget under a 45-minute job limit. A run that passes the budget is stopped, with the
   processes it started, and the layer is `not-evaluated`, with the budget in the reason: a stopped run writes no
   report, so it names no count of mutants judged. A run cut short is never a pass.
-- **Sharding.** Large suites may partition mutation across up to 4 shards (`--shard i/n`, 2 by default in the kit's workflow) and unify them with `--join <dir>`:
+- **Sharding.** Large suites may partition mutation across up to 4 shards (`--shard i/n`, 4 by default in the kit's workflow) and unify them with `--join <dir>`:
   - `shardOf(entries, i, n)` splits the snapped `mutate` entries (`file:start-end`) deterministically by line weight, heaviest first on the lightest shard, never cutting a scored unit so survivor `occurrence` keys match an unsharded run.
   - Under `--shard i/n`, layers 1–4 run in full, layer 5 runs Stryker only on shard `i` and writes `.web-tops/out/mutation/partial.json` carrying `shard`, `shards`, `base`, canonical `entriesHash`, status counts, raw survivors, and timeout/starvation/vacuous state. Per-shard runs never write `.web-tops/baseline.json` or `.web-tops/survivors.yaml` and do not judge per-shard survivors against `unexplained_survivors_max` alone.
   - Under `--join <dir>`, the gate fails closed on any missing or duplicate shard, mismatched `n`, mismatched `base`, or mismatched `entriesHash`; sums all status counts; applies the timeout starvation rule to the summed counts and propagates any shard `not-evaluated` (timeout or starvation); unions survivors; and evaluates `.web-tops/survivors.yaml` and `unexplained_survivors_max` once.
@@ -1052,7 +1052,7 @@ label from any other account, or from one whose role cannot be read, counts as n
 CI rules: checkout with `fetch-depth: 0`; actions pinned by commit SHA; minimal `permissions:`;
 `--dry-run` refused; empty reports fail. `init` writes a job only when its command exists:
 until the tier 2 and 3 layers and `law-diff` exist, it writes the `gate` job alone.
-Every gate job runs one `webtops gate` command (`gate --max-tier 1`, or `gate --max-tier 1 --shard i/n` followed by `gate --join <dir>`). `init` writes a single `gate` job (`timeout-minutes: 45`) because adopter diffs are small. The kit's own workflow runs a 2-shard matrix (`gate-shard` across `ubuntu-latest` and `macos-latest` × `shard: [1, 2]`, `timeout-minutes: 45`) uploading `.web-tops/out/mutation/partial.json`, followed by the `gate` join job (`needs: [gate-shard]`, `timeout-minutes: 45`, `matrix.os: [ubuntu-latest, macos-latest]`) running `gate --join` and gating `examples/node-service` so required check contexts stay `gate (ubuntu-latest)` and `gate (macos-latest)`. The drop-in does not repeat the tools as separate job steps, because steps that bypass `webtops` judge nothing.
+Every gate job runs one `webtops gate` command (`gate --max-tier 1`, or `gate --max-tier 1 --shard i/n` followed by `gate --join <dir>`). `init` writes a single `gate` job (`timeout-minutes: 45`) because adopter diffs are small. The kit's own workflow runs a 4-shard matrix (`gate-shard` across `ubuntu-latest` and `macos-latest` × `shard: [1, 2, 3, 4]`, `timeout-minutes: 45`) uploading `.web-tops/out/mutation/partial.json`, followed by the `gate` join job (`needs: [gate-shard]`, `timeout-minutes: 45`, `matrix.os: [ubuntu-latest, macos-latest]`) running `gate --join` and gating `examples/node-service` so required check contexts stay `gate (ubuntu-latest)` and `gate (macos-latest)`. The drop-in does not repeat the tools as separate job steps, because steps that bypass `webtops` judge nothing.
 
 ---
 
@@ -1221,7 +1221,7 @@ web-tops/
 │   ├── init/                # webtops init: renders the drop-in set
 │   ├── lawdiff/             # webtops law-diff: what a PR weakens, surface by surface (§11)
 │   ├── laws/                # the law catalog (§8.3): the loader, the queries and the §8.2 table generator; the probe, the ESLint and compiler readers and the laws layer (§6.5)
-│   ├── layers/              # hygiene, tests, coverage, crap, mutation, laws (M4 adds build, html, links, bytes, route-bytes, axe, size-limit)
+│   ├── layers/              # hygiene, tests, coverage, crap, mutation, laws, build (M4 adds html, links, bytes, route-bytes, axe, size-limit)
 │   ├── lock/                # tool pins, web-tops.lock, the Node range
 │   ├── presets/             # the drop-in rules behind web-tops/eslint, /stylelint, /depcruise and /tsconfig/strict.json (plain JavaScript: Node does not strip types in node_modules)
 │   ├── report/              # report writing, text and JSON rendering
@@ -1244,7 +1244,7 @@ web-tops/
 
 The law twins are in `fixtures/laws/W-NN/{bad,clean}/`: a bad and a clean twin per law, which `webtops laws probe` proves.
 
-Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4), `src/layers/build/`, `src/layers/html/`, `src/layers/links/`, `src/layers/bytes/`, `src/layers/route-bytes/`, `src/layers/axe/`, `src/layers/size-limit/`, `examples/astro-site/`, and `examples/web-app/`. The kit's tools already cover the rest: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
+Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4), `src/layers/html/`, `src/layers/links/`, `src/layers/bytes/`, `src/layers/route-bytes/`, `src/layers/axe/`, `src/layers/size-limit/`, `examples/astro-site/`, and `examples/web-app/`. The kit's tools already cover the rest: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
 
 Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any release.
 
