@@ -5,7 +5,7 @@ import { cfg } from "../../gate/testkit.ts";
 import type { Exec, LayerContext } from "../../gate/types.ts";
 import { cleanTemp, tempDir } from "../../laws/probe/testkit.ts";
 import { runTool } from "../hygiene/tooling.ts";
-import { testsLayer } from "./index.ts";
+import { TESTS_TIMEOUT_MS, testsLayer } from "./index.ts";
 
 afterAll(cleanTemp);
 
@@ -48,5 +48,16 @@ describe("gate 2 says which tool it could not run", () => {
       stderr: "vitest is not installed in node_modules (package vitest)",
       failure: "tool-missing",
     });
+  });
+
+  it("passes explicit TESTS_TIMEOUT_MS to exec so vitest gets process-group cleanup", async () => {
+    let seenTimeout: number | undefined;
+    const exec: Exec = (_command, _args, options) => {
+      seenTimeout = options?.timeoutMs;
+      return Promise.resolve({ code: null, stdout: "", stderr: "", failure: "tool-timeout" });
+    };
+    await testsLayer.run(context(exec));
+    expect(TESTS_TIMEOUT_MS).toBe(1_200_000);
+    expect(seenTimeout).toBe(TESTS_TIMEOUT_MS);
   });
 });
