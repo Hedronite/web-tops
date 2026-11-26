@@ -12,6 +12,7 @@ export const TOOL_PINS = {
   "@lhci/cli": "0.16.1",
   "@playwright/test": "1.65.1",
   "@secretlint/secretlint-rule-preset-recommend": "13.1.0",
+  "@size-limit/file": "14.3.0",
   "@stryker-mutator/core": "10.1.1",
   "@stryker-mutator/typescript-checker": "10.1.1",
   "@stryker-mutator/vitest-runner": "10.1.1",

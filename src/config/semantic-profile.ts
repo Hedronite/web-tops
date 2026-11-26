@@ -67,17 +67,20 @@ export function checkLimits(config: WebTopsConfig): readonly Problem[] {
   ];
 }
 
-function skipReason(config: WebTopsConfig): string | undefined {
-  return config.layers?.package_exports?.skip_private;
-}
+const PRIVATE_LAYERS = ["package_exports", "size_limit"] as const;
 
 /** `skip_private` needs `"private": true` in the package.json beside the config (section 9). */
 export function checkSkipPrivate(config: WebTopsConfig, project: Project): readonly Problem[] {
-  if (skipReason(config) === undefined || project.isPrivate === true) return [];
-  return [
-    {
-      pointer: "/layers/package_exports/skip_private",
-      message: 'skip_private needs "private": true in the package.json beside web-tops.yaml',
-    },
-  ];
+  const layers = config.layers;
+  if (project.isPrivate === true || layers === undefined) return [];
+  return PRIVATE_LAYERS.flatMap((key) =>
+    layers[key]?.skip_private === undefined
+      ? []
+      : [
+          {
+            pointer: `/layers/${key}/skip_private`,
+            message: 'skip_private needs "private": true in the package.json beside web-tops.yaml',
+          },
+        ],
+  );
 }

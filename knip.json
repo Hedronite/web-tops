@@ -3,13 +3,18 @@
   "ignore": ["fixtures/**", "probes/**", "examples/**"],
   "ignoreDependencies": [
     "@arethetypeswrong/cli",
+    "@axe-core/playwright",
+    "@playwright/test",
     "@secretlint/secretlint-rule-preset-recommend",
+    "@size-limit/file",
     "@stryker-mutator/core",
     "@stryker-mutator/typescript-checker",
     "@stryker-mutator/vitest-runner",
     "eslint-plugin-react-hooks",
+    "html-validate",
     "publint",
-    "secretlint"
+    "secretlint",
+    "size-limit"
   ],
   "ignoreExportsUsedInFile": true
 }

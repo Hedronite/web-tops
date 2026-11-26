@@ -80,12 +80,12 @@ Schema (`schema/web-tops.schema.json` plus a gate-report schema), and per-class 
 | Runtime | Bun ≥ 1.4 installs and runs `webtops`; Node `^22.23.4 \|\| ^24.15.0 \|\| >=26` runs the tools, in every class (where the pinned tools' engine ranges meet). The range is recorded in `web-tops.lock` (§10) and in `engines` of the kit's `package.json`, beside Bun |
 | Tool lock | `web-tops.lock`; dependency lock `bun.lock`, installed with `--frozen-lockfile` |
 | Lint | `eslint` **10.15**, `@eslint/js` 10.0, `typescript-eslint` 8.73, `eslint-plugin-astro` **3.2**, `eslint-plugin-jsx-a11y-x` 0.2, `@eslint-community/eslint-plugin-eslint-comments` 4.8 |
-| Law readers | Beyond the lint row: `@vitest/eslint-plugin` 1.6 (W-34), `fast-check` 4.10 (property tests, §7), `eslint-plugin-react-hooks` 7.1.1 (W-47), `knip` 6.45.1 (W-48); the secrets scanner (W-39) is `secretlint` 14.0.1 with `@secretlint/secretlint-rule-preset-recommend` 13.1.0; the internal link checker (§7) is chosen in M3 |
+| Law readers | Beyond the lint row: `@vitest/eslint-plugin` 1.6 (W-34), `fast-check` 4.10 (property tests, §7), `eslint-plugin-react-hooks` 7.1.1 (W-47), `knip` 6.45.1 (W-48); the secrets scanner (W-39) is `secretlint` 14.0.1 with `@secretlint/secretlint-rule-preset-recommend` 13.1.0; the internal link check (§7) is native over parsed `dist/` |
 | Rule tests | ESLint's own `RuleTester`, exported by `eslint` (no extra pin), run under Vitest for the custom rules of `eslint-plugin-webtops` (§8.1) |
 | Tests and coverage | Vitest 5.1, `@vitest/coverage-v8` 5.1 |
 | Mutation | StrykerJS 10.1 (`@stryker-mutator/core`, `vitest-runner`, `typescript-checker`) |
 | Astro, Tailwind, validation | Astro 7.4, `@astrojs/check` 0.9, Tailwind CSS 4.3, Zod 4.6 |
-| Build output | `html-validate` 11, `@playwright/test` 1.65, `@axe-core/playwright` 4.14, Stylelint 18, `size-limit` 14, `@lhci/cli` 0.16 (tier 2) |
+| Build output | `html-validate` 11.21.1, `@playwright/test` 1.65.1, `@axe-core/playwright` 4.14.0, Stylelint 18.0.0, `size-limit` 14.3.0, `@size-limit/file` 14.3.0, `@lhci/cli` 0.16 (tier 2) |
 | Boundaries and packages | `dependency-cruiser` 18, `publint` 0.3, `@arethetypeswrong/cli` 0.18 |
 | Format | Prettier 3.10 or Biome 2.6, one per repo |
 
@@ -673,7 +673,7 @@ A rule that is off everywhere is not a census item: for a required law it is `re
 | `.astro` type check | `astro check` | Any error | 1 |
 | HTML validity | `html-validate` on `dist/**/*.html`, with the presets `html-validate:standard` and `html-validate:document` | Any error | 1 |
 | Accessibility | axe-core via Playwright, on every built page (`astro-site`) or the declared routes (`web-app`), with the tags and the `target-size` rule set out below | Any serious or critical violation; moderate ones are ratcheted. An `incomplete` result is `not-evaluated` | 1 |
-| Internal links | link check on `dist/` **[verify tool]** | A broken internal link or anchor | 1 |
+| Internal links | native check over parsed `dist/` (internal links, fragment anchors, local `src`/`href` assets) | A broken internal link, fragment anchor, or missing local asset | 1 |
 | Bytes per page or route | `webtops` reads the page JavaScript (below) from `dist/` and compresses it with brotli | Over the class or page budget | 1 |
 | Package entry size | `size-limit` per `exports` entry | Over budget | 1 |
 | Package exports | `publint`, `@arethetypeswrong/cli` on the packed tarball | Any error | 1 |
@@ -936,8 +936,18 @@ gates:
     time_budget_minutes: 30
     ledger: .web-tops/survivors.yaml
 
+# build: { command: "bun run build", dir: "dist" }              # web-app, astro-site, ui-components
+# routes: ["/"]                                                  # declared routes for web-app axe & route-bytes
+# budgets:                                                       # brotli byte budgets (default from class §5.2)
+#   page_js_bytes: 51200
+#   static_page_js_bytes: 0
+#   route_js_bytes: 174080
+#   pages: { "/docs/": 51200 }
+#   routes: { "/": 174080 }
+#   entries: { ".": 10240 }
+
 layers:
-  size_limit: { tier: 1 }
+  size_limit: { tier: 1 }                                        # or skip_private: "<reason>" for a "private": true package; default_bytes / entries
   package_exports: { tier: 1 }                                   # or skip_private: "<reason>" for a "private": true package
   html_validate: { enabled: false, reason: "ts-library: no HTML output" }
   axe: { enabled: false, reason: "ts-library: no pages" }
@@ -966,7 +976,8 @@ chooses which laws run and `enabled: false` turns the layer off.
   `dependency_cruiser`, `audit`. `astro_check` is mapped for `astro-site`, and for `web-app` and
   `ui-components` when the `package.json` beside `web-tops.yaml` lists `astro` in `dependencies`,
   `devDependencies` or `peerDependencies`; otherwise it is `skip`. `layers.package_exports` runs `publint` and `attw` inside gate 1.
-- `layers.package_exports.skip_private` takes a reason. When the `package.json` beside
+- `build` configures the M4 build invocation (`command`, non-blank) and output directory (`dir`, relative path defaulting to `dist`). `routes` lists the declared app routes (paths starting `/`, unique). `budgets` sets brotli byte ceilings: `page_js_bytes` and `static_page_js_bytes` (astro-site), `route_js_bytes` (web-app), plus per-path maps `pages`, `routes`, and `entries` (keys starting `.`).
+- `layers.package_exports.skip_private` and `layers.size_limit.skip_private` take a reason. When the `package.json` beside
   `web-tops.yaml` says `"private": true`, the layer is `skip` with that reason, and `hard` does not
   refuse it. Any other package cannot set it: `check` exits 2 at that key. It is for adopters whose
   package is never published; this kit keeps both checks live.
@@ -1210,7 +1221,7 @@ web-tops/
 │   ├── init/                # webtops init: renders the drop-in set
 │   ├── lawdiff/             # webtops law-diff: what a PR weakens, surface by surface (§11)
 │   ├── laws/                # the law catalog (§8.3): the loader, the queries and the §8.2 table generator; the probe, the ESLint and compiler readers and the laws layer (§6.5)
-│   ├── layers/              # hygiene, tests, coverage, crap, mutation
+│   ├── layers/              # hygiene, tests, coverage, crap, mutation, laws (M4 adds build, html, links, bytes, route-bytes, axe, size-limit)
 │   ├── lock/                # tool pins, web-tops.lock, the Node range
 │   ├── presets/             # the drop-in rules behind web-tops/eslint, /stylelint, /depcruise and /tsconfig/strict.json (plain JavaScript: Node does not strip types in node_modules)
 │   ├── report/              # report writing, text and JSON rendering
@@ -1222,7 +1233,7 @@ web-tops/
 ├── config/                  # drop-in templates, AGENTS.md.tmpl
 ├── fixtures/                # config (with examples/), hygiene, init, lock, report, probe, laws
 ├── probes/                  # w22/: the W-22 proof, its own package and lock
-├── examples/                # node-service/: a node-service project that gates itself, its own package and lock
+├── examples/                # node-service/: a node-service project that gates itself, its own package and lock (M4 adds astro-site/, web-app/)
 ├── docs/brand/
 ├── .github/workflows/       # the gate job and the law-diff job
 ├── WEB_TOPS.md
@@ -1233,7 +1244,7 @@ web-tops/
 
 The law twins are in `fixtures/laws/W-NN/{bad,clean}/`: a bad and a clean twin per law, which `webtops laws probe` proves.
 
-Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4). The kit's tools already cover the rest: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
+Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4), `src/layers/build/`, `src/layers/html/`, `src/layers/links/`, `src/layers/bytes/`, `src/layers/route-bytes/`, `src/layers/axe/`, `src/layers/size-limit/`, `examples/astro-site/`, and `examples/web-app/`. The kit's tools already cover the rest: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
 
 Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any release.
 
@@ -1277,9 +1288,41 @@ Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any rele
         }
       }
     },
+    "build": {
+      "type": "object",
+      "properties": {
+        "command": { "type": "string", "pattern": "\\S" },
+        "dir": { "type": "string", "pattern": "\\S" }
+      }
+    },
+    "routes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^/" }
+    },
+    "budgets": {
+      "type": "object",
+      "properties": {
+        "page_js_bytes": { "type": "integer", "minimum": 0 },
+        "static_page_js_bytes": { "type": "integer", "minimum": 0 },
+        "route_js_bytes": { "type": "integer", "minimum": 0 },
+        "pages": { "type": "object" },
+        "routes": { "type": "object" },
+        "entries": { "type": "object" }
+      }
+    },
     "layers": {
       "type": "object",
       "properties": {
+        "size_limit": {
+          "type": "object",
+          "properties": {
+            "skip_private": { "type": "string", "pattern": "\\S" },
+            "default_bytes": { "type": "integer", "minimum": 0 },
+            "entries": { "type": "object" }
+          }
+        },
         "package_exports": {
           "type": "object",
           "properties": { "skip_private": { "type": "string", "pattern": "\\S" } }

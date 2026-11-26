@@ -43,8 +43,23 @@ gates:
     base: origin/main
     unexplained_survivors_max: 0
     ledger: .web-tops/survivors.yaml
+build:
+  command: bun run build
+  dir: dist
+routes:
+  - /
+budgets:
+  page_js_bytes: 51200
+  static_page_js_bytes: 0
+  route_js_bytes: 174080
+  pages:
+    /: 0
+  routes:
+    /: 174080
+  entries:
+    ".": 10240
 layers:
-  size_limit: { enabled: true, tier: 1 }
+  size_limit: { enabled: true, tier: 1, default_bytes: 10240, entries: { ".": 10240 } }
   package_exports: { tier: 1 }
   html_validate: { enabled: false, reason: "ts-library: no HTML output" }
   axe: { enabled: false, reason: "ts-library: no pages" }

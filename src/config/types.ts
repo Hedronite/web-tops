@@ -23,9 +23,14 @@ export interface LayerConfig extends Switch {
   readonly tier?: Tier;
 }
 
-/** `skip_private` skips the exports check for a package whose package.json says `"private": true`. */
+/** `skip_private` skips a package check for a package whose package.json says `"private": true`. */
 export interface PackageExportsLayer extends LayerConfig {
   readonly skip_private?: string;
+}
+
+export interface SizeLimitLayer extends PackageExportsLayer {
+  readonly default_bytes?: number;
+  readonly entries?: Readonly<Record<string, number>>;
 }
 
 /** Reserved for M4 and M5: validated, not read yet (section 9). */
@@ -93,8 +98,22 @@ export interface Gates {
   };
 }
 
+export interface BuildConfig {
+  readonly command?: string;
+  readonly dir?: string;
+}
+
+export interface BudgetsConfig {
+  readonly page_js_bytes?: number;
+  readonly static_page_js_bytes?: number;
+  readonly route_js_bytes?: number;
+  readonly pages?: Readonly<Record<string, number>>;
+  readonly routes?: Readonly<Record<string, number>>;
+  readonly entries?: Readonly<Record<string, number>>;
+}
+
 export interface Layers {
-  readonly size_limit?: LayerConfig;
+  readonly size_limit?: SizeLimitLayer;
   readonly package_exports?: PackageExportsLayer;
   readonly html_validate?: LayerConfig;
   readonly axe?: LayerConfig;
@@ -114,6 +133,9 @@ export interface WebTopsConfig {
   readonly exemption?: Exemption;
   readonly toolchain?: { readonly typescript?: string; readonly runtime?: "bun" | "node" };
   readonly gates?: Gates;
+  readonly build?: BuildConfig;
+  readonly routes?: readonly string[];
+  readonly budgets?: BudgetsConfig;
   readonly layers?: Layers;
   readonly laws?: Switch & { readonly select?: "default" | "all"; readonly ack_ledger?: string };
   readonly report: { readonly path: string };

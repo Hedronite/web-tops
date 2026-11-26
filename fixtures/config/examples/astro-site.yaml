@@ -40,6 +40,12 @@ gates:
     ledger: .web-tops/survivors.yaml
     enabled: false
     reason: "milestone M2: mutation testing lands in M2"
+build:
+  command: bun run build
+  dir: dist
+budgets:
+  page_js_bytes: 51200
+  static_page_js_bytes: 0
 layers:
   size_limit:
     tier: 1

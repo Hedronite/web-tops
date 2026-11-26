@@ -38,7 +38,12 @@ describe("chromiumState", () => {
       put(
         dir,
         "node_modules/playwright-core/browsers.json",
-        JSON.stringify({ browsers: [{ name: "chromium", revision }] }),
+        JSON.stringify({
+          browsers: [
+            { name: "firefox", revision: "999" },
+            { name: "chromium", revision },
+          ],
+        }),
       );
     }
     return dir;
@@ -74,6 +79,7 @@ describe("chromiumState", () => {
     const home = tempDir();
     put(home, ".cache/ms-playwright/chromium-1234/INSTALLATION_COMPLETE", "");
     expect(chromiumState(dir, {}, "linux", home)).toBe("present");
+    expect(chromiumState(dir, { PLAYWRIGHT_BROWSERS_PATH: "" }, "linux", home)).toBe("present");
     const mac = tempDir();
     put(mac, "Library/Caches/ms-playwright/chromium-1234/INSTALLATION_COMPLETE", "");
     expect(chromiumState(dir, {}, "darwin", mac)).toBe("present");
@@ -84,6 +90,9 @@ describe("chromiumState", () => {
     const appData = tempDir();
     put(appData, "ms-playwright/chromium-1234/INSTALLATION_COMPLETE", "");
     expect(chromiumState(dir, { LOCALAPPDATA: appData }, "win32", tempDir())).toBe("present");
+    const winHome = tempDir();
+    put(winHome, "AppData/Local/ms-playwright/chromium-1234/INSTALLATION_COMPLETE", "");
+    expect(chromiumState(dir, {}, "win32", winHome)).toBe("present");
   });
 
   it("looks inside node_modules when the variable is 0", () => {

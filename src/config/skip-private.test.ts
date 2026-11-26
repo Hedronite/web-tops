@@ -56,9 +56,9 @@ describe("G3c: package_exports may be skipped for a private package, with a reas
   it("refuses a blank reason and the key on any other layer", () => {
     const blank = parseConfig(`${HEAD}layers:\n  package_exports:\n    skip_private: "  "\n`);
     expect(get(blank, "problems")).toContainEqual(objectLike({ pointer: POINTER }));
-    const other = parseConfig(`${HEAD}layers:\n  size_limit:\n    skip_private: why\n`);
+    const other = parseConfig(`${HEAD}layers:\n  html_validate:\n    skip_private: why\n`);
     expect(get(other, "problems")).toContainEqual(
-      objectLike({ pointer: "/layers/size_limit/skip_private" }),
+      objectLike({ pointer: "/layers/html_validate/skip_private" }),
     );
   });
 
@@ -82,5 +82,21 @@ describe("G3c: package_exports may be skipped for a private package, with a reas
       reason: "the package is never published",
     });
     expect(get(steps(false), "package_exports")).toBeUndefined();
+  });
+});
+
+describe("M4 G0: size_limit supports skip_private for private packages", () => {
+  const SL_SKIP = "layers:\n  size_limit:\n    skip_private: the package is never published\n";
+  const SL_POINTER = "/layers/size_limit/skip_private";
+
+  it("passes check when package.json beside the config says private: true", () => {
+    expect(checkConfigFile(project('{"private": true}', HEAD + SL_SKIP)).ok).toBe(true);
+  });
+
+  it("exits 2 at /layers/size_limit/skip_private when the package is not private", () => {
+    const result = checkConfigFile(project('{"private": false}', HEAD + SL_SKIP));
+    expect(get(result, "problems")).toEqual([
+      { pointer: SL_POINTER, message: containing('"private": true') },
+    ]);
   });
 });
