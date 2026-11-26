@@ -49,19 +49,19 @@ describe("G10a: the kit runs mutation on the diff under hard", () => {
     expect(at(gates, ["crap", "cap"])).toBe(TS_LIBRARY.crapCap);
   });
 
-  it("runs 2-shard gate-shard and join gate jobs on both operating systems", () => {
+  it("runs 4-shard gate-shard and join gate jobs on both operating systems", () => {
     const workflow = yamlOf(".github/workflows/web-tops.yml");
     const jobs = at(workflow, ["jobs"]);
     expect(keysOf(jobs)).toEqual(["gate-shard", "gate"]);
     expect(at(workflow, ["jobs", "gate-shard", "strategy", "matrix"])).toEqual({
       os: ["ubuntu-latest", "macos-latest"],
-      shard: [1, 2],
+      shard: [1, 2, 3, 4],
     });
     const shardSteps = at(workflow, ["jobs", "gate-shard", "steps"]);
     const shardRuns = Array.isArray(shardSteps) ? shardSteps.map((step) => at(step, ["run"])) : [];
     expect(
       shardRuns.filter(
-        (run) => run === "bun src/cli/main.ts gate --max-tier 1 --shard ${{ matrix.shard }}/2",
+        (run) => run === "bun src/cli/main.ts gate --max-tier 1 --shard ${{ matrix.shard }}/4",
       ),
     ).toHaveLength(1);
     const gateSteps = at(workflow, ["jobs", "gate", "steps"]);
