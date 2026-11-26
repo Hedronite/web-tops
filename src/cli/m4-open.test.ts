@@ -1,5 +1,13 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, matchesGlob, resolve } from "node:path";
 import { ESLint } from "eslint";
@@ -14,6 +22,7 @@ import { diagnose, runDoctorCli } from "./doctor.ts";
 import type { Io } from "./io.ts";
 import { runLockCli } from "./lock.ts";
 
+const insideStryker = process.env["STRYKER_MUTATOR_WORKER"] !== undefined;
 const root = resolve(import.meta.dirname, "../..");
 const spec = readFileSync(join(root, "WEB_TOPS.md"), "utf8");
 const section = (from: string, to: string): string =>
@@ -89,11 +98,22 @@ describe("M4 G0b: WEB_TOPS.md section 7 and section 17 reflect native dist/ chec
     expect(row).toContain("href");
   });
 
-  it("section 17 reserves the M4 directories under Not yet in the tree", () => {
+  function assertReservedOrLanded(sec17: string, pending: string, path: string): void {
+    if (!existsSync(join(root, path))) {
+      expect(pending, path).toContain(`\`${path}\``);
+      return;
+    }
+    expect(pending, path).not.toContain(`\`${path}\``);
+    const leaf = path.replace(/\/$/u, "").split("/").at(-1) ?? path;
+    expect(sec17, path).toContain(leaf);
+  }
+
+  it("section 17 tracks unlanded M4 directories under Not yet in the tree and drops landed ones", () => {
     const sec17 = section("## 17. ", "## 18. ");
     const pending = sec17.split("\n").find((line) => line.startsWith("Not yet in the tree")) ?? "";
     for (const path of [
       "src/budgets/",
+      "src/layers/build/",
       "src/layers/html/",
       "src/layers/links/",
       "src/layers/bytes/",
@@ -103,7 +123,7 @@ describe("M4 G0b: WEB_TOPS.md section 7 and section 17 reflect native dist/ chec
       "examples/astro-site/",
       "examples/web-app/",
     ]) {
-      expect(pending).toContain(`\`${path}\``);
+      assertReservedOrLanded(sec17, pending, path);
     }
   });
 });
@@ -131,6 +151,8 @@ describe("M4 G0c: M4 paths are reserved in every tool and layout scope", () => {
     const result = spawnSync(process.execPath, [prettier, "--file-info", path], {
       cwd: root,
       encoding: "utf8",
+      timeout: 30_000,
+      stdio: ["ignore", "pipe", "pipe"],
     });
     const info: unknown = JSON.parse(result.stdout);
     return get(info, "ignored");
@@ -144,16 +166,26 @@ describe("M4 G0c: M4 paths are reserved in every tool and layout scope", () => {
     }
   });
 
-  it.each(source)("Prettier checks %s", (dir) => {
+  it.skipIf(insideStryker).each(source)("Prettier checks %s", (dir) => {
     expect(ignoredByPrettier(`${dir}/x.ts`)).toBe(false);
   });
 
-  it.each(examples)("%s is skipped by root Prettier and ignored by knip", (dir) => {
+  it.skipIf(insideStryker).each(examples)("%s is skipped by root Prettier", (dir) => {
     expect(ignoredByPrettier(`${dir}/src/x.ts`)).toBe(true);
+  });
+
+  it.each(examples)("%s is ignored by knip", (dir) => {
     expect(
       knipConfig.ignore.some((glob) => matchesGlob(`${dir}/src/x.ts`, glob)),
       dir,
     ).toBe(true);
+  });
+
+  it.each(source)("knip does not ignore %s", (dir) => {
+    expect(
+      knipConfig.ignore.some((glob) => matchesGlob(`${dir}/x.ts`, glob)),
+      dir,
+    ).toBe(false);
   });
 
   it("tsconfig includes every M4 source path and leaves the M4 examples out", () => {
@@ -187,7 +219,7 @@ describe("M4 G0c: M4 paths are reserved in every tool and layout scope", () => {
     expect(collected(`${dir}/x.test.ts`)).toBe(false);
   });
 
-  describe("dependency-cruiser", () => {
+  describe.skipIf(insideStryker)("dependency-cruiser", () => {
     const depcruise = join(root, "node_modules/.bin/depcruise");
     const config = join(root, ".dependency-cruiser.cjs");
     const circular = (dir: string): Readonly<Record<string, string>> => ({
@@ -220,7 +252,12 @@ describe("M4 G0c: M4 paths are reserved in every tool and layout scope", () => {
     }
 
     function cruise(cwd: string, target: string): { status: number | null; out: string } {
-      const result = spawnSync(depcruise, [target, "--config", config], { cwd, encoding: "utf8" });
+      const result = spawnSync(depcruise, [target, "--config", config], {
+        cwd,
+        encoding: "utf8",
+        timeout: 30_000,
+        stdio: ["ignore", "pipe", "pipe"],
+      });
       return { status: result.status, out: result.stdout + result.stderr };
     }
 
