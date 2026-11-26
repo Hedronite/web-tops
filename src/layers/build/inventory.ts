@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, readdirSync, realpathSync, statSync } from "node:fs";
+import { lstatSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 /** One HTML page discovered inside `dist/`, with its canonical URL route and raw byte length. */
@@ -51,22 +51,21 @@ function checkRealTarget(cwd: string, target: string): ResolveDistResult {
     : { ok: false, reason: `build directory "${target}" is not a directory` };
 }
 
-function realDirCheck(cwd: string, target: string): ResolveDistResult {
+function realDirCheck(cwd: string, target: string, configuredDir: string): ResolveDistResult {
   try {
     return checkRealTarget(cwd, target);
   } catch (error) {
-    return { ok: false, reason: `cannot inspect build directory: ${String(error)}` };
+    return {
+      ok: false,
+      reason: `build directory "${configuredDir}" is missing or unreadable: ${String(error)}`,
+    };
   }
 }
 
 /** Resolves and verifies that the built output directory exists inside `cwd` and is a directory. */
 export function resolveDistDir(cwd: string, configuredDir = "dist"): ResolveDistResult {
   const checked = checkTargetPath(cwd, configuredDir);
-  if (!checked.ok) return checked;
-  if (!existsSync(checked.dir)) {
-    return { ok: false, reason: `build directory "${configuredDir}" is missing` };
-  }
-  return realDirCheck(cwd, checked.dir);
+  return checked.ok ? realDirCheck(cwd, checked.dir, configuredDir) : checked;
 }
 
 /** Canonical URL route for a POSIX path relative to `dist/` (`index.html` -> `/`, `a/index.html` -> `/a/`). */
@@ -74,11 +73,6 @@ export function routeForHtml(relPosix: string): string {
   if (relPosix === "index.html") return "/";
   if (relPosix.endsWith("/index.html")) return `/${relPosix.slice(0, -"index.html".length)}`;
   return `/${relPosix}`;
-}
-
-function cmpPosix(a: string, b: string): number {
-  if (a < b) return -1;
-  return a > b ? 1 : 0;
 }
 
 function visitEntry(base: string, rel: string, out: string[]): void {
@@ -93,10 +87,7 @@ function visitEntry(base: string, rel: string, out: string[]): void {
 
 function walkFiles(base: string, sub: string, out: string[]): void {
   const current = sub === "" ? base : join(base, sub);
-  const entries = readdirSync(current, { withFileTypes: true }).sort((a, b) =>
-    cmpPosix(a.name, b.name),
-  );
-  for (const entry of entries) {
+  for (const entry of readdirSync(current, { withFileTypes: true })) {
     const rel = sub === "" ? entry.name : `${sub}/${entry.name}`;
     visitEntry(base, rel, out);
   }
@@ -106,8 +97,8 @@ function walkFiles(base: string, sub: string, out: string[]): void {
 export function scanDist(distDir: string): DistInventory {
   const raw: string[] = [];
   walkFiles(distDir, "", raw);
-  const files = [...raw].sort(cmpPosix);
-  const pages = files
+  const files = [...raw].sort();
+  const pages: DistPage[] = files
     .filter((file) => file.endsWith(".html"))
     .map((file) => ({
       file,

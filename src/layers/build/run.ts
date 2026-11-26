@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { ExecResult, LayerContext } from "../../gate/types.ts";
 import type { RawFinding } from "../../report/findings.ts";
@@ -89,7 +89,6 @@ function parseArtifactPayload(raw: unknown): DistInventory | undefined {
 
 /** Reads and validates a build inventory artifact JSON written by `buildLayer`. */
 export function readInventoryArtifact(path: string): DistInventory | undefined {
-  if (!existsSync(path)) return undefined;
   try {
     return parseArtifactPayload(JSON.parse(readFileSync(path, "utf8")));
   } catch {

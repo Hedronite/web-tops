@@ -6,10 +6,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import { parseConfig } from "../../config/validate.ts";
 import { toGateConfig } from "../../gate/adapter.ts";
 import { realExec } from "../../gate/exec.ts";
-import { runGate } from "../../gate/runner.ts";
+import { runGate, type RunInput } from "../../gate/runner.ts";
 import { cfg, opts, tempProject, tickingClock } from "../../gate/testkit.ts";
 import { REAL_TOOL_TIMEOUT } from "../../gate/test-support-timeouts.ts";
 import type { Exec, GateConfig, Layer, LayerContext } from "../../gate/types.ts";
+import { checkTargetPath, type ResolveDistResult } from "./inventory.ts";
+import type { BuildRunResult } from "./run.ts";
+import { acceptsBrotli } from "./server.ts";
 import {
   BROTLI_OPTIONS,
   buildLayer,
@@ -23,6 +26,23 @@ import {
   startStaticServer,
   type DistInventory,
 } from "./index.ts";
+
+function expectDistFail(result: ResolveDistResult, substring: string): void {
+  expect(result.ok).toBe(false);
+  if (!result.ok) expect(result.reason).toContain(substring);
+}
+
+function expectBuildFail(
+  result: BuildRunResult | undefined,
+  rule: string,
+  substring: string,
+): void {
+  if (result === undefined || result.ok) {
+    expect.unreachable("expected failed build result");
+  }
+  expect(result.findings[0]).toMatchObject({ rule });
+  expect(result.reason).toContain(substring);
+}
 
 const cleanups: (() => Promise<void> | void)[] = [];
 
@@ -173,36 +193,70 @@ async function fetchThroughServer(
 describe("M4 G1: dist page inventory and path validation", () => {
   it("maps nested HTML files to deterministic routes and byte counts", () => {
     const { dir } = makeProject();
+    put(dir, "dist/z.html", "<!doctype html><h1>Z</h1>");
     put(dir, "dist/index.html", "<!doctype html><h1>Home</h1>");
     put(dir, "dist/docs/index.html", "<!doctype html><h1>Docs</h1>");
+    put(dir, "dist/a/sub.html", "<!doctype html><h1>Sub</h1>");
+    put(dir, "dist/a-file.html", "<!doctype html><h1>Dash</h1>");
     put(dir, "dist/404.html", "<!doctype html><h1>Missing</h1>");
     put(dir, "dist/assets/app.js", "console.log(1);\n");
     const outside = put(dir, "outside.html", "<p>secret</p>");
     symlinkSync(outside, join(dir, "dist/escape.html"));
 
-    const resolved = resolveDistDir(dir, "dist");
+    expect(buildLayer.classes).toEqual(["ui-components", "astro-site", "web-app"]);
+    expect(buildLayer.requires).toEqual([]);
+    expect(buildLayer.produces).toEqual(["inventory"]);
+
+    const resolved = resolveDistDir(dir);
     expect(resolved.ok).toBe(true);
     if (!resolved.ok) return;
     const inv = scanDist(resolved.dir);
     expect(inv.pages.map((p) => [p.file, p.route])).toEqual([
       ["404.html", "/404.html"],
+      ["a-file.html", "/a-file.html"],
+      ["a/sub.html", "/a/sub.html"],
       ["docs/index.html", "/docs/"],
       ["index.html", "/"],
+      ["z.html", "/z.html"],
     ]);
-    expect(inv.files).toEqual(["404.html", "assets/app.js", "docs/index.html", "index.html"]);
+    expect(inv.files).toEqual([
+      "404.html",
+      "a-file.html",
+      "a/sub.html",
+      "assets/app.js",
+      "docs/index.html",
+      "index.html",
+      "z.html",
+    ]);
     expect(routeForHtml("a/b/c.html")).toBe("/a/b/c.html");
   });
 
-  it("rejects missing, non-directory, absolute, and parent-escaping build paths", () => {
+  it("rejects missing, non-directory, empty, self, absolute, and escaping build paths", () => {
     const { dir } = makeProject();
-    expect(resolveDistDir(dir, "dist").ok).toBe(false);
+    const failWith = (sub: string | undefined, expected: string) => {
+      expectDistFail(resolveDistDir(dir, sub), expected);
+    };
+    expect(checkTargetPath(dir)).toEqual({ ok: true, dir: join(dir, "dist") });
+    failWith(undefined, "is missing");
+    for (const bad of ["", "   ", "/tmp"]) failWith(bad, "must be a relative path");
+    for (const esc of [".", "../outside"]) failWith(esc, "escapes project root");
+    symlinkSync(makeProject().dir, join(dir, "linked-out"));
+    failWith("linked-out", "resolves outside project root");
     put(dir, "dist", "not a directory");
-    expect(resolveDistDir(dir, "dist").ok).toBe(false);
-    expect(resolveDistDir(dir, "/tmp").ok).toBe(false);
-    expect(resolveDistDir(dir, "../outside").ok).toBe(false);
-    const external = makeProject().dir;
-    symlinkSync(external, join(dir, "linked-out"));
-    expect(resolveDistDir(dir, "linked-out").ok).toBe(false);
+    failWith("dist", "is not a directory");
+    mkdirSync(join(dir, "out"));
+    expect(resolveDistDir(dir, "  out  ").ok).toBe(true);
+  });
+
+  it("resolves default build dir without command in toGateConfig", () => {
+    const parsed = parseConfig(
+      'protocol: "0.3.0"\nversion: "1.0.0"\npackage: p\nclass: web-app\nenforce: hard\nbuild: {}\n',
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const gateCfg = toGateConfig(parsed.value, { dependsOnAstro: false });
+    expect(gateCfg.build).toEqual({ dir: "dist" });
+    expect("command" in (gateCfg.build ?? {})).toBe(false);
   });
 });
 
@@ -284,17 +338,31 @@ describe("M4 G1: fail-closed build and inventory guards", () => {
     expect(report.passed).toBe(false);
     expect(report.exit_code).toBe(1);
     expect(ranDownstream).toBe(false);
-    expect(report.layers.find((l) => l.id === "build")?.verdict).toBe("fail");
-    expect(report.layers.find((l) => l.id === "downstream")?.verdict).toBe("not-run");
+    expect(report.layers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "build",
+          verdict: "fail",
+          findings: [expect.objectContaining({ rule: "build-missing-dist" })],
+        }),
+        expect.objectContaining({ id: "downstream", verdict: "not-run" }),
+      ]),
+    );
     expect(existsSync(join(dir, ".web-tops/out/build/inventory.json"))).toBe(false);
   });
 
   it.each([
-    ["exits non-zero", { code: 2, stdout: "", stderr: "boom" }, "boom"],
+    ["exits non-zero with stderr", { code: 2, stdout: "", stderr: "  boom  " }, "exit 2: boom)"],
+    [
+      "exits non-zero with multi-line stdout",
+      { code: 1, stdout: "l1\nl2\nl3\nl4\n", stderr: "  \n  " },
+      "exit 1: l2 | l3 | l4)",
+    ],
+    ["exits null without output", { code: null, stdout: "", stderr: "" }, "(exit null)"],
     [
       "times out",
       { code: null, stdout: "", stderr: "", failure: "tool-timeout" as const },
-      "tool-timeout",
+      "(tool-timeout)",
     ],
   ])("fails closed when build command %s", async (_what, result, expected) => {
     const { dir } = makeProject();
@@ -303,20 +371,96 @@ describe("M4 G1: fail-closed build and inventory guards", () => {
     const report = await runWith([buildLayer], gateConfig, dir, () => Promise.resolve(result));
     expect(report.passed).toBe(false);
     const buildEntry = report.layers.find((l) => l.id === "build");
+    expect(buildEntry?.findings[0]?.rule).toBe("build-command");
     expect(buildEntry?.findings.map((f) => f.message).join("\n")).toContain(expected);
+  });
+
+  it("fails closed with build-path and build-artifact for invalid dir or unreadable handoff", async () => {
+    const { dir } = makeProject();
+    const badPath = await runWith(
+      [buildLayer],
+      cfg({ class: "web-app", build: { dir: "../bad" } }),
+      dir,
+      () => Promise.resolve({ code: 0, stdout: "", stderr: "" }),
+    );
+    expect(badPath.passed).toBe(false);
+    expect(badPath.layers).toEqual([
+      expect.objectContaining({
+        id: "build",
+        findings: [expect.objectContaining({ rule: "build-path" })],
+      }),
+    ]);
+
+    const handoffLayer: Layer = {
+      id: "bad-handoff",
+      gate: 6,
+      tier: 1,
+      classes: ["web-app"],
+      requires: [],
+      produces: ["inventory"],
+      consumes: [],
+      run: () =>
+        Promise.resolve({
+          verdict: "pass",
+          findings: [],
+          artifacts: {
+            inventory: put(dir, ".web-tops/out/bad-handoff/corrupt-inventory.json", "{not json"),
+          },
+        }),
+    };
+    let handedResult: Awaited<ReturnType<typeof ensureBuild>> | undefined;
+    const readerLayer: Layer = {
+      id: "reader",
+      gate: 6,
+      tier: 1,
+      classes: ["web-app"],
+      requires: ["bad-handoff"],
+      produces: [],
+      consumes: [{ artifact: "inventory", from: "bad-handoff" }],
+      run: async (context) => {
+        handedResult = await ensureBuild(context);
+        return { verdict: "pass", findings: [], artifacts: {} };
+      },
+    };
+    await runWith([handoffLayer, readerLayer], cfg({ class: "web-app" }), dir, () =>
+      Promise.resolve({ code: 0, stdout: "", stderr: "" }),
+    );
+    expectBuildFail(handedResult, "build-artifact", "handed-off build inventory");
   });
 
   it("rejects unreadable or malformed inventory artifacts", () => {
     const { dir } = makeProject();
     expect(readInventoryArtifact(join(dir, "missing.json"))).toBeUndefined();
-    const bad = put(dir, "bad.json", "{not json");
-    expect(readInventoryArtifact(bad)).toBeUndefined();
-    const wrong = put(
-      dir,
-      "wrong.json",
-      JSON.stringify({ version: 2, distDir: "x", pages: [], files: [] }),
+    const file = put(dir, "bad.json", "{not json");
+    expect(readInventoryArtifact(file)).toBeUndefined();
+    for (const payload of [
+      null,
+      [],
+      123,
+      { version: 2, distDir: "x", pages: [], files: [] },
+      { version: 1, distDir: 1, pages: [], files: [] },
+      { version: 1, distDir: "x", pages: "bad", files: [] },
+      { version: 1, distDir: "x", pages: [null], files: [] },
+      { version: 1, distDir: "x", pages: [[]], files: [] },
+      { version: 1, distDir: "x", pages: [{ file: 1, route: "/", bytes: 0 }], files: [] },
+      { version: 1, distDir: "x", pages: [{ file: "a", route: 1, bytes: 0 }], files: [] },
+      { version: 1, distDir: "x", pages: [{ file: "a", route: "/", bytes: "0" }], files: [] },
+      { version: 1, distDir: "x", pages: [], files: "bad" },
+      { version: 1, distDir: "x", pages: [], files: [123] },
+    ]) {
+      writeFileSync(file, JSON.stringify(payload));
+      expect(readInventoryArtifact(file)).toBeUndefined();
+    }
+    writeFileSync(
+      file,
+      JSON.stringify({
+        version: 1,
+        distDir: "dist",
+        pages: [{ file: "index.html", route: "/", bytes: 5 }],
+        files: ["index.html"],
+      }),
     );
-    expect(readInventoryArtifact(wrong)).toBeUndefined();
+    expect(readInventoryArtifact(file)?.distDir).toBe("dist");
   });
 });
 
@@ -352,36 +496,97 @@ describe("M4 G1: static server on 127.0.0.1:0 with fixed brotli and deterministi
     expect(brReply.body.equals(brotliCompressSync(Buffer.from(appJs), BROTLI_OPTIONS))).toBe(true);
     expect(brotliDecompressSync(brReply.body).toString("utf8")).toBe(appJs);
 
-    expect((await requestRaw(`${server.origin}/docs`)).status).toBe(200);
+    expect(plain.headers["cache-control"]).toBe("no-store");
+    expect((await requestRaw(`${server.origin}/docs?q=1`)).status).toBe(200);
+    expect((await requestRaw(`${server.origin}//docs//`)).status).toBe(200);
     expect((await requestRaw(`${server.origin}/about`)).status).toBe(200);
     const head = await requestRaw(`${server.origin}/`, { method: "HEAD" });
     expect(head.status).toBe(200);
     expect(head.body.length).toBe(0);
+    expect(head.headers["content-length"]).toBe(String(Buffer.byteLength(indexHtml)));
 
-    expect((await requestRaw(`${server.origin}/missing.txt`)).status).toBe(404);
+    const notFound = await requestRaw(`${server.origin}/missing.txt`);
+    expect(notFound.status).toBe(404);
+    expect(notFound.headers["content-type"]).toBe("text/plain; charset=utf-8");
     expect((await requestRaw(`${server.origin}/leak.txt`)).status).toBe(404);
     expect((await requestRaw(server.origin, { rawPath: "/%2e%2e/secret.txt" })).status).toBe(400);
+    expect((await requestRaw(server.origin, { rawPath: "/./about.html" })).status).toBe(400);
     expect((await requestRaw(server.origin, { rawPath: "/../secret.txt" })).status).toBe(400);
+    expect((await requestRaw(server.origin, { rawPath: "/%ff" })).status).toBe(400);
     expect((await requestRaw(`${server.origin}/../secret.txt`)).status).toBe(404);
-    expect((await requestRaw(`${server.origin}/`, { method: "POST" })).status).toBe(405);
-    expect(mimeType("file.unknown")).toBe("application/octet-stream");
+    const notAllowed = await requestRaw(`${server.origin}/`, { method: "POST" });
+    expect(notAllowed.status).toBe(405);
+    expect(notAllowed.body.toString("utf8")).toBe("Method Not Allowed");
+
+    expect(acceptsBrotli(undefined)).toBe(false);
+    expect(acceptsBrotli("gzip, deflate")).toBe(false);
+    expect(acceptsBrotli("br;q=0")).toBe(false);
+    expect(acceptsBrotli("br; q=0.5")).toBe(true);
+    expect(acceptsBrotli(["gzip", "br"])).toBe(true);
+    const expectedMimes: readonly [string, string][] = [
+      ["a.html", "text/html; charset=utf-8"],
+      ["A.HTML", "text/html; charset=utf-8"],
+      ["a.js", "text/javascript; charset=utf-8"],
+      ["a.mjs", "text/javascript; charset=utf-8"],
+      ["a.css", "text/css; charset=utf-8"],
+      ["a.json", "application/json; charset=utf-8"],
+      ["a.svg", "image/svg+xml"],
+      ["a.png", "image/png"],
+      ["a.jpg", "image/jpeg"],
+      ["a.jpeg", "image/jpeg"],
+      ["a.webp", "image/webp"],
+      ["a.woff2", "font/woff2"],
+      ["a.wasm", "application/wasm"],
+      ["a.txt", "text/plain; charset=utf-8"],
+      ["a.xml", "application/xml; charset=utf-8"],
+      ["file.unknown", "application/octet-stream"],
+    ];
+    for (const [extFile, mime] of expectedMimes) {
+      expect(mimeType(extFile), extFile).toBe(mime);
+    }
   });
 
-  it("rejects non-directory dist targets and malformed inventory artifacts", () => {
+  it("drains cleanups in LIFO order once per gate run", async () => {
     const { dir } = makeProject();
-    put(dir, "dist", "not a directory");
-    expect(resolveDistDir(dir, "dist").ok).toBe(false);
-
-    const artifact = put(
-      dir,
-      "bad.json",
-      JSON.stringify({ version: 1, distDir: "x", pages: "bad", files: [] }),
-    );
-    expect(readInventoryArtifact(artifact)).toBeUndefined();
-    writeFileSync(artifact, JSON.stringify({ version: 1, distDir: "x", pages: [{}], files: [] }));
-    expect(readInventoryArtifact(artifact)).toBeUndefined();
-    writeFileSync(artifact, JSON.stringify({ version: 1, distDir: "x", pages: [], files: [123] }));
-    expect(readInventoryArtifact(artifact)).toBeUndefined();
+    const order: string[] = [];
+    let register = true;
+    const cleanupLayer: Layer = {
+      id: "clean",
+      gate: 6,
+      tier: 1,
+      classes: ["web-app"],
+      requires: [],
+      produces: [],
+      consumes: [],
+      run: (context) => {
+        if (register) {
+          context.onCleanup?.(() => {
+            order.push("first");
+            return Promise.resolve();
+          });
+          context.onCleanup?.(() => {
+            order.push("second");
+            return Promise.resolve();
+          });
+        }
+        return Promise.resolve({ verdict: "pass", findings: [], artifacts: {} });
+      },
+    };
+    const input: RunInput = {
+      layers: [cleanupLayer],
+      config: cfg({ class: "web-app" }),
+      options: opts(),
+      cwd: dir,
+      env: process.env,
+      exec: () => Promise.resolve({ code: 0, stdout: "", stderr: "" }),
+      outDir: join(dir, ".web-tops", "out"),
+      now: tickingClock(),
+    };
+    await runGate(input);
+    expect(order).toEqual(["second", "first"]);
+    register = false;
+    await runGate(input);
+    expect(order).toEqual(["second", "first"]);
   });
 
   it("shares one static server across downstream layers and tears down sockets even if a layer throws", async () => {
