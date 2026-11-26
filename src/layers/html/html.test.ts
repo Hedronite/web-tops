@@ -293,6 +293,42 @@ describe("html layer, a run that did not answer for every page", () => {
     });
   });
 
+  it("keeps every error that differs in file, line, column or rule, and one of each that does not", async () => {
+    const context = await built(project({ "dist/index.html": ASTRO }));
+    const at = (line: number, column: number, ruleId: string): object => ({
+      severity: 2,
+      ruleId,
+      line,
+      column,
+      message: "m",
+    });
+    const here = [at(1, 1, "a"), at(2, 1, "a"), at(1, 2, "a"), at(1, 1, "b"), at(1, 1, "a")];
+    const answer = JSON.stringify([
+      { law: "W-20", file: "index.html", messages: here },
+      { law: "W-22", file: "other.html", messages: [at(1, 1, "a")] },
+    ]);
+    const result = await htmlLayer().run({ ...context, exec: answering(0, answer) });
+    expect(
+      result.findings.map((finding) => [finding.law, finding.rule, finding.file, finding.message]),
+    ).toEqual([
+      ["W-20", "html-validate:a", "dist/index.html", "m (line 1, column 1)"],
+      ["W-20", "html-validate:a", "dist/index.html", "m (line 2, column 1)"],
+      ["W-20", "html-validate:a", "dist/index.html", "m (line 1, column 2)"],
+      ["W-20", "html-validate:b", "dist/index.html", "m (line 1, column 1)"],
+      ["W-22", "html-validate:a", "dist/other.html", "m (line 1, column 1)"],
+    ]);
+  });
+
+  it("writes its request and its report under its own directory, making the directories it needs", async () => {
+    const dir = project({ "dist/index.html": ASTRO });
+    const context = await built(dir);
+    const outDir = join(dir, "not", "yet", "there");
+    const result = await htmlLayer().run({ ...context, outDir });
+    expect(result.verdict).toBe("pass");
+    expect(existsSync(join(outDir, "html", "request.json"))).toBe(true);
+    expect(result.artifacts["html-report"]).toBe(join(outDir, "html", "report.json"));
+  });
+
   it("counts only errors, not warnings", async () => {
     const context = await built(project({ "dist/index.html": ASTRO }));
     const warning = { severity: 1, ruleId: "x", line: 1, column: 1, message: "m" };
@@ -315,6 +351,10 @@ describe("html layer, a run that did not answer for every page", () => {
     expect(asked).toEqual([HTML_TIMEOUT_MS]);
     expect(HTML_TIMEOUT_MS).toBe(120_000);
     expect(readFileSync(join(context.cwd, "asked"), "utf8")).toBe("node 2\n");
-    expect(result).toMatchObject({ verdict: "fail", findings: [{ rule: "tool-timeout" }] });
+    expect(result).toMatchObject({
+      verdict: "fail",
+      reason: "html-validate did not finish in time and was killed",
+      findings: [{ rule: "tool-timeout" }],
+    });
   });
 });

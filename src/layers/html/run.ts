@@ -11,7 +11,6 @@ import {
   records,
   relativeTo,
   resolveTool,
-  str,
   tail,
 } from "../hygiene/tooling.ts";
 import { passes } from "./passes.ts";
@@ -42,19 +41,19 @@ const errorsOf = (result: Record<string, unknown>): HtmlError[] =>
   records(result["messages"])
     .filter((message) => message["severity"] === 2)
     .map((message) => ({
-      law: str(result["law"], ""),
-      file: str(result["file"], ""),
+      law: String(result["law"]),
+      file: String(result["file"]),
       line: Number(message["line"]),
       column: Number(message["column"]),
-      rule: str(message["ruleId"], ""),
-      message: str(message["message"], ""),
+      rule: String(message["ruleId"]),
+      message: String(message["message"]),
     }));
 
 /** A rule both runs hold (`no-dup-id`, for one) is reported once, under the law of the first run that found it. */
 function once(errors: readonly HtmlError[]): HtmlError[] {
   const seen = new Map<string, HtmlError>();
   for (const error of errors) {
-    const key = [error.file, error.line, error.column, error.rule].join("\0");
+    const key = JSON.stringify([error.file, error.line, error.column, error.rule]);
     seen.set(key, seen.get(key) ?? error);
   }
   return [...seen.values()];
