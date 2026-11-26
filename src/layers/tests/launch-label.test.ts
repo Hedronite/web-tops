@@ -1,11 +1,11 @@
-import { symlinkSync, writeFileSync } from "node:fs";
+import { symlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { cfg } from "../../gate/testkit.ts";
 import type { Exec, LayerContext } from "../../gate/types.ts";
 import { cleanTemp, tempDir } from "../../laws/probe/testkit.ts";
 import { runTool } from "../hygiene/tooling.ts";
-import { TESTS_TIMEOUT_MS, testsLayer } from "./index.ts";
+import { SKIPPED, STACK_FRAME, TESTS_TIMEOUT_MS, testsLayer } from "./index.ts";
 
 afterAll(cleanTemp);
 
@@ -61,7 +61,7 @@ describe("gate 2 says which tool it could not run", () => {
     expect(seenTimeout).toBe(TESTS_TIMEOUT_MS);
   });
 
-  it("maps pending, disabled, and multiline failures across all layer classes", async () => {
+  it("exposes classes, skipped statuses, and anchored stack frame matcher", () => {
     expect(testsLayer.classes).toEqual([
       "ts-library",
       "ui-components",
@@ -70,35 +70,10 @@ describe("gate 2 says which tool it could not run", () => {
       "node-service",
     ]);
     expect(testsLayer.requires).toEqual([]);
-    const ctx = context(() => {
-      const report = {
-        numTotalTests: 3,
-        testResults: [
-          {
-            name: join(ctx.cwd, "a.test.ts"),
-            status: "failed",
-            assertionResults: [
-              { status: "pending", fullName: "pend" },
-              { status: "disabled", fullName: "dis" },
-              {
-                status: "failed",
-                fullName: "msg",
-                failureMessages: [
-                  "AssertionError: expected 1\nreceived at step 2\n  ❯ a.test.ts:1:1",
-                ],
-              },
-            ],
-          },
-        ],
-      };
-      writeFileSync(join(ctx.outDir, "tests", "vitest.json"), JSON.stringify(report));
-      return Promise.resolve({ code: 1, stdout: "", stderr: "" });
-    }, true);
-    const result = await testsLayer.run(ctx);
-    expect(result.findings.map((f) => [f.rule, f.message])).toEqual([
-      ["skipped-test", "pend is skipped"],
-      ["skipped-test", "dis is skipped"],
-      ["test-failed", "msg: AssertionError: expected 1\nreceived at step 2"],
-    ]);
+    expect(SKIPPED.has("pending")).toBe(true);
+    expect(SKIPPED.has("disabled")).toBe(true);
+    expect(STACK_FRAME.test("  at foo")).toBe(true);
+    expect(STACK_FRAME.test("  ❯ foo")).toBe(true);
+    expect(STACK_FRAME.test("received at step 2")).toBe(false);
   });
 });

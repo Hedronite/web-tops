@@ -22,7 +22,7 @@ import {
 } from "../hygiene/tooling.ts";
 
 const FOCUSED = /\.only/u;
-const SKIPPED: ReadonlySet<string> = new Set(["skipped", "pending", "disabled"]);
+export const SKIPPED: ReadonlySet<string> = new Set(["skipped", "pending", "disabled"]);
 
 /** The project's Vitest config, found as Vitest finds it: `vitest.config.*` before `vite.config.*`. */
 const CONFIG_FILES = ["vitest.config", "vite.config"].flatMap((base) =>
@@ -115,7 +115,7 @@ function head(text: string, lines: number): string {
     .join("\n");
 }
 
-const STACK_FRAME = /^\s*(?:at |❯)/u;
+export const STACK_FRAME = /^\s*(?:at |❯)/u;
 
 /** What a failed assertion says: the lines before its stack, so the finding quotes the assertion and not the frames. */
 function assertion(messages: string): string {
