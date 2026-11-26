@@ -93,6 +93,10 @@ export interface LayerContext {
   readonly shard?: ShardSpec;
   /** `--join <dir>`: when set, the mutation layer joins partial artifacts from `<dir>` instead of running Stryker. */
   readonly joinDir?: string;
+  /** Per-run in-memory cache shared across layers in a single `runGate` call. */
+  readonly runCache?: Map<string, unknown>;
+  /** Registers deterministic teardown hooks drained when `runGate` completes. */
+  readonly onCleanup?: (close: () => Promise<void>) => void;
 }
 
 /** An input a layer reads: the artifact's name and the layer that produces it (R29 N5, WEB_TOPS.md section 3.1). */
@@ -126,6 +130,11 @@ export interface Toggle {
   readonly enabled: boolean;
   /** Required by the schema when `enabled` is false. */
   readonly reason?: string;
+}
+
+export interface BuildSettings {
+  readonly command?: string;
+  readonly dir: string;
 }
 
 export interface CustomLayer {
@@ -228,6 +237,7 @@ export interface GateConfig {
   readonly coverage: CoverageSettings;
   readonly crap: CrapSettings;
   readonly mutation: MutationSettings;
+  readonly build?: BuildSettings;
 }
 
 export interface ShardSpec {

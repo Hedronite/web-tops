@@ -1,0 +1,203 @@
+import { existsSync, realpathSync, readFileSync, statSync } from "node:fs";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import type { Socket } from "node:net";
+import { extname, join } from "node:path";
+import { brotliCompressSync, constants } from "node:zlib";
+import { isWithinDir } from "./inventory.ts";
+
+/** Fixed brotli settings specified by WEB_TOPS.md §7 (quality 11, window 22 bits). */
+export const BROTLI_OPTIONS = {
+  params: {
+    [constants.BROTLI_PARAM_QUALITY]: 11,
+    [constants.BROTLI_PARAM_LGWIN]: 22,
+  },
+} as const;
+
+export interface StaticServer {
+  readonly origin: string;
+  readonly port: number;
+  readonly close: () => Promise<void>;
+}
+
+const MIME_TYPES = new Map<string, string>([
+  [".html", "text/html; charset=utf-8"],
+  [".js", "text/javascript; charset=utf-8"],
+  [".mjs", "text/javascript; charset=utf-8"],
+  [".css", "text/css; charset=utf-8"],
+  [".json", "application/json; charset=utf-8"],
+  [".svg", "image/svg+xml"],
+  [".png", "image/png"],
+  [".jpg", "image/jpeg"],
+  [".jpeg", "image/jpeg"],
+  [".webp", "image/webp"],
+  [".woff2", "font/woff2"],
+  [".wasm", "application/wasm"],
+  [".txt", "text/plain; charset=utf-8"],
+  [".xml", "application/xml; charset=utf-8"],
+]);
+
+/** MIME content type for a static `dist/` asset path. */
+export function mimeType(filePath: string): string {
+  return MIME_TYPES.get(extname(filePath).toLowerCase()) ?? "application/octet-stream";
+}
+
+function isBrToken(part: string): boolean {
+  const [name, ...params] = part.trim().toLowerCase().split(";");
+  if (name !== "br") return false;
+  return !params.some((param) => param.trim() === "q=0");
+}
+
+/** Whether `Accept-Encoding` requests brotli (`br`) with a non-zero quality. */
+export function acceptsBrotli(header: string | string[] | undefined): boolean {
+  const raw = Array.isArray(header) ? header.join(",") : (header ?? "");
+  return raw.split(",").some(isBrToken);
+}
+
+function decodePathname(rawUrl: string): string | undefined {
+  try {
+    const [rawPath = "/"] = rawUrl.split("?");
+    const pathname = decodeURIComponent(rawPath);
+    return pathname.includes("\0") ? undefined : pathname;
+  } catch {
+    return undefined;
+  }
+}
+
+function safeSegments(pathname: string): string[] | undefined {
+  const trimmed = pathname.replace(/^\/+/u, "");
+  if (trimmed === "") return [];
+  const parts = trimmed.split("/").filter((part) => part !== "");
+  return parts.some((part) => part === "." || part === "..") ? undefined : parts;
+}
+
+function isSafeFile(realRoot: string, candidate: string): string | undefined {
+  const resolved = realpathSync(candidate);
+  if (!isWithinDir(realRoot, resolved)) return undefined;
+  return statSync(resolved).isFile() ? resolved : undefined;
+}
+
+function existingFile(realRoot: string, candidate: string): string | undefined {
+  if (!existsSync(candidate)) return undefined;
+  try {
+    return isSafeFile(realRoot, candidate);
+  } catch {
+    return undefined;
+  }
+}
+
+function candidatesFor(realRoot: string, parts: readonly string[]): string[] {
+  if (parts.length === 0) return [join(realRoot, "index.html")];
+  const base = join(realRoot, ...parts);
+  return [base, join(base, "index.html"), `${base}.html`];
+}
+
+type ServedLookup =
+  { readonly kind: "ok"; readonly file: string } | { readonly kind: "bad" | "missing" };
+
+function findCandidate(realRoot: string, parts: readonly string[]): ServedLookup {
+  for (const candidate of candidatesFor(realRoot, parts)) {
+    const found = existingFile(realRoot, candidate);
+    if (found !== undefined) return { kind: "ok", file: found };
+  }
+  return { kind: "missing" };
+}
+
+function resolveServedFile(realRoot: string, rawUrl: string): ServedLookup {
+  const pathname = decodePathname(rawUrl);
+  if (pathname === undefined) return { kind: "bad" };
+  const parts = safeSegments(pathname);
+  return parts === undefined ? { kind: "bad" } : findCandidate(realRoot, parts);
+}
+
+function sendText(res: ServerResponse, status: number, text: string): void {
+  res.writeHead(status, { "Content-Type": "text/plain; charset=utf-8" });
+  res.end(text);
+}
+
+function sendFile(file: string, method: string, req: IncomingMessage, res: ServerResponse): void {
+  const raw = readFileSync(file);
+  const br = acceptsBrotli(req.headers["accept-encoding"]);
+  const body = br ? brotliCompressSync(raw, BROTLI_OPTIONS) : raw;
+  res.writeHead(200, {
+    "Content-Type": mimeType(file),
+    "Content-Length": body.length,
+    "Cache-Control": "no-store",
+    Vary: "Accept-Encoding",
+    ...(br ? { "Content-Encoding": "br" } : {}),
+  });
+  res.end(method === "HEAD" ? undefined : body);
+}
+
+const LOOKUP_ERROR = { bad: [400, "Bad Request"], missing: [404, "Not Found"] } as const;
+
+function handleLookup(
+  resolved: ServedLookup,
+  method: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+): void {
+  if (resolved.kind === "ok") {
+    sendFile(resolved.file, method, req, res);
+    return;
+  }
+  const [status, text] = LOOKUP_ERROR[resolved.kind];
+  sendText(res, status, text);
+}
+
+const ALLOWED_METHODS = new Set(["GET", "HEAD"]);
+
+function handleRequest(realRoot: string, req: IncomingMessage, res: ServerResponse): void {
+  const method = req.method ?? "GET";
+  if (!ALLOWED_METHODS.has(method)) {
+    sendText(res, 405, "Method Not Allowed");
+    return;
+  }
+  handleLookup(resolveServedFile(realRoot, req.url ?? "/"), method, req, res);
+}
+
+function closeServer(
+  server: ReturnType<typeof createServer>,
+  sockets: Set<Socket>,
+): () => Promise<void> {
+  let closing: Promise<void> | undefined;
+  return () => {
+    if (closing !== undefined) return closing;
+    closing = new Promise<void>((resolve) => {
+      server.close(() => {
+        resolve();
+      });
+      server.closeAllConnections();
+      for (const socket of sockets) socket.destroy();
+    });
+    return closing;
+  };
+}
+
+/** Starts a local static HTTP server on `127.0.0.1` ephemeral port `0` with fixed brotli support. */
+export function startStaticServer(distDir: string): Promise<StaticServer> {
+  const realRoot = realpathSync(distDir);
+  const sockets = new Set<Socket>();
+  const server = createServer((req, res) => {
+    handleRequest(realRoot, req, res);
+  });
+  server.on("connection", (socket) => {
+    sockets.add(socket);
+    socket.on("close", () => {
+      sockets.delete(socket);
+    });
+  });
+  const close = closeServer(server, sockets);
+  return new Promise<StaticServer>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const addr = server.address();
+      if (addr === null || typeof addr === "string") {
+        void close().finally(() => {
+          reject(new Error("failed to bind ephemeral loopback port"));
+        });
+        return;
+      }
+      resolve({ origin: `http://127.0.0.1:${String(addr.port)}`, port: addr.port, close });
+    });
+  });
+}
