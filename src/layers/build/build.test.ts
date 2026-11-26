@@ -1,9 +1,18 @@
-import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { Agent, request as httpRequest } from "node:http";
+import { createConnection } from "node:net";
 import { dirname, join } from "node:path";
 import { brotliCompressSync, brotliDecompressSync } from "node:zlib";
 import { afterEach, describe, expect, it } from "vitest";
 import { parseConfig } from "../../config/validate.ts";
+import { readBaseline } from "../../baseline/read.ts";
 import { toGateConfig } from "../../gate/adapter.ts";
 import { realExec } from "../../gate/exec.ts";
 import { runGate, type RunInput } from "../../gate/runner.ts";
@@ -12,7 +21,13 @@ import { REAL_TOOL_TIMEOUT } from "../../gate/test-support-timeouts.ts";
 import type { Exec, GateConfig, Layer, LayerContext } from "../../gate/types.ts";
 import { checkTargetPath, type ResolveDistResult } from "./inventory.ts";
 import type { BuildRunResult } from "./run.ts";
-import { acceptsBrotli } from "./server.ts";
+import {
+  acceptsBrotli,
+  handleRequest,
+  listenStaticServer,
+  type BindableServer,
+  type StaticResponse,
+} from "./server.ts";
 import {
   BROTLI_OPTIONS,
   buildLayer,
@@ -364,6 +379,11 @@ describe("M4 G1: fail-closed build and inventory guards", () => {
       { code: null, stdout: "", stderr: "", failure: "tool-timeout" as const },
       "(tool-timeout)",
     ],
+    [
+      "reports failure even when code is 0",
+      { code: 0, stdout: "", stderr: "", failure: "tool-timeout" as const },
+      "(tool-timeout)",
+    ],
   ])("fails closed when build command %s", async (_what, result, expected) => {
     const { dir } = makeProject();
     put(dir, "dist/index.html", "<h1>stale</h1>");
@@ -521,6 +541,7 @@ describe("M4 G1: static server on 127.0.0.1:0 with fixed brotli and deterministi
     expect(acceptsBrotli(undefined)).toBe(false);
     expect(acceptsBrotli("gzip, deflate")).toBe(false);
     expect(acceptsBrotli("br;q=0")).toBe(false);
+    expect(acceptsBrotli("br; q=0")).toBe(false);
     expect(acceptsBrotli("br; q=0.5")).toBe(true);
     expect(acceptsBrotli(["gzip", "br"])).toBe(true);
     const expectedMimes: readonly [string, string][] = [
@@ -619,5 +640,89 @@ describe("M4 G1: static server on 127.0.0.1:0 with fixed brotli and deterministi
     expect(origins).toHaveLength(2);
     expect(origins[0]).toBe(origins[1]);
     await expect(requestRaw(`${origins[0] ?? ""}/`)).rejects.toThrow();
+  });
+
+  it("falls back to GET / in handleRequest and force-closes idle sockets on server.close()", async () => {
+    const { dir } = makeProject();
+    put(dir, "dist/index.html", "<h1>Fallback</h1>");
+    let statusCode = 0;
+    let endedBody = "";
+    const fakeRes: StaticResponse = {
+      writeHead: (code) => {
+        statusCode = code;
+      },
+      end: (chunk) => {
+        endedBody = chunk === undefined ? "" : String(chunk);
+      },
+    };
+    handleRequest(realpathSync(join(dir, "dist")), { headers: {} }, fakeRes);
+    expect(statusCode).toBe(200);
+    expect(endedBody).toBe("<h1>Fallback</h1>");
+
+    const server = await startStaticServer(join(dir, "dist"));
+    const sock = createConnection({ host: "127.0.0.1", port: server.port });
+    cleanups.push(() => {
+      sock.destroy();
+    });
+    await new Promise<void>((resolve) => {
+      sock.once("connect", () => {
+        resolve();
+      });
+    });
+    await Promise.race([
+      server.close(),
+      new Promise<never>((_resolve, reject) => {
+        setTimeout(() => {
+          reject(new Error("close timeout"));
+        }, 250);
+      }),
+    ]);
+
+    expect(readBaseline(dir, "none.json")).toEqual({
+      ok: false,
+      reason: "none.json cannot be read: the baseline is missing",
+      missing: true,
+    });
+    mkdirSync(join(dir, "subdir"));
+    expect(readBaseline(dir, "subdir")).toEqual({
+      ok: false,
+      reason: "subdir cannot be read",
+    });
+  });
+
+  it("fails closed when listenStaticServer emits error or binds non-TCP address", async () => {
+    let onErr: ((err: Error) => void) | undefined;
+    const errServer: BindableServer = {
+      once: (_ev, fn) => {
+        onErr = fn;
+      },
+      listen: () => {
+        onErr?.(new Error("EADDRINUSE"));
+      },
+      address: () => null,
+      close: (cb) => {
+        cb();
+      },
+      closeAllConnections: () => {},
+    };
+    await expect(listenStaticServer(errServer)).rejects.toThrow("EADDRINUSE");
+
+    let closed = false;
+    const nullAddrServer: BindableServer = {
+      once: () => {},
+      listen: (_p, _h, cb) => {
+        cb();
+      },
+      address: () => null,
+      close: (cb) => {
+        closed = true;
+        cb();
+      },
+      closeAllConnections: () => {},
+    };
+    await expect(listenStaticServer(nullAddrServer)).rejects.toThrow(
+      "failed to bind ephemeral loopback port",
+    );
+    expect(closed).toBe(true);
   });
 });

@@ -26,7 +26,7 @@ const buildPromises = new WeakMap<Map<string, unknown>, Promise<BuildRunResult>>
 const serverPromises = new WeakMap<Map<string, unknown>, Map<string, Promise<StaticServer>>>();
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === "object" && value !== null;
 }
 
 function isPageShape(file: unknown, route: unknown, bytes: unknown): boolean {
@@ -89,11 +89,13 @@ function parseArtifactPayload(raw: unknown): DistInventory | undefined {
 
 /** Reads and validates a build inventory artifact JSON written by `buildLayer`. */
 export function readInventoryArtifact(path: string): DistInventory | undefined {
+  let raw: unknown;
   try {
-    return parseArtifactPayload(JSON.parse(readFileSync(path, "utf8")));
+    raw = JSON.parse(readFileSync(path, "utf8"));
   } catch {
     return undefined;
   }
+  return parseArtifactPayload(raw);
 }
 
 function failResult(rule: string, message: string): BuildRunResult {

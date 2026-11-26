@@ -1,5 +1,5 @@
 import { realpathSync, readFileSync, statSync } from "node:fs";
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createServer } from "node:http";
 import { extname, join } from "node:path";
 import { brotliCompressSync, constants } from "node:zlib";
 import { isWithinDir } from "./inventory.ts";
@@ -11,6 +11,17 @@ export const BROTLI_OPTIONS = {
     [constants.BROTLI_PARAM_LGWIN]: 22,
   },
 } as const;
+
+export interface StaticRequest {
+  readonly method?: string | undefined;
+  readonly url?: string | undefined;
+  readonly headers: { readonly "accept-encoding"?: string | string[] | undefined };
+}
+
+export interface StaticResponse {
+  writeHead(statusCode: number, headers: Readonly<Record<string, string | number>>): unknown;
+  end(chunk?: string | Buffer): unknown;
+}
 
 export interface StaticServer {
   readonly origin: string;
@@ -48,7 +59,8 @@ function isBrToken(part: string): boolean {
 
 /** Whether `Accept-Encoding` requests brotli (`br`) with a non-zero quality. */
 export function acceptsBrotli(header: string | string[] | undefined): boolean {
-  const raw = Array.isArray(header) ? header.join(",") : (header ?? "");
+  if (header === undefined) return false;
+  const raw = Array.isArray(header) ? header.join(",") : header;
   return raw.split(",").some(isBrToken);
 }
 
@@ -67,7 +79,7 @@ function decodePathname(rawUrl: string): string | undefined {
 }
 
 function safeSegments(pathname: string): string[] | undefined {
-  const parts = pathname.split("/").filter((part) => part !== "");
+  const parts = pathname.split("/");
   return parts.some((part) => part === "." || part === "..") ? undefined : parts;
 }
 
@@ -108,12 +120,12 @@ function resolveServedFile(realRoot: string, rawUrl: string): ServedLookup {
   return parts === undefined ? { kind: "bad" } : findCandidate(realRoot, parts);
 }
 
-function sendText(res: ServerResponse, status: number, text: string): void {
+function sendText(res: StaticResponse, status: number, text: string): void {
   res.writeHead(status, { "Content-Type": "text/plain; charset=utf-8" });
   res.end(text);
 }
 
-function sendFile(file: string, req: IncomingMessage, res: ServerResponse): void {
+function sendFile(file: string, req: StaticRequest, res: StaticResponse): void {
   const raw = readFileSync(file);
   const br = acceptsBrotli(req.headers["accept-encoding"]);
   const body = br ? brotliCompressSync(raw, BROTLI_OPTIONS) : raw;
@@ -129,7 +141,7 @@ function sendFile(file: string, req: IncomingMessage, res: ServerResponse): void
 
 const LOOKUP_ERROR = { bad: [400, "Bad Request"], missing: [404, "Not Found"] } as const;
 
-function handleLookup(resolved: ServedLookup, req: IncomingMessage, res: ServerResponse): void {
+function handleLookup(resolved: ServedLookup, req: StaticRequest, res: StaticResponse): void {
   if (resolved.kind === "ok") {
     sendFile(resolved.file, req, res);
     return;
@@ -140,7 +152,7 @@ function handleLookup(resolved: ServedLookup, req: IncomingMessage, res: ServerR
 
 const ALLOWED_METHODS = new Set(["GET", "HEAD"]);
 
-function handleRequest(realRoot: string, req: IncomingMessage, res: ServerResponse): void {
+export function handleRequest(realRoot: string, req: StaticRequest, res: StaticResponse): void {
   const method = req.method ?? "GET";
   if (!ALLOWED_METHODS.has(method)) {
     sendText(res, 405, "Method Not Allowed");
@@ -149,7 +161,15 @@ function handleRequest(realRoot: string, req: IncomingMessage, res: ServerRespon
   handleLookup(resolveServedFile(realRoot, req.url ?? "/"), req, res);
 }
 
-function closeServer(server: ReturnType<typeof createServer>): () => Promise<void> {
+export interface BindableServer {
+  once(event: "error", listener: (error: Error) => void): unknown;
+  listen(port: number, host: string, listener: () => void): unknown;
+  address(): string | { readonly address: string; readonly port: number } | null;
+  close(listener: () => void): unknown;
+  closeAllConnections(): void;
+}
+
+function closeServer(server: BindableServer): () => Promise<void> {
   let closing: Promise<void> | undefined;
   return () => {
     if (closing !== undefined) return closing;
@@ -163,12 +183,8 @@ function closeServer(server: ReturnType<typeof createServer>): () => Promise<voi
   };
 }
 
-/** Starts a local static HTTP server on `127.0.0.1` ephemeral port `0` with fixed brotli support. */
-export function startStaticServer(distDir: string): Promise<StaticServer> {
-  const realRoot = realpathSync(distDir);
-  const server = createServer((req, res) => {
-    handleRequest(realRoot, req, res);
-  });
+/** Binds a `BindableServer` on `127.0.0.1` port `0` and fails closed on bind error or non-TCP address. */
+export function listenStaticServer(server: BindableServer): Promise<StaticServer> {
   const close = closeServer(server);
   return new Promise<StaticServer>((resolve, reject) => {
     server.once("error", reject);
@@ -183,4 +199,13 @@ export function startStaticServer(distDir: string): Promise<StaticServer> {
       resolve({ origin: `http://${addr.address}:${String(addr.port)}`, port: addr.port, close });
     });
   });
+}
+
+/** Starts a local static HTTP server on `127.0.0.1` ephemeral port `0` with fixed brotli support. */
+export function startStaticServer(distDir: string): Promise<StaticServer> {
+  const realRoot = realpathSync(distDir);
+  const server = createServer((req, res) => {
+    handleRequest(realRoot, req, res);
+  });
+  return listenStaticServer(server);
 }

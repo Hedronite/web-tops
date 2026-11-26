@@ -77,7 +77,6 @@ export function routeForHtml(relPosix: string): string {
 
 function visitEntry(base: string, rel: string, out: string[]): void {
   const lstat = lstatSync(join(base, rel));
-  if (lstat.isSymbolicLink()) return;
   if (lstat.isDirectory()) {
     walkFiles(base, rel, out);
     return;
@@ -86,7 +85,7 @@ function visitEntry(base: string, rel: string, out: string[]): void {
 }
 
 function walkFiles(base: string, sub: string, out: string[]): void {
-  const current = sub === "" ? base : join(base, sub);
+  const current = join(base, sub);
   for (const entry of readdirSync(current, { withFileTypes: true })) {
     const rel = sub === "" ? entry.name : `${sub}/${entry.name}`;
     visitEntry(base, rel, out);
