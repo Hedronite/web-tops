@@ -9,9 +9,9 @@ The protocol text is [`WEB_TOPS.md`](WEB_TOPS.md). This file is the harness for 
 
 ## State
 
-Milestone M3: the `webtops` CLI gates this repo on itself and on `examples/node-service`. It runs from source on Bun, not from npm: `bun src/cli/main.ts <command>` for `check`, `gate`, `init`, `report`, `lock`, `doctor`, `version`, `survivors`, `baseline`, `laws`, `acks` and `law-diff`. CI is the one `gate` job (`.github/workflows/web-tops.yml`): it gates the kit, then the example. [`web-tops.yaml`](web-tops.yaml) sets class `ts-library` under `enforce: hard`, with native CRAP, StrykerJS mutation on the diff and the laws layer on. The laws layer judges every required law (22 of 22, printed as N of M). Baseline and ratchet are built. Only build output is off, until M4.
+Milestone M3: the `webtops` CLI gates this repo on itself and on `examples/node-service`. It runs from source on Bun, not from npm: `bun src/cli/main.ts <command>` for `check`, `gate`, `init`, `report`, `lock`, `doctor`, `version`, `survivors`, `baseline`, `laws`, `acks` and `law-diff`. CI (`.github/workflows/web-tops.yml`) runs on Ubuntu and macOS: a `gate-shard` matrix gates the kit with its mutation run split into two shards, then a `gate` job joins the shards into one judgment and gates the example. [`web-tops.yaml`](web-tops.yaml) sets class `ts-library` under `enforce: hard`, with native CRAP, StrykerJS mutation on the diff and the laws layer on. The laws layer judges every required law (22 of 22, printed as N of M). Baseline and ratchet are built. Only build output is off, until M4.
 
-Version 0.3.0 implements protocol 0.3.0 (the 0.1.0 release implements 0.2.1).
+Version 0.4.0 implements protocol 0.3.0 (the 0.1.0 release implements 0.2.1).
 
 Before you finish, from a clean tree: `bun install --frozen-lockfile`, `bun run format:check`, `bun run typecheck`, `bun run lint`, `bun run test`, then `bun src/cli/main.ts gate`. Do not document, run or claim a command that has not landed: build output and the rendered checks are M4 and M5.
 
