@@ -1,4 +1,4 @@
-import { symlinkSync } from "node:fs";
+import { symlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { cfg } from "../../gate/testkit.ts";
@@ -59,5 +59,46 @@ describe("gate 2 says which tool it could not run", () => {
     await testsLayer.run(context(exec));
     expect(TESTS_TIMEOUT_MS).toBe(1_200_000);
     expect(seenTimeout).toBe(TESTS_TIMEOUT_MS);
+  });
+
+  it("maps pending, disabled, and multiline failures across all layer classes", async () => {
+    expect(testsLayer.classes).toEqual([
+      "ts-library",
+      "ui-components",
+      "astro-site",
+      "web-app",
+      "node-service",
+    ]);
+    expect(testsLayer.requires).toEqual([]);
+    const ctx = context(() => {
+      const report = {
+        numTotalTests: 3,
+        testResults: [
+          {
+            name: join(ctx.cwd, "a.test.ts"),
+            status: "failed",
+            assertionResults: [
+              { status: "pending", fullName: "pend" },
+              { status: "disabled", fullName: "dis" },
+              {
+                status: "failed",
+                fullName: "msg",
+                failureMessages: [
+                  "AssertionError: expected 1\nreceived at step 2\n  ❯ a.test.ts:1:1",
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      writeFileSync(join(ctx.outDir, "tests", "vitest.json"), JSON.stringify(report));
+      return Promise.resolve({ code: 1, stdout: "", stderr: "" });
+    }, true);
+    const result = await testsLayer.run(ctx);
+    expect(result.findings.map((f) => [f.rule, f.message])).toEqual([
+      ["skipped-test", "pend is skipped"],
+      ["skipped-test", "dis is skipped"],
+      ["test-failed", "msg: AssertionError: expected 1\nreceived at step 2"],
+    ]);
   });
 });
