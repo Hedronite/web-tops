@@ -709,6 +709,7 @@ describe("M4 G1: static server on 127.0.0.1:0 with fixed brotli and deterministi
     await expect(listenStaticServer(errServer)).rejects.toThrow("EADDRINUSE");
 
     let closed = false;
+    let closedAll = false;
     const nullAddrServer: BindableServer = {
       once: () => {},
       listen: (_p, _h, cb) => {
@@ -719,11 +720,14 @@ describe("M4 G1: static server on 127.0.0.1:0 with fixed brotli and deterministi
         closed = true;
         cb();
       },
-      closeAllConnections: () => {},
+      closeAllConnections: () => {
+        closedAll = true;
+      },
     };
     await expect(listenStaticServer(nullAddrServer)).rejects.toThrow(
       "failed to bind ephemeral loopback port",
     );
     expect(closed).toBe(true);
+    expect(closedAll).toBe(true);
   });
 });
