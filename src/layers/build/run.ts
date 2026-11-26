@@ -135,13 +135,22 @@ function execErrorDetail(result: ExecResult): string {
   return result.failure ?? tailDetail(result);
 }
 
+/** Explicit timeout passed to `exec` so `realExec` spawns a process group (`detached: true`) and reaps grandchildren on timeout. */
+export const BUILD_TIMEOUT_MS = 600_000;
+
+export interface EnsureBuildOptions {
+  readonly timeoutMs?: number;
+}
+
 async function execBuild(
   context: LayerContext,
   command: string,
+  timeoutMs: number,
 ): Promise<BuildRunResult | undefined> {
   const result = await context.exec("sh", ["-c", command], {
     cwd: context.cwd,
     env: context.env,
+    timeoutMs,
   });
   if (result.failure === undefined && result.code === 0) return undefined;
   return failResult(
@@ -150,9 +159,14 @@ async function execBuild(
   );
 }
 
-function runBuildCommand(context: LayerContext): Promise<BuildRunResult | undefined> {
+function runBuildCommand(
+  context: LayerContext,
+  timeoutMs: number,
+): Promise<BuildRunResult | undefined> {
   const command = context.config.build?.command;
-  return command === undefined ? Promise.resolve(undefined) : execBuild(context, command);
+  return command === undefined
+    ? Promise.resolve(undefined)
+    : execBuild(context, command, timeoutMs);
 }
 
 function writeManifest(outDir: string, inventory: DistInventory): string {
@@ -177,38 +191,47 @@ function scanAndRecord(cwd: string, outDir: string, dirName: string): BuildRunRe
 
 const configuredDir = (context: LayerContext): string => context.config.build?.dir ?? "dist";
 
-async function performBuild(context: LayerContext): Promise<BuildRunResult> {
+async function performBuild(context: LayerContext, timeoutMs: number): Promise<BuildRunResult> {
   const dirName = configuredDir(context);
   const target = checkTargetPath(context.cwd, dirName);
   if (!target.ok) return failResult("build-path", target.reason);
-  const failed = await runBuildCommand(context);
+  const failed = await runBuildCommand(context, timeoutMs);
   return failed ?? scanAndRecord(context.cwd, context.outDir, dirName);
 }
 
-function cachedBuild(context: LayerContext): Promise<BuildRunResult> {
+function cachedBuild(context: LayerContext, timeoutMs: number): Promise<BuildRunResult> {
   const cache = context.runCache;
-  if (cache === undefined) return performBuild(context);
+  if (cache === undefined) return performBuild(context, timeoutMs);
   const existing = buildPromises.get(cache);
   if (existing !== undefined) return existing;
-  const created = performBuild(context);
+  const created = performBuild(context, timeoutMs);
   buildPromises.set(cache, created);
   return created;
+}
+
+function readHandedBuild(handedPath: string): BuildRunResult {
+  const loaded = readInventoryArtifact(handedPath);
+  return loaded === undefined
+    ? failResult("build-artifact", `handed-off build inventory "${handedPath}" is unreadable`)
+    : { ok: true, inventory: loaded, manifestPath: handedPath };
+}
+
+function timeoutOf(options?: EnsureBuildOptions): number {
+  return options?.timeoutMs ?? BUILD_TIMEOUT_MS;
 }
 
 /**
  * Ensures `dist/` is built (at most once per `runGate` run) and inventoried into `.web-tops/out/build/inventory.json`.
  * Consumes an existing N5 `inventory` artifact when handed off by `buildLayer`.
  */
-export function ensureBuild(context: LayerContext): Promise<BuildRunResult> {
+export function ensureBuild(
+  context: LayerContext,
+  options?: EnsureBuildOptions,
+): Promise<BuildRunResult> {
   const handedPath = context.artifacts.get("inventory");
-  if (handedPath === undefined) return cachedBuild(context);
-  const loaded = readInventoryArtifact(handedPath);
-  if (loaded !== undefined) {
-    return Promise.resolve({ ok: true, inventory: loaded, manifestPath: handedPath });
-  }
-  return Promise.resolve(
-    failResult("build-artifact", `handed-off build inventory "${handedPath}" is unreadable`),
-  );
+  return handedPath === undefined
+    ? cachedBuild(context, timeoutOf(options))
+    : Promise.resolve(readHandedBuild(handedPath));
 }
 
 function startTrackedServer(context: LayerContext, distDir: string): Promise<StaticServer> {

@@ -2,7 +2,13 @@ import type { Layer } from "../../gate/types.ts";
 import { ensureBuild } from "./run.ts";
 
 export { resolveDistDir, routeForHtml, scanDist, type DistInventory } from "./inventory.ts";
-export { ensureBuild, ensureServer, readInventoryArtifact } from "./run.ts";
+export {
+  BUILD_TIMEOUT_MS,
+  ensureBuild,
+  ensureServer,
+  readInventoryArtifact,
+  type EnsureBuildOptions,
+} from "./run.ts";
 export { BROTLI_OPTIONS, mimeType, startStaticServer } from "./server.ts";
 
 /** Gate 6 shared build layer: builds `dist/` once and hands off its page inventory via N5 artifact. */

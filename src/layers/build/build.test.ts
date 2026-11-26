@@ -9,7 +9,7 @@ import {
 import { Agent, request as httpRequest } from "node:http";
 import { createConnection } from "node:net";
 import { dirname, join } from "node:path";
-import { brotliCompressSync, brotliDecompressSync } from "node:zlib";
+import { brotliCompressSync, brotliDecompressSync, constants as zlibConstants } from "node:zlib";
 import { afterEach, describe, expect, it } from "vitest";
 import { parseConfig } from "../../config/validate.ts";
 import { readBaseline } from "../../baseline/read.ts";
@@ -30,9 +30,11 @@ import {
 } from "./server.ts";
 import {
   BROTLI_OPTIONS,
+  BUILD_TIMEOUT_MS,
   buildLayer,
   ensureBuild,
   ensureServer,
+  type EnsureBuildOptions,
   mimeType,
   readInventoryArtifact,
   resolveDistDir,
@@ -57,6 +59,20 @@ function expectBuildFail(
   }
   expect(result.findings[0]).toMatchObject({ rule });
   expect(result.reason).toContain(substring);
+}
+
+async function waitDead(pid: number): Promise<boolean> {
+  for (let i = 0; i < 20; i += 1) {
+    try {
+      process.kill(pid, 0);
+    } catch {
+      return true;
+    }
+    await new Promise((resolve) => {
+      setTimeout(resolve, 25);
+    });
+  }
+  return false;
 }
 
 const cleanups: (() => Promise<void> | void)[] = [];
@@ -281,8 +297,10 @@ describe("M4 G1: shared single build across two downstream layers (N5)", () => {
     const seen: SeenArtifact[] = [];
     let execCount = 0;
 
-    const fakeBuildExec: Exec = () => {
+    let seenTimeout: number | undefined;
+    const fakeBuildExec: Exec = (_cmd, _args, execOptions) => {
       execCount += 1;
+      seenTimeout = execOptions?.timeoutMs;
       put(dir, "custom-dist/index.html", "<!doctype html><title>App</title>");
       put(dir, "custom-dist/about/index.html", "<!doctype html><title>About</title>");
       return Promise.resolve({ code: 0, stdout: "built\n", stderr: "" });
@@ -303,6 +321,8 @@ describe("M4 G1: shared single build across two downstream layers (N5)", () => {
 
     expect(report.passed).toBe(true);
     expect(execCount).toBe(1);
+    expect(BUILD_TIMEOUT_MS).toBe(600_000);
+    expect(seenTimeout).toBe(BUILD_TIMEOUT_MS);
     assertSharedSeen(dir, seen);
   });
 
@@ -324,6 +344,34 @@ describe("M4 G1: shared single build across two downstream layers (N5)", () => {
       expect(report.passed).toBe(true);
       expect(readFileSync(countFile, "utf8").trim().split("\n")).toHaveLength(1);
       expect(existsSync(join(dir, ".web-tops/out/build/inventory.json"))).toBe(true);
+    },
+    REAL_TOOL_TIMEOUT,
+  );
+
+  it(
+    "kills background grandchildren on build timeout without hanging realExec",
+    async () => {
+      const { dir } = makeProject();
+      const pidFile = join(dir, "grandchild.pid");
+      const cmd = `sleep 60 & printf "%s" "$!" > "${pidFile}" && wait`;
+      const context: LayerContext = {
+        cwd: dir,
+        config: cfg({ class: "web-app", build: { command: cmd, dir: "dist" } }),
+        base: "origin/main",
+        enforce: "hard",
+        env: process.env,
+        exec: realExec,
+        outDir: join(dir, ".web-tops", "out"),
+        artifacts: new Map(),
+      };
+      const timeoutOpts: EnsureBuildOptions = { timeoutMs: 600 };
+      const started = Date.now();
+      const res = await ensureBuild(context, timeoutOpts);
+      expect(Date.now() - started).toBeLessThan(5000);
+      expectBuildFail(res, "build-command", "(tool-timeout)");
+      const pid = Number(readFileSync(pidFile, "utf8").trim());
+      expect(pid).toBeGreaterThan(0);
+      expect(await waitDead(pid)).toBe(true);
     },
     REAL_TOOL_TIMEOUT,
   );
@@ -513,6 +561,8 @@ describe("M4 G1: static server on 127.0.0.1:0 with fixed brotli and deterministi
     expect(brReply.status).toBe(200);
     expect(brReply.headers["content-encoding"]).toBe("br");
     expect(brReply.headers["vary"]).toBe("Accept-Encoding");
+    expect(BROTLI_OPTIONS.params[zlibConstants.BROTLI_PARAM_QUALITY]).toBe(11);
+    expect(BROTLI_OPTIONS.params[zlibConstants.BROTLI_PARAM_LGWIN]).toBe(22);
     expect(brReply.body.equals(brotliCompressSync(Buffer.from(appJs), BROTLI_OPTIONS))).toBe(true);
     expect(brotliDecompressSync(brReply.body).toString("utf8")).toBe(appJs);
 
@@ -587,7 +637,7 @@ describe("M4 G1: static server on 127.0.0.1:0 with fixed brotli and deterministi
           });
           context.onCleanup?.(() => {
             order.push("second");
-            return Promise.resolve();
+            return Promise.reject(new Error("cleanup boom"));
           });
         }
         return Promise.resolve({ verdict: "pass", findings: [], artifacts: {} });
