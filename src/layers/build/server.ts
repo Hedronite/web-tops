@@ -158,7 +158,7 @@ export function handleRequest(realRoot: string, req: StaticRequest, res: StaticR
     sendText(res, 405, "Method Not Allowed");
     return;
   }
-  handleLookup(resolveServedFile(realRoot, req.url ?? "/"), req, res);
+  handleLookup(resolveServedFile(realRoot, req.url ?? ""), req, res);
 }
 
 export interface BindableServer {

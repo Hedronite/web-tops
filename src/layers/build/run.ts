@@ -35,7 +35,9 @@ function isPageShape(file: unknown, route: unknown, bytes: unknown): boolean {
 
 function parsePage(entry: unknown): DistPage | undefined {
   if (!isRecord(entry)) return undefined;
-  const { file, route, bytes } = entry;
+  const file = Reflect.get(entry, "file");
+  const route = Reflect.get(entry, "route");
+  const bytes = Reflect.get(entry, "bytes");
   if (!isPageShape(file, route, bytes)) return undefined;
   return { file: String(file), route: String(route), bytes: Number(bytes) };
 }
@@ -65,7 +67,7 @@ function parseArray<T>(
 }
 
 function parseVersioned(raw: unknown): Record<string, unknown> | undefined {
-  return isRecord(raw) && raw["version"] === 1 ? raw : undefined;
+  return isRecord(raw) && Reflect.get(raw, "version") === 1 ? raw : undefined;
 }
 
 function assembleInventory(
@@ -87,15 +89,32 @@ function parseArtifactPayload(raw: unknown): DistInventory | undefined {
   );
 }
 
+function readTextSafe(
+  path: string,
+): { readonly ok: true; readonly text: string } | { readonly ok: false } {
+  try {
+    return { ok: true, text: readFileSync(path, "utf8") };
+  } catch {
+    return { ok: false };
+  }
+}
+
+function parseJsonSafe(
+  text: string,
+): { readonly ok: true; readonly value: unknown } | { readonly ok: false } {
+  try {
+    return { ok: true, value: JSON.parse(text) };
+  } catch {
+    return { ok: false };
+  }
+}
+
 /** Reads and validates a build inventory artifact JSON written by `buildLayer`. */
 export function readInventoryArtifact(path: string): DistInventory | undefined {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(readFileSync(path, "utf8"));
-  } catch {
-    return undefined;
-  }
-  return parseArtifactPayload(raw);
+  const file = readTextSafe(path);
+  if (!file.ok) return undefined;
+  const parsed = parseJsonSafe(file.text);
+  return parsed.ok ? parseArtifactPayload(parsed.value) : undefined;
 }
 
 function failResult(rule: string, message: string): BuildRunResult {

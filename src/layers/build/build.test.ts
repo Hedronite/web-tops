@@ -666,6 +666,7 @@ describe("M4 G1: static server on 127.0.0.1:0 with fixed brotli and deterministi
     });
     await new Promise<void>((resolve) => {
       sock.once("connect", () => {
+        sock.write("GET / HTTP/1.1\r\n");
         resolve();
       });
     });
