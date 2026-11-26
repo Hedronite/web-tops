@@ -265,7 +265,7 @@ describe("G7b: CI runs the sharded gate-shard and join gate jobs", () => {
     expect(shardCommands).toEqual([
       "bun install --frozen-lockfile",
       "bun install --frozen-lockfile",
-      "bun src/cli/main.ts gate --max-tier 1 --shard ${{ matrix.shard }}/2",
+      "bun src/cli/main.ts gate --max-tier 1 --shard ${{ matrix.shard }}/4",
     ]);
     const gateCommands = stepsOf("gate")
       .map((step) => get(step, "run"))
@@ -348,7 +348,7 @@ describe("G5a: the gate jobs run as a matrix over ubuntu and macOS", () => {
       expect(get(job(name), "runs-on")).toBe("${{ matrix.os }}");
       expect(at(job(name), ["strategy", "fail-fast"])).toBe(false);
     }
-    expect(at(job("gate-shard"), ["strategy", "matrix", "shard"])).toEqual([1, 2]);
+    expect(at(job("gate-shard"), ["strategy", "matrix", "shard"])).toEqual([1, 2, 3, 4]);
   });
 
   it("keeps the join gate matrix purely over os and uses default success() gating (no if:)", () => {
