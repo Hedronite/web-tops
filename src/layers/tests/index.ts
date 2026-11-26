@@ -22,7 +22,7 @@ import {
 } from "../hygiene/tooling.ts";
 
 const FOCUSED = /\.only/u;
-const SKIPPED: ReadonlySet<string> = new Set(["skipped", "pending", "disabled"]);
+export const SKIPPED: ReadonlySet<string> = new Set(["skipped", "pending", "disabled"]);
 
 /** The project's Vitest config, found as Vitest finds it: `vitest.config.*` before `vite.config.*`. */
 const CONFIG_FILES = ["vitest.config", "vite.config"].flatMap((base) =>
@@ -115,7 +115,7 @@ function head(text: string, lines: number): string {
     .join("\n");
 }
 
-const STACK_FRAME = /^\s*(?:at |❯)/u;
+export const STACK_FRAME = /^\s*(?:at |❯)/u;
 
 /** What a failed assertion says: the lines before its stack, so the finding quotes the assertion and not the frames. */
 function assertion(messages: string): string {
@@ -339,13 +339,21 @@ function seedFor(ctx: LayerContext): number | undefined {
 }
 
 /** Gate 2: one `vitest run --coverage --sequence.shuffle`; its JSON and LCOV stay in `.web-tops/out/tests/` for gate 3. */
+/** Explicit vitest timeout (20 min) so realExec enables detached process-group kill on timeout. */
+export const TESTS_TIMEOUT_MS = 20 * 60 * 1000;
+
 async function run(ctx: LayerContext): Promise<LayerResult> {
   const directory = join(ctx.outDir, "tests");
   mkdirSync(directory, { recursive: true });
   const seed = seedFor(ctx);
   const jsonPath = join(directory, "vitest.json");
   const configPath = writeKitConfig(ctx.cwd, directory);
-  const result = await runTool(ctx, "vitest", vitestArgs(ctx, seed, jsonPath, configPath));
+  const result = await runTool(
+    ctx,
+    "vitest",
+    vitestArgs(ctx, seed, jsonPath, configPath),
+    TESTS_TIMEOUT_MS,
+  );
   const launch = launchFailure("vitest", "vitest", result);
   if (launch !== undefined) {
     return failedResult(launch);

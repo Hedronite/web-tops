@@ -5,7 +5,7 @@ import { cfg } from "../../gate/testkit.ts";
 import type { Exec, LayerContext } from "../../gate/types.ts";
 import { cleanTemp, tempDir } from "../../laws/probe/testkit.ts";
 import { runTool } from "../hygiene/tooling.ts";
-import { testsLayer } from "./index.ts";
+import { SKIPPED, STACK_FRAME, TESTS_TIMEOUT_MS, testsLayer } from "./index.ts";
 
 afterAll(cleanTemp);
 
@@ -48,5 +48,32 @@ describe("gate 2 says which tool it could not run", () => {
       stderr: "vitest is not installed in node_modules (package vitest)",
       failure: "tool-missing",
     });
+  });
+
+  it("passes explicit TESTS_TIMEOUT_MS to exec so vitest gets process-group cleanup", async () => {
+    let seenTimeout: number | undefined;
+    const exec: Exec = (_command, _args, options) => {
+      seenTimeout = options?.timeoutMs;
+      return Promise.resolve({ code: null, stdout: "", stderr: "", failure: "tool-timeout" });
+    };
+    await testsLayer.run(context(exec));
+    expect(TESTS_TIMEOUT_MS).toBe(1_200_000);
+    expect(seenTimeout).toBe(TESTS_TIMEOUT_MS);
+  });
+
+  it("exposes classes, skipped statuses, and anchored stack frame matcher", () => {
+    expect(testsLayer.classes).toEqual([
+      "ts-library",
+      "ui-components",
+      "astro-site",
+      "web-app",
+      "node-service",
+    ]);
+    expect(testsLayer.requires).toEqual([]);
+    expect(SKIPPED.has("pending")).toBe(true);
+    expect(SKIPPED.has("disabled")).toBe(true);
+    expect(STACK_FRAME.test("  at foo")).toBe(true);
+    expect(STACK_FRAME.test("  ❯ foo")).toBe(true);
+    expect(STACK_FRAME.test("received at step 2")).toBe(false);
   });
 });
