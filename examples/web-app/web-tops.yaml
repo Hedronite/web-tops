@@ -58,12 +58,8 @@ layers:
     tier: 1
     enabled: false
     reason: "not mapped for class: an app publishes no package exports"
-  html_validate:
-    enabled: false
-    reason: "the example turns it on with the built-page wiring, which lands next in M4"
-  axe:
-    enabled: false
-    reason: "the example turns it on with the built-page wiring, which lands next in M4"
+  html_validate: {}
+  axe: {}
   rendered:
     enabled: false
     reason: "milestone M5: rendered checks land in M5"
@@ -74,7 +70,5 @@ layers:
 laws:
   select: default
   ack_ledger: .web-tops/acks.yaml
-  enabled: false
-  reason: "the example turns it on with the built-page wiring, which lands next in M4"
 report:
   path: .web-tops/report.json

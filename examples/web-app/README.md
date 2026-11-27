@@ -16,4 +16,5 @@ bun ../../src/cli/main.ts gate --max-tier 1
 - `routes` in `web-tops.yaml` lists the same paths; each is held to the route JavaScript budget (W-29).
 - `src/main.ts` wires the DOM and is left out of coverage with that reason; routes and views are tested without a
   DOM.
-- The build-output and laws layers are off in `web-tops.yaml` until the built-page wiring lands.
+- Build output and the laws layer are on at `hard`: the built pages are validated, their links checked, and each
+  declared route is held to its JavaScript budget and run through axe in headless Chromium.

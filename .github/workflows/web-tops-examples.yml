@@ -32,8 +32,12 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun install --frozen-lockfile
         working-directory: examples/astro-site
+      - run: bun install --frozen-lockfile
+        working-directory: examples/web-app
       # The built-page layers drive the Chromium of the pinned Playwright.
       - run: bunx playwright install --with-deps chromium
       - run: bun ../../src/cli/main.ts gate --max-tier 1
         working-directory: examples/astro-site
+      - run: bun ../../src/cli/main.ts gate --max-tier 1
+        working-directory: examples/web-app
       - run: bash fixtures/plants/run.sh

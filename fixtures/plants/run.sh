@@ -8,7 +8,7 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
-ALL="w20-invalid-html broken-link w29-page-script"
+ALL="w20-invalid-html broken-link w29-page-script a11y-contrast-target"
 
 # plant -> the example it is laid over | the laws the gate must refuse, and no other | a rule gate 6 must fail
 plant() {
@@ -16,6 +16,8 @@ plant() {
     w20-invalid-html) echo "astro-site|W-20|html-validate:element-permitted-content" ;;
     broken-link) echo "astro-site||links" ;; # section 8.2 has no law for links: the layer's rule alone is red
     w29-page-script) echo "astro-site|W-29|W-29" ;;
+    # W-22 reads axe on built pages too (section 8.2), so it is refused beside W-21.
+    a11y-contrast-target) echo "web-app|W-21 W-22 W-44|axe:target-size" ;;
     *) echo "unknown plant: $1 (one of: $ALL)" >&2; return 2 ;;
   esac
 }
