@@ -11,6 +11,7 @@ export const entryOf = (law: Law): LawEntry => ({
   severity: law.severity,
   reader: law.reader.kinds[0] ?? "tbd",
   classes: law.classes,
+  ...(law.conditional_classes === undefined ? {} : { conditional: law.conditional_classes }),
   judged: law.judged !== "no",
   rules: law.rules,
 });

@@ -4,6 +4,19 @@ import type { LawEntry, LawRule } from "../../laws/readers/types.ts";
 export const lawsOfClass = (laws: readonly LawEntry[], className: string): LawEntry[] =>
   laws.filter((law) => law.classes.length === 0 || law.classes.includes(className));
 
+/**
+ * The laws a class maps in this project. A conditional class (W-27 for `web-app` and `ui-components`) maps its law
+ * only when the project depends on Astro (section 5.2): for any other project the law is not there at all.
+ */
+export const lawsOfProject = (
+  laws: readonly LawEntry[],
+  className: string,
+  dependsOnAstro: boolean,
+): LawEntry[] =>
+  lawsOfClass(laws, className).filter(
+    (law) => dependsOnAstro || law.conditional?.includes(className) !== true,
+  );
+
 /** A rule with no class list holds for every class its law maps; one with a list holds for those classes only. */
 export const ruleApplies = (rule: LawRule, className: string): boolean =>
   rule.classes === undefined || rule.classes.includes(className);

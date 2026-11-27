@@ -4,6 +4,7 @@ import { ledgerOf } from "../../acks/files.ts";
 import { severityOf } from "../../acks/severity.ts";
 import type { SeverityOf } from "../../acks/severity.ts";
 import { ratchetHeld } from "../../baseline/state.ts";
+import { readProject } from "../../config/project.ts";
 import type { EslintRead } from "../../census/eslint.ts";
 import type { Layer, LayerContext, LayerResult } from "../../gate/types.ts";
 import { askEslint } from "../../laws/readers/eslint-facts.ts";
@@ -13,7 +14,7 @@ import type { Verdict } from "../../report/types.ts";
 import { trackedFiles } from "../../layers/coverage/tracked.ts";
 import { utcDate } from "../../survivors/dates.ts";
 import { ackAll, lawAckFindings } from "./acked.ts";
-import { forClass, lawsOfClass, toolsOf } from "./entries.ts";
+import { forClass, lawsOfProject, toolsOf } from "./entries.ts";
 import type { LawCatalog } from "./catalog.ts";
 import { evidenceOf, judgeEntry, lawFinding, readingsOf, worse, type Judged } from "./judge.ts";
 import { optionalArtifacts, defaultReaders, artifactOf } from "./readers.ts";
@@ -141,7 +142,8 @@ async function run(
   const source = trackedLinted(tracked.files);
   const runner = { cwd: ctx.cwd, env: ctx.env, exec: ctx.exec, outDir: ctx.outDir };
   const eslint = once(() => askEslint(runner, askedOf(source)));
-  const laws = lawsOfClass(catalog(), ctx.config.class).map((law) =>
+  const { dependsOnAstro } = readProject(ctx.cwd);
+  const laws = lawsOfProject(catalog(), ctx.config.class, dependsOnAstro).map((law) =>
     forClass(law, ctx.config.class),
   );
   const input = { ctx, tracked: tracked.files, held: ratchetHeld(ctx), eslint };
