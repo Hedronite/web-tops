@@ -265,6 +265,7 @@ describe("G7b: CI runs the sharded gate-shard and join gate jobs", () => {
     expect(shardCommands).toEqual([
       "bun install --frozen-lockfile",
       "bun install --frozen-lockfile",
+      "bunx playwright install --with-deps chromium",
       "bun src/cli/main.ts gate --max-tier 1 --shard ${{ matrix.shard }}/4",
     ]);
     const gateCommands = stepsOf("gate")
