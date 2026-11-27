@@ -108,7 +108,6 @@ describe.skipIf(process.env["STRYKER_MUTATOR_WORKER"] !== undefined)(
         expect(done.out).toContain(
           "weakened: tsconfig.json: program: in the project -> no longer in the project (src/a.ts)",
         );
-        expect(done.out).toContain("not compared:\n  size budgets: ");
       },
       SLOW,
     );

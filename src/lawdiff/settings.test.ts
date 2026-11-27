@@ -70,6 +70,9 @@ describe("every setting of a default config", () => {
       ["baseline", ".web-tops/baseline.json", 0],
       ["gates.mutation.ledger", "unset", 0],
       ["laws.ack_ledger", "unset", 0],
+      ["build.dir", "dist", 0],
+      ["build.command", "unset", 0],
+      ["layers.size_limit.default_bytes", "51200", -51200],
     ]);
   });
 });
@@ -165,9 +168,10 @@ describe("what a config grants", () => {
     expect(values.get("laws.ack_ledger")).toEqual({ shown: "acks.yaml", rank: 0, review: true });
   });
 
-  it("says what it does not compare, size budgets included", () => {
+  it("compares effective byte budgets and leaves them out of what it does not compare", () => {
     expect(notCompared()).toContain("not compared: gates.tests.runner");
-    expect(notCompared()).toContain("size budgets: only whether size_limit is on, until M4");
+    expect(notCompared()).not.toContain("size budgets");
+    expect(settingsOf(config()).values.get("layers.size_limit.default_bytes")?.shown).toBe("51200");
     expect(notCompared()).toContain(
       "an .eslintignore file, which ESLint 10 does not read (flat config only)",
     );

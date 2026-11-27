@@ -120,7 +120,6 @@ describe("every surface of the diff", () => {
       [],
       [],
     ]);
-    expect(surfaces[2]?.note).toContain("size budgets: only whether size_limit is on, until M4");
     expect(surfaces[4]?.note).toBe("class ts-library became web-app");
     expect(weakenedCount(surfaces)).toBe(3);
   });
