@@ -192,5 +192,8 @@ describe("toGateConfig: the validated web-tops.yaml as the runner sees it", () =
     ).toEqual({
       entries: { ".": 777 },
     });
+
+    const layerOnly = `${HEAD}class: ts-library\nlayers:\n  size_limit:\n    entries:\n      ".": 640\n`;
+    expect(adapt(layerOnly).sizeLimit).toEqual({ entries: { ".": 640 } });
   });
 });
