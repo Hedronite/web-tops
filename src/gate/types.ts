@@ -95,6 +95,8 @@ export interface LayerContext {
   readonly joinDir?: string;
   /** Per-run in-memory cache shared across layers in a single `runGate` call. */
   readonly runCache?: Map<string, unknown>;
+  /** Opt-in SPA fallback to root `index.html` on extensionless static-server misses (enabled by `build-output` for `web-app`). */
+  readonly spaFallback?: boolean;
   /** Registers deterministic teardown hooks drained when `runGate` completes. */
   readonly onCleanup?: (close: () => Promise<void>) => void;
 }
@@ -243,6 +245,8 @@ export interface GateConfig {
   readonly baselinePath?: string;
   /** Enable switches by layer id; an id with no entry is enabled (section 9). */
   readonly toggles: Readonly<Record<string, Toggle>>;
+  /** Gate 6 sub-layer switches keyed by sub-layer id (`size-limit`, `html`, `axe`, `rendered`, `themes`). */
+  readonly subLayers?: Readonly<Record<string, Toggle>>;
   readonly custom: readonly CustomLayer[];
   /** Built-in layers the class profile does not require (section 3.3); every other layer is required. */
   readonly optionalLayers: readonly string[];

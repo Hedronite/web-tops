@@ -2,12 +2,7 @@ import { mapsStep, profileFor } from "../config/profiles.ts";
 import { requiredLayers } from "../config/required.ts";
 import { LAYER_IDS } from "../config/report.ts";
 import type { LayerKey, Profile, Project } from "../config/profiles.ts";
-import type {
-  PackageExportsLayer,
-  SizeLimitLayer,
-  Switch,
-  WebTopsConfig,
-} from "../config/types.ts";
+import type { SizeLimitLayer, Switch, WebTopsConfig } from "../config/types.ts";
 import {
   HYGIENE_STEPS,
   type AuditLevel,
@@ -52,9 +47,45 @@ function mappedBuildKeys(config: WebTopsConfig): LayerKey[] {
   return BUILD_OUTPUT_KEYS.filter((key) => mapped.includes(key));
 }
 
+const sizeLimitEntry = (config: WebTopsConfig, project: Project): Switch | undefined =>
+  privateSkip(config.layers?.size_limit, project) ?? config.layers?.size_limit;
+
+function layerEntry(config: WebTopsConfig, key: LayerKey, project: Project): Switch | undefined {
+  return key === "size_limit" ? sizeLimitEntry(config, project) : config.layers?.[key];
+}
+
+const SUB_LAYER_IDS: readonly (readonly [LayerKey, string])[] = [
+  ["size_limit", "size-limit"],
+  ["html_validate", "html"],
+  ["axe", "axe"],
+  ["rendered", "rendered"],
+  ["themes", "themes"],
+];
+
+function subLayersOf(config: WebTopsConfig, project: Project): Record<string, Toggle> {
+  return Object.fromEntries(
+    SUB_LAYER_IDS.flatMap(([key, id]) => {
+      const toggle = off(layerEntry(config, key, project));
+      return toggle === undefined ? [] : [[id, toggle]];
+    }),
+  );
+}
+
+function subLayerSettings(
+  config: WebTopsConfig,
+  project: Project,
+): { readonly subLayers?: Readonly<Record<string, Toggle>> } {
+  const subLayers = subLayersOf(config, project);
+  return Object.keys(subLayers).length > 0 ? { subLayers } : {};
+}
+
 /** Every mapped build layer is switched off: the reason is the config's, else a generic one. */
-function allOff(config: WebTopsConfig, keys: readonly LayerKey[]): Toggle | undefined {
-  const entries = keys.map((key) => config.layers?.[key]);
+function allOff(
+  config: WebTopsConfig,
+  keys: readonly LayerKey[],
+  project: Project,
+): Toggle | undefined {
+  const entries = keys.map((key) => layerEntry(config, key, project));
   if (!entries.every((entry) => entry?.enabled === false)) {
     return undefined;
   }
@@ -66,11 +97,11 @@ function allOff(config: WebTopsConfig, keys: readonly LayerKey[]): Toggle | unde
  * Build output is switched off when the class maps none of its layers, or the config switches off every
  * one the class maps. The reason is the config's, else names the class.
  */
-function buildOutput(config: WebTopsConfig): Toggle | undefined {
+function buildOutput(config: WebTopsConfig, project: Project): Toggle | undefined {
   const keys = mappedBuildKeys(config);
   return keys.length === 0
     ? { enabled: false, reason: `class ${config.class} maps no build-output layer` }
-    : allOff(config, keys);
+    : allOff(config, keys, project);
 }
 
 /** Why a step is not mapped: a conditional one (astro_check) says what would map it. */
@@ -96,11 +127,11 @@ function isMapped(profile: Profile | undefined, step: HygieneStep, project: Proj
 
 /** `skip_private` on a private package switches the exports check off with its own reason (WEB_TOPS.md section 9). */
 function privateSkip(
-  exports: PackageExportsLayer | undefined,
+  layer: { readonly skip_private?: string } | undefined,
   project: Project,
 ): Switch | undefined {
-  if (exports?.skip_private === undefined || project.isPrivate !== true) return undefined;
-  return { enabled: false, reason: exports.skip_private };
+  if (layer?.skip_private === undefined || project.isPrivate !== true) return undefined;
+  return { enabled: false, reason: layer.skip_private };
 }
 
 function exportsSwitch(config: WebTopsConfig, project: Project): Switch | undefined {
@@ -252,10 +283,10 @@ function testsSettings(config: WebTopsConfig): TestsSettings {
   return { shuffle: config.gates?.tests?.shuffle ?? true };
 }
 
-function togglesOf(config: WebTopsConfig): Record<string, Toggle> {
+function togglesOf(config: WebTopsConfig, project: Project): Record<string, Toggle> {
   const entries: readonly [string, Toggle | undefined][] = [
     ...GATE_SWITCHES.map((id): [string, Toggle | undefined] => [id, off(config.gates?.[id])]),
-    ["build-output", buildOutput(config)],
+    ["build-output", buildOutput(config, project)],
     ["laws", off(config.laws)],
   ];
   return Object.fromEntries(
@@ -357,7 +388,8 @@ export function toGateConfig(config: WebTopsConfig, project: Project): GateConfi
     ...(config.laws?.ack_ledger === undefined ? {} : { ackLedger: config.laws.ack_ledger }),
     reportPath: config.report.path,
     baselinePath: config.baseline,
-    toggles: togglesOf(config),
+    toggles: togglesOf(config, project),
+    ...subLayerSettings(config, project),
     custom: customOf(config),
     optionalLayers: optionalOf(config),
     hygiene: hygieneSettings(config, project),
