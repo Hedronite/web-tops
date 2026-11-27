@@ -46,14 +46,14 @@ function selectorOf(target: unknown): string {
 
 /** One entry for each element; a rule that names none still counts once, never as nothing. */
 function entriesOf(found: Record<string, unknown>, target: Target): AxeEntry[] {
-  const rule = str(found["id"], "");
+  const rule = String(found["id"]);
   const nodes = records(found["nodes"]);
   const base = {
     ...target,
     law: rule === "target-size" ? "W-44" : "W-21",
     rule,
     impact: str(found["impact"], "unknown"),
-    help: str(found["help"], ""),
+    help: String(found["help"]),
   } as const;
   return (nodes.length === 0 ? [{}] : nodes).map((node: Record<string, unknown>) => ({
     ...base,

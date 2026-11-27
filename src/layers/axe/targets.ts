@@ -19,7 +19,7 @@ export const configuredRoutes: RoutesOf = (context) => {
 
 /** The built file the static server answers a route with: the path, its `index.html`, or `<path>.html`. */
 function fileOf(inventory: DistInventory, route: string): string | undefined {
-  const path = route.replace(/[?#].*$/u, "").replace(/^\/|\/$/gu, "");
+  const path = new URL(route, "http://localhost").pathname.slice(1).replace(/\/$/u, "");
   const index = path === "" ? "index.html" : `${path}/index.html`;
   return [path, index, `${path}.html`].find((name) => inventory.files.includes(name));
 }
