@@ -257,8 +257,11 @@ function serversFor(cache: Map<string, unknown>): Map<string, Promise<StaticServ
  * Starts (or reuses within the same `runGate` session) the shared static server for `dist/`, registering
  * deterministic teardown on `context.onCleanup`.
  */
-const resolveServerOptions = (options?: StaticServerOptions): StaticServerOptions => ({
-  spaFallback: Boolean(options?.spaFallback),
+const resolveServerOptions = (
+  context: LayerContext,
+  options?: StaticServerOptions,
+): StaticServerOptions => ({
+  spaFallback: options?.spaFallback ?? context.spaFallback === true,
 });
 
 export function ensureServer(
@@ -266,7 +269,7 @@ export function ensureServer(
   distDir: string,
   options?: StaticServerOptions,
 ): Promise<StaticServer> {
-  const resolved = resolveServerOptions(options);
+  const resolved = resolveServerOptions(context, options);
   const cache = context.runCache;
   if (cache === undefined) return startTrackedServer(context, distDir, resolved);
   const map = serversFor(cache);
