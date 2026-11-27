@@ -12,6 +12,7 @@
     "eslint-plugin-astro",
     "eslint-plugin-jsx-a11y-x",
     "html-validate",
+    "postcss-html",
     "secretlint",
     "stylelint",
     "typescript-eslint"
