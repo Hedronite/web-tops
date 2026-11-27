@@ -34,28 +34,34 @@ function probe(dir: string, law: string): { code: number; report: ProbeReport } 
   return probeFrom(probeProcess(dir, "--class", "astro-site", "--law", law, "--json"));
 }
 
-describe("G5 the Astro twins are proven under the astro preset, and each rule is the one its twin proves", () => {
-  it(
-    "W-22 and W-49 pass over their .astro and .tsx twins, none skipped",
-    () => {
-      const dir = astroSite();
-      const [w22, w49] = [probe(dir, "W-22"), probe(dir, "W-49")];
-      expect([w22.code, w49.code]).toEqual([0, 0]);
-      expect([failing(w22.report), failing(w49.report)]).toEqual([[], []]);
-      expect([w22.report.skipped, w49.report.skipped]).toEqual([[], []]);
-    },
-    REAL_TOOL_TIMEOUT,
-  );
+/** Real processes only: no mutant of a mutation run reaches them (R112). */
+const insideStryker = process.env["STRYKER_MUTATOR_WORKER"] !== undefined;
 
-  it(
-    "a config that turns one Astro rule off fails the law red on that rule's twin, and on no other",
-    () => {
-      const result = probe(astroSite("astro/no-deprecated-astro-resolve"), "W-49");
-      expect(result.code).toBe(1);
-      expect(messages(result.report)).toEqual([
-        "W-49/bad/astro-no-deprecated-astro-resolve.astro:3 stayed quiet: astro/no-deprecated-astro-resolve did not fire on its bad twin",
-      ]);
-    },
-    REAL_TOOL_TIMEOUT,
-  );
-});
+describe.skipIf(insideStryker)(
+  "G5 the Astro twins are proven under the astro preset, and each rule is the one its twin proves",
+  () => {
+    it(
+      "W-22 and W-49 pass over their .astro and .tsx twins, none skipped",
+      () => {
+        const dir = astroSite();
+        const [w22, w49] = [probe(dir, "W-22"), probe(dir, "W-49")];
+        expect([w22.code, w49.code]).toEqual([0, 0]);
+        expect([failing(w22.report), failing(w49.report)]).toEqual([[], []]);
+        expect([w22.report.skipped, w49.report.skipped]).toEqual([[], []]);
+      },
+      REAL_TOOL_TIMEOUT,
+    );
+
+    it(
+      "a config that turns one Astro rule off fails the law red on that rule's twin, and on no other",
+      () => {
+        const result = probe(astroSite("astro/no-deprecated-astro-resolve"), "W-49");
+        expect(result.code).toBe(1);
+        expect(messages(result.report)).toEqual([
+          "W-49/bad/astro-no-deprecated-astro-resolve.astro:3 stayed quiet: astro/no-deprecated-astro-resolve did not fire on its bad twin",
+        ]);
+      },
+      REAL_TOOL_TIMEOUT,
+    );
+  },
+);

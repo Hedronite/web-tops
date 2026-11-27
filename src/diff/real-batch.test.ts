@@ -85,7 +85,10 @@ function scopes(cwd: string): Scopes {
   };
 }
 
-describe("the real run of changed test files together", () => {
+/** Real processes only: no mutant of a mutation run reaches them (R112). */
+const insideStryker = process.env["STRYKER_MUTATOR_WORKER"] !== undefined;
+
+describe.skipIf(insideStryker)("the real run of changed test files together", () => {
   it(
     "is the scope of a run of each alone: added, weakened and unchanged-source tests",
     () => {

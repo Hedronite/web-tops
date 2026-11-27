@@ -16,7 +16,7 @@ import { readBaseline } from "../../baseline/read.ts";
 import { toGateConfig } from "../../gate/adapter.ts";
 import { realExec } from "../../gate/exec.ts";
 import { runGate, type RunInput } from "../../gate/runner.ts";
-import { cfg, opts, tempProject, tickingClock } from "../../gate/testkit.ts";
+import { cfg, noExec, opts, tempProject, tickingClock } from "../../gate/testkit.ts";
 import { REAL_TOOL_TIMEOUT } from "../../gate/test-support-timeouts.ts";
 import type { Exec, GateConfig, Layer, LayerContext } from "../../gate/types.ts";
 import { checkTargetPath, type ResolveDistResult } from "./inventory.ts";
@@ -41,6 +41,7 @@ import {
   routeForHtml,
   scanDist,
   startStaticServer,
+  type StaticServerOptions,
   type DistInventory,
 } from "./index.ts";
 
@@ -779,5 +780,65 @@ describe("M4 G1: static server on 127.0.0.1:0 with fixed brotli and deterministi
     );
     expect(closed).toBe(true);
     expect(closedAll).toBe(true);
+  });
+});
+
+describe("static server spaFallback option", () => {
+  it("falls back to root index.html only for extensionless misses when spaFallback is true", async () => {
+    const { dir } = makeProject();
+    put(dir, "dist/index.html", "<h1>SPA Root</h1>");
+    put(dir, "dist/about.html", "<h1>About</h1>");
+
+    const plain = await startStaticServer(join(dir, "dist"));
+    cleanups.push(() => plain.close());
+    const plainMiss = await fetch(`${plain.origin}/users/42`);
+    expect(plainMiss.status).toBe(404);
+
+    const spa = await startStaticServer(join(dir, "dist"), {
+      spaFallback: true,
+    } satisfies StaticServerOptions);
+    cleanups.push(() => spa.close());
+
+    const routeRes = await fetch(`${spa.origin}/users/42`);
+    expect(routeRes.status).toBe(200);
+    expect(await routeRes.text()).toBe("<h1>SPA Root</h1>");
+
+    const exactRes = await fetch(`${spa.origin}/about`);
+    expect(exactRes.status).toBe(200);
+    expect(await exactRes.text()).toBe("<h1>About</h1>");
+
+    const assetMiss = await fetch(`${spa.origin}/assets/missing.js`);
+    expect(assetMiss.status).toBe(404);
+  });
+
+  it("404s root / on empty dist with spaFallback and distinguishes runCache servers by spaFallback", async () => {
+    const { dir } = makeProject();
+    mkdirSync(join(dir, "empty-dist"), { recursive: true });
+    const emptySpa = await startStaticServer(join(dir, "empty-dist"), { spaFallback: true });
+    cleanups.push(() => emptySpa.close());
+    expect((await fetch(`${emptySpa.origin}/`)).status).toBe(404);
+
+    put(dir, "app-dist/index.html", "<h1>App</h1>");
+    const runCache = new Map<string, unknown>();
+    const ctx: LayerContext = {
+      cwd: dir,
+      config: cfg({ class: "web-app" }),
+      base: "origin/main",
+      enforce: "hard",
+      env: {},
+      exec: noExec,
+      outDir: join(dir, ".web-tops", "out"),
+      artifacts: new Map(),
+      runCache,
+    };
+    const spaSrv = await ensureServer(ctx, join(dir, "app-dist"), { spaFallback: true });
+    cleanups.push(() => spaSrv.close());
+    const plainSrv = await ensureServer(ctx, join(dir, "app-dist"), { spaFallback: false });
+    cleanups.push(() => plainSrv.close());
+    const defaultSrv = await ensureServer(ctx, join(dir, "app-dist"));
+    expect(defaultSrv).toBe(plainSrv);
+    expect(spaSrv).not.toBe(plainSrv);
+    expect((await fetch(`${spaSrv.origin}/spa-route`)).status).toBe(200);
+    expect((await fetch(`${plainSrv.origin}/spa-route`)).status).toBe(404);
   });
 });

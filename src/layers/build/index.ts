@@ -9,7 +9,7 @@ export {
   readInventoryArtifact,
   type EnsureBuildOptions,
 } from "./run.ts";
-export { BROTLI_OPTIONS, mimeType, startStaticServer } from "./server.ts";
+export { BROTLI_OPTIONS, mimeType, startStaticServer, type StaticServerOptions } from "./server.ts";
 
 /** Gate 6 shared build layer: builds `dist/` once and hands off its page inventory via N5 artifact. */
 export const buildLayer: Layer = {

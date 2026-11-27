@@ -17,6 +17,7 @@
     "@stryker-mutator/vitest-runner",
     "eslint-plugin-react-hooks",
     "html-validate",
+    "postcss-html",
     "publint",
     "secretlint",
     "size-limit"

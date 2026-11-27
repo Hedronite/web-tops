@@ -30,37 +30,43 @@ const off = (name: string, text: string): string =>
       )
     : text;
 
-describe("G3c `webtops laws probe` in a real process, through the production exec", () => {
-  it(
-    "passes a project whose config keeps the rules, with exit 0 and the law named in the report",
-    () => {
-      const run = probe(adopter(), "--law", "W-11", "--json");
-      expect(run.err).toBe("");
-      expect(run.status).toBe(0);
-      expect(run.out).toContain('"id": "W-11"');
-      expect(run.out).toContain('"verdict": "pass"');
-    },
-    REAL_TOOL_TIMEOUT,
-  );
+/** Real processes only: no mutant of a mutation run reaches them (R112). */
+const insideStryker = process.env["STRYKER_MUTATOR_WORKER"] !== undefined;
 
-  it(
-    "fails a project whose config turns one of the law's rules off: exit 1, the silent rule named",
-    () => {
-      const run = probe(adopter(off), "--law", "W-11");
-      expect(run.status).toBe(1);
-      expect(run.out).toContain("W-11");
-      expect(run.out).toContain("no-floating-promises did not fire on its bad twin");
-    },
-    REAL_TOOL_TIMEOUT,
-  );
+describe.skipIf(insideStryker)(
+  "G3c `webtops laws probe` in a real process, through the production exec",
+  () => {
+    it(
+      "passes a project whose config keeps the rules, with exit 0 and the law named in the report",
+      () => {
+        const run = probe(adopter(), "--law", "W-11", "--json");
+        expect(run.err).toBe("");
+        expect(run.status).toBe(0);
+        expect(run.out).toContain('"id": "W-11"');
+        expect(run.out).toContain('"verdict": "pass"');
+      },
+      REAL_TOOL_TIMEOUT,
+    );
 
-  it(
-    "exits 3 when a tool is not installed in the project, saying which",
-    () => {
-      const run = probe(tempDir(), "--law", "W-11");
-      expect(run.status).toBe(3);
-      expect(run.err).toContain("eslint did not run: tool-missing");
-    },
-    REAL_TOOL_TIMEOUT,
-  );
-});
+    it(
+      "fails a project whose config turns one of the law's rules off: exit 1, the silent rule named",
+      () => {
+        const run = probe(adopter(off), "--law", "W-11");
+        expect(run.status).toBe(1);
+        expect(run.out).toContain("W-11");
+        expect(run.out).toContain("no-floating-promises did not fire on its bad twin");
+      },
+      REAL_TOOL_TIMEOUT,
+    );
+
+    it(
+      "exits 3 when a tool is not installed in the project, saying which",
+      () => {
+        const run = probe(tempDir(), "--law", "W-11");
+        expect(run.status).toBe(3);
+        expect(run.err).toContain("eslint did not run: tool-missing");
+      },
+      REAL_TOOL_TIMEOUT,
+    );
+  },
+);

@@ -17,6 +17,7 @@ tools:
   - "eslint"
   - "eslint-plugin-astro"
   - "eslint-plugin-jsx-a11y-x"
+  - "postcss-html"
   - "prettier"
   - "stylelint"
   - "typescript"
