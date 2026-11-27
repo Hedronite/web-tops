@@ -52,7 +52,7 @@ describe("Gate 6 law readers edge cases", () => {
   it("bytesReader and routeBytesReader report exact reasons, file fields, and byte formatting", async () => {
     expect(await readOne(bytesReader, w29Static)).toMatchObject({
       verdict: "not-evaluated",
-      reason: "the bytes-json artifact of gate 6 is missing or is not valid JSON",
+      reason: "the bytes-json artifact of gate 6 is missing or is not a report of judged entries",
     });
     expect(await readOne(bytesReader, w29Static, "bytes-json", '{"pages":[]}')).toMatchObject({
       verdict: "not-evaluated",
@@ -124,5 +124,19 @@ describe("Gate 6 law readers edge cases", () => {
     );
     expect(routeBytesRes.verdict).toBe("refuse");
     expect(routeBytesRes.findings).toHaveLength(1);
+  });
+
+  it.each([
+    ["no verdict", "{}"],
+    ["a verdict that is not a boolean", '{"passed":"false"}'],
+    ["no object", "7"],
+  ])("never passes a report with an entry that has %s", async (_name, entry) => {
+    const pages = `{"pages":[{"passed":true},${entry}]}`;
+    const routes = `{"routes":[{"passed":true},${entry}]}`;
+    const readings = [
+      await readOne(bytesReader, w29Static, "bytes-json", pages),
+      await readOne(routeBytesReader, w29Route, "route-bytes-json", routes),
+    ];
+    expect(readings.map((reading) => reading.verdict)).toEqual(["not-evaluated", "not-evaluated"]);
   });
 });

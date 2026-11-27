@@ -1,4 +1,4 @@
-import { isRecord, parseJson, readOutput, records } from "../../layers/hygiene/tooling.ts";
+import { isRecord, parseJson, readOutput } from "../../layers/hygiene/tooling.ts";
 import type { RawFinding } from "../../report/findings.ts";
 import { notEvaluated, readingOf } from "./reading.ts";
 import type { LawEntry, LawReader, LawReading, ReadInput } from "./types.ts";
@@ -9,13 +9,18 @@ interface BytesSpec {
   readonly rule: "page-js-bytes" | "route-js-bytes";
 }
 
+/** An entry the byte layer judged: an object with a verdict of its own. */
+const isJudged = (entry: unknown): entry is Record<string, unknown> =>
+  isRecord(entry) && typeof entry["passed"] === "boolean";
+
+/** Every entry of the report, or none: one that was not judged leaves the report unread, never passed over. */
 function readEntries(
   text: string | undefined,
   key: "pages" | "routes",
 ): Record<string, unknown>[] | undefined {
   const parsed = parseJson(text);
-  if (!isRecord(parsed) || !Array.isArray(parsed[key])) return undefined;
-  return records(parsed[key]);
+  const list: unknown = isRecord(parsed) ? parsed[key] : undefined;
+  return Array.isArray(list) && list.every(isJudged) ? list : undefined;
 }
 
 const numStr = (value: unknown): string => (typeof value === "number" ? String(value) : "?");
@@ -53,7 +58,7 @@ function judgeLaw(
 }
 
 function makeBytesReader(spec: BytesSpec): LawReader {
-  const missing = `the ${spec.artifact} artifact of gate 6 is missing or is not valid JSON`;
+  const missing = `the ${spec.artifact} artifact of gate 6 is missing or is not a report of judged entries`;
   return (input: ReadInput): Promise<readonly LawReading[]> => {
     const path = input.ctx.artifacts.get(spec.artifact);
     const entries = path === undefined ? undefined : readEntries(readOutput(path), spec.listKey);
