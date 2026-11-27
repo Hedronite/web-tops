@@ -14,31 +14,6 @@ import {
 
 /** Gate 1, steps `install`, `tsc` and `astro_check`. */
 
-interface ExitStep {
-  readonly tool: string;
-  readonly args: readonly string[];
-  readonly rule: string;
-  /** What the tool is called in the finding. */
-  readonly label: string;
-  /** Which stream the finding quotes first. */
-  readonly first: "stdout" | "stderr";
-}
-
-/** A tool whose exit code is the whole answer: clean on 0, one finding quoting its output otherwise. */
-async function exitStep(step: StepContext, spec: ExitStep): Promise<StepResult> {
-  const outcome = await ran(step, spec.tool, spec.args);
-  if ("failed" in outcome) {
-    return outcome.failed;
-  }
-  const { result } = outcome;
-  return {
-    findings:
-      result.code === 0
-        ? []
-        : [exitFinding(toolOf(spec.tool), spec.rule, spec.label, result, spec.first)],
-  };
-}
-
 /** `bun install --frozen-lockfile`; its exit code is kept as `install-json` for the laws layer (W-40). */
 export async function install(step: StepContext): Promise<StepResult> {
   const outcome = await ran(step, "bun", ["install", "--frozen-lockfile"]);
@@ -59,14 +34,22 @@ export async function install(step: StepContext): Promise<StepResult> {
   };
 }
 
-export function astroCheck(step: StepContext): Promise<StepResult> {
-  return exitStep(step, {
-    tool: "astro",
-    args: ["check"],
-    rule: "astro-check",
-    label: "astro check",
-    first: "stdout",
-  });
+/** `astro check`; its exit code is kept as `astro-check-json` for the laws layer (W-27). */
+export async function astroCheck(step: StepContext): Promise<StepResult> {
+  const outcome = await ran(step, "astro", ["check"]);
+  if ("failed" in outcome) {
+    return outcome.failed;
+  }
+  const { result } = outcome;
+  const path = step.out("astro-check.json");
+  writeFileSync(path, `${JSON.stringify({ command: "astro check", code: result.code })}\n`);
+  return {
+    findings:
+      result.code === 0
+        ? []
+        : [exitFinding(toolOf("astro"), "astro-check", "astro check", result, "stdout")],
+    artifacts: { "astro-check-json": path },
+  };
 }
 
 /** One diagnostic of `tsc -b`, as the laws layer reads it from `tsc-diagnostics.json`. */

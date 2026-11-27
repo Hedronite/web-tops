@@ -75,6 +75,7 @@ describe("R87 hygiene tsc: tsc-diagnostics.json", () => {
       "install-json",
       "publint-json",
       "attw-json",
+      "astro-check-json",
     ]);
     expect(hygieneLayer.classes).toEqual([
       "ts-library",
