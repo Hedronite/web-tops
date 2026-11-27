@@ -9,7 +9,7 @@ import {
   type DistInventory,
   type DistPage,
 } from "./inventory.ts";
-import { startStaticServer, type StaticServer } from "./server.ts";
+import { startStaticServer, type StaticServer, type StaticServerOptions } from "./server.ts";
 
 export interface BuildArtifact {
   readonly version: 1;
@@ -234,8 +234,12 @@ export function ensureBuild(
     : Promise.resolve(readHandedBuild(handedPath));
 }
 
-function startTrackedServer(context: LayerContext, distDir: string): Promise<StaticServer> {
-  return startStaticServer(distDir).then((server) => {
+function startTrackedServer(
+  context: LayerContext,
+  distDir: string,
+  options?: StaticServerOptions,
+): Promise<StaticServer> {
+  return startStaticServer(distDir, options).then((server) => {
     context.onCleanup?.(server.close);
     return server;
   });
@@ -253,13 +257,23 @@ function serversFor(cache: Map<string, unknown>): Map<string, Promise<StaticServ
  * Starts (or reuses within the same `runGate` session) the shared static server for `dist/`, registering
  * deterministic teardown on `context.onCleanup`.
  */
-export function ensureServer(context: LayerContext, distDir: string): Promise<StaticServer> {
+const resolveServerOptions = (options?: StaticServerOptions): StaticServerOptions => ({
+  spaFallback: Boolean(options?.spaFallback),
+});
+
+export function ensureServer(
+  context: LayerContext,
+  distDir: string,
+  options?: StaticServerOptions,
+): Promise<StaticServer> {
+  const resolved = resolveServerOptions(options);
   const cache = context.runCache;
-  if (cache === undefined) return startTrackedServer(context, distDir);
+  if (cache === undefined) return startTrackedServer(context, distDir, resolved);
   const map = serversFor(cache);
-  const existing = map.get(distDir);
+  const key = `${distDir}#${String(Boolean(resolved.spaFallback))}`;
+  const existing = map.get(key);
   if (existing !== undefined) return existing;
-  const created = startTrackedServer(context, distDir);
-  map.set(distDir, created);
+  const created = startTrackedServer(context, distDir, resolved);
+  map.set(key, created);
   return created;
 }
