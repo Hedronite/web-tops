@@ -80,7 +80,9 @@ describe("G4 a law whose tool artifact is missing is not-evaluated", () => {
       { artifact: "install-json", from: "hygiene", optional: true },
       { artifact: "publint-json", from: "hygiene", optional: true },
       { artifact: "stylelint-json", from: "hygiene", optional: true },
+      { artifact: "axe-report", from: "build-output", optional: true },
       { artifact: "bytes-json", from: "build-output", optional: true },
+      { artifact: "html-report", from: "build-output", optional: true },
       { artifact: "route-bytes-json", from: "build-output", optional: true },
     ]);
   });

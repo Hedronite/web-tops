@@ -6,7 +6,7 @@ import type { ClassedLaw } from "./entries.ts";
 /** Where the layer reads its laws: a function, so a test gives it a catalog of its own. */
 export type LawCatalog = () => readonly LawEntry[];
 
-/** A law as the layer takes it: what the catalog's file says, with a law that M3 gives a reader judged from now on. */
+/** A law as the layer takes it: what the catalog's file says, with a law that M3 or M4 gives a reader judged from now on. */
 export const entryOf = (law: Law): ClassedLaw => ({
   id: law.id,
   severity: law.severity,

@@ -25,8 +25,8 @@ const isCustom = (name: string): boolean => name.startsWith("webtops/");
 
 const probed = (rule: LawRecord["rules"][number]): boolean => probedTools().includes(rule.tool);
 
-/** A law is judged when section 8.2 ticks it (`v0.1`) or milestone M3 gives it a reader (`m3`); `no` is not judged yet. */
-const isJudged = (law: LawRecord): boolean => law.judged === "v0.1" || law.judged === "m3";
+/** A law is judged when section 8.2 ticks it or a milestone gives it a reader (`m3`, `m4`); `no` is not judged yet. */
+const isJudged = (law: LawRecord): boolean => law.judged !== "no";
 
 /**
  * Whether the probe proves a law: it is judged, a lint rule or a compiler flag judges it, and none of those is a rule

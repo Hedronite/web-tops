@@ -1,9 +1,11 @@
 import { astroCheckReader } from "../../laws/readers/astro-check.ts";
 import { attwReader } from "../../laws/readers/attw.ts";
+import { axeReader } from "../../laws/readers/axe.ts";
 import { bytesReader, routeBytesReader } from "../../laws/readers/bytes.ts";
 import { bunReader } from "../../laws/readers/bun.ts";
 import { depcruiseReader } from "../../laws/readers/depcruise.ts";
 import { eslintReader } from "../../laws/readers/eslint.ts";
+import { htmlValidateReader } from "../../laws/readers/html-validate.ts";
 import { knipReader } from "../../laws/readers/knip.ts";
 import { lockReader } from "../../laws/readers/lock.ts";
 import { publintReader } from "../../laws/readers/publint.ts";
@@ -14,16 +16,18 @@ import type { LawReader } from "../../laws/readers/types.ts";
 
 /**
  * The readers by the tool whose rules they read, one line each. A law that maps a tool with no reader here is
- * `not-evaluated` for that tool, never a pass: axe and html-validate have none yet.
+ * `not-evaluated` for that tool, never a pass.
  */
 export function defaultReaders(): ReadonlyMap<string, LawReader> {
   return new Map([
     ["astro-check", astroCheckReader],
     ["attw", attwReader],
+    ["axe", axeReader],
     ["bun", bunReader],
     ["bytes", bytesReader],
     ["dependency-cruiser", depcruiseReader],
     ["eslint", eslintReader],
+    ["html-validate", htmlValidateReader],
     ["knip", knipReader],
     ["lock", lockReader],
     ["publint", publintReader],
@@ -52,7 +56,9 @@ function gate1Artifacts(): ReadonlyMap<string, string> {
 
 function gate6Artifacts(): ReadonlyMap<string, string> {
   return new Map([
+    ["html-validate", "html-report"],
     ["route-bytes", "route-bytes-json"],
+    ["axe", "axe-report"],
     ["bytes", "bytes-json"],
   ]);
 }

@@ -9,7 +9,7 @@ export interface Filter {
 const inClass = (law: Law, cls: LawClass | undefined): boolean =>
   cls === undefined || law.classes.includes(cls);
 
-/** A law is required where it is mapped and judged (WEB_TOPS.md section 5.2): ticked, or given a reader in M3. */
+/** A law is required where it is mapped and judged (WEB_TOPS.md section 5.2): ticked, or given a reader in M3 or M4. */
 const wanted = (law: Law, required: boolean): boolean => !required || law.judged !== "no";
 
 export function select(laws: readonly Law[], filter: Filter): Law[] {

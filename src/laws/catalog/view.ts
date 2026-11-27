@@ -10,6 +10,7 @@ const SEVERITY: Readonly<Record<Law["severity"], string>> = {
 const JUDGED: Readonly<Record<Judged, string>> = {
   "v0.1": "ticked in section 8.2",
   m3: "gets a reader in M3",
+  m4: "gets a reader in M4",
   no: "not judged yet",
 };
 

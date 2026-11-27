@@ -7,9 +7,9 @@ import { defaultReaders } from "../layer/readers.ts";
 /**
  * One planted violation per law: a judged law whose rules name only tools that have a reader is planted, by its id. The
  * plants are in `planted.test.ts` (the results gates 1 and 6 keep, and the lock) and in `layer/real-tools-e2e.test.ts`
- * (the real tools); W-26's are in `stylelint.test.ts` and `stylelint-real.test.ts`, W-27's in `astro-check.test.ts`.
- * A law that names axe or html-validate (W-20, W-21, W-22) has a tool with no reader yet, so none is listed. The law
- * files are read here, not through the catalog loader, so the test runs no code of the layer but the registry.
+ * (the real tools); W-26's are in `stylelint.test.ts` and `stylelint-real.test.ts`, W-27's in `astro-check.test.ts`, and
+ * those of W-20, W-21 and W-44 in `gate6-readers.test.ts`. The law files are read here, not through the catalog loader,
+ * so the test runs no code of the layer but the registry.
  */
 
 const LAWS = resolve(import.meta.dirname, "../../../laws");
@@ -20,6 +20,8 @@ const PLANTED = [
   "W-17",
   "W-18",
   "W-19",
+  "W-20",
+  "W-21",
   "W-26",
   "W-27",
   "W-29",
@@ -27,6 +29,7 @@ const PLANTED = [
   "W-39",
   "W-40",
   "W-41",
+  "W-44",
   "W-48",
 ];
 

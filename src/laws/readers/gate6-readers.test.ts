@@ -2,7 +2,9 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
+import { axeReader } from "./axe.ts";
 import { bytesReader, routeBytesReader } from "./bytes.ts";
+import { htmlValidateReader } from "./html-validate.ts";
 import { inputFor, lawOf } from "./testkit.ts";
 import type { LawEntry, LawReader, LawReading } from "./types.ts";
 
@@ -46,8 +48,149 @@ async function readHeld(
 }
 
 describe("Gate 6 law readers edge cases", () => {
+  const w20 = lawOf("W-20", [{ tool: "html-validate", name: "html-validate" }]);
+  const w21 = lawOf("W-21", [{ tool: "axe", name: "axe" }]);
+  const w44 = lawOf("W-44", [{ tool: "axe", name: "target-size" }]);
   const w29Static = lawOf("W-29", [{ tool: "bytes", name: "page-js-bytes" }]);
   const w29Route = lawOf("W-29", [{ tool: "route-bytes", name: "route-js-bytes" }]);
+
+  it("htmlValidateReader rejects missing, malformed JSON, wrong shapes, and 0-page reports with exact reasons", async () => {
+    const missing = await readOne(htmlValidateReader, w20);
+    expect(missing).toMatchObject({
+      verdict: "not-evaluated",
+      reason:
+        "the html-report artifact of gate 6 is missing or is not a valid html-validate JSON report",
+    });
+    expect((await readOne(htmlValidateReader, w20, "html-report", "{not-json")).verdict).toBe(
+      "not-evaluated",
+    );
+    expect((await readOne(htmlValidateReader, w20, "html-report", '{"pages":1}')).verdict).toBe(
+      "not-evaluated",
+    );
+    expect(
+      await readOne(htmlValidateReader, w20, "html-report", '{"pages":0,"findings":[]}'),
+    ).toMatchObject({
+      verdict: "not-evaluated",
+      reason: "no HTML pages were validated in html-report",
+    });
+  });
+
+  it("htmlValidateReader emits exact findings with and without line numbers", async () => {
+    const payload = JSON.stringify({
+      version: 1,
+      pages: 1,
+      findings: [
+        { law: "W-22", rule: "a11y", message: "other-law", file: "dist/a.html", line: 2 },
+        { law: "W-20", rule: "bad", message: "m", file: "dist/a.html", line: 0 },
+        { law: "W-20", rule: "void", message: "m2", file: "dist/b.html", line: 1 },
+      ],
+    });
+    const partial = await readOne(htmlValidateReader, w20, "html-report", payload);
+    expect(partial.verdict).toBe("refuse");
+    expect(partial.findings).toEqual([
+      { tool: "webtops", rule: "bad", verdict: "refuse", message: "m", file: "dist/a.html" },
+      {
+        tool: "webtops",
+        rule: "void",
+        verdict: "refuse",
+        message: "m2",
+        file: "dist/b.html",
+        line: 1,
+      },
+    ]);
+  });
+
+  it("axeReader rejects missing, bad shapes, 0 routes, and incomplete results with exact reasons", async () => {
+    const missing = await readOne(axeReader, w21);
+    expect(missing).toMatchObject({
+      verdict: "not-evaluated",
+      reason: "the axe-report artifact of gate 6 is missing or is not a valid axe JSON report",
+    });
+    const invalidReason =
+      "the axe-report artifact of gate 6 is missing or is not a valid axe JSON report";
+    for (const bad of [
+      "null",
+      "{}",
+      '{"violations":[],"incomplete":[]}',
+      '{"routes":["/"],"incomplete":[]}',
+      '{"routes":["/"],"violations":[]}',
+    ]) {
+      expect(await readOne(axeReader, w21, "axe-report", bad)).toMatchObject({
+        verdict: "not-evaluated",
+        reason: invalidReason,
+      });
+    }
+
+    const zeroRoutes = await readOne(
+      axeReader,
+      w21,
+      "axe-report",
+      '{"routes":[],"violations":[],"incomplete":[]}',
+    );
+    expect(zeroRoutes).toMatchObject({
+      verdict: "not-evaluated",
+      reason: "no routes were evaluated in axe-report",
+    });
+
+    const incomplete = await readOne(
+      axeReader,
+      w44,
+      "axe-report",
+      JSON.stringify({
+        routes: ["/"],
+        violations: [],
+        incomplete: [{ rule: "target-size", selector: "button" }],
+      }),
+    );
+    expect(incomplete).toMatchObject({
+      verdict: "not-evaluated",
+      reason: "axe left 1 result(s) incomplete",
+    });
+  });
+
+  it("axeReader judges minor, moderate, unknown impact, file vs empty file, and malformed selectors", async () => {
+    const passPayload = JSON.stringify({
+      routes: ["/"],
+      violations: [
+        { rule: "meta-viewport", impact: "moderate", selector: "meta" },
+        { rule: "region", impact: "minor", selector: "main" },
+        { rule: "target-size", impact: "serious", selector: "button" },
+      ],
+      incomplete: [{ rule: "target-size", selector: "button" }],
+    });
+    expect((await readOne(axeReader, w21, "axe-report", passPayload)).verdict).toBe("pass");
+
+    const failPayload = JSON.stringify({
+      routes: ["/"],
+      violations: [
+        { rule: "target-size", selector: "button", file: "dist/index.html" },
+        { rule: "color-contrast", impact: "serious", selector: "p", file: "" },
+      ],
+      incomplete: [],
+    });
+    const w44Res = await readOne(axeReader, w44, "axe-report", failPayload);
+    expect(w44Res.verdict).toBe("refuse");
+    expect(w44Res.findings).toEqual([
+      {
+        tool: "webtops",
+        rule: "axe:target-size",
+        verdict: "refuse",
+        message: "axe target-size at button",
+        file: "dist/index.html",
+      },
+    ]);
+
+    const w21Res = await readOne(axeReader, w21, "axe-report", failPayload);
+    expect(w21Res.findings).toEqual([
+      {
+        tool: "webtops",
+        rule: "axe:color-contrast",
+        verdict: "refuse",
+        message: "axe color-contrast at p",
+      },
+    ]);
+    expect("file" in (w21Res.findings[0] ?? {})).toBe(false);
+  });
 
   it("bytesReader and routeBytesReader report exact reasons, file fields, and byte formatting", async () => {
     expect(await readOne(bytesReader, w29Static)).toMatchObject({
@@ -102,7 +245,34 @@ describe("Gate 6 law readers edge cases", () => {
     expect("file" in (badRoute.findings[0] ?? {})).toBe(false);
   });
 
-  it("LAC-1: refuses W-29 breaks across bytesReader and routeBytesReader even under a held ratchet", async () => {
+  it("LAC-1: refuses breaks across all 4 Gate 6 readers even under a held ratchet", async () => {
+    const htmlRes = await readHeld(
+      htmlValidateReader,
+      w20,
+      "html-report",
+      JSON.stringify({
+        pages: 1,
+        findings: [
+          { law: "W-20", rule: "void-style", message: "bad html", file: "dist/index.html" },
+        ],
+      }),
+    );
+    expect(htmlRes.verdict).toBe("refuse");
+    expect(htmlRes.findings).toHaveLength(1);
+
+    const axeRes = await readHeld(
+      axeReader,
+      w21,
+      "axe-report",
+      JSON.stringify({
+        routes: ["/"],
+        violations: [{ rule: "color-contrast", impact: "serious", selector: "p" }],
+        incomplete: [],
+      }),
+    );
+    expect(axeRes.verdict).toBe("refuse");
+    expect(axeRes.findings).toHaveLength(1);
+
     const bytesRes = await readHeld(
       bytesReader,
       w29Static,
@@ -138,5 +308,125 @@ describe("Gate 6 law readers edge cases", () => {
       await readOne(routeBytesReader, w29Route, "route-bytes-json", routes),
     ];
     expect(readings.map((reading) => reading.verdict)).toEqual(["not-evaluated", "not-evaluated"]);
+  });
+});
+
+/** One planted violation per law that only these readers judge (see `planted-coverage.test.ts`). */
+const page = (findings: readonly object[]): object => ({ version: 1, pages: 1, findings });
+const visit = (violations: readonly object[]): object => ({
+  version: 1,
+  routes: ["/"],
+  violations,
+  incomplete: [],
+});
+const file = "dist/index.html";
+
+const PLANTS = [
+  {
+    id: "W-20",
+    reader: htmlValidateReader,
+    law: lawOf("W-20", [{ tool: "html-validate", name: "html-validate" }]),
+    artifact: "html-report",
+    bad: page([{ law: "W-20", file, line: 2, column: 1, rule: "void-style", message: "bad" }]),
+    clean: page([]),
+  },
+  {
+    id: "W-21",
+    reader: axeReader,
+    law: lawOf("W-21", [{ tool: "axe", name: "axe" }]),
+    artifact: "axe-report",
+    bad: visit([{ law: "W-21", rule: "color-contrast", impact: "serious", selector: "p", file }]),
+    clean: visit([]),
+  },
+  {
+    id: "W-44",
+    reader: axeReader,
+    law: lawOf("W-44", [{ tool: "axe", name: "target-size" }]),
+    artifact: "axe-report",
+    bad: visit([{ law: "W-44", rule: "target-size", impact: "serious", selector: "a", file }]),
+    clean: visit([]),
+  },
+];
+
+describe.each(PLANTS)("$id, planted", (plant) => {
+  it("refuses its violation, passes its clean twin, and is not evaluated with no report", async () => {
+    const readings = [
+      await readOne(plant.reader, plant.law, plant.artifact, JSON.stringify(plant.bad)),
+      await readOne(plant.reader, plant.law, plant.artifact, JSON.stringify(plant.clean)),
+      await readOne(plant.reader, plant.law),
+    ];
+    expect(readings.map((reading) => [reading.law, reading.verdict])).toEqual([
+      [plant.id, "refuse"],
+      [plant.id, "pass"],
+      [plant.id, "not-evaluated"],
+    ]);
+  });
+});
+
+/** A report is judged only whole: an entry that cannot be read leaves it unread, never dropped from it. */
+const w20Law = lawOf("W-20", [{ tool: "html-validate", name: "html-validate" }]);
+const w21Law = lawOf("W-21", [{ tool: "axe", name: "axe" }]);
+const w44Law = lawOf("W-44", [{ tool: "axe", name: "target-size" }]);
+const verdictOf = async (
+  reader: LawReader,
+  law: LawEntry,
+  artifact: string,
+  report: object,
+): Promise<string> => (await readOne(reader, law, artifact, JSON.stringify(report))).verdict;
+
+describe("an entry a built-page reader cannot read", () => {
+  it.each([
+    ["is no object", 7],
+    ["has a rule that is not a string", { law: "W-20", rule: 42, message: "m", file: "f" }],
+    ["names no law", { rule: "r", message: "m", file: "f" }],
+    ["has no message", { law: "W-20", rule: "r", file: "f" }],
+    ["has no file", { law: "W-20", rule: "r", message: "m" }],
+  ])("never passes W-20 over a finding that %s", async (_name, entry) => {
+    const report = { version: 1, pages: 1, findings: [entry] };
+    expect(await verdictOf(htmlValidateReader, w20Law, "html-report", report)).toBe(
+      "not-evaluated",
+    );
+  });
+
+  it.each([
+    ["is no object", 7],
+    ["has a rule that is not a string", { rule: 1, selector: "p" }],
+    ["has no selector", { rule: "color-contrast" }],
+  ])(
+    "never passes W-21 or W-44 over a violation or an open result that %s",
+    async (_name, entry) => {
+      const reports = [
+        { routes: ["/"], violations: [entry], incomplete: [] },
+        { routes: ["/"], violations: [], incomplete: [entry] },
+      ];
+      const verdicts: string[] = [];
+      for (const report of reports) {
+        verdicts.push(await verdictOf(axeReader, w21Law, "axe-report", report));
+        verdicts.push(await verdictOf(axeReader, w44Law, "axe-report", report));
+      }
+      expect(verdicts).toEqual(Array.from({ length: 4 }, () => "not-evaluated"));
+    },
+  );
+
+  it("names the axe rule in each W-22 finding, so a refusal says why", async () => {
+    const w22 = lawOf("W-22", [{ tool: "axe", name: "axe" }]);
+    const report = visit([
+      { rule: "color-contrast", impact: "serious", selector: "p" },
+      { rule: "label", impact: "critical", selector: "input" },
+    ]);
+    const reading = await readOne(axeReader, w22, "axe-report", JSON.stringify(report));
+    expect(reading.findings.map((found) => [found.rule, found.message])).toEqual([
+      ["axe:color-contrast", "axe color-contrast at p"],
+      ["axe:label", "axe label at input"],
+    ]);
+  });
+
+  it("refuses a failing violation even when axe left another result open, as the layer does", async () => {
+    const report = {
+      routes: ["/"],
+      violations: [{ rule: "color-contrast", impact: "serious", selector: "p" }],
+      incomplete: [{ rule: "label", selector: "input" }],
+    };
+    expect(await verdictOf(axeReader, w21Law, "axe-report", report)).toBe("refuse");
   });
 });

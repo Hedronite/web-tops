@@ -96,7 +96,7 @@ describe("webtops laws list (G1b)", () => {
       "48 of 49 laws (class astro-site)",
     );
     expect((await laws(["list", "--required"])).out.split("\n")[0]).toBe(
-      "34 of 49 laws (required)",
+      "35 of 49 laws (required)",
     );
   });
 

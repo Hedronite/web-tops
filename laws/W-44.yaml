@@ -7,7 +7,8 @@ classes: [astro-site, web-app]
 reader:
   kinds: [an]
   text: "an: rendered"
-rules: []
-judged: no
+rules:
+  - { tool: axe, name: "target-size" }
+judged: m4
 rationale: "A small target is hard to hit."
 fix: "Make the target at least 24 × 24 CSS px, or wrap it in its label."
