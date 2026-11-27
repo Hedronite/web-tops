@@ -18,22 +18,21 @@ const broken = (code: number | null): RawFinding => ({
   message: `astro check exited ${String(code)}`,
 });
 
-/** W-27: `astro check` ran in gate 1 and exited 0. */
-export function judgeAstroCheck(
-  law: LawEntry,
-  text: string | undefined,
-  held: boolean,
-): LawReading {
+/**
+ * W-27: `astro check` ran in gate 1 and exited 0. A failed step is no counted finding, as it names no file, so no
+ * ratchet holds it (section 6.7).
+ */
+export function judgeAstroCheck(law: LawEntry, text: string | undefined): LawReading {
   const code = checkCode(text);
   if (code === undefined) {
     return notEvaluated(law, MISSING);
   }
-  return readingOf(law, code === 0 ? [] : [broken(code)], held);
+  return readingOf(law, code === 0 ? [] : [broken(code)], false);
 }
 
 /** The `astro check` reader (W-27): the result gate 1 kept; it does not run the check again. */
 export const astroCheckReader: LawReader = (input) => {
   const path = input.ctx.artifacts.get("astro-check-json");
   const text = path === undefined ? undefined : readOutput(path);
-  return Promise.resolve(input.laws.map((law) => judgeAstroCheck(law, text, input.held)));
+  return Promise.resolve(input.laws.map((law) => judgeAstroCheck(law, text)));
 };

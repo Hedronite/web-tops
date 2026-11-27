@@ -23,7 +23,7 @@ const broken = (code: string): object => ({
 
 describe("W-27: judgeAstroCheck", () => {
   it("passes a check that exited 0", () => {
-    expect(judgeAstroCheck(LAW, ran(0), false)).toEqual({
+    expect(judgeAstroCheck(LAW, ran(0))).toEqual({
       law: "W-27",
       verdict: "pass",
       findings: [],
@@ -34,17 +34,10 @@ describe("W-27: judgeAstroCheck", () => {
     [1, "1"],
     [null, "null"],
   ])("refuses a check that exited %s", (code, said) => {
-    expect(judgeAstroCheck(LAW, ran(code), false)).toEqual({
+    expect(judgeAstroCheck(LAW, ran(code))).toEqual({
       law: "W-27",
       verdict: "refuse",
       findings: [broken(said)],
-    });
-  });
-
-  it("leaves it to the ratchet when it holds counts", () => {
-    expect(judgeAstroCheck(LAW, ran(1), true)).toMatchObject({
-      verdict: "pass",
-      note: "1 held by the baseline",
     });
   });
 
@@ -54,7 +47,7 @@ describe("W-27: judgeAstroCheck", () => {
     ["no code", "{}"],
     ["a code that is not a number", '{"code":"0"}'],
   ])("is not-evaluated for %s", (_name, text) => {
-    expect(judgeAstroCheck(LAW, text, false)).toEqual({
+    expect(judgeAstroCheck(LAW, text)).toEqual({
       law: "W-27",
       verdict: "not-evaluated",
       reason: "gate 1 kept no result of astro check: the step did not run",
@@ -74,6 +67,27 @@ describe("the astro check reader", () => {
       { law: "W-27", verdict: "refuse", findings: [broken("1")] },
     ]);
   });
+
+  it.each([
+    [1, "1"],
+    [null, "null"],
+  ])(
+    "refuses a check that exited %s even under a ratchet that holds counts",
+    async (code, said) => {
+      const dir = mkdtempSync(join(tmpdir(), "wt-astro-check-"));
+      roots.push(dir);
+      const path = join(dir, "astro-check.json");
+      writeFileSync(path, ran(code));
+      const input = inputFor([LAW], {
+        cwd: dir,
+        artifacts: { "astro-check-json": path },
+        held: true,
+      });
+      expect(await astroCheckReader(input)).toEqual([
+        { law: "W-27", verdict: "refuse", findings: [broken(said)] },
+      ]);
+    },
+  );
 
   it("is not-evaluated when gate 1 kept none", async () => {
     const [reading] = await astroCheckReader(inputFor([LAW]));
