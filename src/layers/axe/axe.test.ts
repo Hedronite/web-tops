@@ -10,7 +10,7 @@ import { buildLayer } from "../build/index.ts";
 import { axeLayer } from "./index.ts";
 import { axeOptions, toolPackages, viewport } from "./options.ts";
 import { AXE_TIMEOUT_MS } from "./run.ts";
-import { configuredRoutes, targetsOf } from "./targets.ts";
+import { targetsOf } from "./targets.ts";
 
 const KIT = resolve(import.meta.dirname, "../../..");
 /** A Chromium run kills no mutant a stand-in driver does not, and is far too slow to repeat for each one (R112). */
@@ -102,11 +102,14 @@ const reportOf = (result: LayerResult): unknown =>
 const fingerprints = (result: LayerResult): string[] =>
   completeFindings(result.findings, () => undefined).map((finding) => finding.fingerprint);
 
-const YAML = (routes: string): string =>
-  `protocol: "0.3.0"\nversion: "1"\npackage: app\nclass: web-app\nenforce: hard\n${routes}report: { path: .web-tops/report.json }\n`;
-
-const app = async (files: Readonly<Record<string, string>>): Promise<LayerContext> =>
-  built(project(files), { config: cfg({ class: "web-app" }) });
+/** A web-app as the gate hands it over: the routes are the ones its settings carry. */
+const app = async (
+  files: Readonly<Record<string, string>>,
+  routes?: readonly string[],
+): Promise<LayerContext> =>
+  built(project(files), {
+    config: cfg({ class: "web-app", ...(routes === undefined ? {} : { routes }) }),
+  });
 
 describe("the run the gate pins", () => {
   it("runs the four WCAG A and AA tags and switches target-size on by id", () => {
@@ -189,21 +192,21 @@ describe.skipIf(insideStryker)(
       ]);
     });
 
-    it("judges the routes web-tops.yaml declares, and no other page", async () => {
-      const context = await app({
-        "web-tops.yaml": YAML('routes: ["/", "/about"]\n'),
+    it("judges the declared routes, and no other page", async () => {
+      const files = {
         "dist/index.html": CLEAN,
         "dist/about.html": CLEAN,
         "dist/hidden.html": NO_ALT,
-      });
+      };
+      const context = await app(files, ["/", "/about"]);
       const result = await axeLayer().run(context);
       expect(result).toMatchObject({ verdict: "pass", findings: [] });
       expect(reportOf(result)).toMatchObject({ routes: ["/", "/about"] });
     });
 
     it("fails a declared route dist/ does not serve", async () => {
-      const context = await app({ "dist/index.html": CLEAN });
-      const result = await axeLayer(() => ["/", "/missing"]).run(context);
+      const context = await app({ "dist/index.html": CLEAN }, ["/", "/missing"]);
+      const result = await axeLayer().run(context);
       expect(result).toMatchObject({
         verdict: "fail",
         reason: "dist/ serves no page for /missing",
@@ -212,8 +215,8 @@ describe.skipIf(insideStryker)(
     });
 
     it("fails, and still exits, when a page cannot be loaded", async () => {
-      const context = await app({ "dist/index.html": CLEAN, "dist/data.bin": "x" });
-      const result = await axeLayer(() => ["/data.bin"]).run(context);
+      const context = await app({ "dist/index.html": CLEAN, "dist/data.bin": "x" }, ["/data.bin"]);
+      const result = await axeLayer().run(context);
       expect(result.findings[0]).toMatchObject({ rule: "axe-failed" });
       expect(result.reason).toMatch(/^axe exited 1: [\s\S]*Download is starting/u);
     });
@@ -467,12 +470,8 @@ describe("axe layer reading the driver's answer", () => {
 });
 
 describe("axe layer on a web-app's declared routes", () => {
-  it("takes them from web-tops.yaml", async () => {
-    const context = await app({
-      "web-tops.yaml": YAML('routes: ["/", "/about"]\n'),
-      "dist/index.html": CLEAN,
-    });
-    expect(configuredRoutes(context)).toEqual(["/", "/about"]);
+  it("takes them from the gate's settings", async () => {
+    const context = await app({ "dist/index.html": CLEAN }, ["/", "/about"]);
     const result = await axeLayer().run({ ...context, exec: printing(answer(), answer()) });
     expect(reportOf(result)).toMatchObject({ routes: ["/", "/about"] });
   });
@@ -486,17 +485,17 @@ describe("axe layer on a web-app's declared routes", () => {
     ["/data.json", "data.json"],
     ["/my%20page", undefined],
   ])("names the built file that answers %s", async (route, file) => {
-    const context = await app({ "dist/index.html": CLEAN });
+    const context = await app({ "dist/index.html": CLEAN }, [route]);
     const files = ["index.html", "about.html", "docs/index.html", "a/b.html", "data.json"];
     const inventory = { distDir: "", pages: [], files: [...files, "my page.html"] };
-    expect(targetsOf(context, inventory, () => [route])).toEqual([
+    expect(targetsOf(context, inventory)).toEqual([
       file === undefined ? { route } : { route, file },
     ]);
   });
 
   it("judges a route whose built file it cannot name, and names no file", async () => {
-    const context = await app({ "dist/index.html": CLEAN });
-    const result = await axeLayer(() => ["/elsewhere"]).run({
+    const context = await app({ "dist/index.html": CLEAN }, ["/elsewhere"]);
+    const result = await axeLayer().run({
       ...context,
       exec: printing(answer([rule("r", "serious", ["p"])])),
     });
@@ -505,23 +504,24 @@ describe("axe layer on a web-app's declared routes", () => {
   });
 
   it("takes every built page for a class other than web-app, whatever routes say", async () => {
-    const context = await built(project({ "dist/index.html": CLEAN }));
+    const context = await built(project({ "dist/index.html": CLEAN }), {
+      config: cfg({ class: "astro-site", routes: ["/x"] }),
+    });
     const inventory = {
       distDir: "",
       files: [],
       pages: [{ route: "/b", file: "b.html", bytes: 1 }],
     };
-    expect(targetsOf(context, inventory, () => ["/x"])).toEqual([{ route: "/b", file: "b.html" }]);
+    expect(targetsOf(context, inventory)).toEqual([{ route: "/b", file: "b.html" }]);
   });
 });
 
 describe("axe layer fails closed", () => {
   it.each([
-    ["no routes key", YAML("")],
-    ["an unreadable config", "routes: ["],
-  ])("is not-run for a web-app with %s", async (_name, yaml) => {
-    const context = await app({ "web-tops.yaml": yaml, "dist/index.html": CLEAN });
-    expect(configuredRoutes(context)).toEqual([]);
+    ["no routes", undefined],
+    ["an empty list", []],
+  ])("is not-run for a web-app with %s", async (_name, routes) => {
+    const context = await app({ "dist/index.html": CLEAN }, routes);
     expect(await axeLayer().run({ ...context, exec: never })).toEqual({
       verdict: "not-run",
       reason: "web-tops.yaml declares no routes for this web-app",

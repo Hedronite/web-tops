@@ -5,7 +5,7 @@ import { ensureBuild, ensureServer, type DistInventory } from "../build/index.ts
 import { failFinding } from "../hygiene/tooling.ts";
 import { judged } from "./judge.ts";
 import { missingTool, visitPages, type Visited } from "./run.ts";
-import { configuredRoutes, targetsOf, type RoutesOf, type Target } from "./targets.ts";
+import { targetsOf, type Target } from "./targets.ts";
 
 const stopped = (reason: string, findings: LayerResult["findings"]): LayerResult => ({
   verdict: "fail",
@@ -78,15 +78,15 @@ function absent(inventory: DistInventory, targets: readonly Target[]): LayerResu
     : undefined;
 }
 
-async function runAxe(context: LayerContext, routesOf: RoutesOf): Promise<LayerResult> {
+async function runAxe(context: LayerContext): Promise<LayerResult> {
   const build = await ensureBuild(context);
   if (!build.ok) return stopped(build.reason, build.findings);
-  const targets = targetsOf(context, build.inventory, routesOf);
+  const targets = targetsOf(context, build.inventory);
   return absent(build.inventory, targets) ?? (await withTools(context, build.inventory, targets));
 }
 
 /** axe on the built pages, in headless Chromium: W-21, and W-44 through `target-size` (WEB_TOPS.md section 7). */
-export const axeLayer = (routesOf: RoutesOf = configuredRoutes): Layer => ({
+export const axeLayer = (): Layer => ({
   id: "axe",
   gate: 6,
   tier: 1,
@@ -94,5 +94,5 @@ export const axeLayer = (routesOf: RoutesOf = configuredRoutes): Layer => ({
   requires: ["build"],
   produces: ["axe-report"],
   consumes: [{ artifact: "inventory", from: "build" }],
-  run: (context) => runAxe(context, routesOf),
+  run: runAxe,
 });
