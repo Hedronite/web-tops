@@ -52,18 +52,19 @@ const ALL = Array.from(
 );
 
 /** The laws some class gates: a class maps these only if its own profile names them (section 5.2). */
-const GATED = new Set(
-  PROFILES.flatMap((profile) => [...profile.extraLaws, ...profile.conditionalLaws]),
-);
+const gatedLaws = (): ReadonlySet<string> =>
+  new Set(PROFILES.flatMap((profile) => [...profile.extraLaws, ...profile.conditionalLaws]));
 
 /** What section 5.2 says a class maps: the laws no class gates, and the class's own (W-27 only with Astro). */
-const mappedBy = (profile: (typeof PROFILES)[number], withAstro: boolean): string[] =>
-  ALL.filter(
+const mappedBy = (profile: (typeof PROFILES)[number], withAstro: boolean): string[] => {
+  const gated = gatedLaws();
+  return ALL.filter(
     (id) =>
-      !GATED.has(id) ||
+      !gated.has(id) ||
       profile.extraLaws.includes(id) ||
       (withAstro && profile.conditionalLaws.includes(id)),
   );
+};
 
 /** Each launch class with its profile, the class typed as a law class. */
 const launch = PROFILES.flatMap((profile) =>

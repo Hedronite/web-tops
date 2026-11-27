@@ -467,6 +467,9 @@ sets for client scripts are set on those paths, so ESLint is asked about them fo
 probe page (`src/__webtops_probe__.astro`) when the project has none; a rule below `error` on one is `refuse` at the
 config line that does it, and a refusal that rests on a probe path names it as the probe path of its type, never as a
 real file.
+A script block has no type information, so a rule whose own metadata says it needs types (`requiresTypeChecking`) says
+nothing about a script-block path, and is judged on every other path as any rule is; a rule that needs no types is judged
+on script blocks too.
 A rule no file and no probe path has at `error` is `refuse` as not enabled; this includes a config whose block for a type
 matches no path under `src/` (a `files` pattern such as `app/**/*.tsx`) in a project with no file of that type. A project whose ESLint config reaches no
 TypeScript or Astro file is `not-evaluated`, never a pass. The compiler reader reads every

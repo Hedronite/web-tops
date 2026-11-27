@@ -26,6 +26,16 @@ const levelOf = (value) => {
   const first = Array.isArray(value) ? value[0] : value;
   return typeof first === "number" ? first : (NAMED[first] ?? 0);
 };
+// A page's script block has no type information, so a rule that needs it cannot run there: it says nothing about
+// that path. Every other rule is judged there as anywhere.
+const SCRIPT = /\\.astro\\/\\d+\\.(?:ts|js)$/u;
+const typed = (config, rule) => {
+  const cut = rule.lastIndexOf("/");
+  const found = config.plugins?.[rule.slice(0, cut)]?.rules?.[rule.slice(cut + 1)];
+  return found?.meta?.docs?.requiresTypeChecking === true;
+};
+const heard = (config, file) =>
+  Object.entries(config.rules ?? {}).filter(([rule]) => !(SCRIPT.test(file) && typed(config, rule)));
 const ignored = {};
 const levels = {};
 const read = async (file) => {
@@ -33,7 +43,7 @@ const read = async (file) => {
   if (ignored[file]) return;
   const config = await eslint.calculateConfigForFile(file);
   if (!config) return;
-  const rules = Object.fromEntries(Object.entries(config.rules ?? {}).map(([rule, value]) => [rule, levelOf(value)]));
+  const rules = Object.fromEntries(heard(config, file).map(([rule, value]) => [rule, levelOf(value)]));
   const unused = config.linterOptions?.${UNUSED_DIRECTIVES};
   levels[file] = { ...rules, ${UNUSED_DIRECTIVES}: unused === undefined ? 0 : levelOf(unused) };
 };
