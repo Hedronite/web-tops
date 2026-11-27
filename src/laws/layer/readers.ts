@@ -7,12 +7,13 @@ import { knipReader } from "../../laws/readers/knip.ts";
 import { lockReader } from "../../laws/readers/lock.ts";
 import { publintReader } from "../../laws/readers/publint.ts";
 import { secretsReader } from "../../laws/readers/secrets.ts";
+import { stylelintReader } from "../../laws/readers/stylelint.ts";
 import { tscReader } from "../../laws/readers/tsc.ts";
 import type { LawReader } from "../../laws/readers/types.ts";
 
 /**
  * The readers by the tool whose rules they read, one line each. A law that maps a tool with no reader here is
- * `not-evaluated` for that tool, never a pass: axe, html-validate and stylelint have none yet.
+ * `not-evaluated` for that tool, never a pass: axe and html-validate have none yet.
  */
 export function defaultReaders(): ReadonlyMap<string, LawReader> {
   return new Map([
@@ -25,6 +26,7 @@ export function defaultReaders(): ReadonlyMap<string, LawReader> {
     ["lock", lockReader],
     ["publint", publintReader],
     ["secretlint", secretsReader],
+    ["stylelint", stylelintReader],
     ["tsc", tscReader],
   ]);
 }
@@ -41,6 +43,7 @@ function toolArtifacts(): ReadonlyMap<string, string> {
     ["attw", "attw-json"],
     ["dependency-cruiser", "dependency-cruiser-json"],
     ["publint", "publint-json"],
+    ["stylelint", "stylelint-json"],
   ]);
 }
 
