@@ -83,8 +83,8 @@
       }
     },
     "judged": {
-      "description": "v0.1: ticked in section 8.2. m3: gets a reader in milestone M3. no: not judged yet.",
-      "enum": ["v0.1", "m3", "no"]
+      "description": "v0.1: ticked in section 8.2. m3: gets a reader in milestone M3. m4: gets a reader in milestone M4. no: not judged yet.",
+      "enum": ["v0.1", "m3", "m4", "no"]
     },
     "rationale": { "type": "string", "minLength": 1 },
     "fix": { "type": "string", "minLength": 1 },

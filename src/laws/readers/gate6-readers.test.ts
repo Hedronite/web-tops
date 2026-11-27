@@ -408,6 +408,19 @@ describe("an entry a built-page reader cannot read", () => {
     },
   );
 
+  it("names the axe rule in each W-22 finding, so a refusal says why", async () => {
+    const w22 = lawOf("W-22", [{ tool: "axe", name: "axe" }]);
+    const report = visit([
+      { rule: "color-contrast", impact: "serious", selector: "p" },
+      { rule: "label", impact: "critical", selector: "input" },
+    ]);
+    const reading = await readOne(axeReader, w22, "axe-report", JSON.stringify(report));
+    expect(reading.findings.map((found) => [found.rule, found.message])).toEqual([
+      ["axe:color-contrast", "axe color-contrast at p"],
+      ["axe:label", "axe label at input"],
+    ]);
+  });
+
   it("refuses a failing violation even when axe left another result open, as the layer does", async () => {
     const report = {
       routes: ["/"],

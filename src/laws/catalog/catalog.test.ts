@@ -126,10 +126,16 @@ describe("the catalog agrees with the profiles and with section 5.2 (G1b)", () =
       "W-36",
       "W-37",
       "W-39",
-      "W-44",
       "W-48",
       "W-49",
     ]);
+  });
+
+  it("gives M4 a reader for exactly W-44: required where mapped and not ticked, as an m3 law is", () => {
+    expect(ids(laws.filter((law) => law.judged === "m4"))).toEqual(["W-44"]);
+    expect(ids(select(laws, { cls: "astro-site", required: true }))).toContain("W-44");
+    expect(ids(select(laws, { cls: "node-service", required: true }))).not.toContain("W-44");
+    expect(TICKED).not.toContain("W-44");
   });
 
   it.each(launch)("%s: the v0.1 laws it requires are the ticked laws it maps", (cls, profile) => {

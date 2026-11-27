@@ -12,8 +12,8 @@ export type LawClass = (typeof LAW_CLASSES)[number];
 /** tl: a tool. an: a webtops rule or reader. at: attested by review. tbd: not yet implemented (section 8.1). */
 export type ReaderKind = "tl" | "an" | "at" | "tbd";
 
-/** v0.1: ticked in section 8.2. m3: gets a reader in milestone M3. no: not judged yet. */
-export type Judged = "v0.1" | "m3" | "no";
+/** v0.1: ticked in section 8.2. m3: gets a reader in milestone M3. m4: gets a reader in milestone M4. no: not judged yet. */
+export type Judged = "v0.1" | "m3" | "m4" | "no";
 
 /** A tool rule, flag or check a law maps. */
 export interface LawRule {

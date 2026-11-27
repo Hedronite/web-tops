@@ -96,6 +96,7 @@ describe("explainText", () => {
     );
     expect(explainText(law("W-03"))).toContain("judged:    no (not judged yet)");
     expect(explainText(law("W-36"))).toContain("judged:    m3 (gets a reader in M3)");
+    expect(explainText(law("W-44"))).toContain("judged:    m4 (gets a reader in M4)");
   });
 
   it("says none for a law with no tool rules, and prints a note only when there is one", () => {
