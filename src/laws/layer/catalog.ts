@@ -1,16 +1,18 @@
 import { CATALOG_DIR, loadCatalog } from "../../laws/catalog/index.ts";
 import type { Law } from "../../laws/catalog/index.ts";
 import type { LawEntry } from "../../laws/readers/types.ts";
+import type { ClassedLaw } from "./entries.ts";
 
 /** Where the layer reads its laws: a function, so a test gives it a catalog of its own. */
 export type LawCatalog = () => readonly LawEntry[];
 
 /** A law as the layer takes it: what the catalog's file says, with a law that M3 gives a reader judged from now on. */
-export const entryOf = (law: Law): LawEntry => ({
+export const entryOf = (law: Law): ClassedLaw => ({
   id: law.id,
   severity: law.severity,
   reader: law.reader.kinds[0] ?? "tbd",
   classes: law.classes,
+  ...(law.conditional_classes === undefined ? {} : { conditional: law.conditional_classes }),
   judged: law.judged !== "no",
   rules: law.rules,
 });
