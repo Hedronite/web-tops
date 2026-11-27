@@ -226,4 +226,92 @@ describe("R60: the probe's E3 is caught by the census and the ratchet", () => {
     ]);
     expect(ratchetBreaches(current, current, 4)).toEqual([]);
   });
+
+  it("routes axe finding count increases to build-output", () => {
+    const breaches = ratchetBreaches(
+      BASE,
+      edit({ findings: { ...BASE.findings, "axe:meta-viewport": { "dist/index.html": 1 } } }),
+      4,
+    );
+    expect(breaches).toContainEqual({
+      layer: "build-output",
+      rule: "ratchet-findings-up",
+      file: "dist/index.html",
+      message: "axe:meta-viewport in dist/index.html: 1 findings, above its baseline 0",
+    });
+  });
+
+  it("kills edge-case breaches in coverage, census, pages, new crap, and built-page findings", () => {
+    // lower() edge cases: now.lines_found === 0 vs then.lines_hit === 0 and then.lines_found === 0
+    expect(
+      ratchetBreaches(
+        edit({ coverage: { p: { lines_found: 10, lines_hit: 0 } } }),
+        edit({ coverage: { p: { lines_found: 0, lines_hit: 0 } } }),
+        4,
+      ),
+    ).toEqual([]);
+    expect(
+      ratchetBreaches(
+        edit({ coverage: { p: { lines_found: 0, lines_hit: 1 } } }),
+        edit({ coverage: { p: { lines_found: 10, lines_hit: 5 } } }),
+        4,
+      ),
+    ).toEqual([]);
+    expect(
+      ratchetBreaches(
+        edit({ census: {} }),
+        edit({ census: { "v8-ignore": { count: 1, fingerprints: ["Stryker was here"] } } }),
+        4,
+      ).map((breach) => breach.message),
+    ).toEqual([expect.stringContaining("Stryker was here")]);
+
+    // Exact message checks for newCrap, coverage, pages, census 3-fingerprint cap, and regex anchors
+    const firstMsg = (patch: Partial<Baseline>): string | undefined =>
+      ratchetBreaches(BASE, edit(patch), 4)[0]?.message;
+
+    expect(
+      firstMsg({ crap: { ...BASE.crap, "src/b.ts::h": { complexity: 5, coverage: 1, crap: 5 } } }),
+    ).toBe("src/b.ts::h is new and its CRAP 5 is above the cap 4");
+
+    expect(firstMsg({ coverage: { p: { lines_found: 10, lines_hit: 7 } } })).toBe(
+      "coverage of p is 7 of 10 lines, below its baseline 8 of 10",
+    );
+
+    expect(firstMsg({ pages: { "/": 1001 } })).toBe("/ is 1001 bytes, above its baseline 1000");
+
+    expect(
+      firstMsg({
+        census: {
+          "v8-ignore": { count: 5, fingerprints: [FP("c"), FP("d"), FP("e"), FP("f"), FP("1")] },
+        },
+      }),
+    ).toBe(
+      `v8-ignore: 5 directives, above its baseline 1 (new: ${FP("d")}, ${FP("e")}, ${FP("f")})`,
+    );
+
+    const anchorBreaches = ratchetBreaches(
+      BASE,
+      edit({
+        census: {
+          ...BASE.census,
+          "custom-v8-ignore": { count: 1, fingerprints: [FP("2")] },
+          "v8-ignore-extra": { count: 1, fingerprints: [FP("3")] },
+        },
+      }),
+      4,
+    );
+    expect(anchorBreaches.map((b) => b.layer)).toEqual(["hygiene", "hygiene"]);
+
+    const [builtPageBreach] = ratchetBreaches(
+      BASE,
+      edit({ findings: { ...BASE.findings, "axe:color-contrast": { "(built-page)": 1 } } }),
+      4,
+    );
+    expect(builtPageBreach).toEqual({
+      layer: "build-output",
+      rule: "ratchet-findings-up",
+      message: "axe:color-contrast in (built-page): 1 findings, above its baseline 0",
+    });
+    expect("file" in (builtPageBreach ?? {})).toBe(false);
+  });
 });
