@@ -41,18 +41,32 @@ export type ProjectInput = Pick<GateReport, "report_version" | "subject" | "laye
 
 type Counts = Record<string, Record<string, number>>;
 
-/** The findings the baseline counts: those of the counted layers that have a place and whose verdict ends the run (R69). */
+const BUILT_PAGE_PLACE = "(built-page)";
+
+function axeFindings(report: ProjectInput): readonly Finding[] {
+  const buildOutput = report.layers.find((layer) => layer.id === "build-output");
+  if (buildOutput === undefined) return [];
+  return buildOutput.findings.filter(
+    (finding) => finding.rule.startsWith("axe:") && finding.verdict === "pass",
+  );
+}
+
+/**
+ * The findings the baseline counts: endings in counted layers (R69) plus non-failing `axe:` findings
+ * emitted on `build-output` (fingerprinted by rule and selector).
+ */
 function countedFindings(report: ProjectInput): readonly Finding[] {
-  return countedLayers(report)
+  const layerFindings = countedLayers(report)
     .flatMap((layer) => layer.findings)
     .filter(
       (finding) => finding.file !== null && endsRun(finding.verdict, finding.required ?? true),
     );
+  return [...layerFindings, ...axeFindings(report)];
 }
 
 function addFinding(out: Counts, finding: Finding): Counts {
   const files = out[finding.rule] ?? {};
-  const file = finding.file ?? "";
+  const file = finding.file ?? BUILT_PAGE_PLACE;
   return { ...out, [finding.rule]: { ...files, [file]: (files[file] ?? 0) + 1 } };
 }
 

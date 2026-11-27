@@ -181,4 +181,81 @@ describe("G9: the baseline is projected from the report and from nothing else", 
       }),
     );
   });
+
+  it("counts and fingerprints non-failing axe findings emitted on build-output", () => {
+    const axeRow = {
+      tool: "webtops" as const,
+      rule: "axe:meta-viewport",
+      law: "W-21",
+      verdict: "pass" as const,
+      message: 'axe meta-viewport at meta[name="viewport"]',
+      file: "dist/index.html",
+      line: null,
+      fingerprint: "fp1:1234567890abcdef",
+    };
+    const projected = projectBaseline(withLayer(report(), "build-output", { findings: [axeRow] }));
+    expect(projected.findings["axe:meta-viewport"]).toEqual({ "dist/index.html": 1 });
+    expect(projected.fingerprints).toContain("fp1:1234567890abcdef");
+  });
+
+  it("excludes non-counted layers, null-file findings, non-ending optional laws, and failing/non-axe build-output rows", () => {
+    const base = report();
+    const testsFail = {
+      ...HINT("v8 ignore", 1, "fp1:aaaa000000000001"),
+      tool: "vitest" as const,
+      rule: "test-fail",
+      verdict: "fail" as const,
+      file: "src/t.ts",
+    };
+    const nullFile = { ...testsFail, tool: "eslint" as const, rule: "no-any", file: null };
+    const optLawNotEval = {
+      ...testsFail,
+      tool: "webtops" as const,
+      rule: "law/W-20",
+      verdict: "not-evaluated" as const,
+      required: false,
+    };
+    const reqLawNotEval = {
+      ...testsFail,
+      tool: "webtops" as const,
+      rule: "law/W-01",
+      verdict: "not-evaluated" as const,
+      fingerprint: "fp1:cccccccccccccccc",
+    };
+    const axeFail = {
+      ...testsFail,
+      tool: "webtops" as const,
+      rule: "axe:image-alt",
+      verdict: "fail" as const,
+      file: "dist/a.html",
+    };
+    const linksPass = { ...axeFail, rule: "links", verdict: "pass" as const };
+    const axeSpaPass = {
+      ...axeFail,
+      rule: "axe:region",
+      verdict: "pass" as const,
+      file: null,
+    };
+    const unsortedB = HINT("v8 ignore", 2, "fp1:bbbbbbbbbbbbbbbb");
+    const unsortedA = HINT("v8 ignore", 1, "fp1:aaaaaaaaaaaaaaaa");
+    let custom = withLayer(base, "coverage", { metrics: {} });
+    custom = withLayer(custom, "tests", { findings: [testsFail] });
+    custom = withLayer(custom, "hygiene", { findings: [nullFile, unsortedB, unsortedA] });
+    custom = withLayer(custom, "laws", { findings: [optLawNotEval, reqLawNotEval] });
+    custom = withLayer(custom, "build-output", { findings: [axeFail, linksPass, axeSpaPass] });
+
+    const projected = projectBaseline(custom);
+    expect(projected.coverage).toEqual({});
+    expect(projected.findings["test-fail"]).toBeUndefined();
+    expect(projected.findings["no-any"]).toBeUndefined();
+    expect(projected.findings["law/W-20"]).toBeUndefined();
+    expect(projected.findings["law/W-01"]).toEqual({ "src/t.ts": 1 });
+    expect(projected.findings["axe:image-alt"]).toBeUndefined();
+    expect(projected.findings["links"]).toBeUndefined();
+    expect(projected.findings["axe:region"]).toEqual({ "(built-page)": 1 });
+    expect(projected.census["v8-ignore"]?.fingerprints).toEqual([
+      "fp1:aaaaaaaaaaaaaaaa",
+      "fp1:bbbbbbbbbbbbbbbb",
+    ]);
+  });
 });

@@ -51,20 +51,23 @@ function coverageBreaches(base: Baseline, current: Baseline): readonly Breach[] 
   });
 }
 
+const findingLayer = (rule: string): Breach["layer"] =>
+  rule.startsWith("axe:") ? "build-output" : "hygiene";
+
+function toFindingBreach(rule: string, file: string, count: number, then: number): Breach {
+  return {
+    layer: findingLayer(rule),
+    rule: "ratchet-findings-up",
+    ...(file === "(built-page)" ? {} : { file }),
+    message: `${rule} in ${file}: ${String(count)} findings, above its baseline ${String(then)}`,
+  };
+}
+
 function findingBreaches(base: Baseline, current: Baseline): readonly Breach[] {
   return Object.entries(current.findings).flatMap(([rule, files]) =>
     Object.entries(files).flatMap(([file, count]): Breach[] => {
       const then = base.findings[rule]?.[file] ?? 0;
-      return count > then
-        ? [
-            {
-              layer: "hygiene",
-              rule: "ratchet-findings-up",
-              file,
-              message: `${rule} in ${file}: ${String(count)} findings, above its baseline ${String(then)}`,
-            },
-          ]
-        : [];
+      return count > then ? [toFindingBreach(rule, file, count, then)] : [];
     }),
   );
 }
