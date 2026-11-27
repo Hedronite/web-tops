@@ -88,12 +88,13 @@ describe("G8a: section 7 names the presets, page JavaScript and axe's settings",
     }
   });
 
-  it("counts a lazy chunk toward the route that declares it, and says what is not JavaScript", () => {
+  it("counts a lazy chunk toward the routes that request it while they load, and says what is not JavaScript", () => {
     const text = between(section7, "**Page JavaScript**", "**axe.**");
     expect(text).toContain("A dynamic `import()` is not in the closure");
-    expect(text).toContain(
-      "counts in full toward the route whose page JavaScript holds the `import()`",
-    );
+    expect(text).toContain("every script of its own origin that it requests while it loads");
+    expect(text).toContain("counts in full toward each route that requests it");
+    expect(text).toContain("quiet for 500 ms");
+    expect(text).toContain("requested only on an interaction");
     expect(text).toContain("`application/ld+json`");
   });
 

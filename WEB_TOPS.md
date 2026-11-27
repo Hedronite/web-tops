@@ -710,8 +710,14 @@ browser:
 
 Each file counts once per page. Its size is the brotli size at quality 11 with a window of 22 bits,
 the same bytes on Bun and Node. A dynamic `import()` is not in the closure: the chunk it names is a
-lazy chunk, and it counts in full toward the route whose page JavaScript holds the `import()`. A
-chunk that two routes reach counts toward both.
+lazy chunk.
+
+**Route JavaScript** (`web-app`) is measured in a browser. Headless Chromium loads each declared
+route, and the route's JavaScript is every script of its own origin that it requests while it loads,
+with the inline scripts of its document, each sized from `dist/` as above. A lazy chunk therefore
+counts in full toward each route that requests it, and a chunk two routes request counts toward
+both. The load ends once the network has been quiet for 500 ms: a chunk requested only on an
+interaction, or after that quiet, is not counted.
 
 **axe.** The run is limited to the tags `wcag2a`, `wcag2aa`, `wcag21aa` and `wcag22aa`.
 `target-size` (impact `serious`, tag `wcag22aa`) is off by default, so the run enables it by id. A
@@ -1223,7 +1229,7 @@ web-tops/
 │   ├── init/                # webtops init: renders the drop-in set
 │   ├── lawdiff/             # webtops law-diff: what a PR weakens, surface by surface (§11)
 │   ├── laws/                # the law catalog (§8.3): the loader, the queries and the §8.2 table generator; the probe, the ESLint and compiler readers and the laws layer (§6.5)
-│   ├── layers/              # hygiene, tests, coverage, crap, mutation, laws, build, html, links, bytes, axe (M4 adds route-bytes, size-limit)
+│   ├── layers/              # hygiene, tests, coverage, crap, mutation, laws, build, html, links, bytes, route-bytes, axe (M4 adds size-limit)
 │   ├── lock/                # tool pins, web-tops.lock, the Node range
 │   ├── presets/             # the drop-in rules behind web-tops/eslint, /stylelint, /depcruise and /tsconfig/strict.json (plain JavaScript: Node does not strip types in node_modules)
 │   ├── report/              # report writing, text and JSON rendering
@@ -1246,7 +1252,7 @@ web-tops/
 
 The law twins are in `fixtures/laws/W-NN/{bad,clean}/`: a bad and a clean twin per law, which `webtops laws probe` proves.
 
-Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4), `src/layers/route-bytes/`, `src/layers/size-limit/`, `examples/astro-site/`, and `examples/web-app/`. The kit's tools already cover the rest: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
+Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4), `src/layers/size-limit/`, `examples/astro-site/`, and `examples/web-app/`. The kit's tools already cover the rest: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
 
 Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any release.
 
