@@ -97,27 +97,41 @@ function existingFile(realRoot: string, candidate: string): string | undefined {
   }
 }
 
-function candidatesFor(realRoot: string, parts: readonly string[]): string[] {
+/** Options for the local built-site static server. */
+export interface StaticServerOptions {
+  readonly spaFallback?: boolean;
+}
+
+function candidatesFor(realRoot: string, parts: readonly string[], spaFallback: boolean): string[] {
   const base = join(realRoot, ...parts);
-  return [base, join(base, "index.html"), `${base}.html`];
+  const list = [base, join(base, "index.html"), `${base}.html`];
+  const last = parts.at(-1);
+  if (spaFallback && last !== undefined && extname(last) === "") {
+    list.push(join(realRoot, "index.html"));
+  }
+  return list;
 }
 
 type ServedLookup =
   { readonly kind: "ok"; readonly file: string } | { readonly kind: "bad" | "missing" };
 
-function findCandidate(realRoot: string, parts: readonly string[]): ServedLookup {
-  for (const candidate of candidatesFor(realRoot, parts)) {
+function findCandidate(
+  realRoot: string,
+  parts: readonly string[],
+  spaFallback: boolean,
+): ServedLookup {
+  for (const candidate of candidatesFor(realRoot, parts, spaFallback)) {
     const found = existingFile(realRoot, candidate);
     if (found !== undefined) return { kind: "ok", file: found };
   }
   return { kind: "missing" };
 }
 
-function resolveServedFile(realRoot: string, rawUrl: string): ServedLookup {
+function resolveServedFile(realRoot: string, rawUrl: string, spaFallback: boolean): ServedLookup {
   const pathname = decodePathname(rawUrl);
   if (pathname === undefined) return { kind: "bad" };
   const parts = safeSegments(pathname);
-  return parts === undefined ? { kind: "bad" } : findCandidate(realRoot, parts);
+  return parts === undefined ? { kind: "bad" } : findCandidate(realRoot, parts, spaFallback);
 }
 
 function sendText(res: StaticResponse, status: number, text: string): void {
@@ -152,13 +166,25 @@ function handleLookup(resolved: ServedLookup, req: StaticRequest, res: StaticRes
 
 const ALLOWED_METHODS = new Set(["GET", "HEAD"]);
 
-export function handleRequest(realRoot: string, req: StaticRequest, res: StaticResponse): void {
-  const method = req.method ?? "GET";
-  if (!ALLOWED_METHODS.has(method)) {
+const methodOf = (req: StaticRequest): string => req.method ?? "GET";
+
+const resolveRequest = (
+  realRoot: string,
+  req: StaticRequest,
+  options?: StaticServerOptions,
+): ServedLookup => resolveServedFile(realRoot, req.url ?? "", options?.spaFallback === true);
+
+export function handleRequest(
+  realRoot: string,
+  req: StaticRequest,
+  res: StaticResponse,
+  options?: StaticServerOptions,
+): void {
+  if (!ALLOWED_METHODS.has(methodOf(req))) {
     sendText(res, 405, "Method Not Allowed");
     return;
   }
-  handleLookup(resolveServedFile(realRoot, req.url ?? ""), req, res);
+  handleLookup(resolveRequest(realRoot, req, options), req, res);
 }
 
 export interface BindableServer {
@@ -202,10 +228,13 @@ export function listenStaticServer(server: BindableServer): Promise<StaticServer
 }
 
 /** Starts a local static HTTP server on `127.0.0.1` ephemeral port `0` with fixed brotli support. */
-export function startStaticServer(distDir: string): Promise<StaticServer> {
+export function startStaticServer(
+  distDir: string,
+  options?: StaticServerOptions,
+): Promise<StaticServer> {
   const realRoot = realpathSync(distDir);
   const server = createServer((req, res) => {
-    handleRequest(realRoot, req, res);
+    handleRequest(realRoot, req, res, options);
   });
   return listenStaticServer(server);
 }
