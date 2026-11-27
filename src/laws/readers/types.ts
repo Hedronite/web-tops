@@ -22,6 +22,8 @@ export interface LawEntry {
   /** `tl` a tool, `an` an analyzer, `at` attested, `tbd` not built (section 8.1). */
   readonly reader: "tl" | "an" | "at" | "tbd";
   readonly classes: readonly string[];
+  /** Those of `classes` that map the law only for a project that depends on Astro (section 5.2). */
+  readonly conditional?: readonly string[];
   readonly judged: boolean;
   readonly rules: readonly LawRule[];
 }
