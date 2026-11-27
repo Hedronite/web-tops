@@ -41,10 +41,9 @@ const ALL_LAWS = Array.from(
   (_, index) => `W-${String(index + 1).padStart(2, "0")}`,
 );
 
-/** The laws some class gates: a class maps these only if its own profile names them. */
-const GATED = new Set(
-  PROFILES.flatMap((profile) => [...profile.extraLaws, ...profile.conditionalLaws]),
-);
+/** The laws some class gates: a class maps these only if its own profile names them. Read on use, not on load. */
+const gatedLaws = (): ReadonlySet<string> =>
+  new Set(PROFILES.flatMap((profile) => [...profile.extraLaws, ...profile.conditionalLaws]));
 
 /** The `layers.*` keys that build output stands for; `package_exports` runs inside gate 1 (section 7). */
 const BUILD_OUTPUT: readonly LayerKey[] = [
@@ -60,7 +59,8 @@ export function mappedLaws(profile: Profile, project: Project): readonly string[
   const own = project.dependsOnAstro
     ? [...profile.extraLaws, ...profile.conditionalLaws]
     : profile.extraLaws;
-  return ALL_LAWS.filter((id) => !GATED.has(id) || own.includes(id));
+  const gated = gatedLaws();
+  return ALL_LAWS.filter((id) => !gated.has(id) || own.includes(id));
 }
 
 /** The judged laws the class maps. */
