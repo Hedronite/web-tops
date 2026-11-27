@@ -710,8 +710,14 @@ browser:
 
 Each file counts once per page. Its size is the brotli size at quality 11 with a window of 22 bits,
 the same bytes on Bun and Node. A dynamic `import()` is not in the closure: the chunk it names is a
-lazy chunk, and it counts in full toward the route whose page JavaScript holds the `import()`. A
-chunk that two routes reach counts toward both.
+lazy chunk.
+
+**Route JavaScript** (`web-app`) is measured in a browser. Headless Chromium loads each declared
+route, and the route's JavaScript is every script of its own origin that it requests while it loads,
+with the inline scripts of its document, each sized from `dist/` as above. A lazy chunk therefore
+counts in full toward each route that requests it, and a chunk two routes request counts toward
+both. The load ends once the network has been quiet for 500 ms: a chunk requested only on an
+interaction, or after that quiet, is not counted.
 
 **axe.** The run is limited to the tags `wcag2a`, `wcag2aa`, `wcag21aa` and `wcag22aa`.
 `target-size` (impact `serious`, tag `wcag22aa`) is off by default, so the run enables it by id. A
