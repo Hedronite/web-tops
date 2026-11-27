@@ -118,8 +118,19 @@ const probeNote = (evidence: StyleEvidence): { readonly note?: string } =>
     ? { note: "judged on a probe path: the project has no stylesheet" }
     : {};
 
+/**
+ * Gate 1 counts Stylelint's warnings, never the values it lists apart as unparsed, so no ratchet holds one of those
+ * (section 6.7). A syntax error is a warning, and is held as gate 1 holds it.
+ */
+function readingUnder(law: LawEntry, found: readonly RawFinding[], held: boolean): LawReading {
+  const unparsed = found.filter((one) => one.rule === "parse-error");
+  return held && unparsed.length > 0
+    ? readingOf(law, unparsed, false)
+    : readingOf(law, found, held);
+}
+
 function judgedBreaks(evidence: StyleEvidence, law: LawEntry, names: string[]): LawReading {
-  const reading = readingOf(law, breaksOf(evidence, names), evidence.held);
+  const reading = readingUnder(law, breaksOf(evidence, names), evidence.held);
   return reading.verdict === "pass" ? { ...probeNote(evidence), ...reading } : reading;
 }
 

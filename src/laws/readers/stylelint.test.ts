@@ -162,6 +162,26 @@ describe("W-26 from gate 1's Stylelint JSON and the effective rules", () => {
     });
   });
 
+  it("never leaves a value Stylelint could not parse to the ratchet: gate 1 counts none (section 6.7)", async () => {
+    const parseErrors = [{ line: 9, text: "bad value" }];
+    const results = [
+      source("src/a.css", { warnings: [warning("block-no-empty", 1)], parseErrors }),
+    ];
+    expect(await read({ results, held: true })).toEqual({
+      law: "W-26",
+      verdict: "refuse",
+      findings: [refusedAt("parse-error", "bad value", "src/a.css", 9)],
+    });
+  });
+
+  it("leaves a sheet's syntax error to the ratchet, as gate 1 counts it with its file", async () => {
+    const results = [source("src/a.css", { warnings: [warning("CssSyntaxError", 7)] })];
+    expect(await read({ results, held: true })).toMatchObject({
+      verdict: "pass",
+      note: "1 held by the baseline",
+    });
+  });
+
   it.each([
     ["a rule at warning", { ...ALL, "block-no-empty": { level: 1, options: "[]" } }],
     ["a rule switched off", { ...ALL, "block-no-empty": { level: 0, options: "[]" } }],
