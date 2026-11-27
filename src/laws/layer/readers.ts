@@ -1,3 +1,4 @@
+import { astroCheckReader } from "../../laws/readers/astro-check.ts";
 import { attwReader } from "../../laws/readers/attw.ts";
 import { bunReader } from "../../laws/readers/bun.ts";
 import { depcruiseReader } from "../../laws/readers/depcruise.ts";
@@ -11,10 +12,11 @@ import type { LawReader } from "../../laws/readers/types.ts";
 
 /**
  * The readers by the tool whose rules they read, one line each. A law that maps a tool with no reader here is
- * `not-evaluated` for that tool, never a pass: axe, html-validate, stylelint and `astro check` have none yet.
+ * `not-evaluated` for that tool, never a pass: axe, html-validate and stylelint have none yet.
  */
 export function defaultReaders(): ReadonlyMap<string, LawReader> {
   return new Map([
+    ["astro-check", astroCheckReader],
     ["attw", attwReader],
     ["bun", bunReader],
     ["dependency-cruiser", depcruiseReader],
@@ -35,6 +37,7 @@ export function defaultReaders(): ReadonlyMap<string, LawReader> {
  */
 function toolArtifacts(): ReadonlyMap<string, string> {
   return new Map([
+    ["astro-check", "astro-check-json"],
     ["attw", "attw-json"],
     ["dependency-cruiser", "dependency-cruiser-json"],
     ["publint", "publint-json"],

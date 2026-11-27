@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
+import { astroCheckReader } from "../readers/astro-check.ts";
 import { attwReader } from "../readers/attw.ts";
 import { bunReader } from "../readers/bun.ts";
 import { depcruiseReader } from "../readers/depcruise.ts";
@@ -44,6 +45,7 @@ const judgedTools = (): Set<string> =>
 describe("the registry of the laws layer's readers", () => {
   it("holds each reader under the tool whose rules it reads", () => {
     const readers = defaultReaders();
+    expect(readers.get("astro-check")).toBe(astroCheckReader);
     expect(readers.get("attw")).toBe(attwReader);
     expect(readers.get("bun")).toBe(bunReader);
     expect(readers.get("dependency-cruiser")).toBe(depcruiseReader);
@@ -58,8 +60,8 @@ describe("the registry of the laws layer's readers", () => {
   it("names the tools a judged law maps that have no reader yet: a law that maps one is not evaluated for it", () => {
     const readers = defaultReaders();
     const unread = [...judgedTools()].filter((tool) => !readers.has(tool)).sort();
-    // W-20, W-21 and W-22 read built pages (html-validate, axe), W-26 style rules (stylelint) and W-27 `astro check`:
-    // each is a later step, and a law that maps one is not evaluated for that tool.
-    expect(unread).toEqual(["astro-check", "axe", "html-validate", "stylelint"]);
+    // W-20, W-21 and W-22 read built pages (html-validate, axe) and W-26 style rules (stylelint): each is a later step,
+    // and a law that maps one is not evaluated for that tool.
+    expect(unread).toEqual(["axe", "html-validate", "stylelint"]);
   });
 });
