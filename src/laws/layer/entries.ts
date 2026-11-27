@@ -1,18 +1,23 @@
 import type { LawEntry, LawRule } from "../../laws/readers/types.ts";
 
 /** The laws a class maps: a law with no class list is mapped by every class (section 5.2). */
-export const lawsOfClass = (laws: readonly LawEntry[], className: string): LawEntry[] =>
-  laws.filter((law) => law.classes.length === 0 || law.classes.includes(className));
+export const lawsOfClass = <Entry extends LawEntry>(
+  laws: readonly Entry[],
+  className: string,
+): Entry[] => laws.filter((law) => law.classes.length === 0 || law.classes.includes(className));
+
+/** An entry, and those of its classes that map the law only for a project that depends on Astro (section 5.2). */
+export type ClassedLaw = LawEntry & { readonly conditional?: readonly string[] };
 
 /**
  * The laws a class maps in this project. A conditional class (W-27 for `web-app` and `ui-components`) maps its law
  * only when the project depends on Astro (section 5.2): for any other project the law is not there at all.
  */
 export const lawsOfProject = (
-  laws: readonly LawEntry[],
+  laws: readonly ClassedLaw[],
   className: string,
   dependsOnAstro: boolean,
-): LawEntry[] =>
+): ClassedLaw[] =>
   lawsOfClass(laws, className).filter(
     (law) => dependsOnAstro || law.conditional?.includes(className) !== true,
   );

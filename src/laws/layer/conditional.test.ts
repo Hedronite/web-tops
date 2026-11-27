@@ -4,13 +4,12 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import type { Law } from "../../laws/catalog/index.ts";
-import type { LawEntry } from "../../laws/readers/types.ts";
 import { entryOf } from "./catalog.ts";
-import { lawsOfProject } from "./entries.ts";
+import { lawsOfProject, type ClassedLaw } from "./entries.ts";
 
 /** A law a class maps only for a project that depends on Astro (section 5.2: W-27). */
 
-const law = (id: string, extra: Partial<LawEntry> = {}): LawEntry => ({
+const law = (id: string, extra: Partial<ClassedLaw> = {}): ClassedLaw => ({
   id,
   severity: "R",
   reader: "tl",
