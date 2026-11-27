@@ -28,17 +28,23 @@ function adopter(): string {
   return dir;
 }
 
-describe("the Astro twins are proven in an adopter whose tsconfig does not include the probe's directory", () => {
-  it(
-    "W-49 passes over its .astro twins, none skipped and none not evaluated",
-    () => {
-      const run = probeFrom(
-        probeProcess(adopter(), "--class", "astro-site", "--law", "W-49", "--json"),
-      );
-      expect(failing(run.report)).toEqual([]);
-      expect(run.code).toBe(0);
-      expect(run.report.skipped).toEqual([]);
-    },
-    REAL_TOOL_TIMEOUT,
-  );
-});
+/** Real processes only: no mutant of a mutation run reaches them (R112). */
+const insideStryker = process.env["STRYKER_MUTATOR_WORKER"] !== undefined;
+
+describe.skipIf(insideStryker)(
+  "the Astro twins are proven in an adopter whose tsconfig does not include the probe's directory",
+  () => {
+    it(
+      "W-49 passes over its .astro twins, none skipped and none not evaluated",
+      () => {
+        const run = probeFrom(
+          probeProcess(adopter(), "--class", "astro-site", "--law", "W-49", "--json"),
+        );
+        expect(failing(run.report)).toEqual([]);
+        expect(run.code).toBe(0);
+        expect(run.report.skipped).toEqual([]);
+      },
+      REAL_TOOL_TIMEOUT,
+    );
+  },
+);

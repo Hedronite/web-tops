@@ -85,7 +85,10 @@ describe("G3b `laws probe`: arguments and problems", () => {
   });
 });
 
-describe("G3b `laws probe` on a project's own config", () => {
+/** Real processes only: no mutant of a mutation run reaches them (R112). */
+const insideStryker = process.env["STRYKER_MUTATOR_WORKER"] !== undefined;
+
+describe.skipIf(insideStryker)("G3b `laws probe` on a project's own config", () => {
   let kitLike: Awaited<ReturnType<typeof probeOf>>;
   let kitText: string;
   beforeAll(async () => {
