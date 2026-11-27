@@ -10,7 +10,9 @@ describe("G4 the artifact each tool's reader reads", () => {
     expect(artifactOf({ tool: "publint", name: "pack" })).toBe("publint-json");
     expect(artifactOf({ tool: "astro-check", name: "astro check" })).toBe("astro-check-json");
     expect(artifactOf({ tool: "stylelint", name: "block-no-empty" })).toBe("stylelint-json");
+    expect(artifactOf({ tool: "axe", name: "axe" })).toBe("axe-report");
     expect(artifactOf({ tool: "bytes", name: "page-js-bytes" })).toBe("bytes-json");
+    expect(artifactOf({ tool: "html-validate", name: "html-validate" })).toBe("html-report");
     expect(artifactOf({ tool: "route-bytes", name: "route-js-bytes" })).toBe("route-bytes-json");
   });
 
@@ -36,7 +38,9 @@ describe("G4 the artifact each tool's reader reads", () => {
       { artifact: "install-json", from: "hygiene" },
       { artifact: "publint-json", from: "hygiene" },
       { artifact: "stylelint-json", from: "hygiene" },
+      { artifact: "axe-report", from: "build-output" },
       { artifact: "bytes-json", from: "build-output" },
+      { artifact: "html-report", from: "build-output" },
       { artifact: "route-bytes-json", from: "build-output" },
     ]);
   });
@@ -45,10 +49,12 @@ describe("G4 the artifact each tool's reader reads", () => {
     expect([...defaultReaders().keys()]).toEqual([
       "astro-check",
       "attw",
+      "axe",
       "bun",
       "bytes",
       "dependency-cruiser",
       "eslint",
+      "html-validate",
       "knip",
       "lock",
       "publint",

@@ -4,8 +4,10 @@ import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { astroCheckReader } from "../readers/astro-check.ts";
 import { attwReader } from "../readers/attw.ts";
+import { axeReader } from "../readers/axe.ts";
 import { bunReader } from "../readers/bun.ts";
 import { bytesReader, routeBytesReader } from "../readers/bytes.ts";
+import { htmlValidateReader } from "../readers/html-validate.ts";
 import { depcruiseReader } from "../readers/depcruise.ts";
 import { eslintReader } from "../readers/eslint.ts";
 import { knipReader } from "../readers/knip.ts";
@@ -49,10 +51,12 @@ describe("the registry of the laws layer's readers", () => {
     const readers = defaultReaders();
     expect(readers.get("astro-check")).toBe(astroCheckReader);
     expect(readers.get("attw")).toBe(attwReader);
+    expect(readers.get("axe")).toBe(axeReader);
     expect(readers.get("bun")).toBe(bunReader);
     expect(readers.get("bytes")).toBe(bytesReader);
     expect(readers.get("dependency-cruiser")).toBe(depcruiseReader);
     expect(readers.get("eslint")).toBe(eslintReader);
+    expect(readers.get("html-validate")).toBe(htmlValidateReader);
     expect(readers.get("knip")).toBe(knipReader);
     expect(readers.get("lock")).toBe(lockReader);
     expect(readers.get("publint")).toBe(publintReader);
@@ -65,8 +69,8 @@ describe("the registry of the laws layer's readers", () => {
   it("names the tools a judged law maps that have no reader yet: a law that maps one is not evaluated for it", () => {
     const readers = defaultReaders();
     const unread = [...judgedTools()].filter((tool) => !readers.has(tool)).sort();
-    // W-20, W-21 and W-22 read built pages (html-validate, axe): a later step, and a law that maps one is not
-    // evaluated for that tool.
-    expect(unread).toEqual(["axe", "html-validate"]);
+    // Every tool a judged law maps has a reader. One added without a reader shows here, and a law that maps it is
+    // not evaluated for it.
+    expect(unread).toEqual([]);
   });
 });

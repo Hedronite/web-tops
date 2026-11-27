@@ -126,6 +126,7 @@ describe("the catalog agrees with the profiles and with section 5.2 (G1b)", () =
       "W-36",
       "W-37",
       "W-39",
+      "W-44",
       "W-48",
       "W-49",
     ]);
