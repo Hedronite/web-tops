@@ -137,6 +137,14 @@ export interface BuildSettings {
   readonly dir: string;
 }
 
+export interface BudgetsSettings {
+  readonly pageJsBytes?: number;
+  readonly staticPageJsBytes?: number;
+  readonly routeJsBytes?: number;
+  readonly pages?: Readonly<Record<string, number>>;
+  readonly routes?: Readonly<Record<string, number>>;
+}
+
 export interface CustomLayer {
   readonly id: string;
   readonly tier: Tier;
@@ -238,6 +246,8 @@ export interface GateConfig {
   readonly crap: CrapSettings;
   readonly mutation: MutationSettings;
   readonly build?: BuildSettings;
+  readonly routes?: readonly string[];
+  readonly budgets?: BudgetsSettings;
 }
 
 export interface ShardSpec {

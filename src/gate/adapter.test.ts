@@ -150,4 +150,23 @@ describe("toGateConfig: the validated web-tops.yaml as the runner sees it", () =
       shuffle: false,
     });
   });
+
+  it("passes configured budgets and routes through and omits them when empty or unset", () => {
+    const plain = adapt(`${HEAD}class: astro-site\n`);
+    expect(plain.routes).toBeUndefined();
+    expect(plain.budgets).toBeUndefined();
+    expect(adapt(`${HEAD}class: astro-site\nbudgets: {}\n`).budgets).toBeUndefined();
+
+    const rich = adapt(
+      `${HEAD}class: web-app\nroutes:\n  - /\n  - /docs/\nbudgets:\n  page_js_bytes: 51200\n  static_page_js_bytes: 0\n  route_js_bytes: 174080\n  pages:\n    /big/: 90000\n  routes:\n    /docs/: 120000\n`,
+    );
+    expect(rich.routes).toEqual(["/", "/docs/"]);
+    expect(rich.budgets).toEqual({
+      pageJsBytes: 51200,
+      staticPageJsBytes: 0,
+      routeJsBytes: 174080,
+      pages: { "/big/": 90000 },
+      routes: { "/docs/": 120000 },
+    });
+  });
 });

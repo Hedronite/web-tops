@@ -6,6 +6,7 @@ import type { PackageExportsLayer, Switch, WebTopsConfig } from "../config/types
 import {
   HYGIENE_STEPS,
   type AuditLevel,
+  type BudgetsSettings,
   type BuildSettings,
   type CoverageSettings,
   type CrapSettings,
@@ -267,11 +268,35 @@ function optionalOf(config: WebTopsConfig): readonly string[] {
   return LAYER_IDS.filter((id) => !required.includes(id));
 }
 
+function routesSettings(config: WebTopsConfig): { readonly routes?: readonly string[] } {
+  return config.routes === undefined ? {} : { routes: config.routes };
+}
+
 function buildSettings(config: WebTopsConfig): { readonly build?: BuildSettings } {
   const raw = config.build;
   if (raw === undefined) return {};
   const dir = raw.dir ?? "dist";
   return { build: { dir, ...(raw.command === undefined ? {} : { command: raw.command }) } };
+}
+
+function assignDefined<K extends keyof BudgetsSettings>(
+  out: { -readonly [P in K]?: BudgetsSettings[P] },
+  key: K,
+  value: BudgetsSettings[K],
+): void {
+  if (value !== undefined) out[key] = value;
+}
+
+function budgetsSettings(config: WebTopsConfig): { readonly budgets?: BudgetsSettings } {
+  const b = config.budgets;
+  if (b === undefined) return {};
+  const out: { -readonly [P in keyof BudgetsSettings]: BudgetsSettings[P] } = {};
+  assignDefined(out, "pageJsBytes", b.page_js_bytes);
+  assignDefined(out, "staticPageJsBytes", b.static_page_js_bytes);
+  assignDefined(out, "routeJsBytes", b.route_js_bytes);
+  assignDefined(out, "pages", b.pages);
+  assignDefined(out, "routes", b.routes);
+  return Object.keys(out).length === 0 ? {} : { budgets: out };
 }
 
 function customOf(config: WebTopsConfig): GateConfig["custom"] {
@@ -299,5 +324,7 @@ export function toGateConfig(config: WebTopsConfig, project: Project): GateConfi
     crap: crapSettings(config),
     mutation: mutationSettings(config),
     ...buildSettings(config),
+    ...routesSettings(config),
+    ...budgetsSettings(config),
   };
 }
