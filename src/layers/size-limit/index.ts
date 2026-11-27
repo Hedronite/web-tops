@@ -48,7 +48,8 @@ function skipPrivateOutcome(
   if (!isPrivate) return failLayer('skip_private needs "private": true in package.json');
   const artifact = writeReport(context.outDir, { skipped: true, reason: skipPrivate, entries: [] });
   return {
-    verdict: "pass",
+    verdict: "skip",
+    reason: skipPrivate,
     findings: [{ tool: "webtops", rule: "size-limit", verdict: "skip", message: skipPrivate }],
     artifacts: { "size-limit-json": artifact },
   };

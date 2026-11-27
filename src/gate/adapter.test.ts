@@ -187,6 +187,10 @@ describe("toGateConfig: the validated web-tops.yaml as the runner sees it", () =
       entries: { ".": 512, "./a": 2000 },
     });
 
+    expect(adapted.toggles["build-output"]).toEqual({ enabled: false, reason: "internal" });
+    const pub = toGateConfig(parsed.value, { dependsOnAstro: false, isPrivate: false });
+    expect(pub.toggles["build-output"]).toBeUndefined();
+
     expect(
       adapt(`${HEAD}class: ts-library\nbudgets:\n  entries:\n    ".": 777\n`).sizeLimit,
     ).toEqual({

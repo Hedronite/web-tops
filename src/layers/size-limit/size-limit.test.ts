@@ -286,16 +286,26 @@ describe("M4 G7: skip_private and fail-closed error handling", () => {
       class: "ts-library",
       sizeLimit: { skipPrivate: "internal utility is never published" },
     });
-    const report = await runWith(config, dir, () => {
-      execCalled = true;
-      return Promise.resolve({ code: 0, stdout: "", stderr: "" });
+    const result = await sizeLimitLayer.run({
+      cwd: dir,
+      config,
+      base: "origin/main",
+      enforce: "hard",
+      env: process.env,
+      exec: () => {
+        execCalled = true;
+        return Promise.resolve({ code: 0, stdout: "", stderr: "" });
+      },
+      outDir: join(dir, ".web-tops", "out"),
+      artifacts: new Map(),
     });
-    expect(report.passed).toBe(true);
     expect(execCalled).toBe(false);
-    const layer = report.layers.find((entry) => entry.id === "size-limit");
-    if (layer === undefined) throw new Error("missing size-limit layer");
-    expect(layer.artifacts).toEqual([".web-tops/out/size-limit/report.json"]);
-    expect(layer.findings[0]).toMatchObject({
+    expect(result.verdict).toBe("skip");
+    expect(result.reason).toBe("internal utility is never published");
+    expect(result.artifacts["size-limit-json"]).toBe(
+      join(dir, ".web-tops/out/size-limit/report.json"),
+    );
+    expect(result.findings[0]).toMatchObject({
       rule: "size-limit",
       verdict: "skip",
       message: "internal utility is never published",
