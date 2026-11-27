@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["src/layers/html/validate.mjs"],
+  "entry": ["src/layers/axe/drive.mjs", "src/layers/html/validate.mjs"],
   "ignore": ["fixtures/**", "probes/**", "examples/**"],
   "ignoreDependencies": [
     "@arethetypeswrong/cli",
