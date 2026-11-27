@@ -90,6 +90,34 @@ describe("G2e stubs and custom layers: unbuilt stubs report not-run when enabled
     expect(report.layers.map((layer) => layer.id)).toEqual([...BUILTIN_IDS]);
   });
 
+  it("O10: buildRegistry wires the composite build-output layer instead of a not-run stub", async () => {
+    const config = cfg({
+      class: "ui-components",
+      subLayers: { "size-limit": { enabled: false, reason: "private" } },
+      toggles: {
+        ...LAWS_OFF,
+        hygiene: off("t"),
+        tests: off("t"),
+        coverage: off("t"),
+        crap: off("t"),
+        mutation: off("t"),
+      },
+    });
+    const report = await runGate({
+      layers: buildRegistry(config),
+      config,
+      options: opts({ keepGoing: true }),
+      cwd: "/unused",
+      env: {},
+      exec: noExec,
+      outDir: "/unused/.web-tops/out",
+      now: tickingClock(),
+    });
+    const entry = report.layers.find((layer) => layer.id === "build-output");
+    expect(entry?.verdict).toBe("pass");
+    expect(entry?.findings.some((finding) => finding.verdict === "skip")).toBe(true);
+  });
+
   it("a custom layer with a command is not-run too: custom layers run from M4", async () => {
     const config = cfg({ custom: [{ id: "budgets", tier: 1, command: "bun run budgets" }] });
     const report = await runGate({

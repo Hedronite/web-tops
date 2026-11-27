@@ -110,8 +110,24 @@ describe("composite build-output orchestrator", () => {
   it("runs build, html, links, bytes, axe in order for astro-site and populates metrics.pages", async () => {
     const seen: string[] = [];
     const ctx = makeContext({ class: "astro-site" });
-    const result = await buildOutputLayer(fakeSubs(seen)).run(ctx);
+    const buildNote = {
+      tool: "webtops" as const,
+      rule: "build:ok",
+      verdict: "pass" as const,
+      message: "built",
+    };
+    const result = await buildOutputLayer(
+      fakeSubs(seen, {
+        build: recordLayer(
+          "build",
+          seen,
+          { findings: [buildNote] },
+          { name: "inventory", subDir: "build", payload: { version: 1 } },
+        ),
+      }),
+    ).run(ctx);
     expect(result.verdict).toBe("pass");
+    expect(result.findings).toEqual([buildNote]);
     expect(seen.map((item) => item.split(":")[0])).toEqual([
       "build",
       "html",
@@ -157,18 +173,43 @@ describe("composite build-output orchestrator", () => {
     expect(result.metrics).toEqual({ pages: [{ route: "/app", bytes: 3400 }] });
   });
 
-  it("respects subLayers enabled toggles for html and axe", async () => {
+  it("respects subLayers enabled toggles for html and axe and records explicit skip findings (A2, W2)", async () => {
     const seen: string[] = [];
-    const ctx = makeContext({
+    const astroCtx = makeContext({
       class: "astro-site",
       subLayers: {
-        html: { enabled: false, reason: "off" },
-        axe: { enabled: false, reason: "off" },
+        html: { enabled: false, reason: "later" },
+        axe: { enabled: false },
       },
     });
-    const result = await buildOutputLayer(fakeSubs(seen)).run(ctx);
-    expect(result.verdict).toBe("pass");
+    const astroRes = await buildOutputLayer(fakeSubs(seen)).run(astroCtx);
+    expect(astroRes.verdict).toBe("pass");
     expect(seen.map((item) => item.split(":")[0])).toEqual(["build", "links", "bytes"]);
+    expect(astroRes.findings).toEqual([
+      { tool: "webtops", rule: "sub-layer:html", verdict: "skip", message: "later" },
+      {
+        tool: "webtops",
+        rule: "sub-layer:axe",
+        verdict: "skip",
+        message: "disabled in web-tops.yaml",
+      },
+    ]);
+
+    const appSeen: string[] = [];
+    const appCtx = makeContext({
+      class: "web-app",
+      subLayers: {
+        html: { enabled: false, reason: "w2-html" },
+        axe: { enabled: false, reason: "w2-axe" },
+      },
+    });
+    const appRes = await buildOutputLayer(fakeSubs(appSeen)).run(appCtx);
+    expect(appRes.verdict).toBe("pass");
+    expect(appSeen.map((item) => item.split(":")[0])).toEqual(["build", "links", "route-bytes"]);
+    expect(appRes.findings).toEqual([
+      { tool: "webtops", rule: "sub-layer:html", verdict: "skip", message: "w2-html" },
+      { tool: "webtops", rule: "sub-layer:axe", verdict: "skip", message: "w2-axe" },
+    ]);
   });
 
   it("stops on failed build before running downstream sub-layers", async () => {
@@ -194,17 +235,83 @@ describe("composite build-output orchestrator", () => {
     expect(result.reason).toBe("no HTML pages");
   });
 
-  it("runs size-limit for ts-library and ui-components when enabled, and fails closed if nothing ran", async () => {
-    for (const cls of ["ts-library", "ui-components"] as const) {
-      const seen: string[] = [];
-      const ok = await buildOutputLayer(fakeSubs(seen)).run(makeContext({ class: cls }));
-      expect(ok.verdict).toBe("pass");
-      expect(seen).toEqual(["size-limit:none"]);
+  it("runs size-limit for ts-library and ui-components and emits skip findings for off/deferred sub-layers (U1/U2/U3)", async () => {
+    const libSeen: string[] = [];
+    const libOk = await buildOutputLayer(fakeSubs(libSeen)).run(
+      makeContext({ class: "ts-library" }),
+    );
+    expect(libOk.verdict).toBe("pass");
+    expect(libOk.findings).toEqual([]);
+    expect(Object.keys(libOk.artifacts)).toEqual(["size-limit-json"]);
+    expect(libSeen).toEqual(["size-limit:none"]);
 
-      const none = await buildOutputLayer(fakeSubs([])).run(
-        makeContext({ class: cls, subLayers: { "size-limit": { enabled: false, reason: "off" } } }),
+    const libOff = await buildOutputLayer(fakeSubs([])).run(
+      makeContext({ class: "ts-library", subLayers: { "size-limit": { enabled: false } } }),
+    );
+    expect(libOff.verdict).toBe("pass");
+    expect(libOff.findings).toEqual([
+      {
+        tool: "webtops",
+        rule: "sub-layer:size-limit",
+        verdict: "skip",
+        message: "disabled in web-tops.yaml",
+      },
+    ]);
+
+    const uiSeen: string[] = [];
+    const uiPublic = await buildOutputLayer(fakeSubs(uiSeen)).run(
+      makeContext({
+        class: "ui-components",
+        subLayers: { html: { enabled: false, reason: "custom-ui" } },
+      }),
+    );
+    expect(uiPublic.verdict).toBe("pass");
+    expect(uiSeen).toEqual(["size-limit:none"]);
+    expect(uiPublic.findings).toEqual([
+      { tool: "webtops", rule: "sub-layer:html", verdict: "skip", message: "custom-ui" },
+      {
+        tool: "webtops",
+        rule: "sub-layer:links",
+        verdict: "skip",
+        message: "ui-components fixture pages deferred",
+      },
+      {
+        tool: "webtops",
+        rule: "sub-layer:axe",
+        verdict: "skip",
+        message: "ui-components fixture pages deferred",
+      },
+    ]);
+
+    for (const reason of ["internal", "pkg off"]) {
+      const uiOff = await buildOutputLayer(fakeSubs([])).run(
+        makeContext({
+          class: "ui-components",
+          subLayers: { "size-limit": { enabled: false, reason } },
+        }),
       );
-      expect(none.verdict).toBe("not-evaluated");
+      expect(uiOff.verdict).toBe("pass");
+      expect(uiOff.findings).toEqual([
+        { tool: "webtops", rule: "sub-layer:size-limit", verdict: "skip", message: reason },
+        {
+          tool: "webtops",
+          rule: "sub-layer:html",
+          verdict: "skip",
+          message: "ui-components fixture pages deferred",
+        },
+        {
+          tool: "webtops",
+          rule: "sub-layer:links",
+          verdict: "skip",
+          message: "ui-components fixture pages deferred",
+        },
+        {
+          tool: "webtops",
+          rule: "sub-layer:axe",
+          verdict: "skip",
+          message: "ui-components fixture pages deferred",
+        },
+      ]);
     }
   });
 
@@ -319,18 +426,167 @@ describe("composite build-output orchestrator", () => {
     expect(res.findings).toEqual([astroFinding]);
     expect(res.reason).toBe("r1; r2");
 
-    for (const verdict of ["skip", "not-run"] as const) {
-      const r = await buildOutputLayer(
-        fakeSubs([], {
-          sizeLimit: {
-            ...recordLayer("size-limit", []),
-            run: () => Promise.resolve({ verdict, findings: [], artifacts: {} }),
-          },
-        }),
-      ).run(makeContext({ class: "ts-library" }));
-      expect(r.verdict).toBe(verdict);
-      expect(r.reason).toBe(`sub-layer ${verdict}`);
-    }
+    const notRunRes = await buildOutputLayer(
+      fakeSubs([], {
+        sizeLimit: {
+          ...recordLayer("size-limit", []),
+          run: () => Promise.resolve({ verdict: "not-run", findings: [], artifacts: {} }),
+        },
+      }),
+    ).run(makeContext({ class: "ts-library" }));
+    expect(notRunRes.verdict).toBe("not-run");
+    expect(notRunRes.reason).toBe("sub-layer not-run");
+
+    const skipFoldReason = await buildOutputLayer(
+      fakeSubs([], {
+        sizeLimit: {
+          ...recordLayer("size-limit", []),
+          run: () =>
+            Promise.resolve({
+              verdict: "skip",
+              reason: "internal skip",
+              findings: [],
+              artifacts: {},
+            }),
+        },
+      }),
+    ).run(makeContext({ class: "ts-library" }));
+    expect(skipFoldReason.verdict).toBe("pass");
+    expect("reason" in skipFoldReason).toBe(false);
+    expect(skipFoldReason.findings).toEqual([
+      { tool: "webtops", rule: "sub-layer:size-limit", verdict: "skip", message: "internal skip" },
+    ]);
+
+    const existingSkip = {
+      tool: "webtops" as const,
+      rule: "size-limit:skip",
+      verdict: "skip" as const,
+      message: "already skipped",
+    };
+    const skipFoldExisting = await buildOutputLayer(
+      fakeSubs([], {
+        sizeLimit: {
+          ...recordLayer("size-limit", []),
+          run: () => Promise.resolve({ verdict: "skip", findings: [existingSkip], artifacts: {} }),
+        },
+      }),
+    ).run(makeContext({ class: "ts-library" }));
+    expect(skipFoldExisting.verdict).toBe("pass");
+    expect(skipFoldExisting.findings).toEqual([existingSkip]);
+
+    const skipFallback = await buildOutputLayer(
+      fakeSubs([], {
+        sizeLimit: {
+          ...recordLayer("size-limit", []),
+          run: () => Promise.resolve({ verdict: "skip", findings: [], artifacts: {} }),
+        },
+      }),
+    ).run(makeContext({ class: "ts-library" }));
+    expect(skipFallback.verdict).toBe("pass");
+    expect(skipFallback.findings).toEqual([
+      {
+        tool: "webtops",
+        rule: "sub-layer:size-limit",
+        verdict: "skip",
+        message: "sub-layer size-limit skipped",
+      },
+    ]);
+
+    const failAndSkip = await buildOutputLayer(
+      fakeSubs([], {
+        axe: recordLayer("axe", [], { verdict: "skip", reason: "axe skip" }),
+        links: recordLayer("links", [], { verdict: "fail", reason: "broken link" }),
+      }),
+    ).run(makeContext({ class: "astro-site" }));
+    expect(failAndSkip.verdict).toBe("fail");
+    expect(failAndSkip.reason).toBe("broken link");
+    expect(failAndSkip.findings).toEqual([
+      { tool: "webtops", rule: "sub-layer:axe", verdict: "skip", message: "axe skip" },
+    ]);
+
+    const passFinding = {
+      tool: "webtops" as const,
+      rule: "size-limit:info",
+      verdict: "pass" as const,
+      message: "info",
+    };
+    const skipWithNonSkip = await buildOutputLayer(
+      fakeSubs([], {
+        sizeLimit: {
+          ...recordLayer("size-limit", []),
+          run: () =>
+            Promise.resolve({
+              verdict: "skip",
+              reason: "with-pass-finding",
+              findings: [passFinding],
+              artifacts: {},
+            }),
+        },
+      }),
+    ).run(makeContext({ class: "ts-library" }));
+    expect(skipWithNonSkip.findings).toEqual([
+      {
+        tool: "webtops",
+        rule: "sub-layer:size-limit",
+        verdict: "skip",
+        message: "with-pass-finding",
+      },
+      passFinding,
+    ]);
+
+    const skippedBuild = await buildOutputLayer(
+      fakeSubs([], {
+        build: recordLayer(
+          "build",
+          [],
+          { verdict: "skip" },
+          { name: "inventory", subDir: "build", payload: { version: 1 } },
+        ),
+      }),
+    ).run(makeContext({ class: "astro-site" }));
+    expect(skippedBuild.verdict).toBe("pass");
+    expect(Object.keys(skippedBuild.artifacts)).toEqual(["inventory"]);
+    expect(skippedBuild.findings).toEqual([
+      {
+        tool: "webtops",
+        rule: "sub-layer:build",
+        verdict: "skip",
+        message: "sub-layer build skipped",
+      },
+    ]);
+
+    const skippedAstro = await buildOutputLayer(
+      fakeSubs([], {
+        links: recordLayer("links", [], { verdict: "skip" }),
+        bytes: recordLayer("bytes", [], { verdict: "skip" }),
+      }),
+    ).run(makeContext({ class: "astro-site" }));
+    expect(skippedAstro.findings).toEqual([
+      {
+        tool: "webtops",
+        rule: "sub-layer:links",
+        verdict: "skip",
+        message: "sub-layer links skipped",
+      },
+      {
+        tool: "webtops",
+        rule: "sub-layer:bytes",
+        verdict: "skip",
+        message: "sub-layer bytes skipped",
+      },
+    ]);
+
+    const skippedApp = await buildOutputLayer(
+      fakeSubs([], { routeBytes: recordLayer("route-bytes", [], { verdict: "skip" }) }),
+    ).run(makeContext({ class: "web-app" }));
+    expect(skippedApp.findings).toEqual([
+      {
+        tool: "webtops",
+        rule: "sub-layer:route-bytes",
+        verdict: "skip",
+        message: "sub-layer route-bytes skipped",
+      },
+    ]);
 
     const noReasonFail = await buildOutputLayer(
       fakeSubs([], {
