@@ -467,6 +467,7 @@ describe("route bytes from the driver's answer", () => {
           ...visit([]),
           scripts: [
             { url: `${origin}/gone.js`, status: 404 },
+            { url: `${origin}/edge.js`, status: 400 },
             { url: `${origin}/a.js`, status: 399 },
           ],
         },
@@ -475,7 +476,7 @@ describe("route bytes from the driver's answer", () => {
     );
     expect(result).toMatchObject({
       verdict: "fail",
-      reason: "scripts did not load: /: /gone.js, /x: /blocked.js",
+      reason: "scripts did not load: /: /gone.js, /: /edge.js, /x: /blocked.js",
       findings: [{ rule: "route-script-failed" }],
     });
   });
