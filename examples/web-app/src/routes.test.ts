@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import config from "../web-tops.yaml?raw";
 import { routeFor, routes } from "./routes.ts";
 
 describe("routes", () => {
@@ -7,6 +8,13 @@ describe("routes", () => {
       ["/", "Example app"],
       ["/about/", "About the example app"],
     ]);
+  });
+
+  // The static server answers any other path with the app's shell and status 200, so for a route that is not there
+  // the gate would measure and check the shell instead of failing. Only real routes are declared.
+  it("declares to the gate exactly the paths the app has", () => {
+    const declared: unknown = JSON.parse(/^routes: (\[.*\])$/mu.exec(config)?.[1] ?? "[]");
+    expect(declared).toEqual(routes().map((route) => route.path));
   });
 
   it.each([

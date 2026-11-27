@@ -18,3 +18,6 @@ bun ../../src/cli/main.ts gate --max-tier 1
   DOM.
 - Build output and the laws layer are on at `hard`: the built pages are validated, their links checked, and each
   declared route is held to its JavaScript budget and run through axe in headless Chromium.
+- Declare only routes that exist. The static server answers any other path with the app's shell and status 200, so a
+  mistyped path in `routes` would be measured and checked as the shell instead of failing. `src/routes.test.ts`
+  holds `routes` in `web-tops.yaml` to the app's own paths.
