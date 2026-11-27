@@ -154,6 +154,7 @@ const TOOLS: Record<Class, readonly string[]> = {
     "astro",
     "eslint-plugin-astro",
     "@playwright/test",
+    "postcss-html",
   ],
   "web-app": [...BASE_TOOLS, ...REACT_TOOLS, ...HOOKS_TOOLS, "@playwright/test"],
   "node-service": BASE_TOOLS,

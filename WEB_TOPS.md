@@ -85,7 +85,7 @@ Schema (`schema/web-tops.schema.json` plus a gate-report schema), and per-class 
 | Tests and coverage | Vitest 5.1, `@vitest/coverage-v8` 5.1 |
 | Mutation | StrykerJS 10.1 (`@stryker-mutator/core`, `vitest-runner`, `typescript-checker`) |
 | Astro, Tailwind, validation | Astro 7.4, `@astrojs/check` 0.9, Tailwind CSS 4.3, Zod 4.6 |
-| Build output | `html-validate` 11.21.1, `@playwright/test` 1.65.1, `@axe-core/playwright` 4.14.0, Stylelint 18.0.0, `size-limit` 14.3.0, `@size-limit/file` 14.3.0, `@lhci/cli` 0.16 (tier 2) |
+| Build output | `html-validate` 11.21.1, `@playwright/test` 1.65.1, `@axe-core/playwright` 4.14.0, Stylelint 18.0.0 with `postcss-html` 2.0.1 (the `<style>` blocks of `.astro` files), `size-limit` 14.3.0, `@size-limit/file` 14.3.0, `@lhci/cli` 0.16 (tier 2) |
 | Boundaries and packages | `dependency-cruiser` 18, `publint` 0.3, `@arethetypeswrong/cli` 0.18 |
 | Format | Prettier 3.10 or Biome 2.6, one per repo |
 
