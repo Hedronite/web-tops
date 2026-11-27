@@ -987,7 +987,7 @@ chooses which laws run and `enabled: false` turns the layer off.
   `dependency_cruiser`, `audit`. `astro_check` is mapped for `astro-site`, and for `web-app` and
   `ui-components` when the `package.json` beside `web-tops.yaml` lists `astro` in `dependencies`,
   `devDependencies` or `peerDependencies`; otherwise it is `skip`. `layers.package_exports` runs `publint` and `attw` inside gate 1.
-- `build` configures the M4 build invocation (`command`, non-blank) and output directory (`dir`, relative path defaulting to `dist`). `routes` lists the declared app routes (paths starting `/`, unique). `budgets` sets brotli byte ceilings: `page_js_bytes` and `static_page_js_bytes` (astro-site), `route_js_bytes` (web-app), plus per-path maps `pages`, `routes`, and `entries` (keys starting `.`).
+- `build` configures the M4 build invocation (`command`, non-blank) and output directory (`dir`, relative path defaulting to `dist`). `routes` lists the declared app routes (paths starting `/`, unique). `budgets` sets brotli byte ceilings: `page_js_bytes` and `static_page_js_bytes` (astro-site), `route_js_bytes` (web-app), plus per-path maps `pages`, `routes`, and `entries` (keys starting `.`); `layers.size_limit.entries` overrides `budgets.entries` per key while keeping budget-only keys, and an empty `entries: {}` adds no overrides so any unmapped key falls back to `layers.size_limit.default_bytes` and then the 50 KiB default.
 - `layers.package_exports.skip_private` and `layers.size_limit.skip_private` take a reason. When the `package.json` beside
   `web-tops.yaml` says `"private": true`, the layer is `skip` with that reason, and `hard` does not
   refuse it. Any other package cannot set it: `check` exits 2 at that key. It is for adopters whose
@@ -1232,7 +1232,7 @@ web-tops/
 │   ├── init/                # webtops init: renders the drop-in set
 │   ├── lawdiff/             # webtops law-diff: what a PR weakens, surface by surface (§11)
 │   ├── laws/                # the law catalog (§8.3): the loader, the queries and the §8.2 table generator; the probe, the ESLint and compiler readers and the laws layer (§6.5)
-│   ├── layers/              # hygiene, tests, coverage, crap, mutation, laws, build, html, links, bytes, route-bytes, axe (M4 adds size-limit)
+│   ├── layers/              # hygiene, tests, coverage, crap, mutation, laws, build, html, links, bytes, route-bytes, axe, size-limit
 │   ├── lock/                # tool pins, web-tops.lock, the Node range
 │   ├── presets/             # the drop-in rules behind web-tops/eslint, /stylelint, /depcruise and /tsconfig/strict.json (plain JavaScript: Node does not strip types in node_modules)
 │   ├── report/              # report writing, text and JSON rendering
@@ -1255,7 +1255,7 @@ web-tops/
 
 The law twins are in `fixtures/laws/W-NN/{bad,clean}/`: a bad and a clean twin per law, which `webtops laws probe` proves.
 
-Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4), `src/layers/size-limit/`, `examples/astro-site/`, and `examples/web-app/`. The kit's tools already cover the rest: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
+Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4), `examples/astro-site/`, and `examples/web-app/`. The kit's tools already cover the rest: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
 
 Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any release.
 
