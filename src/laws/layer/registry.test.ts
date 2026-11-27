@@ -11,6 +11,7 @@ import { knipReader } from "../readers/knip.ts";
 import { lockReader } from "../readers/lock.ts";
 import { publintReader } from "../readers/publint.ts";
 import { secretsReader } from "../readers/secrets.ts";
+import { stylelintReader } from "../readers/stylelint.ts";
 import { tscReader } from "../readers/tsc.ts";
 import { defaultReaders } from "./readers.ts";
 
@@ -54,14 +55,15 @@ describe("the registry of the laws layer's readers", () => {
     expect(readers.get("lock")).toBe(lockReader);
     expect(readers.get("publint")).toBe(publintReader);
     expect(readers.get("secretlint")).toBe(secretsReader);
+    expect(readers.get("stylelint")).toBe(stylelintReader);
     expect(readers.get("tsc")).toBe(tscReader);
   });
 
   it("names the tools a judged law maps that have no reader yet: a law that maps one is not evaluated for it", () => {
     const readers = defaultReaders();
     const unread = [...judgedTools()].filter((tool) => !readers.has(tool)).sort();
-    // W-20, W-21 and W-22 read built pages (html-validate, axe) and W-26 style rules (stylelint): each is a later step,
-    // and a law that maps one is not evaluated for that tool.
-    expect(unread).toEqual(["axe", "html-validate", "stylelint"]);
+    // W-20, W-21 and W-22 read built pages (html-validate, axe): a later step, and a law that maps one is not
+    // evaluated for that tool.
+    expect(unread).toEqual(["axe", "html-validate"]);
   });
 });

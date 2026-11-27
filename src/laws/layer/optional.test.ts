@@ -77,6 +77,7 @@ describe("G4 a law whose tool artifact is missing is not-evaluated", () => {
       "dependency-cruiser-json",
       "install-json",
       "publint-json",
+      "stylelint-json",
     ]);
   });
 
