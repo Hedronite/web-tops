@@ -4,6 +4,18 @@ All notable changes to this project are listed here. The protocol version and th
 
 ## [Unreleased]
 
+Build output, milestone M4. The layers are in the tree; the gate does not run them until they are wired in.
+
+- Two examples of the browser classes, each with its own pinned package and lock: `examples/astro-site` (static pages with Tailwind CSS 4 and no page JavaScript) and `examples/web-app` (a client-routed app with one lazy chunk for each view). (M4 G8)
+- `size-limit` per `exports` entry for the library classes; an entry over its budget fails. (M4 G7)
+- axe in headless Chromium on every built page, or on the declared routes of a `web-app`, with the WCAG 2.0, 2.1 and 2.2 A and AA tags and `target-size` switched on. A serious or critical violation fails (W-21; `target-size` is W-44), and an `incomplete` result is `not-evaluated`. (M4 G6)
+- Route JavaScript budgets (W-29) for a `web-app`, from what headless Chromium requests while it loads each declared route. §7 now says so: a chunk asked for on an interaction, or after the network has been quiet for 500 ms, is not counted. (M4 G5)
+- Page JavaScript budgets (W-29): inline and external scripts, module preloads and their static import closure, in brotli bytes from `dist/`. An `astro-site` page with no island has a budget of 0 bytes. (M4 G4)
+- A native check of internal links, fragment anchors and local assets over the built pages. (M4 G3)
+- `html-validate` over the built pages: the standard and document presets (W-20) and the a11y preset (W-22). `require-sri` is asked of cross-origin files only, so compiled Astro output passes untouched (§7). (M4 G2)
+- One build, one static server and one page inventory, shared by the build-output layers. (M4 G1)
+- The M4 tools are pinned exactly in §2, `package.json` and the lock, and the config schema takes `build`, `routes` and `budgets`. CI installs Chromium before the jobs that run the tests. (M4 G0)
+
 ## [0.4.0] - 2026-11-25
 
 The `webtops` CLI in this release implements protocol 0.3.0, and adds Laws v1 of milestone M3 and mutation sharding. The laws are data in `laws/W-NN.yaml` with law fixtures, judged at tier 1 by the laws layer from the lint presets, `eslint-plugin-webtops` and the other tools' reports; soft laws take acknowledgements, `webtops law-diff` fails a change that weakens a law without the `protocol-change` label, and the kit and `examples/node-service` run the layer at `hard`. A mutation run can be split into shards and joined into one judgment. The protocol stays 0.3.0; `report_version` is 2.4.0.

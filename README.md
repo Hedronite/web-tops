@@ -80,7 +80,7 @@ The protocol's later layers, once they are on, check:
 | Claim | Reality |
 | --- | --- |
 | An npm package | `package.json` is private. Install and run from this tree |
-| Build-output checks on this repo today | That layer is off in [`web-tops.yaml`](web-tops.yaml), until M4. The laws layer, native CRAP at cap 4 and StrykerJS mutation on the diff are on, with no unexplained survivors |
+| Build-output checks on this repo today | That layer is off in [`web-tops.yaml`](web-tops.yaml): the M4 layers are in the tree, and the gate does not run them yet. The laws layer, native CRAP at cap 4 and StrykerJS mutation on the diff are on, with no unexplained survivors |
 | A test framework or a design system | `webtops` runs Vitest, Playwright, Stryker, and related tools; it does not replace them, and it does not enforce an aesthetic |
 
 ## How it works
@@ -109,7 +109,7 @@ This repository has shipped milestones M1, M2 and M3: the `webtops` CLI (`init`,
 | **P3** | Protocol 0.3.0, the truth pass: one verdict set, required layers and laws per class, the report shape, risk definitions, the protocol id by range, ESLint 10 (this repo) |
 | **M2** | The risk engine, shipped: native CRAP, the Stryker adapter, the survivor ledger, baseline and ratchet; the kit runs CRAP and mutation on itself at `hard` |
 | **M3** | Laws v1, shipped: `laws/W-NN.yaml`, law fixtures, `eslint-plugin-webtops`, the non-lint readers, the ack ledger, `law-diff`; the kit and `examples/node-service` run the laws layer at `hard` |
-| **M4** | Build output: HTML validity, links, page and route bytes, axe, `size-limit` per entry |
+| **M4** | Build output, being finished: HTML validity, links, page and route bytes, axe, `size-limit` per entry; the layers and the `astro-site` and `web-app` examples are in the tree, not yet in the gate |
 | **M5** | Rendered interface and themes: reflow, focus, motion, theme contrast |
 | **M6** | Workspaces and adoption: the `workspace-root` and `cli` profiles, the adopter PRs |
 | **M7** | Calibration and 1.0 |
