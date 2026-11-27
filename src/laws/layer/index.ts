@@ -17,7 +17,7 @@ import { ackAll, lawAckFindings } from "./acked.ts";
 import { forClass, lawsOfProject, toolsOf } from "./entries.ts";
 import type { LawCatalog } from "./catalog.ts";
 import { evidenceOf, judgeEntry, lawFinding, readingsOf, worse, type Judged } from "./judge.ts";
-import { optionalArtifacts, defaultReaders, artifactOf } from "./readers.ts";
+import { optionalInputs, defaultReaders, artifactOf } from "./readers.ts";
 import type { LawEntry, LawReader, LawReading, ReadInput } from "../../laws/readers/types.ts";
 
 /** The laws layer (WEB_TOPS.md sections 3.1 and 6.5): it reads what gate 1 wrote, and runs no lint a second time. */
@@ -161,7 +161,7 @@ async function run(
 const CONSUMES: Layer["consumes"] = [
   { artifact: "eslint-json", from: "hygiene" },
   { artifact: "tsc-diagnostics", from: "hygiene" },
-  ...optionalArtifacts().map((artifact) => ({ artifact, from: "hygiene", optional: true })),
+  ...optionalInputs().map(({ artifact, from }) => ({ artifact, from, optional: true })),
 ];
 
 /** The laws layer over a catalog of laws and the readers of each tool's rules. */

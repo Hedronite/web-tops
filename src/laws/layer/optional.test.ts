@@ -65,19 +65,23 @@ describe("G4 a law whose tool artifact is missing is not-evaluated", () => {
     const layer = lawsLayer(CATALOG());
     const consumes = layer.consumes;
     expect(layer.produces).toEqual([]);
-    expect(consumes.map((one) => one.from)).toEqual(consumes.map(() => "hygiene"));
-    expect(consumes.filter((one) => one.optional !== true).map((one) => one.artifact)).toEqual([
-      "eslint-json",
-      "tsc-diagnostics",
+    expect(consumes.every((one) => one.from === "hygiene" || one.from === "build-output")).toBe(
+      true,
+    );
+    expect(consumes.filter((one) => one.optional !== true)).toEqual([
+      { artifact: "eslint-json", from: "hygiene" },
+      { artifact: "tsc-diagnostics", from: "hygiene" },
     ]);
-    expect(consumes.filter((one) => one.optional === true).map((one) => one.artifact)).toEqual([
-      "astro-check-json",
-      "attw-json",
-      "audit-json",
-      "dependency-cruiser-json",
-      "install-json",
-      "publint-json",
-      "stylelint-json",
+    expect(consumes.filter((one) => one.optional === true)).toEqual([
+      { artifact: "astro-check-json", from: "hygiene", optional: true },
+      { artifact: "attw-json", from: "hygiene", optional: true },
+      { artifact: "audit-json", from: "hygiene", optional: true },
+      { artifact: "dependency-cruiser-json", from: "hygiene", optional: true },
+      { artifact: "install-json", from: "hygiene", optional: true },
+      { artifact: "publint-json", from: "hygiene", optional: true },
+      { artifact: "stylelint-json", from: "hygiene", optional: true },
+      { artifact: "bytes-json", from: "build-output", optional: true },
+      { artifact: "route-bytes-json", from: "build-output", optional: true },
     ]);
   });
 

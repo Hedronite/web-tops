@@ -8,6 +8,7 @@ import { recorded } from "../../layers/hygiene/testkit.ts";
 import type { LawEntry, LawReader, LawReading, ReadInput } from "./types.ts";
 import { attwReader } from "./attw.ts";
 import { bunReader } from "./bun.ts";
+import { bytesReader, routeBytesReader } from "./bytes.ts";
 import { depcruiseReader } from "./depcruise.ts";
 import { lockReader } from "./lock.ts";
 import { publintReader } from "./publint.ts";
@@ -17,6 +18,8 @@ import { inputFor, lawOf, type InputOptions } from "./testkit.ts";
 const READERS: ReadonlyMap<string, LawReader> = new Map([
   ["attw", attwReader],
   ["bun", bunReader],
+  ["bytes", bytesReader],
+  ["route-bytes", routeBytesReader],
   ["dependency-cruiser", depcruiseReader],
   ["lock", lockReader],
   ["publint", publintReader],
@@ -132,6 +135,60 @@ const TABLE: readonly Planted[] = [
       }),
     }),
     none: () => ({ tracked: ["bun.lock"] }),
+  },
+  {
+    law: lawOf("W-29", [{ tool: "bytes", name: "page-js-bytes" }]),
+    tool: "bytes",
+    bad: () => ({
+      artifacts: artifacts({
+        "bytes-json": JSON.stringify({
+          pages: [
+            {
+              file: "dist/index.html",
+              route: "/",
+              totalBytes: 90000,
+              budgetBytes: 51200,
+              passed: false,
+            },
+          ],
+        }),
+      }),
+    }),
+    clean: () => ({
+      artifacts: artifacts({
+        "bytes-json": JSON.stringify({
+          pages: [
+            {
+              file: "dist/index.html",
+              route: "/",
+              totalBytes: 100,
+              budgetBytes: 51200,
+              passed: true,
+            },
+          ],
+        }),
+      }),
+    }),
+    none: () => ({}),
+  },
+  {
+    law: lawOf("W-29", [{ tool: "route-bytes", name: "route-js-bytes" }]),
+    tool: "route-bytes",
+    bad: () => ({
+      artifacts: artifacts({
+        "route-bytes-json": JSON.stringify({
+          routes: [{ route: "/app", totalBytes: 200000, budgetBytes: 174080, passed: false }],
+        }),
+      }),
+    }),
+    clean: () => ({
+      artifacts: artifacts({
+        "route-bytes-json": JSON.stringify({
+          routes: [{ route: "/app", totalBytes: 1000, budgetBytes: 174080, passed: true }],
+        }),
+      }),
+    }),
+    none: () => ({}),
   },
 ];
 

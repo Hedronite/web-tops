@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { artifactOf, defaultReaders, optionalArtifacts } from "./readers.ts";
+import { artifactOf, defaultReaders, optionalInputs } from "./readers.ts";
 
 describe("G4 the artifact each tool's reader reads", () => {
   it("is the JSON of attw, dependency-cruiser and publint, by the tool", () => {
@@ -10,6 +10,8 @@ describe("G4 the artifact each tool's reader reads", () => {
     expect(artifactOf({ tool: "publint", name: "pack" })).toBe("publint-json");
     expect(artifactOf({ tool: "astro-check", name: "astro check" })).toBe("astro-check-json");
     expect(artifactOf({ tool: "stylelint", name: "block-no-empty" })).toBe("stylelint-json");
+    expect(artifactOf({ tool: "bytes", name: "page-js-bytes" })).toBe("bytes-json");
+    expect(artifactOf({ tool: "route-bytes", name: "route-js-bytes" })).toBe("route-bytes-json");
   });
 
   it("follows the rule for bun, which runs two checks", () => {
@@ -25,15 +27,17 @@ describe("G4 the artifact each tool's reader reads", () => {
     expect(artifactOf({ tool: "knip", name: "install --frozen-lockfile" })).toBeUndefined();
   });
 
-  it("lists every optional artifact once, in name order", () => {
-    expect(optionalArtifacts()).toEqual([
-      "astro-check-json",
-      "attw-json",
-      "audit-json",
-      "dependency-cruiser-json",
-      "install-json",
-      "publint-json",
-      "stylelint-json",
+  it("lists every optional artifact once, in name order by producer layer", () => {
+    expect(optionalInputs()).toEqual([
+      { artifact: "astro-check-json", from: "hygiene" },
+      { artifact: "attw-json", from: "hygiene" },
+      { artifact: "audit-json", from: "hygiene" },
+      { artifact: "dependency-cruiser-json", from: "hygiene" },
+      { artifact: "install-json", from: "hygiene" },
+      { artifact: "publint-json", from: "hygiene" },
+      { artifact: "stylelint-json", from: "hygiene" },
+      { artifact: "bytes-json", from: "build-output" },
+      { artifact: "route-bytes-json", from: "build-output" },
     ]);
   });
 
@@ -42,11 +46,13 @@ describe("G4 the artifact each tool's reader reads", () => {
       "astro-check",
       "attw",
       "bun",
+      "bytes",
       "dependency-cruiser",
       "eslint",
       "knip",
       "lock",
       "publint",
+      "route-bytes",
       "secretlint",
       "stylelint",
       "tsc",

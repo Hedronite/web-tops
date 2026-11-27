@@ -249,11 +249,13 @@ describe("the rules a law names, for the law probe", () => {
       "attw",
       "axe",
       "bun",
+      "bytes",
       "dependency-cruiser",
       "eslint",
       "html-validate",
       "lock",
       "publint",
+      "route-bytes",
       "stylelint",
       "tsc",
     ]);
