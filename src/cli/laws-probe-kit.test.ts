@@ -9,8 +9,11 @@ afterAll(cleanTemp);
 
 const kitLaws = lawsOfClass(kitProbeLaws(), "ts-library").length;
 
+/** Real processes only: no mutant of a mutation run reaches them (R112). */
+const insideStryker = process.env["STRYKER_MUTATOR_WORKER"] !== undefined;
+
 /** The probe on this repository, under its own eslint.config.js and tsconfig.json, with the twins it ships. */
-describe("G3c `laws probe` on the kit itself", () => {
+describe.skipIf(insideStryker)("G3c `laws probe` on the kit itself", () => {
   it(
     "passes every law the probe proves, under the kit's own config",
     () => {
