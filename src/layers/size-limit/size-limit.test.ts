@@ -1,5 +1,6 @@
-import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { parseConfig } from "../../config/validate.ts";
 import { toGateConfig } from "../../gate/adapter.ts";
@@ -12,6 +13,7 @@ import { DEFAULT_ENTRY_BYTES, budgetForEntry } from "./budgets.ts";
 import { readManifestInfo, resolveExportEntries } from "./exports.ts";
 import { sizeLimitLayer } from "./index.ts";
 
+const insideStryker = process.env["STRYKER_MUTATOR_WORKER"] !== undefined;
 const root = resolve(import.meta.dirname, "../../..");
 const cleanups: (() => void)[] = [];
 
@@ -191,91 +193,119 @@ describe("M4 G7: export resolution and budget precedence", () => {
   });
 });
 
-describe("M4 G7: size-limit 14.3.0 + @size-limit/file real measurement and budget checks", () => {
-  it(
-    "measures each exports entry cleanly and passes under budget",
-    async () => {
-      const { dir } = makeProject();
-      linkKitModules(dir);
-      put(
-        dir,
-        "package.json",
-        JSON.stringify({
-          name: "small-lib",
-          version: "1.0.0",
-          type: "module",
-          exports: {
-            ".": { types: "./dist/index.d.ts", import: "./dist/index.js" },
-            "./extra": "./dist/extra.js",
-            "./package.json": "./package.json",
-          },
-        }),
-      );
-      put(dir, "dist/index.d.ts", "export declare const main: number;\n");
-      put(dir, "dist/index.js", "export const main = 1;\n");
-      put(dir, "dist/extra.js", "export const extra = 2;\n");
+describe.skipIf(insideStryker)(
+  "M4 G7: size-limit 14.3.0 + @size-limit/file real measurement and budget checks",
+  () => {
+    it(
+      "measures each exports entry cleanly and passes under budget",
+      async () => {
+        const { dir } = makeProject();
+        linkKitModules(dir);
+        put(
+          dir,
+          "package.json",
+          JSON.stringify({
+            name: "small-lib",
+            version: "1.0.0",
+            type: "module",
+            exports: {
+              ".": { types: "./dist/index.d.ts", import: "./dist/index.js" },
+              "./extra": "./dist/extra.js",
+              "./package.json": "./package.json",
+            },
+          }),
+        );
+        put(dir, "dist/index.d.ts", "export declare const main: number;\n");
+        put(dir, "dist/index.js", "export const main = 1;\n");
+        put(dir, "dist/extra.js", "export const extra = 2;\n");
 
-      const config = configFrom(
-        'protocol: "0.3.0"\nversion: "1"\npackage: small-lib\nclass: ts-library\nbudgets:\n  entries:\n    "./extra": 2048\nlayers:\n  size_limit:\n    default_bytes: 4096\n',
-      );
-      const report = await runWith(config, dir);
-      expect(report.passed).toBe(true);
-      expect(report.exit_code).toBe(0);
-      const layer = report.layers.find((entry) => entry.id === "size-limit");
-      expect(layer?.findings).toHaveLength(2);
-      const saved = readFileSync(join(dir, ".web-tops/out/size-limit/report.json"), "utf8");
-      expect(saved).toContain('"skipped": false');
-      const exactBudget = firstMeasuredSize(saved);
-      const exactCfg = configFrom(
-        `protocol: "0.3.0"\nversion: "1"\npackage: small-lib\nclass: ts-library\nlayers:\n  size_limit:\n    entries:\n      ".": ${String(exactBudget)}\n      "./extra": 2048\n`,
-      );
-      expect((await runWith(exactCfg, dir)).passed).toBe(true);
-    },
-    REAL_TOOL_TIMEOUT,
-  );
+        const config = configFrom(
+          'protocol: "0.3.0"\nversion: "1"\npackage: small-lib\nclass: ts-library\nbudgets:\n  entries:\n    "./extra": 2048\nlayers:\n  size_limit:\n    default_bytes: 4096\n',
+        );
+        const report = await runWith(config, dir);
+        expect(report.passed).toBe(true);
+        expect(report.exit_code).toBe(0);
+        const layer = report.layers.find((entry) => entry.id === "size-limit");
+        expect(layer?.findings).toHaveLength(2);
+        const saved = readFileSync(join(dir, ".web-tops/out/size-limit/report.json"), "utf8");
+        expect(saved).toContain('"skipped": false');
+        const exactBudget = firstMeasuredSize(saved);
+        const exactCfg = configFrom(
+          `protocol: "0.3.0"\nversion: "1"\npackage: small-lib\nclass: ts-library\nlayers:\n  size_limit:\n    entries:\n      ".": ${String(exactBudget)}\n      "./extra": 2048\n`,
+        );
+        expect((await runWith(exactCfg, dir)).passed).toBe(true);
+      },
+      REAL_TOOL_TIMEOUT,
+    );
 
-  it(
-    "fails a planted over-budget exports entry with entry key, file, measured size, and budget",
-    async () => {
-      const { dir } = makeProject();
-      linkKitModules(dir);
-      const noisy = Array.from(
-        { length: 120 },
-        (_, i) => `export const k${String(i)} = "${String(i * 7919)}";`,
-      ).join("\n");
-      put(
-        dir,
-        "package.json",
-        JSON.stringify({
-          name: "fat-lib",
-          version: "1.0.0",
-          type: "module",
-          exports: { ".": "./dist/index.js", "./big": "./dist/big.js" },
-        }),
-      );
-      put(dir, "dist/index.js", "export const ok = 1;\n");
-      put(dir, "dist/big.js", `${noisy}\n`);
+    it(
+      "fails a planted over-budget exports entry with entry key, file, measured size, and budget",
+      async () => {
+        const { dir } = makeProject();
+        linkKitModules(dir);
+        const noisy = Array.from(
+          { length: 120 },
+          (_, i) => `export const k${String(i)} = "${String(i * 7919)}";`,
+        ).join("\n");
+        put(
+          dir,
+          "package.json",
+          JSON.stringify({
+            name: "fat-lib",
+            version: "1.0.0",
+            type: "module",
+            exports: { ".": "./dist/index.js", "./big": "./dist/big.js" },
+          }),
+        );
+        put(dir, "dist/index.js", "export const ok = 1;\n");
+        put(dir, "dist/big.js", `${noisy}\n`);
 
-      const config = configFrom(
-        'protocol: "0.3.0"\nversion: "1"\npackage: fat-lib\nclass: ts-library\nlayers:\n  size_limit:\n    entries:\n      ".": 1024\n      "./big": 40\n',
-      );
-      const report = await runWith(config, dir);
-      expect(report.passed).toBe(false);
-      expect(report.exit_code).toBe(1);
-      const layer = report.layers.find((entry) => entry.id === "size-limit");
-      if (layer === undefined) throw new Error("missing size-limit layer");
-      expect(layer.artifacts).toEqual([".web-tops/out/size-limit/report.json"]);
-      expect(layer.findings.map((f) => [f.verdict, f.rule])).toEqual([
-        ["pass", "size-limit"],
-        ["fail", "size-limit"],
-      ]);
-      expect(layer.findings[0]?.message).toContain("<=");
-      expect(layer.findings[1]?.message).toContain("exceeds budget");
-      assertFailedEntry(report, "dist/big.js", /\.\/big.*40 B/);
-    },
-    REAL_TOOL_TIMEOUT,
-  );
-});
+        const config = configFrom(
+          'protocol: "0.3.0"\nversion: "1"\npackage: fat-lib\nclass: ts-library\nlayers:\n  size_limit:\n    entries:\n      ".": 1024\n      "./big": 40\n',
+        );
+        const report = await runWith(config, dir);
+        expect(report.passed).toBe(false);
+        expect(report.exit_code).toBe(1);
+        const layer = report.layers.find((entry) => entry.id === "size-limit");
+        if (layer === undefined) throw new Error("missing size-limit layer");
+        expect(layer.artifacts).toEqual([".web-tops/out/size-limit/report.json"]);
+        expect(layer.findings.map((f) => [f.verdict, f.rule])).toEqual([
+          ["pass", "size-limit"],
+          ["fail", "size-limit"],
+        ]);
+        expect(layer.findings[0]?.message).toContain("<=");
+        expect(layer.findings[1]?.message).toContain("exceeds budget");
+        assertFailedEntry(report, "dist/big.js", /\.\/big.*40 B/);
+      },
+      REAL_TOOL_TIMEOUT,
+    );
+
+    it(
+      "fails closed when size-limit returns an entry without numeric size in real node",
+      async () => {
+        const mockPkg = makeProject().dir;
+        put(
+          mockPkg,
+          "package.json",
+          JSON.stringify({ name: "ok-pkg", exports: { ".": "./index.js" } }),
+        );
+        put(mockPkg, "index.js", "export const x = 1;\n");
+        put(
+          mockPkg,
+          "node_modules/size-limit/package.json",
+          JSON.stringify({ name: "size-limit" }),
+        );
+        put(mockPkg, "node_modules/size-limit/index.js", "export default async () => [{}];\n");
+        put(mockPkg, "node_modules/@size-limit/file/package.json", JSON.stringify({ name: "f" }));
+        put(mockPkg, "node_modules/@size-limit/file/index.js", "export default [];\n");
+        const realThrows = await runWith(cfg({ class: "ts-library" }), mockPkg);
+        expect(realThrows.passed).toBe(false);
+        expect(firstFinding(realThrows).message).toContain("size-limit produced no size for .");
+      },
+      REAL_TOOL_TIMEOUT,
+    );
+  },
+);
 
 describe("M4 G7: skip_private and fail-closed error handling", () => {
   it("skips a private: true package with skip_private reason without invoking node", async () => {
@@ -437,10 +467,6 @@ describe("M4 G7: skip_private and fail-closed error handling", () => {
     );
     put(mockPkg, "node_modules/@size-limit/file/index.js", "export default [];\n");
 
-    const realThrows = await runWith(cfg({ class: "ts-library" }), mockPkg);
-    expect(realThrows.passed).toBe(false);
-    expect(firstFinding(realThrows).message).toContain("size-limit produced no size for .");
-
     let recordedCmd = "";
     let recordedArg = "";
     let recordedTimeout: number | undefined;
@@ -453,7 +479,19 @@ describe("M4 G7: skip_private and fail-closed error handling", () => {
     expect(recordedCmd).toBe("node");
     expect(recordedArg.endsWith("/size-limit/measure.mjs")).toBe(true);
     expect(recordedTimeout).toBe(60_000);
-    expect(readFileSync(recordedArg, "utf8")).toContain("\n");
+    const scriptText = readFileSync(recordedArg, "utf8");
+    for (const fragment of [
+      "import sizeLimit from",
+      "import filePlugin from",
+      "const entries =",
+      "await sizeLimit(filePlugin, [entry.absPath])",
+      'typeof measured?.size !== "number"',
+      "size-limit produced no size for",
+      "results.push({ key: entry.key, file: entry.file, size: measured.size })",
+      "process.stdout.write(JSON.stringify({ results }))",
+    ]) {
+      expect(scriptText).toContain(fragment);
+    }
     expect(firstFinding(stdoutErr).message).toBe("size-limit failed (exit null: stdout problem)");
 
     expect(
@@ -512,6 +550,94 @@ describe("M4 G7: skip_private and fail-closed error handling", () => {
     }
   });
 
+  it("evaluates exact boundary and over-budget entries via mocked exec without spawning node", async () => {
+    const { dir } = makeProject();
+    put(
+      dir,
+      "package.json",
+      JSON.stringify({ name: "fast-lib", exports: { ".": "./dist/a.js", "./big": "./dist/b.js" } }),
+    );
+    put(dir, "dist/a.js", "export const a = 1;\n");
+    put(dir, "dist/b.js", "export const b = 2;\n");
+    put(
+      dir,
+      "node_modules/size-limit/package.json",
+      JSON.stringify({ name: "size-limit", main: "custom.mjs" }),
+    );
+    put(dir, "node_modules/size-limit/custom.mjs", "export default async () => [];\n");
+    put(dir, "node_modules/@size-limit/file/package.json", JSON.stringify({ name: "f" }));
+    put(dir, "node_modules/@size-limit/file/index.js", "export default [];\n");
+
+    let seenScript = "";
+    const fakeExec: Exec = (_cmd, args) => {
+      seenScript = readFileSync(String(args[0]), "utf8");
+      return Promise.resolve({
+        code: 0,
+        stdout: JSON.stringify({
+          results: [
+            { key: ".", file: "dist/a.js", size: 100 },
+            { key: "./big", file: "dist/b.js", size: 101 },
+          ],
+        }),
+        stderr: "",
+      });
+    };
+
+    const passCfg = configFrom(
+      'protocol: "0.3.0"\nversion: "1"\npackage: fast-lib\nclass: ts-library\nlayers:\n  size_limit:\n    entries:\n      ".": 100\n      "./big": 101\n',
+    );
+    expect(passCfg.sizeLimit).toEqual({ entries: { ".": 100, "./big": 101 } });
+    const passed = await runWith(passCfg, dir, fakeExec);
+    expect(passed.passed).toBe(true);
+    const slUrl = pathToFileURL(
+      join(realpathSync(join(dir, "node_modules/size-limit")), "custom.mjs"),
+    ).href;
+    const fpUrl = pathToFileURL(
+      join(realpathSync(join(dir, "node_modules/@size-limit/file")), "index.js"),
+    ).href;
+    const expectedEntries = JSON.stringify([
+      { key: ".", file: "dist/a.js", absPath: join(realpathSync(dir), "dist/a.js") },
+      { key: "./big", file: "dist/b.js", absPath: join(realpathSync(dir), "dist/b.js") },
+    ]);
+    expect(seenScript).toBe(
+      [
+        `import sizeLimit from ${JSON.stringify(slUrl)};`,
+        `import filePlugin from ${JSON.stringify(fpUrl)};`,
+        `const entries = ${expectedEntries};`,
+        "const results = [];",
+        "for (const entry of entries) {",
+        "  const [measured] = await sizeLimit(filePlugin, [entry.absPath]);",
+        '  if (typeof measured?.size !== "number") {',
+        "    throw new Error(`size-limit produced no size for ${entry.key}`);",
+        "  }",
+        "  results.push({ key: entry.key, file: entry.file, size: measured.size });",
+        "}",
+        "process.stdout.write(JSON.stringify({ results }));",
+        "",
+      ].join("\n"),
+    );
+    const passLayer = passed.layers.find((entry) => entry.id === "size-limit");
+    if (passLayer === undefined) throw new Error("missing size-limit layer");
+    expect(passLayer.artifacts).toEqual([".web-tops/out/size-limit/report.json"]);
+    expect(passLayer.findings[0]?.message).toContain("<=");
+    expect(readFileSync(join(dir, ".web-tops/out/size-limit/report.json"), "utf8")).toContain(
+      '"skipped": false',
+    );
+
+    const failCfg = cfg({
+      class: "ts-library",
+      sizeLimit: { entries: { ".": 100, "./big": 100 } },
+    });
+    const failed = await runWith(failCfg, dir, fakeExec);
+    expect(failed.passed).toBe(false);
+    const layer = failed.layers.find((entry) => entry.id === "size-limit");
+    if (layer === undefined) throw new Error("missing size-limit layer");
+    expect(layer.findings.map((f) => [f.verdict, f.rule])).toEqual([
+      ["pass", "size-limit"],
+      ["fail", "size-limit"],
+    ]);
+    assertFailedEntry(failed, "dist/b.js", /\.\/big.*101 B \(exceeds budget 100 B\)/);
+  });
   it("returns undefined from sourceReader when a finding path escapes cwd", () => {
     const { dir } = makeProject();
     const work = join(dir, "work");
