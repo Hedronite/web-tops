@@ -27,6 +27,7 @@ export const TOOL_PINS = {
   "fast-check": "4.10.2",
   "html-validate": "11.21.1",
   knip: "6.45.1",
+  "postcss-html": "2.0.1",
   prettier: "3.10.1",
   publint: "0.3.25",
   secretlint: "14.0.1",

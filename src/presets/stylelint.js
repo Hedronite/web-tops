@@ -2,6 +2,18 @@
 // passes Stylelint, with Tailwind 4 at-rules allowed. W-24 and W-25 are counted by the laws layer
 // from this output. Plain JavaScript: the tools run under Node, which does not strip types in node_modules.
 export default {
+  // What an install, a build or a gate run writes is not the project's source.
+  ignoreFiles: [
+    "**/node_modules/**",
+    "**/coverage/**",
+    "**/dist/**",
+    "**/.astro/**",
+    "**/.web-tops/**",
+    // `webtops laws probe` copies its twins here and lints them with this config, so they are judged.
+    "!**/.web-tops/out/laws-probe/**",
+  ],
+  // A `.astro` file is not CSS: postcss-html reads the `<style>` blocks of a page.
+  overrides: [{ files: ["**/*.astro"], customSyntax: "postcss-html" }],
   rules: {
     "at-rule-no-unknown": [
       true,
