@@ -169,4 +169,28 @@ describe("toGateConfig: the validated web-tops.yaml as the runner sees it", () =
       routes: { "/docs/": 120000 },
     });
   });
+
+  it("passes size_limit and budgets.entries through with layer precedence and omits when unset", () => {
+    expect(adapt(`${HEAD}class: ts-library\n`).sizeLimit).toBeUndefined();
+    expect(
+      adapt(`${HEAD}class: ts-library\nlayers:\n  size_limit: { tier: 1 }\n`).sizeLimit,
+    ).toBeUndefined();
+
+    const parsed = parseConfig(
+      `${HEAD}class: ts-library\nbudgets:\n  entries:\n    ".": 1000\n    "./a": 2000\nlayers:\n  size_limit:\n    skip_private: internal\n    default_bytes: 4096\n    entries:\n      ".": 512\n`,
+    );
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.problems));
+    const adapted = toGateConfig(parsed.value, { dependsOnAstro: false, isPrivate: true });
+    expect(adapted.sizeLimit).toEqual({
+      skipPrivate: "internal",
+      defaultBytes: 4096,
+      entries: { ".": 512, "./a": 2000 },
+    });
+
+    expect(
+      adapt(`${HEAD}class: ts-library\nbudgets:\n  entries:\n    ".": 777\n`).sizeLimit,
+    ).toEqual({
+      entries: { ".": 777 },
+    });
+  });
 });

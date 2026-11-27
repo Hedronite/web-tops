@@ -137,6 +137,12 @@ export interface BuildSettings {
   readonly dir: string;
 }
 
+export interface SizeLimitSettings {
+  readonly skipPrivate?: string;
+  readonly defaultBytes?: number;
+  readonly entries?: Readonly<Record<string, number>>;
+}
+
 export interface BudgetsSettings {
   readonly pageJsBytes?: number;
   readonly staticPageJsBytes?: number;
@@ -248,6 +254,7 @@ export interface GateConfig {
   readonly build?: BuildSettings;
   readonly routes?: readonly string[];
   readonly budgets?: BudgetsSettings;
+  readonly sizeLimit?: SizeLimitSettings;
 }
 
 export interface ShardSpec {

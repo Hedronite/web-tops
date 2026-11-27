@@ -2,7 +2,12 @@ import { mapsStep, profileFor } from "../config/profiles.ts";
 import { requiredLayers } from "../config/required.ts";
 import { LAYER_IDS } from "../config/report.ts";
 import type { LayerKey, Profile, Project } from "../config/profiles.ts";
-import type { PackageExportsLayer, Switch, WebTopsConfig } from "../config/types.ts";
+import type {
+  PackageExportsLayer,
+  SizeLimitLayer,
+  Switch,
+  WebTopsConfig,
+} from "../config/types.ts";
 import {
   HYGIENE_STEPS,
   type AuditLevel,
@@ -14,6 +19,7 @@ import {
   type HygieneSettings,
   type HygieneStep,
   type MutationSettings,
+  type SizeLimitSettings,
   type TestsSettings,
   type Toggle,
 } from "./types.ts";
@@ -299,6 +305,42 @@ function budgetsSettings(config: WebTopsConfig): { readonly budgets?: BudgetsSet
   return Object.keys(out).length === 0 ? {} : { budgets: out };
 }
 
+function combineEntryMaps(
+  budgetEntries: Readonly<Record<string, number>> | undefined,
+  layerEntries: Readonly<Record<string, number>> | undefined,
+): Readonly<Record<string, number>> | undefined {
+  if (budgetEntries === undefined && layerEntries === undefined) return undefined;
+  return { ...budgetEntries, ...layerEntries };
+}
+
+function mergeEntryBudgets(config: WebTopsConfig): Readonly<Record<string, number>> | undefined {
+  return combineEntryMaps(config.budgets?.entries, config.layers?.size_limit?.entries);
+}
+
+function layerSkipField(layer: SizeLimitLayer | undefined): { readonly skipPrivate?: string } {
+  return layer?.skip_private === undefined ? {} : { skipPrivate: layer.skip_private };
+}
+
+function layerDefaultField(layer: SizeLimitLayer | undefined): { readonly defaultBytes?: number } {
+  return layer?.default_bytes === undefined ? {} : { defaultBytes: layer.default_bytes };
+}
+
+function assembleSizeLimit(
+  layer: SizeLimitLayer | undefined,
+  entries: Readonly<Record<string, number>> | undefined,
+): { readonly sizeLimit?: SizeLimitSettings } {
+  const out: SizeLimitSettings = {
+    ...layerSkipField(layer),
+    ...layerDefaultField(layer),
+    ...(entries === undefined ? {} : { entries }),
+  };
+  return Object.keys(out).length === 0 ? {} : { sizeLimit: out };
+}
+
+function sizeLimitSettings(config: WebTopsConfig): { readonly sizeLimit?: SizeLimitSettings } {
+  return assembleSizeLimit(config.layers?.size_limit, mergeEntryBudgets(config));
+}
+
 function customOf(config: WebTopsConfig): GateConfig["custom"] {
   return (config.layers?.custom ?? []).map(({ id, tier, command }) => ({ id, tier, command }));
 }
@@ -326,5 +368,6 @@ export function toGateConfig(config: WebTopsConfig, project: Project): GateConfi
     ...buildSettings(config),
     ...routesSettings(config),
     ...budgetsSettings(config),
+    ...sizeLimitSettings(config),
   };
 }
