@@ -71,6 +71,7 @@ describe("G4 a law whose tool artifact is missing is not-evaluated", () => {
       "tsc-diagnostics",
     ]);
     expect(consumes.filter((one) => one.optional === true).map((one) => one.artifact)).toEqual([
+      "astro-check-json",
       "attw-json",
       "audit-json",
       "dependency-cruiser-json",
