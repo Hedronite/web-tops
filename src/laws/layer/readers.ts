@@ -1,5 +1,6 @@
 import { astroCheckReader } from "../../laws/readers/astro-check.ts";
 import { attwReader } from "../../laws/readers/attw.ts";
+import { bytesReader, routeBytesReader } from "../../laws/readers/bytes.ts";
 import { bunReader } from "../../laws/readers/bun.ts";
 import { depcruiseReader } from "../../laws/readers/depcruise.ts";
 import { eslintReader } from "../../laws/readers/eslint.ts";
@@ -20,11 +21,13 @@ export function defaultReaders(): ReadonlyMap<string, LawReader> {
     ["astro-check", astroCheckReader],
     ["attw", attwReader],
     ["bun", bunReader],
+    ["bytes", bytesReader],
     ["dependency-cruiser", depcruiseReader],
     ["eslint", eslintReader],
     ["knip", knipReader],
     ["lock", lockReader],
     ["publint", publintReader],
+    ["route-bytes", routeBytesReader],
     ["secretlint", secretsReader],
     ["stylelint", stylelintReader],
     ["tsc", tscReader],
@@ -32,18 +35,25 @@ export function defaultReaders(): ReadonlyMap<string, LawReader> {
 }
 
 /**
- * The artifact of gate 1 each tool's reader reads. The laws layer consumes each as optional (R92): the hygiene step
- * that writes it can be off for a class, or not built yet. A law that maps one of these rules while its artifact is
- * missing is `not-evaluated`, so a required law whose input is missing ends the run instead of passing on nothing.
- * `bun` runs two checks, so its artifact follows the rule: the audit, or the frozen install.
+ * The artifact of gate 1 or gate 6 each tool's reader reads. The laws layer consumes each as optional (R92): the step
+ * or sub-layer that writes it can be off for a class, or not built yet. A law that maps one of these rules while its
+ * artifact is missing is `not-evaluated`, so a required law whose input is missing ends the run instead of passing on
+ * nothing. `bun` runs two checks, so its artifact follows the rule: the audit, or the frozen install.
  */
-function toolArtifacts(): ReadonlyMap<string, string> {
+function gate1Artifacts(): ReadonlyMap<string, string> {
   return new Map([
     ["astro-check", "astro-check-json"],
     ["attw", "attw-json"],
     ["dependency-cruiser", "dependency-cruiser-json"],
     ["publint", "publint-json"],
     ["stylelint", "stylelint-json"],
+  ]);
+}
+
+function gate6Artifacts(): ReadonlyMap<string, string> {
+  return new Map([
+    ["route-bytes", "route-bytes-json"],
+    ["bytes", "bytes-json"],
   ]);
 }
 
@@ -59,9 +69,17 @@ export const artifactOf = (rule: {
   readonly tool: string;
   readonly name: string;
 }): string | undefined =>
-  rule.tool === "bun" ? bunArtifacts().get(rule.name) : toolArtifacts().get(rule.tool);
+  rule.tool === "bun"
+    ? bunArtifacts().get(rule.name)
+    : (gate1Artifacts().get(rule.tool) ?? gate6Artifacts().get(rule.tool));
 
-/** Every artifact the laws layer may read, once each, in name order. */
-export function optionalArtifacts(): readonly string[] {
-  return [...new Set([...toolArtifacts().values(), ...bunArtifacts().values()])].sort();
+/** Every optional artifact the laws layer may read from gate 1 or gate 6, paired with its producer layer. */
+export function optionalInputs(): readonly { readonly artifact: string; readonly from: string }[] {
+  const fromGate1 = [...new Set([...gate1Artifacts().values(), ...bunArtifacts().values()])]
+    .sort()
+    .map((artifact) => ({ artifact, from: "hygiene" }));
+  const fromGate6 = [...new Set(gate6Artifacts().values())]
+    .sort()
+    .map((artifact) => ({ artifact, from: "build-output" }));
+  return [...fromGate1, ...fromGate6];
 }

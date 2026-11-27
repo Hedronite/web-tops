@@ -7,7 +7,9 @@ classes: [astro-site, web-app]
 reader:
   kinds: [an]
   text: "an: `dist/` reader"
-rules: []
+rules:
+  - { tool: bytes, name: "page-js-bytes", classes: [astro-site] }
+  - { tool: route-bytes, name: "route-js-bytes", classes: [web-app] }
 judged: v0.1
 rationale: "A page over its byte budget is slow where it matters."
 fix: "Remove, split or defer the code the budget report names."

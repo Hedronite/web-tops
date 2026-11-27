@@ -112,6 +112,8 @@ describe("G4a the laws layer is registered as the last gate, reading what hygien
       "install-json",
       "publint-json",
       "stylelint-json",
+      "bytes-json",
+      "route-bytes-json",
     ]);
     expect(layer.classes).toEqual([
       "ts-library",

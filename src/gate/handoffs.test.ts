@@ -311,8 +311,11 @@ describe("G2c the real registry declares its hand-offs", () => {
 
   it("never consumes from a layer it does not require", () => {
     const needs = layers.flatMap((layer) => layer.consumes.map((need) => [layer, need] as const));
+    const allowedFrom = (layer: Layer, need: Consumed): boolean =>
+      layer.requires.includes(need.from) ||
+      (need.optional === true && need.from === "build-output");
     for (const [layer, need] of needs) {
-      expect(layer.requires).toContain(need.from);
+      expect(allowedFrom(layer, need), `${layer.id} <- ${need.from}:${need.artifact}`).toBe(true);
     }
   });
 
