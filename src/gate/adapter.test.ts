@@ -187,6 +187,10 @@ describe("toGateConfig: the validated web-tops.yaml as the runner sees it", () =
       entries: { ".": 512, "./a": 2000 },
     });
 
+    expect(adapted.toggles["build-output"]).toEqual({ enabled: false, reason: "internal" });
+    const pub = toGateConfig(parsed.value, { dependsOnAstro: false, isPrivate: false });
+    expect(pub.toggles["build-output"]).toBeUndefined();
+
     expect(
       adapt(`${HEAD}class: ts-library\nbudgets:\n  entries:\n    ".": 777\n`).sizeLimit,
     ).toEqual({
@@ -195,5 +199,21 @@ describe("toGateConfig: the validated web-tops.yaml as the runner sees it", () =
 
     const layerOnly = `${HEAD}class: ts-library\nlayers:\n  size_limit:\n    entries:\n      ".": 640\n`;
     expect(adapt(layerOnly).sizeLimit).toEqual({ entries: { ".": 640 } });
+  });
+
+  it("forwards all disabled sub-layer toggles under subLayers and omits subLayers when none are off", () => {
+    const plain = adapt(`${HEAD}class: astro-site\n`);
+    expect("subLayers" in plain).toBe(false);
+
+    const adapted = adapt(
+      `${HEAD}class: astro-site\nlayers:\n  size_limit: { enabled: false, reason: s }\n  html_validate: { enabled: false, reason: h }\n  axe: { enabled: false, reason: a }\n  rendered: { enabled: false, reason: r }\n  themes: { enabled: false, reason: t }\n`,
+    );
+    expect(adapted.subLayers).toEqual({
+      "size-limit": { enabled: false, reason: "s" },
+      html: { enabled: false, reason: "h" },
+      axe: { enabled: false, reason: "a" },
+      rendered: { enabled: false, reason: "r" },
+      themes: { enabled: false, reason: "t" },
+    });
   });
 });
