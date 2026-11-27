@@ -17,4 +17,6 @@ bun ../../src/cli/main.ts gate --max-tier 1
   exempt.
 - A template callback that returns markup says `unknown`: Astro types a template element as `any`, which W-01
   does not let a function return.
-- The build-output and laws layers are off in `web-tops.yaml` until the built-page wiring lands.
+- Build output and the laws layer are on at `hard`: the built pages are validated (W-20, W-22), their links checked,
+  their JavaScript held to a budget of 0 bytes (W-29) and each page run through axe (W-21, W-44). The planted
+  defects in `fixtures/plants/` show each of these red over this example.
