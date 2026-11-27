@@ -105,11 +105,13 @@ describe("G4a the laws layer is registered as the last gate, reading what hygien
     expect(
       layer.consumes.filter((need) => need.optional === true).map((need) => need.artifact),
     ).toEqual([
+      "astro-check-json",
       "attw-json",
       "audit-json",
       "dependency-cruiser-json",
       "install-json",
       "publint-json",
+      "stylelint-json",
     ]);
     expect(layer.classes).toEqual([
       "ts-library",

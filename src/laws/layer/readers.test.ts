@@ -8,6 +8,8 @@ describe("G4 the artifact each tool's reader reads", () => {
       "dependency-cruiser-json",
     );
     expect(artifactOf({ tool: "publint", name: "pack" })).toBe("publint-json");
+    expect(artifactOf({ tool: "astro-check", name: "astro check" })).toBe("astro-check-json");
+    expect(artifactOf({ tool: "stylelint", name: "block-no-empty" })).toBe("stylelint-json");
   });
 
   it("follows the rule for bun, which runs two checks", () => {
@@ -25,16 +27,19 @@ describe("G4 the artifact each tool's reader reads", () => {
 
   it("lists every optional artifact once, in name order", () => {
     expect(optionalArtifacts()).toEqual([
+      "astro-check-json",
       "attw-json",
       "audit-json",
       "dependency-cruiser-json",
       "install-json",
       "publint-json",
+      "stylelint-json",
     ]);
   });
 
   it("registers the reader of each tool the catalog's laws name that one reads, and no other", () => {
     expect([...defaultReaders().keys()]).toEqual([
+      "astro-check",
       "attw",
       "bun",
       "dependency-cruiser",
@@ -43,6 +48,7 @@ describe("G4 the artifact each tool's reader reads", () => {
       "lock",
       "publint",
       "secretlint",
+      "stylelint",
       "tsc",
     ]);
   });
