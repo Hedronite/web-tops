@@ -25,16 +25,19 @@ describe("G4 the artifact each tool's reader reads", () => {
 
   it("lists every optional artifact once, in name order", () => {
     expect(optionalArtifacts()).toEqual([
+      "astro-check-json",
       "attw-json",
       "audit-json",
       "dependency-cruiser-json",
       "install-json",
       "publint-json",
+      "stylelint-json",
     ]);
   });
 
   it("registers the reader of each tool the catalog's laws name that one reads, and no other", () => {
     expect([...defaultReaders().keys()]).toEqual([
+      "astro-check",
       "attw",
       "bun",
       "dependency-cruiser",
@@ -43,6 +46,7 @@ describe("G4 the artifact each tool's reader reads", () => {
       "lock",
       "publint",
       "secretlint",
+      "stylelint",
       "tsc",
     ]);
   });

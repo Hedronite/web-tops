@@ -30,6 +30,7 @@ const ARTIFACTS = [
   "install-json",
   "publint-json",
   "attw-json",
+  "astro-check-json",
 ];
 
 const WORST_FIRST: readonly Verdict[] = ["fail", "not-run", "not-evaluated", "ack-missing"];
