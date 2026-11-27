@@ -14,7 +14,7 @@ export const lawsOfProject = (
   dependsOnAstro: boolean,
 ): LawEntry[] =>
   lawsOfClass(laws, className).filter(
-    (law) => dependsOnAstro || !(law.conditional ?? []).includes(className),
+    (law) => dependsOnAstro || law.conditional?.includes(className) !== true,
   );
 
 /** A rule with no class list holds for every class its law maps; one with a list holds for those classes only. */

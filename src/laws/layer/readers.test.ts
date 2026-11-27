@@ -8,6 +8,8 @@ describe("G4 the artifact each tool's reader reads", () => {
       "dependency-cruiser-json",
     );
     expect(artifactOf({ tool: "publint", name: "pack" })).toBe("publint-json");
+    expect(artifactOf({ tool: "astro-check", name: "astro check" })).toBe("astro-check-json");
+    expect(artifactOf({ tool: "stylelint", name: "block-no-empty" })).toBe("stylelint-json");
   });
 
   it("follows the rule for bun, which runs two checks", () => {
