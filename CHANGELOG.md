@@ -15,6 +15,12 @@ Build output, milestone M4. The layers are in the tree; the gate does not run th
 - `html-validate` over the built pages: the standard and document presets (W-20) and the a11y preset (W-22). `require-sri` is asked of cross-origin files only, so compiled Astro output passes untouched (§7). (M4 G2)
 - One build, one static server and one page inventory, shared by the build-output layers. (M4 G1)
 - The M4 tools are pinned exactly in §2, `package.json` and the lock, and the config schema takes `build`, `routes` and `budgets`. CI installs Chromium before the jobs that run the tests. (M4 G0)
+- The laws layer reads `astro check` (W-27) from the exit code gate 1 keeps. A failed check is refused even under `ratchet`, which holds only findings with a file. (M4)
+- The laws layer reads Stylelint (W-26): each of the law's rules at `error` for every tracked stylesheet, no stylesheet dropped by an ignore, and no error of theirs. A value Stylelint could not parse is never held by a ratchet. (M4)
+- A `web-app` or `ui-components` project maps W-27 only when it depends on Astro. (M4)
+- A rule that needs types says nothing about a page's `<script>` block, which has none (§6.5), so a project with pages is no longer refused W-01, W-06, W-10, W-11, W-13 or W-14 for it. (M4)
+- `web-tops/stylelint` reads `.astro` files through `postcss-html` (2.0.1, which `init` installs for `astro-site`) and leaves out `node_modules/`, `coverage/`, `dist/`, `.astro/` and `.web-tops/`. (M4)
+- Under `ratchet`, the moderate axe findings of the built pages are counted in the baseline, and a rise is `ratchet-findings-up`. (M4)
 
 ## [0.4.0] - 2026-11-25
 
