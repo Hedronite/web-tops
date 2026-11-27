@@ -1,0 +1,14 @@
+---
+import { Image } from "astro:assets";
+import mark from "../assets/mark.svg";
+import Base from "../layouts/Base.astro";
+---
+
+<Base title="Example site" description="A static site that passes the Web-TOPS gate.">
+  <h1>Example site</h1>
+  <Image src={mark} alt="A blue check mark in a circle" width={64} height={64} />
+  <p class="mt-4">
+    Every page here is built to static HTML and ships no JavaScript. Start with the
+    <a href="/guides/#start">first guide</a>.
+  </p>
+</Base>

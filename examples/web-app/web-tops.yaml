@@ -1,0 +1,80 @@
+# Written by `webtops init` (WEB_TOPS.md sections 4 and 9). Under `hard`, only crap, mutation, build
+# output and laws may be off for a class that maps them: they are `enabled: false` with the milestone
+# that adds them. A layer the class does not map is off with the class as the reason.
+protocol: 0.3.0
+version: 0.0.0
+package: web-app-example
+class: web-app
+enforce: hard
+baseline: .web-tops/baseline.json
+toolchain:
+  typescript: 6.0.3
+  runtime: bun
+gates:
+  hygiene:
+    eslint:
+      config: eslint.config.js
+    format:
+      tool: prettier
+    astro_check:
+      enabled: false
+      reason: "not mapped for class: this project lists no astro dependency"
+    stylelint: {}
+    audit:
+      fail_on: high
+  tests:
+    runner: vitest
+    shuffle: true
+  coverage:
+    lines_floor: 70
+    exclude:
+      - {
+          glob: "src/main.ts",
+          reason: "the entry wires the DOM: the routes and views it calls are tested without one",
+        }
+  crap:
+    cap: 4
+    scope: all
+    complexity:
+      nullish_discount: true
+  mutation:
+    engine: stryker
+    scope: diff
+    base: origin/main
+    unexplained_survivors_max: 2
+    ledger: .web-tops/survivors.yaml
+    enabled: false
+    reason: "the example carries no Stryker: mutation testing is proven on the kit itself"
+build:
+  command: bun run build
+  dir: dist
+routes: ["/", "/about/"]
+layers:
+  size_limit:
+    tier: 1
+    enabled: false
+    reason: "not mapped for class: an app publishes no package entries"
+  package_exports:
+    tier: 1
+    enabled: false
+    reason: "not mapped for class: an app publishes no package exports"
+  html_validate:
+    enabled: false
+    reason: "the example turns it on with the built-page wiring, which lands next in M4"
+  axe:
+    enabled: false
+    reason: "the example turns it on with the built-page wiring, which lands next in M4"
+  rendered:
+    enabled: false
+    reason: "milestone M5: rendered checks land in M5"
+  themes:
+    enabled: false
+    reason: "milestone M5: the theme reader lands in M5"
+  custom: []
+laws:
+  select: default
+  ack_ledger: .web-tops/acks.yaml
+  enabled: false
+  reason: "the example turns it on with the built-page wiring, which lands next in M4"
+report:
+  path: .web-tops/report.json

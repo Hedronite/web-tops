@@ -1,0 +1,24 @@
+---
+import { currentOf, navItems } from "../lib/nav.ts";
+
+const { pathname } = Astro.url;
+---
+
+<nav aria-label="Main">
+  <ul class="mb-6 flex gap-2">
+    {
+      // Astro types a template element as `any`, so the callback that returns one says `unknown` (W-01).
+      navItems().map((item): unknown => (
+        <li>
+          <a
+            class="nav-link current:font-bold current:no-underline"
+            href={item.href}
+            aria-current={currentOf(pathname, item.href)}
+          >
+            {item.label}
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</nav>

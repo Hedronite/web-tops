@@ -1,0 +1,9 @@
+{
+  "extends": ["astro/tsconfigs/strictest", "./tsconfig.strict.json"],
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  },
+  "include": [".astro/types.d.ts", "src", "vitest.config.ts", "astro.config.mjs"],
+  "exclude": ["dist"]
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignore": [".web-tops/**", "coverage/**"],
+  "ignoreDependencies": [
+    "@axe-core/playwright",
+    "@eslint-community/eslint-plugin-eslint-comments",
+    "@eslint/js",
+    "@playwright/test",
+    "@secretlint/secretlint-rule-preset-recommend",
+    "@vitest/eslint-plugin",
+    "dependency-cruiser",
+    "eslint-plugin-jsx-a11y-x",
+    "eslint-plugin-react-hooks",
+    "html-validate",
+    "secretlint",
+    "stylelint",
+    "tailwindcss",
+    "typescript-eslint"
+  ],
+  "ignoreExportsUsedInFile": true
+}

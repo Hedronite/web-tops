@@ -1244,7 +1244,7 @@ web-tops/
 ├── config/                  # drop-in templates, AGENTS.md.tmpl
 ├── fixtures/                # config (with examples/), hygiene, init, lock, report, probe, laws
 ├── probes/                  # w22/: the W-22 proof, its own package and lock
-├── examples/                # node-service/: a node-service project that gates itself, its own package and lock (M4 adds astro-site/, web-app/)
+├── examples/                # node-service/, astro-site/, web-app/: a project of each of these classes, each with its own package and lock
 ├── docs/brand/
 ├── .github/workflows/       # the gate job and the law-diff job
 ├── WEB_TOPS.md
@@ -1255,7 +1255,7 @@ web-tops/
 
 The law twins are in `fixtures/laws/W-NN/{bad,clean}/`: a bad and a clean twin per law, which `webtops laws probe` proves.
 
-Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4), `examples/astro-site/`, and `examples/web-app/`. The kit's tools already cover the rest: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
+Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4). The kit's tools already cover the rest: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service` gates itself.
 
 Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any release.
 

@@ -1,0 +1,8 @@
+// Written by `webtops init`. The rules live in web-tops/eslint (WEB_TOPS.md section 8.2) and stay
+// at error level; this file only names the class's variant.
+import { eslintPreset } from "web-tops/eslint";
+
+export default await eslintPreset({
+  variant: "astro",
+  tsconfigRootDir: import.meta.dirname,
+});
