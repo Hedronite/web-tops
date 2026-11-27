@@ -33,9 +33,9 @@ TypeScript is the foundational language; HTML, CSS, Tailwind CSS, and Astro comp
 
 ---
 
-Web-TOPS (Web Testing and Optimization Protocol Suite) is a protocol and drop-in kit for web work. TypeScript is the foundational language; HTML, CSS, Tailwind CSS, and Astro complement it. The gate is meant to check the source and the build output the browser receives.
+Web-TOPS (Web Testing and Optimization Protocol Suite) is a protocol and drop-in kit for web work. TypeScript is the foundational language; HTML, CSS, Tailwind CSS, and Astro complement it. The gate checks the source and, for the browser classes, the build output the browser receives.
 
-The `webtops` CLI in this tree runs from source on Bun and gates this repository, and the example in `examples/node-service`, at tier 1, with native CRAP, StrykerJS mutation on the diff and the laws layer. The package is not published to npm.
+The `webtops` CLI in this tree runs from source on Bun and gates this repository at tier 1, with native CRAP, StrykerJS mutation on the diff and the laws layer, and the example projects in `examples/` (`node-service`, `astro-site` and `web-app`). The package is not published to npm.
 
 ## Pins
 
@@ -80,7 +80,7 @@ The protocol's later layers, once they are on, check:
 | Claim | Reality |
 | --- | --- |
 | An npm package | `package.json` is private. Install and run from this tree |
-| Build-output checks on this repo today | That layer is off in [`web-tops.yaml`](web-tops.yaml): the M4 layers are in the tree, and the gate does not run them yet. The laws layer, native CRAP at cap 4 and StrykerJS mutation on the diff are on, with no unexplained survivors |
+| Build-output checks on the kit itself | The kit is a `ts-library` with no pages, so build output is off in [`web-tops.yaml`](web-tops.yaml). It runs in [`examples/astro-site`](examples/astro-site) and [`examples/web-app`](examples/web-app). The laws layer, native CRAP at cap 4 and StrykerJS mutation on the diff are on, with no unexplained survivors |
 | A test framework or a design system | `webtops` runs Vitest, Playwright, Stryker, and related tools; it does not replace them, and it does not enforce an aesthetic |
 
 ## How it works
@@ -100,7 +100,7 @@ The gate judges what ships: the browser receives HTML, CSS, and JavaScript, not 
 
 Draft. Protocol **0.3.0**; this tree implements it: one verdict set, the report shape, required layers and laws per class, and the protocol id checked by range. The package is version 0.4.0 (the 0.1.0 release implements 0.2.1): a GitHub release, private, not published to npm.
 
-This repository has shipped milestones M1, M2 and M3: the `webtops` CLI (`init`, `check`, `gate`, `report`, `lock`, `doctor`, `version`, `survivors`, `baseline`, `laws`, `acks`, `law-diff`) runs from source on Bun and gates this repo on itself at tier 1, under `enforce: hard`, with native CRAP at cap 4 and StrykerJS mutation on the diff, no unexplained survivors. CI runs on Ubuntu and macOS: a four-shard `gate-shard` matrix splits the mutation run, and a `gate` job joins the shards into one judgment. The laws layer runs on the kit at `hard`: every law the `ts-library` profile requires is judged (22 of 22), and `examples/node-service` gates itself the same way in the `gate` job (21 of 21). The build-output layers are off in [`web-tops.yaml`](web-tops.yaml), each with the milestone that turns it on. The package is not published to npm.
+This tree holds milestones M1 to M4 (M4 is not yet released): the `webtops` CLI (`init`, `check`, `gate`, `report`, `lock`, `doctor`, `version`, `survivors`, `baseline`, `laws`, `acks`, `law-diff`) runs from source on Bun and gates this repo on itself at tier 1, under `enforce: hard`, with native CRAP at cap 4 and StrykerJS mutation on the diff, no unexplained survivors. CI runs on Ubuntu and macOS: a four-shard `gate-shard` matrix splits the mutation run, and a `gate` job joins the shards into one judgment. The laws layer runs on the kit at `hard`: every law the `ts-library` profile requires is judged (22 of 22), and `examples/node-service` gates itself the same way in the `gate` job (21 of 21). Build output (M4) is off for the kit, which has no pages: `examples/astro-site` and `examples/web-app` run it and the laws layer at `hard` in the `web-tops-examples` workflow, which also shows four planted defects red over them. The package is not published to npm.
 
 | Milestone | Contents |
 | --- | --- |
@@ -109,7 +109,7 @@ This repository has shipped milestones M1, M2 and M3: the `webtops` CLI (`init`,
 | **P3** | Protocol 0.3.0, the truth pass: one verdict set, required layers and laws per class, the report shape, risk definitions, the protocol id by range, ESLint 10 (this repo) |
 | **M2** | The risk engine, shipped: native CRAP, the Stryker adapter, the survivor ledger, baseline and ratchet; the kit runs CRAP and mutation on itself at `hard` |
 | **M3** | Laws v1, shipped: `laws/W-NN.yaml`, law fixtures, `eslint-plugin-webtops`, the non-lint readers, the ack ledger, `law-diff`; the kit and `examples/node-service` run the laws layer at `hard` |
-| **M4** | Build output, being finished: HTML validity, links, page and route bytes, axe, `size-limit` per entry; the layers and the `astro-site` and `web-app` examples are in the tree, not yet in the gate |
+| **M4** | Build output, in the tree: HTML validity, links, page and route bytes, axe, `size-limit` per entry; the `astro-site` and `web-app` examples pass, and four planted defects are red |
 | **M5** | Rendered interface and themes: reflow, focus, motion, theme contrast |
 | **M6** | Workspaces and adoption: the `workspace-root` and `cli` profiles, the adopter PRs |
 | **M7** | Calibration and 1.0 |

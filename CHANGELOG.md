@@ -4,9 +4,12 @@ All notable changes to this project are listed here. The protocol version and th
 
 ## [Unreleased]
 
-Build output, milestone M4. The layers are in the tree; the gate does not run them until they are wired in.
+Build output, milestone M4. The gate runs it for the classes that map it.
 
-- Two examples of the browser classes, each with its own pinned package and lock: `examples/astro-site` (static pages with Tailwind CSS 4 and no page JavaScript) and `examples/web-app` (a client-routed app with one lazy chunk for each view). (M4 G8)
+- Two examples of the browser classes, each with its own pinned package and lock: `examples/astro-site` (static pages with Tailwind CSS 4 and no page JavaScript) and `examples/web-app` (a client-routed app with one lazy chunk for each view). Both pass at `hard` with build output and the laws layer on, in the new `web-tops-examples` workflow, which also shows four planted defects red: invalid HTML (W-20), a broken link (the `links` rule; no law covers links), page JavaScript over budget (W-29), and low-contrast text with small targets (W-21, W-44). (M4 G8)
+- The gate's build-output layer runs the built-page layers of a browser class, or `size-limit` for a library class, as one gate. A sub-layer that `web-tops.yaml` switches off is reported as `skip`, and a `web-app`'s client routes are served from its `index.html`. (M4)
+- The laws layer reads the build-output reports: `html-validate` (W-20, W-22), axe (W-21, W-22, W-44) and the page and route byte reports (W-29). No ratchet holds their findings, and a report it cannot read whole is `not-evaluated`. (M4)
+- W-44 (target size) has a reader and is required for `astro-site` and `web-app`; `judged` gains `m4`. A serious or critical axe violation refuses W-22 as well as W-21. (M4)
 - `size-limit` per `exports` entry for the library classes; an entry over its budget fails. (M4 G7)
 - axe in headless Chromium on every built page, or on the declared routes of a `web-app`, with the WCAG 2.0, 2.1 and 2.2 A and AA tags and `target-size` switched on. A serious or critical violation fails (W-21; `target-size` is W-44), and an `incomplete` result is `not-evaluated`. (M4 G6)
 - Route JavaScript budgets (W-29) for a `web-app`, from what headless Chromium requests while it loads each declared route. §7 now says so: a chunk asked for on an interaction, or after the network has been quiet for 500 ms, is not counted. (M4 G5)
