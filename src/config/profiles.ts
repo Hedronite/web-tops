@@ -77,8 +77,9 @@ function lawIds(from: number, to: number): string[] {
   );
 }
 
-const BROWSER_LAWS = [...lawIds(20, 26), ...lawIds(28, 29)];
-const RENDERED_LAWS = lawIds(42, 46);
+// Built when read, never when this module loads, so that each law list is covered by the tests that read it.
+const browserLaws = (): string[] => [...lawIds(20, 26), ...lawIds(28, 29)];
+const renderedLaws = (): string[] => lawIds(42, 46);
 
 const CORE_STEPS: readonly StepKey[] = [
   "install",
@@ -124,7 +125,9 @@ export const PROFILES: readonly Profile[] = [
     layers: ["html_validate", "axe", "rendered", "themes"],
     steps: [...CORE_STEPS, "astro_check", "stylelint"],
     conditionalSteps: [],
-    extraLaws: [...lawIds(20, 31), "W-37", ...RENDERED_LAWS, "W-47", "W-49"],
+    get extraLaws() {
+      return [...lawIds(20, 31), "W-37", ...renderedLaws(), "W-47", "W-49"];
+    },
     conditionalLaws: [],
   },
   {
@@ -136,7 +139,9 @@ export const PROFILES: readonly Profile[] = [
     layers: ["html_validate", "axe", "rendered", "themes"],
     steps: [...CORE_STEPS, "stylelint"],
     conditionalSteps: ["astro_check"],
-    extraLaws: [...BROWSER_LAWS, "W-37", ...RENDERED_LAWS, "W-47"],
+    get extraLaws() {
+      return [...browserLaws(), "W-37", ...renderedLaws(), "W-47"];
+    },
     conditionalLaws: ["W-27"],
   },
   {
