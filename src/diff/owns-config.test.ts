@@ -1,10 +1,13 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { rmSync } from "node:fs";
 import { afterAll, describe, expect, it } from "vitest";
-import { ownsConfigAt } from "./scope.ts";
+import { ownsTrackedConfig, selfGatedExample } from "./examples.ts";
+import { diffScope } from "./scope.ts";
+import { git, makeRepo, write } from "./test-support.ts";
 
-/** An example is left out of the diff when its own folder holds `web-tops.yaml` (WEB_TOPS.md section 6.4). */
+/**
+ * An example is left out of the diff, and of W-04's compiler file set, when its own folder tracks `web-tops.yaml`
+ * (WEB_TOPS.md sections 6.4 and 6.5).
+ */
 
 const made: string[] = [];
 
@@ -12,29 +15,75 @@ afterAll(() => {
   for (const dir of made) rmSync(dir, { recursive: true, force: true });
 });
 
-function project(files: readonly string[]): string {
-  const dir = mkdtempSync(join(tmpdir(), "wt-owns-"));
-  made.push(dir);
-  for (const file of files) {
-    mkdirSync(dirname(join(dir, file)), { recursive: true });
-    writeFileSync(join(dir, file), "x\n");
-  }
-  return dir;
-}
+const TRACKED = new Set([
+  "web-tops.yaml",
+  "examples/gates/web-tops.yaml",
+  "examples/a/b/web-tops.yaml",
+  "src/x/web-tops.yaml",
+  "packages/x/web-tops.yaml",
+]);
 
-describe("ownsConfigAt", () => {
-  it("is true for an examples folder that holds its own web-tops.yaml, and false for one that does not", () => {
-    const owns = ownsConfigAt(
-      project(["examples/gates/web-tops.yaml", "examples/plain/src/a.ts", "web-tops.yaml"]),
-    );
-    expect([owns("examples/gates"), owns("examples/plain"), owns("examples/missing")]).toEqual([
-      true,
-      false,
-      false,
-    ]);
+describe("the one rule for an example that gates itself", () => {
+  const found = (path: string): string | undefined =>
+    selfGatedExample(path, ownsTrackedConfig(TRACKED));
+
+  it("holds for every file of an examples/<name> that tracks its own web-tops.yaml", () => {
+    expect(found("examples/gates/src/a.ts")).toBe("examples/gates");
+    expect(found("examples/gates/vite.config.ts")).toBe("examples/gates");
   });
 
-  it("reads the config of the folder itself, not the root's", () => {
-    expect(ownsConfigAt(project(["web-tops.yaml"]))("examples/gates")).toBe(false);
+  it.each([
+    ["an example with no tracked config", "examples/loose/src/a.ts"],
+    ["a config two levels down", "examples/a/b/src/c.ts"],
+    ["a config under src/", "src/x/y.ts"],
+    ["a config under packages/", "packages/x/y.ts"],
+    ["an examples/ that is not at the top", "docs/examples/gates/a.ts"],
+    ["the root project's own file", "src/a.ts"],
+    ["a file directly under examples/", "examples/run.ts"],
+  ])("does not hold for %s", (_name, path) => {
+    expect(found(path)).toBeUndefined();
+  });
+});
+
+describe("the diff scope asks git which examples track a config", () => {
+  it("leaves out a tracked one's files, and keeps those of an example whose config is untracked", async () => {
+    const dir = makeRepo({
+      "src/a.ts": "export const a = 1;\n",
+      "examples/gates/web-tops.yaml": "class: cli\n",
+      "examples/gates/src/b.ts": "export const b = 1;\n",
+      "examples/loose/src/c.ts": "export const c = 1;\n",
+    });
+    made.push(dir);
+    git(dir, "switch", "-q", "-c", "work");
+    write(dir, {
+      "examples/gates/src/b.ts": "export const b = 2;\n",
+      "examples/loose/src/c.ts": "export const c = 2;\n",
+    });
+    git(dir, "commit", "-q", "-a", "-m", "work");
+    // Written, never added: it exempts nothing.
+    write(dir, { "examples/loose/web-tops.yaml": "class: cli\n" });
+    const result = await diffScope({
+      cwd: dir,
+      base: "main",
+      coverageOf: () => Promise.resolve(new Map()),
+    });
+    const mutated = result.outcome === "fail" ? [result.reason] : result.scope.mutate;
+    expect(mutated.map((entry) => entry.replace(/:.*$/u, ""))).toEqual(["examples/loose/src/c.ts"]);
+  });
+
+  it("fails, and never guesses, when git cannot list the tracked files", async () => {
+    const dir = makeRepo({ "src/a.ts": "export const a = 1;\n" });
+    made.push(dir);
+    const result = await diffScope({
+      cwd: dir,
+      base: "main",
+      exec: (_command, args) =>
+        Promise.resolve(
+          args[0] === "ls-files"
+            ? { code: 128, stdout: "", stderr: "index is locked" }
+            : { code: 0, stdout: args[0] === "merge-base" ? "abc" : "", stderr: "" },
+        ),
+    });
+    expect(result).toEqual({ outcome: "fail", reason: "index is locked" });
   });
 });
