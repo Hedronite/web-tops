@@ -1,0 +1,65 @@
+# Written by `webtops init` (WEB_TOPS.md sections 4 and 9). Under `hard`, only crap, mutation, build
+# output and laws may be off for a class that maps them: they are `enabled: false` with the milestone
+# that adds them. A layer the class does not map is off with the class as the reason.
+protocol: 0.3.0
+version: 0.0.0
+package: astro-site-example
+class: astro-site
+enforce: hard
+baseline: .web-tops/baseline.json
+toolchain:
+  typescript: 6.0.3
+  runtime: bun
+gates:
+  hygiene:
+    eslint:
+      config: eslint.config.js
+    format:
+      tool: prettier
+    stylelint: {}
+    audit:
+      fail_on: high
+  tests:
+    runner: vitest
+    shuffle: true
+  coverage:
+    lines_floor: 70
+  crap:
+    cap: 4
+    scope: all
+    complexity:
+      nullish_discount: true
+  mutation:
+    engine: stryker
+    scope: diff
+    base: origin/main
+    unexplained_survivors_max: 2
+    ledger: .web-tops/survivors.yaml
+    enabled: false
+    reason: "the example carries no Stryker: mutation testing is proven on the kit itself"
+build:
+  command: bun run build
+  dir: dist
+layers:
+  size_limit:
+    tier: 1
+    enabled: false
+    reason: "not mapped for class: a site publishes no package entries"
+  package_exports:
+    tier: 1
+    enabled: false
+    reason: "not mapped for class: a site publishes no package exports"
+  html_validate: {}
+  axe: {}
+  rendered:
+    enabled: false
+    reason: "milestone M5: rendered checks land in M5"
+  themes:
+    enabled: false
+    reason: "milestone M5: the theme reader lands in M5"
+  custom: []
+laws:
+  select: default
+  ack_ledger: .web-tops/acks.yaml
+report:
+  path: .web-tops/report.json

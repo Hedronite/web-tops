@@ -5,6 +5,28 @@ All notable changes to this project are listed here. The protocol version and th
 ## [Unreleased]
 
 - `law-diff` compares effective byte budgets from `web-tops.yaml` (`budgets.*` ceilings and maps, `layers.size_limit`, and declared `routes`); loosening a ceiling without the `protocol-change` label fails the command.
+- The diff and W-04's compiler file set now share one rule for an example that gates itself: `examples/<name>/` whose own `web-tops.yaml` is tracked. W-04 no longer refuses such a project's files, and its reading names each one left out. An untracked `web-tops.yaml` exempts nothing, in the diff too (§6.4, §6.5). (M4)
+
+Build output, milestone M4. The gate runs it for the classes that map it.
+
+- Two examples of the browser classes, each with its own pinned package and lock: `examples/astro-site` (static pages with Tailwind CSS 4 and no page JavaScript) and `examples/web-app` (a client-routed app with one lazy chunk for each view). Both pass at `hard` with build output and the laws layer on, in the new `web-tops-examples` workflow, which also shows four planted defects red: invalid HTML (W-20), a broken link (the `links` rule; no law covers links), page JavaScript over budget (W-29), and low-contrast text with small targets (W-21, W-44). (M4 G8)
+- The gate's build-output layer runs the built-page layers of a browser class, or `size-limit` for a library class, as one gate. A sub-layer that `web-tops.yaml` switches off is reported as `skip`, and a `web-app`'s client routes are served from its `index.html`. (M4)
+- The laws layer reads the build-output reports: `html-validate` (W-20, W-22), axe (W-21, W-22, W-44) and the page and route byte reports (W-29). No ratchet holds their findings, and a report it cannot read whole is `not-evaluated`. (M4)
+- W-44 (target size) has a reader and is required for `astro-site` and `web-app`; `judged` gains `m4`. A serious or critical axe violation refuses W-22 as well as W-21. (M4)
+- `size-limit` per `exports` entry for the library classes; an entry over its budget fails. (M4 G7)
+- axe in headless Chromium on every built page, or on the declared routes of a `web-app`, with the WCAG 2.0, 2.1 and 2.2 A and AA tags and `target-size` switched on. A serious or critical violation fails (W-21; `target-size` is W-44), and an `incomplete` result is `not-evaluated`. (M4 G6)
+- Route JavaScript budgets (W-29) for a `web-app`, from what headless Chromium requests while it loads each declared route. §7 now says so: a chunk asked for on an interaction, or after the network has been quiet for 500 ms, is not counted. (M4 G5)
+- Page JavaScript budgets (W-29): inline and external scripts, module preloads and their static import closure, in brotli bytes from `dist/`. An `astro-site` page with no island has a budget of 0 bytes. (M4 G4)
+- A native check of internal links, fragment anchors and local assets over the built pages. (M4 G3)
+- `html-validate` over the built pages: the standard and document presets (W-20) and the a11y preset (W-22). `require-sri` is asked of cross-origin files only, so compiled Astro output passes untouched (§7). (M4 G2)
+- One build, one static server and one page inventory, shared by the build-output layers. (M4 G1)
+- The M4 tools are pinned exactly in §2, `package.json` and the lock, and the config schema takes `build`, `routes` and `budgets`. CI installs Chromium before the jobs that run the tests. (M4 G0)
+- The laws layer reads `astro check` (W-27) from the exit code gate 1 keeps. A failed check is refused even under `ratchet`, which holds only findings with a file. (M4)
+- The laws layer reads Stylelint (W-26): each of the law's rules at `error` for every tracked stylesheet, no stylesheet dropped by an ignore, and no error of theirs. A value Stylelint could not parse is never held by a ratchet. (M4)
+- A `web-app` or `ui-components` project maps W-27 only when it depends on Astro. (M4)
+- A rule that needs types says nothing about a page's `<script>` block, which has none (§6.5), so a project with pages is no longer refused W-01, W-06, W-10, W-11, W-13 or W-14 for it. (M4)
+- `web-tops/stylelint` reads `.astro` files through `postcss-html` (2.0.1, which `init` installs for `astro-site`) and leaves out `node_modules/`, `coverage/`, `dist/`, `.astro/` and `.web-tops/`. (M4)
+- Under `ratchet`, the moderate axe findings of the built pages are counted in the baseline, and a rise is `ratchet-findings-up`. (M4)
 
 ## [0.4.0] - 2026-11-25
 

@@ -1,0 +1,13 @@
+diff --git a/examples/astro-site/src/pages/about.astro b/examples/astro-site/src/pages/about.astro
+index 9782848..d001efb 100644
+--- a/examples/astro-site/src/pages/about.astro
++++ b/examples/astro-site/src/pages/about.astro
+@@ -9,3 +9,8 @@ import Base from "../layouts/Base.astro";
+     <a href="/guides/">guides</a>.
+   </p>
+ </Base>
++
++<script>
++  const first = document.querySelector("a");
++  first?.setAttribute("data-first", "yes");
++</script>

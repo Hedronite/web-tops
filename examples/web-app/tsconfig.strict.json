@@ -1,0 +1,3 @@
+{
+  "extends": "web-tops/tsconfig/strict.json"
+}

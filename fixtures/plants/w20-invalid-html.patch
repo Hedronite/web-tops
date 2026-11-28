@@ -1,0 +1,12 @@
+diff --git a/examples/astro-site/src/pages/about.astro b/examples/astro-site/src/pages/about.astro
+index 9782848..290fac1 100644
+--- a/examples/astro-site/src/pages/about.astro
++++ b/examples/astro-site/src/pages/about.astro
+@@ -4,6 +4,7 @@ import Base from "../layouts/Base.astro";
+ 
+ <Base title="About" description="Why this example exists.">
+   <h1>About</h1>
++  <span><div>A block inside a span is not valid HTML.</div></span>
+   <p>
+     This site is the astro-site example of Web-TOPS. Go back <a href="/">home</a> or read the
+     <a href="/guides/">guides</a>.

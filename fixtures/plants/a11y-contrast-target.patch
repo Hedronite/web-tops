@@ -1,0 +1,13 @@
+diff --git a/examples/web-app/src/views/home.ts b/examples/web-app/src/views/home.ts
+index cb9e793..6a47680 100644
+--- a/examples/web-app/src/views/home.ts
++++ b/examples/web-app/src/views/home.ts
+@@ -2,6 +2,8 @@
+ export default function home(): string {
+   return [
+     "<h1>Example app</h1>",
++    '<p class="text-neutral-300">Text too faint to read.</p>',
++    '<p><button type="button" class="size-3 p-0">a</button><button type="button" class="size-3 p-0">b</button></p>',
+     '<p class="mt-4">One module for every route, and one more for each view it shows.</p>',
+     '<p class="mt-4"><a class="nav-link" href="/about/">About this app</a></p>',
+   ].join("");

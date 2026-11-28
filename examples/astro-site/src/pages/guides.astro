@@ -1,0 +1,18 @@
+---
+import Base from "../layouts/Base.astro";
+import { guides, readingTime } from "../lib/guides.ts";
+---
+
+<Base title="Guides" description="Short guides to the gate.">
+  <h1>Guides</h1>
+  {
+    // Astro types a template element as `any`, so the callback that returns one says `unknown` (W-01).
+    guides().map((guide): unknown => (
+      <section aria-labelledby={guide.id}>
+        <h2 id={guide.id}>{guide.title}</h2>
+        <p>{guide.summary}</p>
+        <p class="text-sm">{readingTime(guide.minutes)}</p>
+      </section>
+    ))
+  }
+</Base>
