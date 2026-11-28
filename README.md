@@ -73,7 +73,7 @@ The protocol's later layers, once they are on, check:
 | Boundaries and packages | `dependency-cruiser`, `publint`, `@arethetypeswrong/cli` |
 | Tests | Vitest with v8 coverage, one run; StrykerJS mutation on the diff |
 | Risk | Native CRAP, one cap per class, ratcheted for adopters |
-| What ships | `html-validate` and axe on built pages; JS and CSS bytes per page or route |
+| What ships | `html-validate` and axe on built pages; JavaScript bytes per page or route |
 
 ### What you do not get
 

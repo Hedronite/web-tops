@@ -118,7 +118,7 @@ describe("G2e stubs and custom layers: unbuilt stubs report not-run when enabled
     expect(entry?.findings.some((finding) => finding.verdict === "skip")).toBe(true);
   });
 
-  it("a custom layer with a command is not-run too: custom layers run from M4", async () => {
+  it("a custom layer with a command is not-run too: custom layers are not run yet", async () => {
     const config = cfg({ custom: [{ id: "budgets", tier: 1, command: "bun run budgets" }] });
     const report = await runGate({
       layers: buildRegistry(config),
@@ -148,7 +148,7 @@ describe("G2e stubs and custom layers: unbuilt stubs report not-run when enabled
 
     expect(report.layers.find((entry) => entry.id === "budgets")).toMatchObject({
       verdict: "not-run",
-      reason: "custom layers run from M4",
+      reason: "custom layers are not run yet",
     });
   });
 });

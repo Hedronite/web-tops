@@ -27,9 +27,9 @@ tools:
 disabled:
   crap: "milestone M2: native CRAP lands in M2"
   mutation: "milestone M2: mutation testing lands in M2"
-  size_limit: "milestone M4: build-output layers land in M4"
-  html_validate: "milestone M4: build-output layers land in M4"
-  axe: "milestone M4: build-output layers land in M4"
+  size_limit: "not set up by `webtops init`: it installs no size-limit and sets no byte budget"
+  html_validate: "ui-components fixture pages are deferred, so there is no page to judge"
+  axe: "ui-components fixture pages are deferred, so there is no page to judge"
   rendered: "not mapped for class: components are judged on fixture pages, not routes"
   themes: "not mapped for class: components declare no themes of their own"
   laws: "milestone M3: the laws layer lands in M3"

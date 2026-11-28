@@ -44,26 +44,13 @@ layers:
   size_limit:
     {
       enabled: false,
-      reason: "M4: size-limit per entry lands with the build-output layers in milestone M4",
+      reason: "the kit is private and publishes no package: no byte budget is held for its exports",
     }
   package_exports: { tier: 1 }
-  html_validate:
-    {
-      enabled: false,
-      reason: "M4: ts-library has no HTML output; build-output layers land in milestone M4",
-    }
-  axe:
-    {
-      enabled: false,
-      reason: "M4: ts-library has no pages; build-output layers land in milestone M4",
-    }
-  rendered:
-    { enabled: false, reason: "M4: ts-library has no pages; rendered checks land in milestone M4" }
-  themes:
-    {
-      enabled: false,
-      reason: "M4: ts-library has no themes; the theme reader lands in milestone M4",
-    }
+  html_validate: { enabled: false, reason: "ts-library has no HTML output" }
+  axe: { enabled: false, reason: "ts-library has no pages" }
+  rendered: { enabled: false, reason: "ts-library has no pages to render" }
+  themes: { enabled: false, reason: "ts-library has no themes" }
 
 laws:
   select: default

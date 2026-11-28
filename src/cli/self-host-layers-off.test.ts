@@ -14,14 +14,14 @@ function yamlOf(name: string): unknown {
 
 describe("G7a: the kit's own web-tops.yaml", () => {
   it.each([
-    [["layers", "size_limit"], "M4"],
-    [["layers", "html_validate"], "M4"],
-    [["layers", "axe"], "M4"],
-    [["layers", "rendered"], "M4"],
-    [["layers", "themes"], "M4"],
-  ])("%j is off, and its reason names %s", (path, milestone) => {
+    [["layers", "size_limit"], /private and publishes no package/],
+    [["layers", "html_validate"], /^ts-library has no HTML output$/],
+    [["layers", "axe"], /^ts-library has no pages$/],
+    [["layers", "rendered"], /^ts-library has no pages to render$/],
+    [["layers", "themes"], /^ts-library has no themes$/],
+  ])("%j is off, and its reason says why: %s", (path, why) => {
     const entry = at(yamlOf("web-tops.yaml"), path);
     expect(get(entry, "enabled")).toBe(false);
-    expect(get(entry, "reason")).toMatch(new RegExp(`^${milestone}\\b`));
+    expect(get(entry, "reason")).toMatch(why);
   });
 });

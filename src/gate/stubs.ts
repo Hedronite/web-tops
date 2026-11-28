@@ -37,7 +37,7 @@ export const BUILD_OUTPUT_STUB = stubLayer("build-output", 6, 1, "M4");
 /** Laws run at the tier of the layer they read: hygiene is tier 1 (WEB_TOPS.md section 3.2). */
 export const LAWS_STUB = stubLayer("laws", "laws", 1, "M3", ["hygiene"]);
 
-/** A custom layer (WEB_TOPS.md section 7): unmapped is `not-run`; running one is M4's work. */
+/** A custom layer (WEB_TOPS.md section 7): unmapped is `not-run`, and running one is not built yet. */
 export function customLayer(id: string, tier: Tier, command: string | undefined): Layer {
   return {
     id,
@@ -53,7 +53,7 @@ export function customLayer(id: string, tier: Tier, command: string | undefined)
         reason:
           command === undefined
             ? "no command is mapped to this layer"
-            : "custom layers run from M4",
+            : "custom layers are not run yet",
         findings: [],
         artifacts: {},
       }),

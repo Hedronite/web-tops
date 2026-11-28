@@ -1256,7 +1256,7 @@ web-tops/
 
 The law twins are in `fixtures/laws/W-NN/{bad,clean}/`: a bad and a clean twin per law, which `webtops laws probe` proves.
 
-Not yet in the tree: `src/budgets/` (the `dist/` byte reader, M4). The kit's tools already cover the rest: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service`, `examples/astro-site` and `examples/web-app` gate themselves.
+The `dist/` byte readers are `src/layers/bytes/` (pages) and `src/layers/route-bytes/` (routes). The kit's tools cover the tree: the M3 source paths and the plugin are linted, type-checked, formatted, cruised and tested like the rest of the source; the law fixtures are data, skipped like the probe fixtures; `examples/node-service`, `examples/astro-site` and `examples/web-app` gate themselves.
 
 Self-hosting: the kit runs `hard` and passes its own tier-1 gate before any release.
 
