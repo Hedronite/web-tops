@@ -390,23 +390,15 @@ function compareCapNumbers(before: number, after: number): Item["change"] {
   return "unchanged";
 }
 
-export function partialCapChange(
-  before: number | undefined,
-  after: number | undefined,
-): Item["change"] {
-  if (before === undefined) {
-    if (after === undefined) return "unchanged";
-    return "strengthened";
-  }
-  if (after === undefined) return "weakened";
-  return "unchanged";
+function absentCapChange(before: number | undefined, after: number | undefined): Item["change"] {
+  if (before === undefined) return after === undefined ? "unchanged" : "strengthened";
+  return "weakened";
 }
 
 export function directionOf(before: number | undefined, after: number | undefined): Item["change"] {
-  if (typeof before === "number" && typeof after === "number") {
+  if (typeof before === "number" && typeof after === "number")
     return compareCapNumbers(before, after);
-  }
-  return partialCapChange(before, after);
+  return absentCapChange(before, after);
 }
 
 function compareCapKey(key: string, base: WebTopsConfig, head: WebTopsConfig): Item[] {

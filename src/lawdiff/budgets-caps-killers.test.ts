@@ -121,6 +121,8 @@ describe("budget cap keys and judged comparisons", () => {
     expect(directionOf(100, 100)).toBe("unchanged");
     expect(directionOf(100, undefined)).toBe("weakened");
     expect(directionOf(undefined, 200)).toBe("strengthened");
+    expect(directionOf(200, 100)).toBe("strengthened");
+    expect(directionOf(100, 200)).toBe("weakened");
   });
 
   it("binds each pages map row to its route bytes", () => {
