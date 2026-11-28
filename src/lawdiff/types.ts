@@ -1,3 +1,5 @@
+import type { WebTopsConfig } from "../config/types.ts";
+
 /** What a diff says of one thing it compared: nothing moved, it is held tighter, or it is held looser. */
 export type Direction = "unchanged" | "strengthened" | "weakened";
 
@@ -56,6 +58,7 @@ export type Rules = ReadonlyMap<string, ReadonlyMap<string, RuleSetting>>;
 export interface Settings {
   readonly values: ReadonlyMap<string, Ranked>;
   readonly globs: readonly string[];
+  readonly config: WebTopsConfig;
 }
 
 /** What a dependency-cruiser config holds: a ranked value each for its named rules, the allowed set, and what it leaves out. */

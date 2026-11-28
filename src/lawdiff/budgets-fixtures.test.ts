@@ -13,9 +13,9 @@ function config(extra = "", className = "web-app"): WebTopsConfig {
 }
 
 describe("budget fixture snapshots", () => {
-  it("ts-library default exposes package default_bytes only", () => {
+  it("ts-library default exposes the class JS ceiling only", () => {
     const values = budgetEntriesOf(config("", "ts-library"));
-    expect(values.get("layers.size_limit.default_bytes")?.shown).toBe("51200");
+    expect(values.get("budgets.class_js_ceiling")?.shown).toBe("51200");
     expect(values.has("budgets.page_js_bytes")).toBe(false);
   });
 
@@ -54,7 +54,7 @@ describe("budget fixture snapshots", () => {
       config('layers:\n  size_limit:\n    entries:\n      ".": 2500\n', "ts-library"),
     );
     expect(values.get("budgets.entries..")?.shown).toBe("2500");
-    expect(values.has("layers.size_limit.default_bytes")).toBe(true);
+    expect(values.get("budgets.class_js_ceiling")?.shown).toBe("51200");
   });
 
   it("settingsOf forwards effective budgets into the gate settings surface", () => {

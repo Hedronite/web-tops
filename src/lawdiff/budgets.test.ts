@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { parseConfig } from "../config/validate.ts";
 import type { WebTopsConfig } from "../config/types.ts";
-import { budgetEntriesOf } from "./budgets.ts";
-import { compareRanked } from "./rank.ts";
+import { budgetEntriesOf, compareBudgetSettings, effectiveCapBytes } from "./budgets.ts";
+import { settingsOf } from "./settings.ts";
 
 const HEAD = 'protocol: "0.3.0"\nversion: "1"\npackage: fixture\n';
 
@@ -14,11 +14,22 @@ function config(extra = "", className = "web-app"): WebTopsConfig {
   return read.value;
 }
 
+const compareBudgets = (
+  baseExtra: string,
+  headExtra: string,
+  baseClass = "web-app",
+  headClass = baseClass,
+) =>
+  compareBudgetSettings(
+    settingsOf(config(baseExtra, baseClass)),
+    settingsOf(config(headExtra, headClass)),
+  );
+
 describe("effective byte budgets in settings", () => {
   it("treats a raised ceiling as weakened", () => {
-    const base = budgetEntriesOf(config("budgets:\n  page_js_bytes: 1000\n"));
-    const head = budgetEntriesOf(config("budgets:\n  page_js_bytes: 900000\n"));
-    expect(compareRanked(base, head)).toEqual([
+    expect(
+      compareBudgets("budgets:\n  page_js_bytes: 1000\n", "budgets:\n  page_js_bytes: 900000\n"),
+    ).toEqual([
       {
         what: "budgets.page_js_bytes",
         change: "weakened",
@@ -29,16 +40,14 @@ describe("effective byte budgets in settings", () => {
   });
 
   it("treats a removed entry override as weakened when the fallback ceiling is higher", () => {
-    const base = budgetEntriesOf(
-      config(
+    expect(
+      compareBudgets(
         'layers:\n  size_limit:\n    default_bytes: 5000\n    entries:\n      ".": 1000\n',
+        "layers:\n  size_limit:\n    default_bytes: 5000\n",
+        "ts-library",
         "ts-library",
       ),
-    );
-    const head = budgetEntriesOf(
-      config("layers:\n  size_limit:\n    default_bytes: 5000\n", "ts-library"),
-    );
-    expect(compareRanked(base, head)).toEqual([
+    ).toEqual([
       {
         what: "budgets.entries..",
         change: "weakened",
@@ -59,9 +68,9 @@ describe("effective byte budgets in settings", () => {
   });
 
   it("treats a tighter override as strengthened", () => {
-    const base = budgetEntriesOf(config("budgets:\n  page_js_bytes: 900000\n"));
-    const head = budgetEntriesOf(config("budgets:\n  page_js_bytes: 1000\n"));
-    expect(compareRanked(base, head)).toEqual([
+    expect(
+      compareBudgets("budgets:\n  page_js_bytes: 900000\n", "budgets:\n  page_js_bytes: 1000\n"),
+    ).toEqual([
       {
         what: "budgets.page_js_bytes",
         change: "strengthened",
@@ -72,9 +81,7 @@ describe("effective byte budgets in settings", () => {
   });
 
   it("treats a route dropped from config.routes as weakened", () => {
-    const base = budgetEntriesOf(config("routes:\n  - /\n  - /about\n"));
-    const head = budgetEntriesOf(config("routes:\n  - /\n"));
-    expect(compareRanked(base, head)).toEqual([
+    expect(compareBudgets("routes:\n  - /\n  - /about\n", "routes:\n  - /\n")).toEqual([
       {
         what: "routes./about",
         change: "weakened",
@@ -99,13 +106,12 @@ describe("budgetEntriesOf branches", () => {
   it("includes astro-site static and island effective ceilings", () => {
     const values = budgetEntriesOf(config("", "astro-site"));
     expect(values.get("budgets.static_page_js_bytes")?.shown).toBe(ASTRO_STATIC);
-    expect(values.get("budgets.page_js_bytes")?.shown).toBe(ASTRO_ISLAND);
+    expect(values.get("budgets.class_js_ceiling")?.shown).toBe(ASTRO_ISLAND);
   });
 
   it("includes web-app route ceiling fallback", () => {
     const values = budgetEntriesOf(config("", "web-app"));
-    expect(values.get("budgets.route_js_bytes")?.shown).toBe(WEB_ROUTE);
-    expect(values.get("budgets.page_js_bytes")?.shown).toBe(WEB_ROUTE);
+    expect(values.get("budgets.class_js_ceiling")?.shown).toBe(WEB_ROUTE);
   });
 
   it("reads explicit page and route map overrides", () => {
@@ -122,18 +128,24 @@ describe("budgetEntriesOf branches", () => {
   });
 
   it("compares budgets.pages via effective ceiling", () => {
-    const base = budgetEntriesOf(config('budgets:\n  pages:\n    "/": 1000\n'));
-    const head = budgetEntriesOf(config('budgets:\n  pages:\n    "/": 5000\n'));
-    expect(compareRanked(base, head)[0]).toMatchObject({
+    expect(
+      compareBudgets(
+        'budgets:\n  pages:\n    "/": 1000\n',
+        'budgets:\n  pages:\n    "/": 5000\n',
+      )[0],
+    ).toMatchObject({
       what: "budgets.pages./",
       change: "weakened",
     });
   });
 
   it("compares budgets.routes map entries", () => {
-    const base = budgetEntriesOf(config('budgets:\n  routes:\n    "/x": 1000\n'));
-    const head = budgetEntriesOf(config('budgets:\n  routes:\n    "/x": 8000\n'));
-    expect(compareRanked(base, head)[0]?.change).toBe("weakened");
+    expect(
+      compareBudgets(
+        'budgets:\n  routes:\n    "/x": 1000\n',
+        'budgets:\n  routes:\n    "/x": 8000\n',
+      )[0]?.change,
+    ).toBe("weakened");
   });
 
   it("uses only budgets.entries when size_limit layer is absent", () => {
@@ -156,16 +168,95 @@ describe("budgetEntriesOf branches", () => {
   });
 
   it("compares static_page_js when astro-site raises it", () => {
-    const base = budgetEntriesOf(config("budgets:\n  static_page_js_bytes: 0\n", "astro-site"));
-    const head = budgetEntriesOf(config("budgets:\n  static_page_js_bytes: 999\n", "astro-site"));
-    expect(compareRanked(base, head)[0]?.change).toBe("weakened");
+    expect(
+      compareBudgets(
+        "budgets:\n  static_page_js_bytes: 0\n",
+        "budgets:\n  static_page_js_bytes: 999\n",
+        "astro-site",
+        "astro-site",
+      )[0]?.change,
+    ).toBe("weakened");
   });
 
   it("compares route_js_bytes for web-app", () => {
-    const base = budgetEntriesOf(config("budgets:\n  route_js_bytes: 1000\n", "web-app"));
-    const head = budgetEntriesOf(config("budgets:\n  route_js_bytes: 200000\n", "web-app"));
     expect(
-      compareRanked(base, head).find((item) => item.what === "budgets.route_js_bytes")?.change,
+      compareBudgets(
+        "budgets:\n  route_js_bytes: 1000\n",
+        "budgets:\n  route_js_bytes: 200000\n",
+        "web-app",
+        "web-app",
+      ).find((item) => item.what === "budgets.route_js_bytes")?.change,
     ).toBe("weakened");
+  });
+
+  it("reads effective caps from page, route and entry map keys", () => {
+    const cfg = config(
+      'budgets:\n  pages:\n    "/p/": 1000\n  routes:\n    "/r/": 2000\nlayers:\n  size_limit:\n    entries:\n      "./e": 3000\n',
+      "ts-library",
+    );
+    expect(effectiveCapBytes("budgets.pages./p/", cfg)).toBe(1000);
+    expect(effectiveCapBytes("budgets.routes./r/", cfg)).toBe(2000);
+    expect(effectiveCapBytes("budgets.entries../e", cfg)).toBe(3000);
+    expect(effectiveCapBytes("budgets.not_a_map", cfg)).toBeUndefined();
+  });
+
+  it("reads class JS ceilings through effectiveCapBytes", () => {
+    expect(effectiveCapBytes("budgets.class_js_ceiling", config("", "ts-library"))).toBe(51_200);
+    expect(effectiveCapBytes("budgets.class_js_ceiling", config("", "ui-components"))).toBe(51_200);
+    expect(effectiveCapBytes("budgets.class_js_ceiling", config("", "web-app"))).toBe(174_080);
+    expect(effectiveCapBytes("budgets.class_js_ceiling", config("", "astro-site"))).toBe(51_200);
+    expect(
+      effectiveCapBytes("budgets.class_js_ceiling", config("", "node-service")),
+    ).toBeUndefined();
+  });
+
+  it("reports no cap items when an explicit ceiling is unchanged", () => {
+    expect(
+      compareBudgets("budgets:\n  page_js_bytes: 5000\n", "budgets:\n  page_js_bytes: 5000\n"),
+    ).toEqual([]);
+  });
+
+  it("uses the library page_js path on ts-library", () => {
+    const values = budgetEntriesOf(config("budgets:\n  page_js_bytes: 1234\n", "ts-library"));
+    expect(values.get("budgets.page_js_bytes")?.shown).toBe("1234");
+  });
+
+  it("builds size_limit from default_bytes alone", () => {
+    const values = budgetEntriesOf(
+      config("layers:\n  size_limit:\n    default_bytes: 4200\n", "ui-components"),
+    );
+    expect(values.get("budgets.entries..")?.shown).toBe("4200");
+  });
+
+  it("treats a newly judged default_bytes cap as strengthened", () => {
+    expect(
+      compareBudgets(
+        "",
+        "layers:\n  size_limit:\n    default_bytes: 5000\n",
+        "ts-library",
+        "ts-library",
+      ),
+    ).toContainEqual({
+      what: "layers.size_limit.default_bytes",
+      change: "strengthened",
+      before: "absent",
+      after: "5000",
+    });
+  });
+
+  it("treats a dropped size_limit default cap as weakened", () => {
+    expect(
+      compareBudgets(
+        "layers:\n  size_limit:\n    default_bytes: 5000\n",
+        "",
+        "ts-library",
+        "ts-library",
+      ),
+    ).toContainEqual({
+      what: "layers.size_limit.default_bytes",
+      change: "weakened",
+      before: "5000",
+      after: "absent",
+    });
   });
 });

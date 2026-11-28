@@ -36,9 +36,9 @@ describe("budget golden maps", () => {
       extra: "",
       className: "ts-library",
       expect: {
+        "budgets.class_js_ceiling": "51200",
         "build.command": "unset",
         "build.dir": "dist",
-        "layers.size_limit.default_bytes": "51200",
       },
     },
     {
@@ -46,10 +46,9 @@ describe("budget golden maps", () => {
       extra: "",
       className: "web-app",
       expect: {
+        "budgets.class_js_ceiling": "174080",
         "build.command": "unset",
         "build.dir": "dist",
-        "budgets.page_js_bytes": "174080",
-        "budgets.route_js_bytes": "174080",
       },
     },
     {
@@ -57,10 +56,10 @@ describe("budget golden maps", () => {
       extra: "",
       className: "astro-site",
       expect: {
+        "budgets.class_js_ceiling": "51200",
+        "budgets.static_page_js_bytes": "0",
         "build.command": "unset",
         "build.dir": "dist",
-        "budgets.page_js_bytes": "51200",
-        "budgets.static_page_js_bytes": "0",
       },
     },
     {
@@ -71,7 +70,6 @@ describe("budget golden maps", () => {
         "budgets.page_js_bytes": "44000",
         "build.command": "unset",
         "build.dir": "dist",
-        "layers.size_limit.default_bytes": "51200",
       },
     },
     {
@@ -89,10 +87,9 @@ describe("budget golden maps", () => {
       name: "routes list",
       extra: "routes:\n  - /\n  - /app\n",
       expect: {
+        "budgets.class_js_ceiling": "174080",
         "build.command": "unset",
         "build.dir": "dist",
-        "budgets.page_js_bytes": "174080",
-        "budgets.route_js_bytes": "174080",
         "routes./": "judged",
         "routes./app": "judged",
       },
@@ -111,9 +108,8 @@ describe("budget golden maps", () => {
       name: "pages map only",
       extra: 'budgets:\n  pages:\n    "/home/": 32000\n',
       expect: {
-        "budgets.page_js_bytes": "174080",
+        "budgets.class_js_ceiling": "174080",
         "budgets.pages./home/": "32000",
-        "budgets.route_js_bytes": "174080",
         "build.command": "unset",
         "build.dir": "dist",
       },
@@ -122,8 +118,7 @@ describe("budget golden maps", () => {
       name: "routes map only",
       extra: 'budgets:\n  routes:\n    "/api": 64000\n',
       expect: {
-        "budgets.page_js_bytes": "174080",
-        "budgets.route_js_bytes": "174080",
+        "budgets.class_js_ceiling": "174080",
         "budgets.routes./api": "64000",
         "build.command": "unset",
         "build.dir": "dist",
@@ -133,10 +128,9 @@ describe("budget golden maps", () => {
       name: "custom build",
       extra: 'build:\n  dir: build\n  command: "vite build"\n',
       expect: {
+        "budgets.class_js_ceiling": "174080",
         "build.command": "vite build",
         "build.dir": "build",
-        "budgets.page_js_bytes": "174080",
-        "budgets.route_js_bytes": "174080",
       },
     },
     {

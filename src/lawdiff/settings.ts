@@ -137,6 +137,7 @@ export function notCompared(): string {
 /** The settings of a `web-tops.yaml` that hold the gate: what is on, how high each floor, how low each cap, and the exclusions. */
 export function settingsOf(config: WebTopsConfig): Settings {
   return {
+    config,
     values: new Map([
       ...switchPaths().map((path) => switchOf(config, path)),
       ...limitEntries(config),

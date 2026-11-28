@@ -4,11 +4,13 @@ import {
   ASTRO_ISLAND_JS_BYTES,
   ASTRO_STATIC_JS_BYTES,
   WEB_APP_ROUTE_JS_BYTES,
+  budgetForPage,
 } from "../layers/bytes/budgets.ts";
 import { budgetForEntry, DEFAULT_ENTRY_BYTES } from "../layers/size-limit/budgets.ts";
 import { routeBudget } from "../layers/route-bytes/measure.ts";
 import type { BudgetsSettings } from "../gate/types.ts";
-import type { Ranked } from "./types.ts";
+import type { Item, Ranked, Settings } from "./types.ts";
+import { compareRanked } from "./rank.ts";
 
 const BUDGET_CLASSES: readonly ClassName[] = [
   "astro-site",
@@ -17,10 +19,15 @@ const BUDGET_CLASSES: readonly ClassName[] = [
   "ui-components",
 ];
 
+const CLASS_JS_KEY = "budgets.class_js_ceiling";
+
 const capRank = (bytes: number): Ranked => ({ shown: String(bytes), rank: -bytes });
 
 const sortedKeys = (record: Readonly<Record<string, number>> | undefined): string[] =>
   record === undefined ? [] : [...Object.keys(record)].sort();
+
+const unionSorted = (left: readonly string[], right: readonly string[]): string[] =>
+  [...new Set([...left, ...right])].sort();
 
 type RawBudget = NonNullable<WebTopsConfig["budgets"]>;
 
@@ -29,6 +36,24 @@ const BUDGET_NUMBER_FIELDS: readonly (readonly [keyof BudgetsSettings, keyof Raw
   ["staticPageJsBytes", "static_page_js_bytes"],
   ["routeJsBytes", "route_js_bytes"],
 ];
+
+const BUDGET_CAP_EXACT = new Set<string>([
+  CLASS_JS_KEY,
+  "budgets.page_js_bytes",
+  "budgets.static_page_js_bytes",
+  "budgets.route_js_bytes",
+  "layers.size_limit.default_bytes",
+]);
+
+/** Whether a settings key is a byte ceiling law-diff compares by effective value. */
+export function isBudgetCapKey(key: string): boolean {
+  if (BUDGET_CAP_EXACT.has(key)) return true;
+  return (
+    key.startsWith("budgets.pages.") ||
+    key.startsWith("budgets.routes.") ||
+    key.startsWith("budgets.entries.")
+  );
+}
 
 function budgetMaps(raw: RawBudget): Pick<BudgetsSettings, "pages" | "routes"> {
   return {
@@ -134,7 +159,8 @@ function needsDefaultDot(config: WebTopsConfig, keys: Set<string>): boolean {
   return isPackageClass(config.class);
 }
 
-function entryKeys(config: WebTopsConfig): string[] {
+/** Export keys used for size-limit entry comparison (unioned across refs in `judgedCapKeys`). */
+export function entryKeysFor(config: WebTopsConfig): readonly string[] {
   const keys = new Set(packageEntryKeys(config));
   if (needsDefaultDot(config, keys)) keys.add(".");
   return [...keys].sort();
@@ -174,51 +200,82 @@ function hasBudgetSurface(config: WebTopsConfig): boolean {
   return budgetedClass(config.class);
 }
 
-function showGlobalPageJs(config: WebTopsConfig): boolean {
-  if (config.budgets !== undefined) return true;
-  return config.class === "astro-site" || config.class === "web-app";
+function packageClassJs(config: WebTopsConfig): number {
+  return effectiveDefaultEntry(config);
 }
 
-function astroCeilings(config: WebTopsConfig, values: Map<string, Ranked>): void {
+function classJsForBudgetedClass(config: WebTopsConfig): number {
+  const budgets = budgetsSettings(config);
+  if (config.class === "web-app") return webAppPageJs(budgets);
+  if (config.class === "astro-site") return astroPageJs(budgets);
+  return packageClassJs(config);
+}
+
+function classJsCeiling(config: WebTopsConfig): number | undefined {
+  if (!budgetedClass(config.class)) return undefined;
+  return classJsForBudgetedClass(config);
+}
+
+const noExplicitPageJs = (config: WebTopsConfig): boolean =>
+  config.budgets?.page_js_bytes === undefined;
+
+function webAppShowsClassJs(config: WebTopsConfig): boolean {
+  return noExplicitPageJs(config) && config.budgets?.route_js_bytes === undefined;
+}
+
+function packageShowsClassJs(config: WebTopsConfig): boolean {
+  return !hasLayerDefaultBytes(config) && noExplicitPageJs(config);
+}
+
+function showClassJsCeiling(config: WebTopsConfig): boolean {
+  if (config.class === "web-app") return webAppShowsClassJs(config);
+  if (config.class === "astro-site") return noExplicitPageJs(config);
+  if (isPackageClass(config.class)) return packageShowsClassJs(config);
+  return false;
+}
+
+function addClassJsCeiling(config: WebTopsConfig, values: Map<string, Ranked>): void {
+  if (!showClassJsCeiling(config)) return;
+  const classJs = classJsCeiling(config);
+  if (classJs !== undefined) values.set(CLASS_JS_KEY, capRank(classJs));
+}
+
+function addAstroStaticCeiling(config: WebTopsConfig, values: Map<string, Ranked>): void {
+  if (config.class !== "astro-site") return;
   values.set("budgets.static_page_js_bytes", capRank(effectiveStaticPageJs(config)));
 }
 
-function webAppCeilings(config: WebTopsConfig, values: Map<string, Ranked>): void {
-  const budgets = budgetsSettings(config);
-  values.set("budgets.route_js_bytes", capRank(routeBudget("/", budgets)));
-}
-
-function addPageJsCeiling(config: WebTopsConfig, values: Map<string, Ranked>): void {
+function addExplicitPageJs(config: WebTopsConfig, values: Map<string, Ranked>): void {
+  if (config.budgets?.page_js_bytes === undefined) return;
   values.set("budgets.page_js_bytes", capRank(effectivePageJs(config)));
 }
 
-function addClassCeilings(config: WebTopsConfig, values: Map<string, Ranked>): void {
-  if (config.class === "astro-site") astroCeilings(config, values);
-  if (config.class === "web-app") webAppCeilings(config, values);
+function addExplicitRouteJs(config: WebTopsConfig, values: Map<string, Ranked>): void {
+  if (config.budgets?.route_js_bytes === undefined) return;
+  values.set("budgets.route_js_bytes", capRank(routeBudget("/", budgetsSettings(config))));
 }
 
 function ceilingEntries(config: WebTopsConfig): Map<string, Ranked> {
   const values = new Map<string, Ranked>();
-  if (!showGlobalPageJs(config)) return values;
-  addPageJsCeiling(config, values);
-  addClassCeilings(config, values);
+  if (!hasBudgetSurface(config)) return values;
+  addClassJsCeiling(config, values);
+  addAstroStaticCeiling(config, values);
+  addExplicitPageJs(config, values);
+  addExplicitRouteJs(config, values);
   return values;
-}
-
-function addPageMapEntries(
-  pages: Readonly<Record<string, number>>,
-  values: Map<string, Ranked>,
-): void {
-  for (const route of sortedKeys(pages)) {
-    const ceiling = pages[route];
-    if (ceiling !== undefined) values.set(`budgets.pages.${route}`, capRank(ceiling));
-  }
 }
 
 function pageBudgetEntries(config: WebTopsConfig): Map<string, Ranked> {
   const values = new Map<string, Ranked>();
   const pages = config.budgets?.pages;
-  if (pages !== undefined) addPageMapEntries(pages, values);
+  if (pages === undefined) return values;
+  const budgets = budgetsSettings(config);
+  for (const route of sortedKeys(pages)) {
+    values.set(
+      `budgets.pages.${route}`,
+      capRank(budgetForPage(route, config.class, true, budgets)),
+    );
+  }
   return values;
 }
 
@@ -235,18 +292,13 @@ function perKeyBudgetEntries(config: WebTopsConfig): Map<string, Ranked> {
   return mergeBudgetMaps(pageBudgetEntries(config), routeBudgetEntries(config));
 }
 
-function showDefaultEntry(config: WebTopsConfig): boolean {
-  if (config.layers?.size_limit?.default_bytes !== undefined) return true;
-  return isPackageClass(config.class);
-}
-
 function sizeLimitBudgetEntries(config: WebTopsConfig): Map<string, Ranked> {
   const values = new Map<string, Ranked>();
-  if (showDefaultEntry(config)) {
+  if (hasLayerDefaultBytes(config)) {
     values.set("layers.size_limit.default_bytes", capRank(effectiveDefaultEntry(config)));
   }
   const sizeLayer = sizeLimitLayer(config);
-  for (const key of entryKeys(config)) {
+  for (const key of entryKeysFor(config)) {
     values.set(`budgets.entries.${key}`, capRank(budgetForEntry(key, sizeLayer)));
   }
   return values;
@@ -256,6 +308,173 @@ function mergeBudgetMaps(...parts: ReadonlyMap<string, Ranked>[]): Map<string, R
   const values = new Map<string, Ranked>();
   for (const part of parts) for (const [key, ranked] of part) values.set(key, ranked);
   return values;
+}
+
+function classJsCapBytes(config: WebTopsConfig): number | undefined {
+  return showClassJsCeiling(config) ? classJsCeiling(config) : undefined;
+}
+
+type ScalarCapReader = (config: WebTopsConfig) => number | undefined;
+
+const scalarCapReaders: Record<string, ScalarCapReader> = {
+  [CLASS_JS_KEY]: classJsCapBytes,
+  "budgets.page_js_bytes": (config) =>
+    config.budgets?.page_js_bytes === undefined ? undefined : effectivePageJs(config),
+  "budgets.static_page_js_bytes": (config) =>
+    config.class === "astro-site" ? effectiveStaticPageJs(config) : undefined,
+  "budgets.route_js_bytes": (config) =>
+    config.budgets?.route_js_bytes === undefined
+      ? undefined
+      : routeBudget("/", budgetsSettings(config)),
+  "layers.size_limit.default_bytes": (config) =>
+    hasLayerDefaultBytes(config) ? effectiveDefaultEntry(config) : undefined,
+};
+
+function namedCapBytes(key: string, config: WebTopsConfig): number | undefined {
+  const read = scalarCapReaders[key];
+  return read === undefined ? undefined : read(config);
+}
+
+function pageCapFromKey(key: string, config: WebTopsConfig): number | undefined {
+  if (!key.startsWith("budgets.pages.")) return undefined;
+  const route = key.slice("budgets.pages.".length);
+  return budgetForPage(route, config.class, true, budgetsSettings(config));
+}
+
+function routeCapFromKey(key: string, config: WebTopsConfig): number | undefined {
+  if (!key.startsWith("budgets.routes.")) return undefined;
+  const route = key.slice("budgets.routes.".length);
+  return routeBudget(route, budgetsSettings(config));
+}
+
+function entryCapFromKey(key: string, config: WebTopsConfig): number | undefined {
+  if (!key.startsWith("budgets.entries.")) return undefined;
+  const entry = key.slice("budgets.entries.".length);
+  return budgetForEntry(entry, sizeLimitLayer(config));
+}
+
+function mapCapBytes(key: string, config: WebTopsConfig): number | undefined {
+  return (
+    pageCapFromKey(key, config) ?? routeCapFromKey(key, config) ?? entryCapFromKey(key, config)
+  );
+}
+
+/** Gate-effective byte ceiling for one judged settings key at a ref. */
+export function effectiveCapBytes(key: string, config: WebTopsConfig): number | undefined {
+  return namedCapBytes(key, config) ?? mapCapBytes(key, config);
+}
+
+function addCapKeysFromEntries(keys: Set<string>, config: WebTopsConfig): void {
+  for (const key of budgetEntriesOf(config).keys()) {
+    if (isBudgetCapKey(key)) keys.add(key);
+  }
+}
+
+function addPrefixedKeys(keys: Set<string>, prefix: string, names: readonly string[]): void {
+  for (const name of names) keys.add(`${prefix}${name}`);
+}
+
+function addPageCapKeys(keys: Set<string>, base: WebTopsConfig, head: WebTopsConfig): void {
+  addPrefixedKeys(
+    keys,
+    "budgets.pages.",
+    unionSorted(sortedKeys(base.budgets?.pages), sortedKeys(head.budgets?.pages)),
+  );
+}
+
+function addRouteCapKeys(keys: Set<string>, base: WebTopsConfig, head: WebTopsConfig): void {
+  addPrefixedKeys(
+    keys,
+    "budgets.routes.",
+    unionSorted(sortedKeys(base.budgets?.routes), sortedKeys(head.budgets?.routes)),
+  );
+}
+
+function addEntryCapKeys(keys: Set<string>, base: WebTopsConfig, head: WebTopsConfig): void {
+  addPrefixedKeys(keys, "budgets.entries.", unionSorted(entryKeysFor(base), entryKeysFor(head)));
+}
+
+function addUnionMapCaps(keys: Set<string>, base: WebTopsConfig, head: WebTopsConfig): void {
+  addPageCapKeys(keys, base, head);
+  addRouteCapKeys(keys, base, head);
+  addEntryCapKeys(keys, base, head);
+}
+
+/** Every byte-cap settings key that should be compared across two refs. */
+export function judgedCapKeys(base: WebTopsConfig, head: WebTopsConfig): string[] {
+  const keys = new Set<string>();
+  addCapKeysFromEntries(keys, base);
+  addCapKeysFromEntries(keys, head);
+  addUnionMapCaps(keys, base, head);
+  return [...keys].sort();
+}
+
+function compareCapNumbers(before: number, after: number): Item["change"] {
+  if (after > before) return "weakened";
+  if (after < before) return "strengthened";
+  return "unchanged";
+}
+
+function bothCapsMissing(before: number | undefined, after: number | undefined): boolean {
+  return before === undefined && after === undefined;
+}
+
+function capAbsentChange(before: number | undefined, after: number | undefined): Item["change"] {
+  if (bothCapsMissing(before, after)) return "unchanged";
+  if (before === undefined) return "strengthened";
+  return "weakened";
+}
+
+function directionOf(before: number | undefined, after: number | undefined): Item["change"] {
+  if (typeof before === "number" && typeof after === "number") {
+    return compareCapNumbers(before, after);
+  }
+  return capAbsentChange(before, after);
+}
+
+function compareCapKey(key: string, base: WebTopsConfig, head: WebTopsConfig): Item[] {
+  const before = effectiveCapBytes(key, base);
+  const after = effectiveCapBytes(key, head);
+  const change = directionOf(before, after);
+  if (change === "unchanged") return [];
+  return [
+    {
+      what: key,
+      change,
+      before: before === undefined ? "absent" : String(before),
+      after: after === undefined ? "absent" : String(after),
+    },
+  ];
+}
+
+const subsetValues = (
+  values: ReadonlyMap<string, Ranked>,
+  keys: readonly string[],
+): Map<string, Ranked> => {
+  const picked = new Map<string, Ranked>();
+  for (const key of keys) {
+    const ranked = values.get(key);
+    if (ranked !== undefined) picked.set(key, ranked);
+  }
+  return picked;
+};
+
+const nonCapSettingKeys = (base: Settings, head: Settings): string[] =>
+  [...new Set([...base.values.keys(), ...head.values.keys()])]
+    .filter((key) => !isBudgetCapKey(key))
+    .sort();
+
+/** Compare gate settings, using effective byte ceilings instead of generic rank add/remove for caps. */
+export function compareBudgetSettings(base: Settings, head: Settings): Item[] {
+  const otherKeys = nonCapSettingKeys(base, head);
+  const fromMaps = compareRanked(
+    subsetValues(base.values, otherKeys),
+    subsetValues(head.values, otherKeys),
+  );
+  const capItems = judgedCapKeys(base.config, head.config).flatMap((key) =>
+    compareCapKey(key, base.config, head.config),
+  );
+  return [...fromMaps, ...capItems].sort((left, right) => left.what.localeCompare(right.what));
 }
 
 /** Effective byte budgets and related settings from `web-tops.yaml`, each ranked so a higher ceiling is weaker. */

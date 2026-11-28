@@ -23,14 +23,14 @@ describe("budget mutant killers", () => {
   it("class-specific page_js defaults differ between astro-site and web-app", () => {
     const astro = budgetEntriesOf(config("", "astro-site"));
     const web = budgetEntriesOf(config("", "web-app"));
-    expect(astro.get("budgets.page_js_bytes")?.shown).toBe("51200");
-    expect(web.get("budgets.page_js_bytes")?.shown).toBe("174080");
+    expect(astro.get("budgets.class_js_ceiling")?.shown).toBe("51200");
+    expect(web.get("budgets.class_js_ceiling")?.shown).toBe("174080");
   });
 
   it("uses library fallback page_js on ts-library", () => {
     const values = budgetEntriesOf(config("", "ts-library"));
     expect(values.has("budgets.page_js_bytes")).toBe(false);
-    expect(values.get("layers.size_limit.default_bytes")?.shown).toBe("51200");
+    expect(values.get("budgets.class_js_ceiling")?.shown).toBe("51200");
   });
 
   it("marks build.command for review", () => {
@@ -73,7 +73,7 @@ describe("budget mutant killers", () => {
   it("uses routes map entry for a named route", () => {
     const values = budgetEntriesOf(config('budgets:\n  routes:\n    "/docs": 12000\n', "web-app"));
     expect(values.get("budgets.routes./docs")?.shown).toBe("12000");
-    expect(values.get("budgets.route_js_bytes")?.shown).toBe("174080");
+    expect(values.get("budgets.class_js_ceiling")?.shown).toBe("174080");
   });
 
   it("honors all three numeric budget ceilings in budgetsSettings", () => {
@@ -103,7 +103,7 @@ describe("budget mutant killers", () => {
 
   it("uses route_js from the slash route when judging web-app ceilings", () => {
     const values = budgetEntriesOf(config('budgets:\n  routes:\n    "/": 5000\n', "web-app"));
-    expect(values.get("budgets.route_js_bytes")?.shown).toBe("5000");
+    expect(values.get("budgets.routes./")?.shown).toBe("5000");
   });
 
   it("adds default dot entry when only size_limit.default_bytes is set", () => {
@@ -131,7 +131,7 @@ describe("budget mutant killers", () => {
       config('layers:\n  size_limit:\n    entries:\n      "./only": 111\n', "ts-library"),
     );
     expect(values.get("budgets.entries../only")?.shown).toBe("111");
-    expect(values.get("layers.size_limit.default_bytes")?.shown).toBe("51200");
+    expect(values.get("budgets.class_js_ceiling")?.shown).toBe("51200");
   });
 
   it("does not treat default dot as separate when explicit entry keys exist", () => {
@@ -146,9 +146,9 @@ describe("budget mutant killers", () => {
   it("differs astro page_js ceiling path from ui-components package defaults", () => {
     const astro = budgetEntriesOf(config("", "astro-site"));
     const ui = budgetEntriesOf(config("", "ui-components"));
-    expect(astro.has("budgets.page_js_bytes")).toBe(true);
+    expect(astro.has("budgets.class_js_ceiling")).toBe(true);
     expect(astro.has("budgets.static_page_js_bytes")).toBe(true);
     expect(ui.has("budgets.page_js_bytes")).toBe(false);
-    expect(ui.get("layers.size_limit.default_bytes")?.shown).toBe("51200");
+    expect(ui.get("budgets.class_js_ceiling")?.shown).toBe("51200");
   });
 });

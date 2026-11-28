@@ -4,6 +4,7 @@ import { compareGlobs } from "./globs.ts";
 import { compareLevels, comparedOf, type Renames } from "./levels.ts";
 import { compareProfiles, profileNote } from "./profile.ts";
 import { compareRanked, comparePart, type Outcome } from "./rank.ts";
+import { compareBudgetSettings } from "./budgets.ts";
 import { compareSets } from "./sets.ts";
 import { defaultKnip } from "./knip.ts";
 import { defaultSecretlint, nestedDefault } from "./secretlint.ts";
@@ -17,7 +18,7 @@ const unionSize = <T>(left: ReadonlyMap<string, T>, right: ReadonlyMap<string, T
 
 function settingsOutcome(base: Settings, head: Settings): Outcome {
   return {
-    items: [...compareRanked(base.values, head.values), ...compareGlobs(base.globs, head.globs)],
+    items: [...compareBudgetSettings(base, head), ...compareGlobs(base.globs, head.globs)],
     compared: unionSize(base.values, head.values) + new Set([...base.globs, ...head.globs]).size,
   };
 }
