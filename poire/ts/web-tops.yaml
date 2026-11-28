@@ -1,0 +1,70 @@
+# Written by `webtops init` (WEB_TOPS.md sections 4 and 9), then edited: init's ts-library profile
+# still writes crap, mutation and laws off "until M2" and "until M3", which have landed. They are on
+# here, as in the kit's own web-tops.yaml. A layer the class does not map is off with the class as
+# the reason.
+protocol: 0.3.0
+version: 0.2.0
+package: poire-ts
+class: ts-library
+enforce: hard
+baseline: .web-tops/baseline.json
+toolchain:
+  typescript: 6.0.3
+  runtime: bun
+gates:
+  hygiene:
+    eslint:
+      config: eslint.config.js
+    format:
+      tool: prettier
+    astro_check:
+      enabled: false
+      reason: "not mapped for class: only Astro projects run astro check"
+    stylelint:
+      enabled: false
+      reason: "not mapped for class: a TypeScript library has no CSS"
+    audit:
+      fail_on: high
+  tests:
+    runner: vitest
+    shuffle: true
+  coverage:
+    lines_floor: 85
+    exclude:
+      - { glob: "vitest.config.ts", reason: "the test runner's configuration: no production code" }
+  crap:
+    cap: 4
+    scope: all
+    complexity:
+      nullish_discount: true
+  mutation:
+    engine: stryker
+    scope: diff
+    base: origin/main
+    unexplained_survivors_max: 0
+    ledger: .web-tops/survivors.yaml
+layers:
+  size_limit:
+    tier: 1
+    enabled: false
+    reason: "milestone M4: build-output layers land in M4"
+  package_exports:
+    tier: 1
+  html_validate:
+    enabled: false
+    reason: "not mapped for class: a TypeScript library has no HTML output"
+  axe:
+    enabled: false
+    reason: "not mapped for class: a TypeScript library has no pages"
+  rendered:
+    enabled: false
+    reason: "not mapped for class: a TypeScript library has no pages"
+  themes:
+    enabled: false
+    reason: "not mapped for class: a TypeScript library has no themes"
+  custom: []
+laws:
+  select: default
+  ack_ledger: .web-tops/acks.yaml
+report:
+  path: .web-tops/report.json

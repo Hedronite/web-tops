@@ -5,7 +5,7 @@
     "src/layers/html/validate.mjs",
     "src/layers/route-bytes/drive.mjs"
   ],
-  "ignore": ["fixtures/**", "probes/**", "examples/**"],
+  "ignore": ["fixtures/**", "probes/**", "examples/**", "poire/**"],
   "ignoreDependencies": [
     "@arethetypeswrong/cli",
     "@axe-core/playwright",

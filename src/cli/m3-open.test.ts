@@ -173,8 +173,14 @@ describe("M3 G0b: the M3 paths are in every tool's scope", () => {
     const parsed = ts.parseJsonConfigFileContent(read.config, ts.sys, root);
     expect(parsed.projectReferences?.map((reference) => reference.path)).toEqual([
       join(root, "examples/node-service"),
+      join(root, "poire/ts"),
     ]);
     expect(get(read.config, "exclude")).not.toContain("examples/node-service");
+  });
+
+  it("poire/ts is a project of its own in the same way: linted under its own config, formatted by its own gate, reached by the references", async () => {
+    expect(await eslint.isPathIgnored(join(root, "poire/ts/src/x.ts"))).toBe(false);
+    expect(ignoredByPrettier("poire/ts/src/x.ts")).toBe(true);
   });
 
   it("tsconfig includes every source path, and leaves the data paths out", () => {
@@ -281,6 +287,7 @@ describe("M3 G0b: the kit's Vitest config, exactly", () => {
           "fixtures/complexity/**",
           "fixtures/laws/**",
           "examples/node-service/**",
+          "poire/**",
         ],
         coverage: {
           provider: "v8",
