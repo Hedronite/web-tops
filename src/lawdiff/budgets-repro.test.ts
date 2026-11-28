@@ -81,6 +81,16 @@ describe("effective byte budget law-diff comparisons", () => {
     expect(page === undefined || page.change !== "weakened").toBe(true);
   });
 
+  it("B4: astro-site to web-app raises the class JS ceiling in one compared key", () => {
+    const items = pair("", "", "astro-site", "web-app");
+    expect(items).toContainEqual({
+      what: "budgets.class_js_ceiling",
+      change: "weakened",
+      before: "51200",
+      after: "174080",
+    });
+  });
+
   it("B4: ui-components to web-app raises the class JS ceiling in one compared key", () => {
     const items = pair("", "", "ui-components", "web-app");
     expect(items).toContainEqual({

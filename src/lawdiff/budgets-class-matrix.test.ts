@@ -84,11 +84,26 @@ describe("class-specific byte budget defaults", () => {
       ).has("budgets.class_js_ceiling"),
     ).toBe(false);
   });
+
+  it("hides package class_js when size_limit default_bytes is 900000", () => {
+    const cfg = config("layers:\n  size_limit:\n    default_bytes: 900000\n", "ts-library");
+    expect(budgetEntriesOf(cfg).has("budgets.class_js_ceiling")).toBe(false);
+    expect(budgetEntriesOf(cfg).get("layers.size_limit.default_bytes")?.shown).toBe("900000");
+  });
 });
 
 describe("class changes at base and head", () => {
   const classChange = (from: ClassName, to: ClassName) =>
     compareBudgetSettings(settingsOf(config("", from)), settingsOf(config("", to)));
+
+  it("B4: weakened class_js when astro-site becomes web-app", () => {
+    expect(classChange("astro-site", "web-app")).toContainEqual({
+      what: "budgets.class_js_ceiling",
+      change: "weakened",
+      before: "51200",
+      after: "174080",
+    });
+  });
 
   it("weakened class_js when ui-components becomes web-app", () => {
     expect(classChange("ui-components", "web-app")).toContainEqual({

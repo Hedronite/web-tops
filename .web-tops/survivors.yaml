@@ -275,38 +275,11 @@ survivors:
   - file: src/lawdiff/budgets.ts
     function: src/lawdiff/budgets.ts::budgetMaps
     mutator: ConditionalExpression
-    original: "raw.pages === undefined"
-    replacement: "true"
-    occurrence: 1
-    reason: When pages is undefined, spreading an empty object ranks the same as
-      omitting pages from BudgetsSettings.
-    owner: web-platform
-  - file: src/lawdiff/budgets.ts
-    function: src/lawdiff/budgets.ts::budgetMaps
-    mutator: ConditionalExpression
     original: "raw.routes === undefined"
     replacement: "false"
     occurrence: 1
     reason: Omitting budgets.routes versus spreading routes undefined does not
       change ranked law-diff entries.
-    owner: web-platform
-  - file: src/lawdiff/budgets.ts
-    function: src/lawdiff/budgets.ts::budgetMaps
-    mutator: EqualityOperator
-    original: "raw.pages === undefined"
-    replacement: "raw.pages !== undefined"
-    occurrence: 1
-    reason: When pages is undefined, the pages branch must be skipped; inverting the
-      test still yields no pages key and the same ranked rows.
-    owner: web-platform
-  - file: src/lawdiff/budgets.ts
-    function: src/lawdiff/budgets.ts::budgetMaps
-    mutator: ObjectLiteral
-    original: "{ pages: raw.pages }"
-    replacement: "{}"
-    occurrence: 1
-    reason: Replacing the pages spread with an empty object when pages is defined is
-      the same as the omit branch for configs law-diff exercises.
     owner: web-platform
   - file: src/lawdiff/budgets.ts
     function: src/lawdiff/budgets.ts::budgetsSettings
@@ -315,33 +288,6 @@ survivors:
     replacement: "true"
     occurrence: 1
     reason: parseConfig rejects non-integer budget scalars before budgetsSettings runs.
-    owner: web-platform
-  - file: src/lawdiff/budgets.ts
-    function: src/lawdiff/budgets.ts::effectivePageJs
-    mutator: ConditionalExpression
-    original: "config.class === \"astro-site\""
-    replacement: "false"
-    occurrence: 1
-    reason: ASTRO_ISLAND_JS_BYTES equals DEFAULT_ENTRY_BYTES, so the library path
-      ranks the same default.
-    owner: web-platform
-  - file: src/lawdiff/budgets.ts
-    function: src/lawdiff/budgets.ts::effectivePageJs
-    mutator: ConditionalExpression
-    original: "config.class === \"astro-site\""
-    replacement: "true"
-    occurrence: 1
-    reason: web-app is handled earlier; forcing the astro branch does not change
-      ceilings under test.
-    owner: web-platform
-  - file: src/lawdiff/budgets.ts
-    function: src/lawdiff/budgets.ts::effectivePageJs
-    mutator: EqualityOperator
-    original: "config.class === \"astro-site\""
-    replacement: "config.class !== \"astro-site\""
-    occurrence: 1
-    reason: The web-app branch runs first; mutating the astro test cannot change
-      exercised effectivePageJs paths.
     owner: web-platform
   - file: src/lawdiff/budgets.ts
     function: src/lawdiff/budgets.ts::emptyEntryKeys
