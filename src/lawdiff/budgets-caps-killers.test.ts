@@ -5,6 +5,7 @@ import {
   budgetEntriesOf,
   compareBudgetSettings,
   directionOf,
+  partialCapChange,
   effectiveCapBytes,
   isBudgetCapKey,
   judgedCapKeys,
@@ -121,6 +122,17 @@ describe("budget cap keys and judged comparisons", () => {
     expect(directionOf(100, 100)).toBe("unchanged");
     expect(directionOf(100, undefined)).toBe("weakened");
     expect(directionOf(undefined, 200)).toBe("strengthened");
+    expect(partialCapChange(undefined, undefined)).toBe("unchanged");
+    expect(partialCapChange(100, undefined)).toBe("weakened");
+    expect(partialCapChange(undefined, 200)).toBe("strengthened");
+  });
+
+  it("binds each pages map row to its route bytes", () => {
+    const values = budgetEntriesOf(
+      config('budgets:\n  pages:\n    "/a/": 111\n    "/z/": 999\n', "astro-site"),
+    );
+    expect(values.get("budgets.pages./a/")?.shown).toBe("111");
+    expect(values.get("budgets.pages./z/")?.shown).toBe("999");
   });
 
   it("skips budget ceilings when the surface is absent", () => {

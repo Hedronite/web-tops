@@ -276,7 +276,7 @@ function pageBudgetEntries(config: WebTopsConfig): Map<string, Ranked> {
   if (pages === undefined) return new Map();
   return new Map(
     sortedKeys(pages).map(
-      (route) => [`budgets.pages.${route}`, capRank(readPageCapBytes(pages, route))] as const,
+      (route) => [`budgets.pages.${route}`, capRank(pageBytesAt(pages, route))] as const,
     ),
   );
 }
@@ -337,17 +337,14 @@ function namedCapBytes(key: string, config: WebTopsConfig): number | undefined {
   return read === undefined ? undefined : read(config);
 }
 
-function readPageCapBytes(pages: Record<string, number>, route: string): number {
-  for (const [key, bytes] of Object.entries(pages)) {
-    if (key === route) return bytes;
-  }
-  throw new Error(`missing page cap for ${route}`);
+function pageBytesAt(pages: Record<string, number>, route: string): number {
+  const match = Object.entries(pages).find(([key]) => key === route);
+  if (match === undefined) throw new Error(`missing page cap for ${route}`);
+  return match[1];
 }
 
 function pageCapFromKey(key: string, config: WebTopsConfig): number | undefined {
   const route = key.slice("budgets.pages.".length);
-  const own = config.budgets?.pages?.[route];
-  if (typeof own === "number") return own;
   return budgetForPage(route, config.class, true, budgetsSettings(config));
 }
 
@@ -393,7 +390,10 @@ function compareCapNumbers(before: number, after: number): Item["change"] {
   return "unchanged";
 }
 
-function partialCapChange(before: number | undefined, after: number | undefined): Item["change"] {
+export function partialCapChange(
+  before: number | undefined,
+  after: number | undefined,
+): Item["change"] {
   if (before === undefined) return after === undefined ? "unchanged" : "strengthened";
   return after === undefined ? "weakened" : "unchanged";
 }
