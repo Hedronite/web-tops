@@ -275,9 +275,7 @@ function pageBudgetEntries(config: WebTopsConfig): Map<string, Ranked> {
   const pages = config.budgets?.pages;
   if (pages === undefined) return new Map();
   return new Map(
-    sortedKeys(pages).map(
-      (route) => [`budgets.pages.${route}`, capRank(pageBytesAt(pages, route))] as const,
-    ),
+    sortedKeys(pages).map((route) => [`budgets.pages.${route}`, capRank(pages[route])] as const),
   );
 }
 
@@ -335,12 +333,6 @@ const scalarCapReaders: Record<string, ScalarCapReader> = {
 function namedCapBytes(key: string, config: WebTopsConfig): number | undefined {
   const read = scalarCapReaders[key];
   return read === undefined ? undefined : read(config);
-}
-
-function pageBytesAt(pages: Record<string, number>, route: string): number {
-  const match = Object.entries(pages).find(([key]) => key === route);
-  if (match === undefined) throw new Error(`missing page cap for ${route}`);
-  return match[1];
 }
 
 function pageCapFromKey(key: string, config: WebTopsConfig): number | undefined {
