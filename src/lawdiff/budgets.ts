@@ -394,8 +394,12 @@ export function partialCapChange(
   before: number | undefined,
   after: number | undefined,
 ): Item["change"] {
-  if (before === undefined) return after === undefined ? "unchanged" : "strengthened";
-  return after === undefined ? "weakened" : "unchanged";
+  if (before === undefined) {
+    if (after === undefined) return "unchanged";
+    return "strengthened";
+  }
+  if (after === undefined) return "weakened";
+  return "unchanged";
 }
 
 export function directionOf(before: number | undefined, after: number | undefined): Item["change"] {
