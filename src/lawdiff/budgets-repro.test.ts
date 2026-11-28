@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { parseConfig } from "../config/validate.ts";
 import type { WebTopsConfig } from "../config/types.ts";
-import { compareBudgetSettings } from "./budgets.ts";
+import { budgetEntriesOf, compareBudgetSettings } from "./budgets.ts";
 import { settingsOf } from "./settings.ts";
 import { cleanTemp, put, tempDir } from "../laws/probe/testkit.ts";
 
@@ -19,21 +19,23 @@ function parse(extra: string, className: string): WebTopsConfig {
 }
 
 const pair = (baseExtra: string, headExtra: string, baseClass: string, headClass: string) =>
-  compareBudgetSettings(
-    settingsOf(parse(baseExtra, baseClass)),
-    settingsOf(parse(headExtra, headClass)),
-  );
+  compareBudgetSettings(settingsOf(parse(baseExtra, baseClass)), settingsOf(parse(headExtra, headClass)));
 
 describe("effective byte budget law-diff comparisons", () => {
+  it("node-service keeps explicit page_js without a class_js_ceiling row", () => {
+    const cfg = parse("budgets:\n  page_js_bytes: 1000\n", "node-service");
+    expect(budgetEntriesOf(cfg).has("budgets.class_js_ceiling")).toBe(false);
+    expect(budgetEntriesOf(cfg).get("budgets.page_js_bytes")?.shown).toBe("1000");
+  });
   it("B2: dropping a tighter budgets.pages override is weakened via the fallback ceiling", () => {
     const items = pair(
       'budgets:\n  page_js_bytes: 51200\n  pages:\n    "/x/": 1000\n',
-      "budgets:\n  page_js_bytes: 51200\n",
+      'budgets:\n  page_js_bytes: 51200\n',
       "astro-site",
       "astro-site",
     );
     expect(items).toContainEqual({
-      what: "budgets.pages./x/",
+      what: 'budgets.pages./x/',
       change: "weakened",
       before: "1000",
       after: "51200",
@@ -43,7 +45,7 @@ describe("effective byte budget law-diff comparisons", () => {
   it("B2: dropping a tighter budgets.routes override is weakened via the fallback ceiling", () => {
     const items = pair(
       'budgets:\n  route_js_bytes: 51200\n  routes:\n    "/docs": 1000\n',
-      "budgets:\n  route_js_bytes: 51200\n",
+      'budgets:\n  route_js_bytes: 51200\n',
       "web-app",
       "web-app",
     );
@@ -58,7 +60,7 @@ describe("effective byte budget law-diff comparisons", () => {
   it("B2: dropping a tighter size_limit entry override is weakened via the fallback ceiling", () => {
     const items = pair(
       'layers:\n  size_limit:\n    default_bytes: 51200\n    entries:\n      "./x": 1000\n',
-      "layers:\n  size_limit:\n    default_bytes: 51200\n",
+      'layers:\n  size_limit:\n    default_bytes: 51200\n',
       "ts-library",
       "ts-library",
     );
@@ -71,7 +73,12 @@ describe("effective byte budget law-diff comparisons", () => {
   });
 
   it("does not weaken when a loose budgets.pages override is removed", () => {
-    const items = pair('budgets:\n  pages:\n    "/": 900000\n', "", "web-app", "web-app");
+    const items = pair(
+      'budgets:\n  pages:\n    "/": 900000\n',
+      "",
+      "web-app",
+      "web-app",
+    );
     const page = items.find((item) => item.what === "budgets.pages./");
     expect(page === undefined || page.change !== "weakened").toBe(true);
   });

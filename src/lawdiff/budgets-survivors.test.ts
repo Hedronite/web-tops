@@ -82,6 +82,11 @@ describe("budget mutant killers", () => {
     expect(values.get("budgets.class_js_ceiling")?.shown).toBe("174080");
   });
 
+  it("binds explicit route_js_bytes to the slash route probe", () => {
+    const values = budgetEntriesOf(config("budgets:\n  route_js_bytes: 42\n", "web-app"));
+    expect(values.get("budgets.route_js_bytes")?.shown).toBe("42");
+  });
+
   it("honors all three numeric budget ceilings in budgetsSettings", () => {
     const values = budgetEntriesOf(
       config(
