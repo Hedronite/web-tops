@@ -111,4 +111,57 @@ describe("budget cap keys and judged comparisons", () => {
     const yaml = "budgets:\n  page_js_bytes: 5000\n  route_js_bytes: 6000\n";
     expect(compareYaml(yaml, yaml).length).toBe(0);
   });
+
+  it("judges a route that appears only on head", () => {
+    const keys = judgedCapKeys(
+      config("", "web-app"),
+      config('budgets:\n  routes:\n    "/head-only/": 12\n', "web-app"),
+    );
+    expect(keys).toContain("budgets.routes./head-only/");
+  });
+
+  it("strengthens when a tighter page override is added on head", () => {
+    const items = compareYaml(
+      "budgets:\n  page_js_bytes: 51200\n",
+      'budgets:\n  page_js_bytes: 51200\n  pages:\n    "/tight/": 500\n',
+      "astro-site",
+      "astro-site",
+    );
+    expect(items).toContainEqual({
+      what: "budgets.pages./tight/",
+      change: "strengthened",
+      before: "51200",
+      after: "500",
+    });
+  });
+
+  it("weakens when a tighter page override is dropped on head", () => {
+    const items = compareYaml(
+      'budgets:\n  page_js_bytes: 51200\n  pages:\n    "/x/": 1000\n',
+      "budgets:\n  page_js_bytes: 51200\n",
+      "astro-site",
+      "astro-site",
+    );
+    expect(items).toContainEqual({
+      what: "budgets.pages./x/",
+      change: "weakened",
+      before: "1000",
+      after: "51200",
+    });
+  });
+
+  it("weakens when an entry override is dropped on head", () => {
+    const items = compareYaml(
+      'layers:\n  size_limit:\n    default_bytes: 51200\n    entries:\n      "./y": 800\n',
+      "layers:\n  size_limit:\n    default_bytes: 51200\n",
+      "ts-library",
+      "ts-library",
+    );
+    expect(items).toContainEqual({
+      what: "budgets.entries../y",
+      change: "weakened",
+      before: "800",
+      after: "51200",
+    });
+  });
 });
