@@ -264,7 +264,7 @@ describe("the default runs of Vitest", () => {
     const { exec } = spied(fakeGit(diff, { "src/a.test.ts": TEST }, seen));
     await diffScope({ cwd, base: "main", exec });
     const shows = seen.filter((args) => args[0] === "show");
-    expect(shows).toEqual([["show", `${FAKE_BASE}:src/a.test.ts`]]);
+    expect(shows).toEqual([["show", `${FAKE_BASE}:./src/a.test.ts`]]);
   });
 });
 

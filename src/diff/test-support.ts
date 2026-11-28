@@ -124,7 +124,7 @@ const ANSWERS: Readonly<Record<string, string>> = {
 };
 
 function showOf(args: readonly string[], atBase: Readonly<Record<string, string>>): ExecResult {
-  const text = atBase[args[1]?.slice(FAKE_BASE.length + 1) ?? ""];
+  const text = atBase[args[1]?.slice(FAKE_BASE.length + 1).replace(/^\.\//u, "") ?? ""];
   return text === undefined ? { code: 128, stdout: "", stderr: "no such path" } : said(text);
 }
 
