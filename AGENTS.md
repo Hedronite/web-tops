@@ -13,7 +13,7 @@ Milestone M4 is in this tree, on top of the laws of Milestone M3: the `webtops` 
 
 Version 0.4.0 implements protocol 0.3.0 (the 0.1.0 release implements 0.2.1).
 
-Before you finish, from a clean tree: `bun install --frozen-lockfile`, `bun run format:check`, `bun run typecheck`, `bun run lint`, `bun run test`, then `bun src/cli/main.ts gate`. Do not document, run or claim a command that has not landed: the rendered checks are M5.
+Before you finish, from a clean tree: `bun install --frozen-lockfile` at the root and in each project under `examples/` (the kit's lint reads them with their own configs), `bun run format:check`, `bun run typecheck`, `bun run lint`, `bun run test`, then `bun src/cli/main.ts gate`. Do not document, run or claim a command that has not landed: the rendered checks are M5.
 
 The kit is TypeScript on Bun and gates itself `hard` with its own protocol (§17).
 

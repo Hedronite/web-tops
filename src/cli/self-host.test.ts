@@ -265,6 +265,8 @@ describe("G7b: CI runs the sharded gate-shard and join gate jobs", () => {
     expect(shardCommands).toEqual([
       "bun install --frozen-lockfile",
       "bun install --frozen-lockfile",
+      "bun install --frozen-lockfile",
+      "bun install --frozen-lockfile",
       "bunx playwright install --with-deps chromium",
       "bun src/cli/main.ts gate --max-tier 1 --shard ${{ matrix.shard }}/4",
     ]);
@@ -272,6 +274,8 @@ describe("G7b: CI runs the sharded gate-shard and join gate jobs", () => {
       .map((step) => get(step, "run"))
       .filter((command) => command !== undefined);
     expect(gateCommands).toEqual([
+      "bun install --frozen-lockfile",
+      "bun install --frozen-lockfile",
       "bun install --frozen-lockfile",
       "bun install --frozen-lockfile",
       "bun src/cli/main.ts gate --join .web-tops/out/shards",
@@ -286,6 +290,8 @@ describe("G7b: CI runs the sharded gate-shard and join gate jobs", () => {
     expect(directories).toEqual([
       undefined,
       "examples/node-service",
+      "examples/astro-site",
+      "examples/web-app",
       undefined,
       "examples/node-service",
     ]);
