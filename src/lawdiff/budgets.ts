@@ -275,9 +275,9 @@ function pageBudgetEntries(config: WebTopsConfig): Map<string, Ranked> {
   const pages = config.budgets?.pages;
   if (pages === undefined) return new Map();
   return new Map(
-    Object.entries(pages)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([route, bytes]) => [`budgets.pages.${route}`, capRank(bytes)] as const),
+    sortedKeys(pages).map(
+      (route) => [`budgets.pages.${route}`, capRank(readPageCapBytes(pages, route))] as const,
+    ),
   );
 }
 
@@ -337,19 +337,34 @@ function namedCapBytes(key: string, config: WebTopsConfig): number | undefined {
   return read === undefined ? undefined : read(config);
 }
 
+function readPageCapBytes(pages: Record<string, number>, route: string): number {
+  for (const [key, bytes] of Object.entries(pages)) {
+    if (key === route) return bytes;
+  }
+  throw new Error(`missing page cap for ${route}`);
+}
+
+function pageCapFromKey(key: string, config: WebTopsConfig): number | undefined {
+  const route = key.slice("budgets.pages.".length);
+  const own = config.budgets?.pages?.[route];
+  if (typeof own === "number") return own;
+  return budgetForPage(route, config.class, true, budgetsSettings(config));
+}
+
+function routeCapFromKey(key: string, config: WebTopsConfig): number | undefined {
+  const route = key.slice("budgets.routes.".length);
+  return routeBudget(route, budgetsSettings(config));
+}
+
+function entryCapFromKey(key: string, config: WebTopsConfig): number | undefined {
+  const entry = key.slice("budgets.entries.".length);
+  return budgetForEntry(entry, sizeLimitLayer(config));
+}
+
 function mapCapBytes(key: string, config: WebTopsConfig): number | undefined {
-  if (key.startsWith("budgets.pages.")) {
-    const route = key.slice("budgets.pages.".length);
-    return budgetForPage(route, config.class, true, budgetsSettings(config));
-  }
-  if (key.startsWith("budgets.routes.")) {
-    const route = key.slice("budgets.routes.".length);
-    return routeBudget(route, budgetsSettings(config));
-  }
-  if (key.startsWith("budgets.entries.")) {
-    const entry = key.slice("budgets.entries.".length);
-    return budgetForEntry(entry, sizeLimitLayer(config));
-  }
+  if (key.startsWith("budgets.pages.")) return pageCapFromKey(key, config);
+  if (key.startsWith("budgets.routes.")) return routeCapFromKey(key, config);
+  if (key.startsWith("budgets.entries.")) return entryCapFromKey(key, config);
   return undefined;
 }
 
@@ -378,7 +393,7 @@ function compareCapNumbers(before: number, after: number): Item["change"] {
   return "unchanged";
 }
 
-function comparePartialCaps(before: number | undefined, after: number | undefined): Item["change"] {
+function partialCapChange(before: number | undefined, after: number | undefined): Item["change"] {
   if (before === undefined) return after === undefined ? "unchanged" : "strengthened";
   return after === undefined ? "weakened" : "unchanged";
 }
@@ -387,7 +402,7 @@ export function directionOf(before: number | undefined, after: number | undefine
   if (typeof before === "number" && typeof after === "number") {
     return compareCapNumbers(before, after);
   }
-  return comparePartialCaps(before, after);
+  return partialCapChange(before, after);
 }
 
 function compareCapKey(key: string, base: WebTopsConfig, head: WebTopsConfig): Item[] {

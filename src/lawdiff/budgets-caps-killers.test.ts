@@ -237,6 +237,10 @@ describe("budget cap keys and judged comparisons", () => {
     expect(effectiveCapBytes("budgets.pages./home/", cfg)).toBe(9000);
   });
 
+  it("uses the island probe for astro page caps outside the pages map", () => {
+    expect(effectiveCapBytes("budgets.pages./probe/", config("", "astro-site"))).toBe(51_200);
+  });
+
   it("keeps page and route caps distinct for the same path", () => {
     const cfg = config(
       'budgets:\n  pages:\n    "/shared/": 77\n  routes:\n    "/shared/": 88\n',

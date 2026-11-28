@@ -12,6 +12,14 @@ function config(extra = "", className = "web-app"): WebTopsConfig {
 }
 
 describe("budget mutant killers", () => {
+  it("sorts route map keys for stable comparison", () => {
+    const values = budgetEntriesOf(
+      config('budgets:\n  routes:\n    "/z": 1\n    "/a": 2\n', "web-app"),
+    );
+    const routeKeys = [...values.keys()].filter((key) => key.startsWith("budgets.routes."));
+    expect(routeKeys).toEqual(["budgets.routes./a", "budgets.routes./z"]);
+  });
+
   it("sorts pages map keys for stable comparison", () => {
     const values = budgetEntriesOf(
       config('budgets:\n  pages:\n    "/z/": 1\n    "/a/": 2\n    "/m/": 3\n'),
