@@ -272,10 +272,11 @@ function ceilingEntries(config: WebTopsConfig): Map<string, Ranked> {
 }
 
 function pageBudgetEntries(config: WebTopsConfig): Map<string, Ranked> {
-  const pages = config.budgets?.pages;
-  const caps = pages ?? {};
+  const pageCaps = config.budgets?.pages ?? {};
   return new Map(
-    sortedKeys(pages).map((route) => [`budgets.pages.${route}`, capRank(caps[route])] as const),
+    sortedKeys(config.budgets?.pages).map(
+      (route) => [`budgets.pages.${route}`, capRank(pageCaps[route])] as const,
+    ),
   );
 }
 
