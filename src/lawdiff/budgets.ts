@@ -257,7 +257,10 @@ function addExplicitPageJs(config: WebTopsConfig, values: Map<string, Ranked>): 
 
 function addExplicitRouteJs(config: WebTopsConfig, values: Map<string, Ranked>): void {
   if (config.budgets?.route_js_bytes === undefined) return;
-  values.set("budgets.route_js_bytes", capRank(routeBudget(ROUTE_JS_ROOT, budgetsSettings(config))));
+  values.set(
+    "budgets.route_js_bytes",
+    capRank(routeBudget(ROUTE_JS_ROOT, budgetsSettings(config))),
+  );
 }
 
 function ceilingEntries(config: WebTopsConfig): Map<string, Ranked> {
@@ -380,10 +383,7 @@ function compareCapNumbers(before: number, after: number): Item["change"] {
   return "unchanged";
 }
 
-function comparePartialCaps(
-  before: number | undefined,
-  after: number | undefined,
-): Item["change"] {
+function comparePartialCaps(before: number | undefined, after: number | undefined): Item["change"] {
   if (before === undefined) return after === undefined ? "unchanged" : "strengthened";
   return after === undefined ? "weakened" : "unchanged";
 }
