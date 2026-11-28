@@ -32,11 +32,6 @@ export function stubLayer(
   };
 }
 
-/** Gate 6 and the laws layer: later milestones (WEB_TOPS.md section 19). */
-export const BUILD_OUTPUT_STUB = stubLayer("build-output", 6, 1, "M4");
-/** Laws run at the tier of the layer they read: hygiene is tier 1 (WEB_TOPS.md section 3.2). */
-export const LAWS_STUB = stubLayer("laws", "laws", 1, "M3", ["hygiene"]);
-
 /** A custom layer (WEB_TOPS.md section 7): unmapped is `not-run`, and running one is not built yet. */
 export function customLayer(id: string, tier: Tier, command: string | undefined): Layer {
   return {
