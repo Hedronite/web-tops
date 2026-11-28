@@ -4,7 +4,6 @@ import {
   ASTRO_ISLAND_JS_BYTES,
   ASTRO_STATIC_JS_BYTES,
   WEB_APP_ROUTE_JS_BYTES,
-  budgetForPage,
 } from "../layers/bytes/budgets.ts";
 import { budgetForEntry, DEFAULT_ENTRY_BYTES } from "../layers/size-limit/budgets.ts";
 import { routeBudget } from "../layers/route-bytes/measure.ts";
@@ -206,15 +205,20 @@ function ceilingEntries(config: WebTopsConfig): Map<string, Ranked> {
   return values;
 }
 
+function addPageMapEntries(
+  pages: Readonly<Record<string, number>>,
+  values: Map<string, Ranked>,
+): void {
+  for (const route of sortedKeys(pages)) {
+    const ceiling = pages[route];
+    if (ceiling !== undefined) values.set(`budgets.pages.${route}`, capRank(ceiling));
+  }
+}
+
 function pageBudgetEntries(config: WebTopsConfig): Map<string, Ranked> {
   const values = new Map<string, Ranked>();
-  const budgets = budgetsSettings(config);
-  for (const route of sortedKeys(config.budgets?.pages)) {
-    values.set(
-      `budgets.pages.${route}`,
-      capRank(budgetForPage(route, config.class, true, budgets)),
-    );
-  }
+  const pages = config.budgets?.pages;
+  if (pages !== undefined) addPageMapEntries(pages, values);
   return values;
 }
 
