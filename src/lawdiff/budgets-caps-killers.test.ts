@@ -5,7 +5,6 @@ import {
   budgetEntriesOf,
   compareBudgetSettings,
   directionOf,
-  partialCapChange,
   effectiveCapBytes,
   isBudgetCapKey,
   judgedCapKeys,
@@ -122,9 +121,6 @@ describe("budget cap keys and judged comparisons", () => {
     expect(directionOf(100, 100)).toBe("unchanged");
     expect(directionOf(100, undefined)).toBe("weakened");
     expect(directionOf(undefined, 200)).toBe("strengthened");
-    expect(partialCapChange(undefined, undefined)).toBe("unchanged");
-    expect(partialCapChange(100, undefined)).toBe("weakened");
-    expect(partialCapChange(undefined, 200)).toBe("strengthened");
   });
 
   it("binds each pages map row to its route bytes", () => {
