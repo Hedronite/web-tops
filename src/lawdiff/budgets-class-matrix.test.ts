@@ -76,6 +76,14 @@ describe("class-specific byte budget defaults", () => {
       true,
     );
   });
+
+  it("hides package class_js when size_limit default_bytes is set", () => {
+    expect(
+      budgetEntriesOf(
+        config("layers:\n  size_limit:\n    default_bytes: 1\n", "ui-components"),
+      ).has("budgets.class_js_ceiling"),
+    ).toBe(false);
+  });
 });
 
 describe("class changes at base and head", () => {

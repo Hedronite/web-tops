@@ -4,6 +4,7 @@ import type { WebTopsConfig } from "../config/types.ts";
 import {
   budgetEntriesOf,
   compareBudgetSettings,
+  effectiveCapBytes,
   isBudgetCapKey,
   judgedCapKeys,
 } from "./budgets.ts";
@@ -163,5 +164,50 @@ describe("budget cap keys and judged comparisons", () => {
       before: "800",
       after: "51200",
     });
+  });
+
+  it("adds a default dot entry only on package classes", () => {
+    const dotOnly = "layers:\n  size_limit:\n    default_bytes: 9000\n";
+    expect(budgetEntriesOf(config(dotOnly, "ts-library")).get("budgets.entries..")?.shown).toBe(
+      "9000",
+    );
+    expect(budgetEntriesOf(config(dotOnly, "node-service")).has("budgets.entries..")).toBe(false);
+  });
+
+  it("uses astro-site page_js ranking without the web-app branch", () => {
+    const cfg = config("budgets:\n  page_js_bytes: 99\n", "astro-site");
+    expect(budgetEntriesOf(cfg).get("budgets.page_js_bytes")?.shown).toBe("99");
+    expect(budgetEntriesOf(cfg).has("budgets.static_page_js_bytes")).toBe(true);
+  });
+
+  it("judged cap keys omit non-cap settings", () => {
+    const keys = judgedCapKeys(config("build:\n  dir: out\n", "web-app"), config("", "web-app"));
+    expect(keys).not.toContain("build.dir");
+    expect(keys).not.toContain("build.command");
+  });
+
+  it("sorts mixed cap and non-cap compare items lexicographically", () => {
+    const items = compareYaml(
+      'build:\n  command: "a"\n  dir: z\nbudgets:\n  page_js_bytes: 1000\n',
+      'build:\n  command: "b"\n  dir: y\nbudgets:\n  page_js_bytes: 2000\n',
+    );
+    expect(items.map((item) => item.what)).toEqual([
+      "budgets.page_js_bytes",
+      "build.command",
+      "build.dir",
+    ]);
+  });
+
+  it("measures route_js_bytes at the slash route", () => {
+    const cfg = config('budgets:\n  route_js_bytes: 77\n  routes:\n    "/api": 5000\n', "web-app");
+    expect(effectiveCapBytes("budgets.route_js_bytes", cfg)).toBe(77);
+  });
+
+  it("reads per-route ceilings from the routes map", () => {
+    const cfg = config('budgets:\n  routes:\n    "/api": 5000\n', "web-app");
+    expect(effectiveCapBytes("budgets.routes./api", cfg)).toBe(5000);
+    expect([...budgetEntriesOf(cfg).keys()].some((key) => key.startsWith("budgets.pages."))).toBe(
+      false,
+    );
   });
 });
