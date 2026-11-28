@@ -26,9 +26,6 @@ const capRank = (bytes: number): Ranked => ({ shown: String(bytes), rank: -bytes
 const sortedKeys = (record: Readonly<Record<string, number>> | undefined): string[] =>
   record === undefined ? [] : [...Object.keys(record)].sort();
 
-const unionSorted = (left: readonly string[], right: readonly string[]): string[] =>
-  [...new Set([...left, ...right])].sort();
-
 type RawBudget = NonNullable<WebTopsConfig["budgets"]>;
 
 const BUDGET_NUMBER_FIELDS: readonly (readonly [keyof BudgetsSettings, keyof RawBudget])[] = [
@@ -159,7 +156,7 @@ function needsDefaultDot(config: WebTopsConfig, keys: Set<string>): boolean {
   return isPackageClass(config.class);
 }
 
-/** Export keys used for size-limit entry comparison (unioned across refs in `judgedCapKeys`). */
+/** Export keys used for size-limit entry budgets in `budgetEntriesOf`. */
 export function entryKeysFor(config: WebTopsConfig): readonly string[] {
   const keys = new Set(packageEntryKeys(config));
   if (needsDefaultDot(config, keys)) keys.add(".");
@@ -335,28 +332,20 @@ function namedCapBytes(key: string, config: WebTopsConfig): number | undefined {
   return read === undefined ? undefined : read(config);
 }
 
-function pageCapFromKey(key: string, config: WebTopsConfig): number | undefined {
-  if (!key.startsWith("budgets.pages.")) return undefined;
-  const route = key.slice("budgets.pages.".length);
-  return budgetForPage(route, config.class, true, budgetsSettings(config));
-}
-
-function routeCapFromKey(key: string, config: WebTopsConfig): number | undefined {
-  if (!key.startsWith("budgets.routes.")) return undefined;
-  const route = key.slice("budgets.routes.".length);
-  return routeBudget(route, budgetsSettings(config));
-}
-
-function entryCapFromKey(key: string, config: WebTopsConfig): number | undefined {
-  if (!key.startsWith("budgets.entries.")) return undefined;
-  const entry = key.slice("budgets.entries.".length);
-  return budgetForEntry(entry, sizeLimitLayer(config));
-}
-
 function mapCapBytes(key: string, config: WebTopsConfig): number | undefined {
-  return (
-    pageCapFromKey(key, config) ?? routeCapFromKey(key, config) ?? entryCapFromKey(key, config)
-  );
+  if (key.startsWith("budgets.pages.")) {
+    const route = key.slice("budgets.pages.".length);
+    return budgetForPage(route, config.class, true, budgetsSettings(config));
+  }
+  if (key.startsWith("budgets.routes.")) {
+    const route = key.slice("budgets.routes.".length);
+    return routeBudget(route, budgetsSettings(config));
+  }
+  if (key.startsWith("budgets.entries.")) {
+    const entry = key.slice("budgets.entries.".length);
+    return budgetForEntry(entry, sizeLimitLayer(config));
+  }
+  return undefined;
 }
 
 /** Gate-effective byte ceiling for one judged settings key at a ref. */
@@ -370,42 +359,11 @@ function addCapKeysFromEntries(keys: Set<string>, config: WebTopsConfig): void {
   }
 }
 
-function addPrefixedKeys(keys: Set<string>, prefix: string, names: readonly string[]): void {
-  for (const name of names) keys.add(`${prefix}${name}`);
-}
-
-function addPageCapKeys(keys: Set<string>, base: WebTopsConfig, head: WebTopsConfig): void {
-  addPrefixedKeys(
-    keys,
-    "budgets.pages.",
-    unionSorted(sortedKeys(base.budgets?.pages), sortedKeys(head.budgets?.pages)),
-  );
-}
-
-function addRouteCapKeys(keys: Set<string>, base: WebTopsConfig, head: WebTopsConfig): void {
-  addPrefixedKeys(
-    keys,
-    "budgets.routes.",
-    unionSorted(sortedKeys(base.budgets?.routes), sortedKeys(head.budgets?.routes)),
-  );
-}
-
-function addEntryCapKeys(keys: Set<string>, base: WebTopsConfig, head: WebTopsConfig): void {
-  addPrefixedKeys(keys, "budgets.entries.", unionSorted(entryKeysFor(base), entryKeysFor(head)));
-}
-
-function addUnionMapCaps(keys: Set<string>, base: WebTopsConfig, head: WebTopsConfig): void {
-  addPageCapKeys(keys, base, head);
-  addRouteCapKeys(keys, base, head);
-  addEntryCapKeys(keys, base, head);
-}
-
 /** Every byte-cap settings key that should be compared across two refs. */
 export function judgedCapKeys(base: WebTopsConfig, head: WebTopsConfig): string[] {
   const keys = new Set<string>();
   addCapKeysFromEntries(keys, base);
   addCapKeysFromEntries(keys, head);
-  addUnionMapCaps(keys, base, head);
   return [...keys].sort();
 }
 
