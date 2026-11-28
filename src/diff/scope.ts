@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { realExec } from "../gate/exec.ts";
 import type { Exec } from "../gate/types.ts";
@@ -10,9 +10,9 @@ import {
   type CoverageRun,
 } from "./coverage.ts";
 import { functionsIn, innermostAt } from "./functions.ts";
-import { diffText, mergeBaseOf, showAt } from "./git.ts";
+import { ownsTrackedConfig } from "./examples.ts";
+import { diffText, mergeBaseOf, showAt, trackedExamples } from "./git.ts";
 import { parseDiff } from "./parse.ts";
-import type { OwnsConfig } from "./parse.ts";
 import type {
   ChangedFile,
   CoverageMap,
@@ -64,12 +64,6 @@ export const isTestFile = (path: string): boolean =>
   /\.(test|spec)\.[cm]?tsx?$|(^|\/)__tests__\//.test(path) && hasScriptExtension(path);
 export const isSourceFile = (path: string): boolean =>
   hasScriptExtension(path) && !isDeclaration(path) && !isTestFile(path);
-
-/** An example folder is a project that gates itself when it holds its own `web-tops.yaml`. */
-export const ownsConfigAt =
-  (cwd: string): OwnsConfig =>
-  (folder) =>
-    existsSync(join(cwd, folder, "web-tops.yaml"));
 
 function readerFor(cwd: string): Reader {
   return (path) => {
@@ -389,6 +383,20 @@ async function assemble(
     : { outcome: "scope", scope };
 }
 
+type Changed =
+  | { readonly ok: true; readonly files: readonly ChangedFile[] }
+  | { readonly ok: false; readonly reason: string };
+
+/** The files changed since the merge base, without those of an example that gates itself. */
+async function changedSince(exec: Exec, cwd: string, mergeBase: string): Promise<Changed> {
+  const text = await diffText(exec, cwd, mergeBase);
+  if (!text.ok) return text;
+  const tracked = await trackedExamples(exec, cwd);
+  if (!tracked.ok) return tracked;
+  const owns = ownsTrackedConfig(new Set(tracked.value.split("\0")));
+  return { ok: true, files: parseDiff(text.value, owns) };
+}
+
 /**
  * The diff of this run against the merge base of HEAD and `base` (WEB_TOPS.md section 6.4): the changed
  * source lines and the functions they fall in, and the functions every changed test file covers. A shallow
@@ -399,7 +407,7 @@ export async function diffScope(options: ScopeOptions): Promise<ScopeResult> {
   const exec = options.exec ?? realExec;
   const base = await mergeBaseOf(exec, options.cwd, options.base);
   if (!base.ok) return { outcome: "fail", reason: base.reason };
-  const text = await diffText(exec, options.cwd, base.value);
-  if (!text.ok) return { outcome: "fail", reason: text.reason };
-  return assemble(options, exec, base.value, parseDiff(text.value, ownsConfigAt(options.cwd)));
+  const changed = await changedSince(exec, options.cwd, base.value);
+  if (!changed.ok) return { outcome: "fail", reason: changed.reason };
+  return assemble(options, exec, base.value, changed.files);
 }

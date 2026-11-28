@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The protocol version and th
 
 ## [Unreleased]
 
+- `law-diff` compares effective byte budgets from `web-tops.yaml` (`budgets.*` ceilings and maps, `layers.size_limit`, and declared `routes`); loosening a ceiling without the `protocol-change` label fails the command.
+- The diff and W-04's compiler file set now share one rule for an example that gates itself: `examples/<name>/` whose own `web-tops.yaml` is tracked. W-04 no longer refuses such a project's files, and its reading names each one left out. An untracked `web-tops.yaml` exempts nothing, in the diff too (§6.4, §6.5). (M4)
+
 Build output, milestone M4. The gate runs it for the classes that map it.
 
 - Two examples of the browser classes, each with its own pinned package and lock: `examples/astro-site` (static pages with Tailwind CSS 4 and no page JavaScript) and `examples/web-app` (a client-routed app with one lazy chunk for each view). Both pass at `hard` with build output and the laws layer on, in the new `web-tops-examples` workflow, which also shows four planted defects red: invalid HTML (W-20), a broken link (the `links` rule; no law covers links), page JavaScript over budget (W-29), and low-contrast text with small targets (W-21, W-44). (M4 G8)

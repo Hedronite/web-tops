@@ -54,6 +54,11 @@ export function diffText(exec: Exec, cwd: string, mergeBase: string): Promise<Gi
   return runGit(exec, cwd, args);
 }
 
+/** The tracked files under `examples/`, NUL separated: by them an example is known to gate itself. */
+export function trackedExamples(exec: Exec, cwd: string): Promise<GitResult> {
+  return runGit(exec, cwd, ["ls-files", "-z", "--", "examples"]);
+}
+
 /** A file as it was at `ref`, or the reason it has none there (a file that was added, for one). */
 export function showAt(exec: Exec, cwd: string, ref: string, path: string): Promise<GitResult> {
   return runGit(exec, cwd, ["show", `${ref}:${path}`]);

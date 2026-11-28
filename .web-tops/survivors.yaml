@@ -254,6 +254,99 @@ survivors:
       unreadable or invalid package.json and a missing one both leave doc
       undefined."
     owner: web-platform
+  - file: src/lawdiff/budgets.ts
+    function: src/lawdiff/budgets.ts::budgetEntriesOf
+    mutator: ConditionalExpression
+    original: "!hasBudgetSurface(config)"
+    replacement: "false"
+    occurrence: 1
+    reason: A bare node-service head emits the same keys whether the budget merge
+      short-circuits or not.
+    owner: web-platform
+  - file: src/lawdiff/budgets.ts
+    function: src/lawdiff/budgets.ts::budgetMaps
+    mutator: ConditionalExpression
+    original: "raw.pages === undefined"
+    replacement: "false"
+    occurrence: 1
+    reason: Omitting budgets.pages versus spreading pages undefined does not change
+      ranked law-diff entries.
+    owner: web-platform
+  - file: src/lawdiff/budgets.ts
+    function: src/lawdiff/budgets.ts::budgetMaps
+    mutator: ConditionalExpression
+    original: "raw.routes === undefined"
+    replacement: "false"
+    occurrence: 1
+    reason: Omitting budgets.routes versus spreading routes undefined does not
+      change ranked law-diff entries.
+    owner: web-platform
+  - file: src/lawdiff/budgets.ts
+    function: src/lawdiff/budgets.ts::budgetsSettings
+    mutator: ConditionalExpression
+    original: "typeof value === \"number\""
+    replacement: "true"
+    occurrence: 1
+    reason: parseConfig rejects non-integer budget scalars before budgetsSettings runs.
+    owner: web-platform
+  - file: src/lawdiff/budgets.ts
+    function: src/lawdiff/budgets.ts::emptyEntryKeys
+    mutator: ConditionalExpression
+    original: "keys.size === 0"
+    replacement: "true"
+    occurrence: 1
+    reason: Package-class fixtures rank the same dot entry whether emptyEntryKeys is
+      inlined or not.
+    owner: web-platform
+  - file: src/lawdiff/budgets.ts
+    function: src/lawdiff/budgets.ts::hasBudgetSurface
+    mutator: ConditionalExpression
+    original: "config.budgets !== undefined"
+    replacement: "true"
+    occurrence: 1
+    reason: Configs without a budgets block still rank the same on classes the tests
+      exercise.
+    owner: web-platform
+  - file: src/lawdiff/budgets.ts
+    function: src/lawdiff/budgets.ts::hasBudgetSurface
+    mutator: ConditionalExpression
+    original: "config.layers?.size_limit !== undefined"
+    replacement: "true"
+    occurrence: 1
+    reason: Configs without a size_limit layer still rank the same on classes the
+      tests exercise.
+    owner: web-platform
+  - file: src/lawdiff/budgets.ts
+    function: src/lawdiff/budgets.ts::needsDefaultDot
+    mutator: ConditionalExpression
+    original: "!emptyEntryKeys(keys)"
+    replacement: "false"
+    occurrence: 1
+    reason: needsDefaultDot runs only on exercised package-class shapes that already
+      assert the dot entry.
+    owner: web-platform
+  - file: src/lawdiff/budgets.ts
+    function: src/lawdiff/budgets.ts::sizeLimitFrom
+    mutator: BlockStatement
+    original: "{
+
+      \    return defaultBytes === undefined ? {} : { defaultBytes };
+
+      \  }"
+    replacement: "{}"
+    occurrence: 1
+    reason: When entryNames is empty, sizeLimitFrom falls through to the same
+      defaultBytes return.
+    owner: web-platform
+  - file: src/lawdiff/budgets.ts
+    function: src/lawdiff/budgets.ts::sizeLimitLayer
+    mutator: ConditionalExpression
+    original: "entryNames.length === 0 && defaultBytes === undefined"
+    replacement: "false"
+    occurrence: 1
+    reason: With no merged entries and no default_bytes, law-diff emits no
+      entry-budget rows either way.
+    owner: web-platform
   - file: src/layers/hygiene/package.ts
     function: src/layers/hygiene/package.ts::<module>
     mutator: Regex

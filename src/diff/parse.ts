@@ -1,3 +1,4 @@
+import { selfGatedExample, type OwnsConfig } from "./examples.ts";
 import type { ChangedFile, ChangeStatus, LineRange } from "./types.ts";
 
 interface Mutable {
@@ -50,16 +51,9 @@ function statusOf(oldPath: string | null | undefined, newPath: string | null): C
  */
 const DATA_TREE = /^(?:fixtures|probes)\//;
 
-/** The folder of an example project: `examples/<name>`, for a file under `examples/<name>/`. */
-const EXAMPLE = /^(examples\/[^/]+)\//;
-
-/** Whether a folder (`examples/<name>`) holds its own `web-tops.yaml`, so it is a project that gates itself. */
-export type OwnsConfig = (folder: string) => boolean;
-
 /** True for a file the diff leaves out: one in a data tree, or in an example that gates itself. */
 function isData(path: string, owns: OwnsConfig): boolean {
-  const example = EXAMPLE.exec(path)?.[1];
-  return DATA_TREE.test(path) || (example !== undefined && owns(example));
+  return DATA_TREE.test(path) || selfGatedExample(path, owns) !== undefined;
 }
 
 /** Makes the file current, and lists it, unless it is left out: its hunks then belong to no file. */
