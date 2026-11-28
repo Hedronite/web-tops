@@ -24,7 +24,7 @@ disabled:
   stylelint: "not mapped for class: a TypeScript library has no CSS"
   crap: "milestone M2: native CRAP lands in M2"
   mutation: "milestone M2: mutation testing lands in M2"
-  size_limit: "milestone M4: build-output layers land in M4"
+  size_limit: "not set up by `webtops init`: it installs no size-limit and sets no byte budget"
   html_validate: "not mapped for class: a TypeScript library has no HTML output"
   axe: "not mapped for class: a TypeScript library has no pages"
   rendered: "not mapped for class: a TypeScript library has no pages"

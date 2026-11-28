@@ -58,7 +58,7 @@ const DISABLED: Record<Class, Record<string, string>> = {
     stylelint: NO_CSS,
     crap: "M2",
     mutation: "M2",
-    size_limit: "M4",
+    size_limit: "setup",
     html_validate: "class",
     axe: "class",
     rendered: "class",
@@ -68,9 +68,9 @@ const DISABLED: Record<Class, Record<string, string>> = {
   "ui-components": {
     crap: "M2",
     mutation: "M2",
-    size_limit: "M4",
-    html_validate: "M4",
-    axe: "M4",
+    size_limit: "setup",
+    html_validate: "deferred",
+    axe: "deferred",
     rendered: "class",
     themes: "class",
     laws: "M3",
@@ -80,10 +80,10 @@ const DISABLED: Record<Class, Record<string, string>> = {
     mutation: "M2",
     package_exports: "class",
     size_limit: "class",
-    html_validate: "M4",
-    axe: "M4",
-    rendered: "M4",
-    themes: "M4",
+    html_validate: "setup",
+    axe: "setup",
+    rendered: "unbuilt",
+    themes: "unbuilt",
     laws: "M3",
   },
   "web-app": {
@@ -91,10 +91,10 @@ const DISABLED: Record<Class, Record<string, string>> = {
     mutation: "M2",
     package_exports: "class",
     size_limit: "class",
-    html_validate: "M4",
-    axe: "M4",
-    rendered: "M4",
-    themes: "M4",
+    html_validate: "setup",
+    axe: "setup",
+    rendered: "unbuilt",
+    themes: "unbuilt",
     laws: "M3",
   },
   "node-service": {
@@ -109,6 +109,14 @@ const DISABLED: Record<Class, Record<string, string>> = {
     themes: "class",
     laws: "M3",
   },
+};
+
+/** What a disabled layer's reason says: the kind of why, or else the milestone that has yet to build it. */
+const WHY: Readonly<Record<string, RegExp>> = {
+  class: /^not mapped for class: \S/,
+  setup: /^not set up by `webtops init`: \S/,
+  deferred: /^ui-components fixture pages are deferred/,
+  unbuilt: /^not built yet: \S/,
 };
 
 const FILES = [
@@ -256,9 +264,7 @@ describe.each(CLASSES)("webtops init --class %s", (className) => {
         continue;
       }
       expect(at(node, "enabled"), layer).toBe(false);
-      expect(at(node, "reason"), layer).toMatch(
-        why === "class" ? /^not mapped for class: \S/ : new RegExp(`^milestone ${why}: \\S`),
-      );
+      expect(at(node, "reason"), layer).toMatch(WHY[why] ?? new RegExp(`^milestone ${why}: \\S`));
     }
   });
 

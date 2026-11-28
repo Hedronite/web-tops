@@ -150,8 +150,8 @@ function switched(profile: DropIn, key: string): { enabled?: false; reason?: str
 
 const HEADER =
   "# Written by `webtops init` (WEB_TOPS.md sections 4 and 9). Under `hard`, only crap, mutation, build\n" +
-  "# output and laws may be off for a class that maps them: they are `enabled: false` with the milestone\n" +
-  "# that adds them. A layer the class does not map is off with the class as the reason.\n";
+  "# output and laws may be off for a class that maps them: they are `enabled: false` with a reason that\n" +
+  "# says why. A layer the class does not map is off with the class as the reason.\n";
 
 /** Whether `astro check` runs for this project, and the reason it is written off when it does not. */
 export interface AstroCheck {

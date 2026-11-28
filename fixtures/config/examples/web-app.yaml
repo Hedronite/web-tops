@@ -63,19 +63,19 @@ layers:
     reason: "not mapped for class: an app publishes no package exports"
   html_validate:
     enabled: false
-    reason: "milestone M4: build-output layers land in M4"
+    reason: "not set up by `webtops init`: it writes no `build` and installs no html-validate"
   axe:
     enabled: false
-    reason: "milestone M4: build-output layers land in M4"
+    reason: "not set up by `webtops init`: it writes no `build` and installs no @axe-core/playwright"
   rendered:
     enabled: false
-    reason: "milestone M4: rendered checks land in M4"
+    reason: "not built yet: there is no reader for rendered checks"
     routes: ["/"]
     widths: [1280, 320]
     reduced_motion: true
   themes:
     enabled: false
-    reason: "milestone M4: the theme reader lands in M4"
+    reason: "not built yet: there is no theme reader"
     switch: { mechanism: attribute, name: data-theme }
     schemes: [light, dark]
     tokens: ["--color-bg", "--color-fg"]

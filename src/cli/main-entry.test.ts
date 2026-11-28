@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import { BUILD_OUTPUT_STUB, LAWS_STUB } from "../gate/stubs.ts";
 import { writeKitConfig } from "../layers/tests/index.ts";
 import type { Io } from "./io.ts";
 import { main, run } from "./main.ts";
@@ -51,22 +50,6 @@ describe("run with no command", () => {
     const { io, err } = capture();
     expect(run([], io)).toBe(2);
     expect(err()).toBe(USAGE);
-  });
-});
-
-describe("the layers that are not built yet", () => {
-  it.each([
-    ["build-output", BUILD_OUTPUT_STUB],
-    ["laws", LAWS_STUB],
-  ])("%s produces and consumes nothing", (id, stub) => {
-    expect(stub.id).toBe(id);
-    expect(stub.produces).toEqual([]);
-    expect(stub.consumes).toEqual([]);
-  });
-
-  it("require nothing unless they say so: laws waits for hygiene", () => {
-    expect(BUILD_OUTPUT_STUB.requires).toEqual([]);
-    expect(LAWS_STUB.requires).toEqual(["hygiene"]);
   });
 });
 

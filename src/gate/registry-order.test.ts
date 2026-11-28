@@ -61,7 +61,7 @@ describe("a custom layer is a gate 6 layer that is not run yet", () => {
     const results = [await mapped.run(ctx), await customLayer("bare", 1, undefined).run(ctx)];
     expect(results.map((result) => result.verdict)).toEqual(["not-run", "not-run"]);
     expect(results.map((result) => result.reason)).toEqual([
-      "custom layers run from M4",
+      "custom layers are not run yet",
       "no command is mapped to this layer",
     ]);
     expect(results.map((result) => result.findings)).toEqual([[], []]);

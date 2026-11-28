@@ -52,11 +52,12 @@ describe("G10a: section 17 matches the tree", () => {
     for (const name of real) expect(top, name).toContain(name);
   });
 
-  it("says what is not in the tree yet, and none of those paths exists", () => {
+  it("says where the byte readers are, in directories that exist, and lists nothing as still to come", () => {
     const paragraph =
-      section.split("\n").find((line) => line.startsWith("Not yet in the tree")) ?? "";
-    const paths = [...paragraph.matchAll(/`([^`]+\/)`/g)].map((match) => match[1] ?? "");
-    expect(paths).toEqual(expect.arrayContaining(["src/budgets/"]));
-    for (const path of paths) expect(existsSync(join(root, path)), path).toBe(false);
+      section.split("\n").find((line) => line.startsWith("The `dist/` byte readers")) ?? "";
+    const paths = [...paragraph.matchAll(/`(src\/[^`]+\/)`/g)].map((match) => match[1] ?? "");
+    expect(paths).toEqual(["src/layers/bytes/", "src/layers/route-bytes/"]);
+    for (const path of paths) expect(existsSync(join(root, path)), path).toBe(true);
+    expect(section).not.toContain("Not yet in the tree");
   });
 });

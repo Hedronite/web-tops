@@ -49,7 +49,7 @@ layers:
   size_limit:
     tier: 1
     enabled: false
-    reason: "milestone M4: build-output layers land in M4"
+    reason: "not set up by `webtops init`: it installs no size-limit and sets no byte budget"
   package_exports:
     tier: 1
   html_validate:

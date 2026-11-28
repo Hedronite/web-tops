@@ -1,6 +1,6 @@
 # Written by `webtops init` (WEB_TOPS.md sections 4 and 9). Under `hard`, only crap, mutation, build
-# output and laws may be off for a class that maps them: they are `enabled: false` with the milestone
-# that adds them. A layer the class does not map is off with the class as the reason.
+# output and laws may be off for a class that maps them: they are `enabled: false` with a reason that
+# says why. A layer the class does not map is off with the class as the reason.
 protocol: <protocol>
 version: 1.2.3
 package: demo
@@ -46,15 +46,15 @@ layers:
   size_limit:
     tier: 1
     enabled: false
-    reason: "milestone M4: build-output layers land in M4"
+    reason: "not set up by `webtops init`: it installs no size-limit and sets no byte budget"
   package_exports:
     tier: 1
   html_validate:
     enabled: false
-    reason: "milestone M4: build-output layers land in M4"
+    reason: ui-components fixture pages are deferred, so there is no page to judge
   axe:
     enabled: false
-    reason: "milestone M4: build-output layers land in M4"
+    reason: ui-components fixture pages are deferred, so there is no page to judge
   rendered:
     enabled: false
     reason: "not mapped for class: components are judged on fixture pages, not routes"

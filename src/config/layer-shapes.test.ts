@@ -23,7 +23,7 @@ describe("G3c: layers.rendered and layers.themes have reserved shapes", () => {
     );
   });
 
-  it("changes nothing the gate runs: the shapes are validated and unused until M4 and M5", () => {
+  it("changes nothing the gate runs: the shapes are validated and unused until M5", () => {
     const head = 'protocol: "0.3.0"\nversion: "1"\npackage: p\nclass: astro-site\nenforce: hard\n';
     const bare = parseConfig(head);
     const shaped = loadConfig(fixture("valid/rendered-themes.yaml"));

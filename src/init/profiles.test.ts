@@ -33,9 +33,12 @@ describe("drop-in profiles agree with the class table", () => {
       }
     });
 
-    it("gives a layer the class maps but M1 leaves off a milestone reason", () => {
+    it("says why a layer the class maps is left off, and never that a landed milestone will add it", () => {
+      const why =
+        /^(not set up by `webtops init`: |not built yet: |ui-components fixture pages are deferred)/;
       for (const key of LAYER_KEYS.filter((layer) => table.layers.includes(layer))) {
-        expect(profile.disabled[key] ?? "milestone M2: none", key).toMatch(/^milestone M[234]: /);
+        expect(profile.disabled[key] ?? "not built yet: on", key).toMatch(why);
+        expect(profile.disabled[key] ?? "", key).not.toMatch(/\bM4\b/);
       }
     });
 
