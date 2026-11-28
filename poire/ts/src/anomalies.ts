@@ -53,13 +53,19 @@ export function slowSamples(
 }
 
 function classify(row: RawSample, thresholdMs: number): Sample | "invalid" | "fast" {
-  const tenant = row.tenant ?? "";
-  if (tenant === "" || !Number.isFinite(row.ms)) {
+  const tenant = tenantOf(row);
+  if (tenant === undefined) {
     return "invalid";
   }
   return row.ms < thresholdMs
     ? "fast"
     : { tenantId: tenant, latencyMs: row.ms, errorCode: row.err };
+}
+
+/** The tenant of a row that can be judged: one with a tenant and a finite time. */
+function tenantOf(row: RawSample): string | undefined {
+  const tenant = row.tenant ?? "";
+  return tenant === "" || !Number.isFinite(row.ms) ? undefined : tenant;
 }
 
 /** Indexes samples by tenant, building one map in place: linear, not one copy per row. */

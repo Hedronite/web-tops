@@ -5,4 +5,6 @@ import { eslintPreset } from "web-tops/eslint";
 export default [
   { ignores: ["fixtures/**"] },
   ...(await eslintPreset({ variant: "base", tsconfigRootDir: import.meta.dirname })),
+  // The kit's own cap on cyclomatic complexity, so linting here is no looser than at the root.
+  { rules: { complexity: ["error", 4] } },
 ];

@@ -12,6 +12,7 @@ export default [
     rules: {
       "@typescript-eslint/method-signature-style": ["error", "property"],
       "no-await-in-loop": "error",
+      complexity: ["error", 4],
     },
   },
 ];

@@ -3,7 +3,7 @@
 // the compiler judges erasable.ts under the kit's strict tsconfig.
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { ESLint } from "eslint";
+import { ESLint, type Linter } from "eslint";
 import ts from "typescript";
 import { expect, it } from "vitest";
 
@@ -15,16 +15,27 @@ function add(findings: Findings, line: number, id: string): void {
   findings.set(line, [...(findings.get(line) ?? []), id]);
 }
 
+// `// want ids` marks its own line. `// want-below ids`, alone on a line, marks the next one,
+// for constructs where the formatter would move an end-of-line comment.
+const MARKER = /\/\/ want(-below)? (.+)$/u;
+
+function markerAt(text: string, index: number): { line: number; ids: string[] } | undefined {
+  const marker = MARKER.exec(text);
+  if (marker === null) {
+    return undefined;
+  }
+  return {
+    line: marker[1] === undefined ? index + 1 : index + 2,
+    ids: (marker[2] ?? "").trim().split(/\s+/u),
+  };
+}
+
 async function markers(file: string): Promise<Findings> {
   const want: Findings = new Map();
   const lines = (await readFile(path.join(dir, file), "utf8")).split("\n");
-  // `// want ids` marks its own line. `// want-below ids`, alone on a line, marks the next one,
-  // for constructs where the formatter would move an end-of-line comment.
-  for (const [index, line] of lines.entries()) {
-    const marker = /\/\/ want(-below)? (.+)$/.exec(line);
-    const target = marker?.[1] === undefined ? index + 1 : index + 2;
-    for (const id of marker?.[2]?.trim().split(/\s+/) ?? []) {
-      add(want, target, id);
+  for (const { line, ids } of lines.map(markerAt).filter((marker) => marker !== undefined)) {
+    for (const id of ids) {
+      add(want, line, id);
     }
   }
   return want;
@@ -44,16 +55,15 @@ async function compare(file: string, got: Findings): Promise<string[]> {
   return [...missing(want, got, "did not fire:"), ...missing(got, want, "unmarked:")];
 }
 
-it("every lint counter-example trips its rule, and nothing else fires", async () => {
-  const [result] = await new ESLint({ cwd: dir }).lintFiles(["counter.ts"]);
+function lintFindings(messages: readonly Linter.LintMessage[]): Findings {
   const got: Findings = new Map();
-  for (const message of result?.messages ?? []) {
+  for (const message of messages) {
     add(got, message.line, message.ruleId ?? "(fatal)");
   }
-  expect(await compare("counter.ts", got)).toEqual([]);
-}, 60_000);
+  return got;
+}
 
-it("every compiler counter-example is refused by the strict tsconfig", async () => {
+function strictProgram(): ts.Program {
   const config = ts.getParsedCommandLineOfConfigFile(
     path.join(dir, "tsconfig.json"),
     {},
@@ -64,17 +74,32 @@ it("every compiler counter-example is refused by the strict tsconfig", async () 
       },
     },
   );
-  expect(config?.errors).toEqual([]);
-  const program = ts.createProgram({
-    rootNames: config?.fileNames ?? [],
-    options: config?.options ?? {},
-  });
-  const file = program.getSourceFile(path.join(dir, "erasable.ts"));
-  expect(file).toBeDefined();
+  if (config === undefined) {
+    throw new Error("fixtures/lint/tsconfig.json did not parse");
+  }
+  expect(config.errors).toEqual([]);
+  return ts.createProgram({ rootNames: config.fileNames, options: config.options });
+}
+
+function compilerFindings(program: ts.Program, file: ts.SourceFile): Findings {
   const got: Findings = new Map();
   for (const diagnostic of ts.getPreEmitDiagnostics(program, file)) {
-    const line = file?.getLineAndCharacterOfPosition(diagnostic.start ?? 0).line ?? -1;
+    const { line } = file.getLineAndCharacterOfPosition(diagnostic.start ?? 0);
     add(got, line + 1, `TS${String(diagnostic.code)}`);
   }
-  expect(await compare("erasable.ts", got)).toEqual([]);
+  return got;
+}
+
+it("every lint counter-example trips its rule, and nothing else fires", async () => {
+  const [result] = await new ESLint({ cwd: dir }).lintFiles(["counter.ts"]);
+  expect(await compare("counter.ts", lintFindings(result?.messages ?? []))).toEqual([]);
+}, 60_000);
+
+it("every compiler counter-example is refused by the strict tsconfig", async () => {
+  const program = strictProgram();
+  const file = program.getSourceFile(path.join(dir, "erasable.ts"));
+  if (file === undefined) {
+    throw new Error("erasable.ts is not in the fixture project");
+  }
+  expect(await compare("erasable.ts", compilerFindings(program, file))).toEqual([]);
 }, 60_000);

@@ -60,7 +60,7 @@ async function decode<T>(
   if (!response.ok) {
     return err({ kind: "status", status: response.status });
   }
-  const text = await readLimited(response.body ?? [], maxBytes);
+  const text = await readLimited(response.body, maxBytes);
   if (text === undefined) {
     return err({ kind: "too-large", maxBytes });
   }
@@ -90,13 +90,13 @@ function check<T>(raw: unknown, schema: z.ZodType<T>): Result<T, FetchError> {
  * `Response.body` as `ReadableStream` with no element type, which makes every chunk `any`.
  */
 export async function readLimited(
-  body: AsyncIterable<unknown> | Iterable<unknown>,
+  body: AsyncIterable<unknown> | Iterable<unknown> | null,
   maxBytes: number,
 ): Promise<string | undefined> {
   const decoder = new TextDecoder();
   const parts: string[] = [];
   let size = 0;
-  for await (const chunk of body) {
+  for await (const chunk of body ?? []) {
     const bytes = asBytes(chunk);
     size += bytes.byteLength;
     if (size > maxBytes) {
