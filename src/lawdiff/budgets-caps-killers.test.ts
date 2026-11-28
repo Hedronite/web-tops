@@ -210,4 +210,21 @@ describe("budget cap keys and judged comparisons", () => {
       false,
     );
   });
+
+  it("reads per-page ceilings from the pages map", () => {
+    const cfg = config('budgets:\n  pages:\n    "/home/": 9000\n', "astro-site");
+    expect(effectiveCapBytes("budgets.pages./home/", cfg)).toBe(9000);
+  });
+
+  it("omits page rows when budgets.pages is absent, not merely empty", () => {
+    const absent = budgetEntriesOf(config("", "web-app"));
+    const empty = budgetEntriesOf(config("budgets:\n  pages: {}\n", "web-app"));
+    expect([...absent.keys()].some((key) => key.startsWith("budgets.pages."))).toBe(false);
+    expect([...empty.keys()].some((key) => key.startsWith("budgets.pages."))).toBe(false);
+  });
+
+  it("surfaces explicit route_js_bytes on ts-library", () => {
+    const cfg = config("budgets:\n  route_js_bytes: 4444\n", "ts-library");
+    expect(budgetEntriesOf(cfg).get("budgets.route_js_bytes")?.shown).toBe("4444");
+  });
 });

@@ -20,6 +20,7 @@ const BUDGET_CLASSES: readonly ClassName[] = [
 ];
 
 const CLASS_JS_KEY = "budgets.class_js_ceiling";
+const ROUTE_JS_ROOT = "/";
 
 const capRank = (bytes: number): Ranked => ({ shown: String(bytes), rank: -bytes });
 
@@ -82,11 +83,15 @@ function libraryPageJs(budgets: BudgetsSettings): number {
   return budgets.pageJsBytes ?? DEFAULT_ENTRY_BYTES;
 }
 
+const pageJsForClass: Partial<Record<ClassName, (budgets: BudgetsSettings) => number>> = {
+  "web-app": webAppPageJs,
+  "astro-site": astroPageJs,
+};
+
 function effectivePageJs(config: WebTopsConfig): number {
   const budgets = budgetsSettings(config);
-  if (config.class === "web-app") return webAppPageJs(budgets);
-  if (config.class === "astro-site") return astroPageJs(budgets);
-  return libraryPageJs(budgets);
+  const pick = pageJsForClass[config.class];
+  return pick === undefined ? libraryPageJs(budgets) : pick(budgets);
 }
 
 function effectiveStaticPageJs(config: WebTopsConfig): number {
@@ -201,11 +206,14 @@ function packageClassJs(config: WebTopsConfig): number {
   return effectiveDefaultEntry(config);
 }
 
+const classJsForClass: Partial<Record<ClassName, (config: WebTopsConfig) => number>> = {
+  "web-app": (cfg) => webAppPageJs(budgetsSettings(cfg)),
+  "astro-site": (cfg) => astroPageJs(budgetsSettings(cfg)),
+};
+
 function classJsForBudgetedClass(config: WebTopsConfig): number {
-  const budgets = budgetsSettings(config);
-  if (config.class === "web-app") return webAppPageJs(budgets);
-  if (config.class === "astro-site") return astroPageJs(budgets);
-  return packageClassJs(config);
+  const pick = classJsForClass[config.class];
+  return pick === undefined ? packageClassJs(config) : pick(config);
 }
 
 function classJsCeiling(config: WebTopsConfig): number | undefined {
@@ -249,7 +257,10 @@ function addExplicitPageJs(config: WebTopsConfig, values: Map<string, Ranked>): 
 
 function addExplicitRouteJs(config: WebTopsConfig, values: Map<string, Ranked>): void {
   if (config.budgets?.route_js_bytes === undefined) return;
-  values.set("budgets.route_js_bytes", capRank(routeBudget("/", budgetsSettings(config))));
+  values.set(
+    "budgets.route_js_bytes",
+    capRank(routeBudget(ROUTE_JS_ROOT, budgetsSettings(config))),
+  );
 }
 
 function ceilingEntries(config: WebTopsConfig): Map<string, Ranked> {
@@ -322,7 +333,7 @@ const scalarCapReaders: Record<string, ScalarCapReader> = {
   "budgets.route_js_bytes": (config) =>
     config.budgets?.route_js_bytes === undefined
       ? undefined
-      : routeBudget("/", budgetsSettings(config)),
+      : routeBudget(ROUTE_JS_ROOT, budgetsSettings(config)),
   "layers.size_limit.default_bytes": (config) =>
     hasLayerDefaultBytes(config) ? effectiveDefaultEntry(config) : undefined,
 };
@@ -373,12 +384,8 @@ function compareCapNumbers(before: number, after: number): Item["change"] {
   return "unchanged";
 }
 
-function bothCapsMissing(before: number | undefined, after: number | undefined): boolean {
-  return before === undefined && after === undefined;
-}
-
 function capAbsentChange(before: number | undefined, after: number | undefined): Item["change"] {
-  if (bothCapsMissing(before, after)) return "unchanged";
+  if (before === undefined && after === undefined) return "unchanged";
   if (before === undefined) return "strengthened";
   return "weakened";
 }
