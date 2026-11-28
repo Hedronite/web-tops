@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseConfig } from "../config/validate.ts";
+import { parseConfig, parseYaml } from "../config/validate.ts";
 import type { WebTopsConfig } from "../config/types.ts";
 import { budgetEntriesOf } from "./budgets.ts";
 
@@ -12,6 +12,11 @@ function config(extra = "", className = "web-app"): WebTopsConfig {
 }
 
 describe("budget mutant killers", () => {
+  it("reports unreadable yaml through parseYaml", () => {
+    const broken = parseYaml("{");
+    expect(broken.ok).toBe(false);
+    if (!broken.ok) expect(broken.problems[0]?.message).toBe("cannot read the YAML document");
+  });
   it("sorts route map keys for stable comparison", () => {
     const values = budgetEntriesOf(
       config('budgets:\n  routes:\n    "/z": 1\n    "/a": 2\n', "web-app"),
