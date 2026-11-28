@@ -1,3 +1,4 @@
+import { ownsTrackedConfig } from "../../diff/examples.ts";
 import { readOutput } from "../../layers/hygiene/tooling.ts";
 import type { LawEntry, LawReader, LawReading, ReadInput } from "./types.ts";
 import { trackedSource } from "./files.ts";
@@ -23,7 +24,7 @@ function diagnosticsOf(input: ReadInput): ReadonlyMap<string, number> | undefine
 
 /**
  * The compiler reader: each checked project's flags through its `extends` chain, the tracked source no project holds
- * (section 8.2, W-04), and the diagnostics gate 1's `tsc -b` raised for a flag's laws. It runs no compile.
+ * (section 8.2, W-04) save those of an example that gates itself (section 6.5), and the diagnostics gate 1's `tsc -b` raised for a flag's laws. It runs no compile.
  */
 export const tscReader: LawReader = (input) => {
   const read = readProjects(input.ctx.cwd);
@@ -35,6 +36,7 @@ export const tscReader: LawReader = (input) => {
   const facts: Facts = {
     projects: read.projects,
     source: trackedSource(input.tracked),
+    owns: ownsTrackedConfig(new Set(input.tracked)),
     diagnostics,
     held: input.held,
   };

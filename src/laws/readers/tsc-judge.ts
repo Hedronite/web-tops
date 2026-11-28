@@ -1,3 +1,4 @@
+import { selfGatedExample, type OwnsConfig } from "../../diff/examples.ts";
 import type { RawFinding } from "../../report/findings.ts";
 import type { LawEntry, LawReading } from "./types.ts";
 import type { Spot } from "./config-lines.ts";
@@ -24,6 +25,8 @@ export interface Facts {
   readonly projects: readonly Project[];
   /** The tracked files that are TypeScript source. */
   readonly source: readonly string[];
+  /** Which examples gate themselves; without it, none does and nothing is left out. */
+  readonly owns?: OwnsConfig;
   /** Gate 1's compiler diagnostics, counted by code. */
   readonly diagnostics: ReadonlyMap<string, number>;
   /** The ratchet holds finding counts: they are the ratchet's to refuse (section 6.7). */
@@ -95,10 +98,22 @@ const refusalsOf = (law: string, project: Project, flag: string): RawFinding[] =
 const checked = (facts: Facts): Project[] => facts.projects.filter((project) => project.files > 0);
 
 /** The tracked source in no checked project's program, outside the data trees. */
-export function orphans(facts: Facts): string[] {
+function unheld(facts: Facts): string[] {
   const held = new Set(facts.projects.flatMap((project) => [...project.program]));
   return facts.source.filter((file) => !held.has(file) && !isData(file));
 }
+
+/** The example that gates itself and holds the file: its own gate judges it (section 6.5). */
+const exampleOf = (facts: Facts, file: string): string | undefined =>
+  facts.owns === undefined ? undefined : selfGatedExample(file, facts.owns);
+
+/** The files no project holds that are this project's to hold. */
+export const orphans = (facts: Facts): string[] =>
+  unheld(facts).filter((file) => exampleOf(facts, file) === undefined);
+
+/** The examples whose files the file set left out, each once, in name order. */
+const leftOut = (facts: Facts): string[] =>
+  [...new Set(unheld(facts).flatMap((file) => exampleOf(facts, file) ?? []))].sort();
 
 const orphanFinding = (law: string, file: string): RawFinding => ({
   tool: "tsc",
@@ -138,8 +153,20 @@ export function seenOf(facts: Facts, law: LawEntry): string[] {
   });
 }
 
-const noteOf = (seen: readonly string[], held: boolean): { note?: string } =>
-  seen.length === 0 ? {} : { note: `${seen.join(", ")}${held ? " held by the baseline" : ""}` };
+const seenNote = (seen: readonly string[], held: boolean): string[] =>
+  seen.length === 0 ? [] : [`${seen.join(", ")}${held ? " held by the baseline" : ""}`];
+
+/** Never silent: the reading names each example it left out, and why. */
+const leftNote = (examples: readonly string[]): string[] =>
+  examples.length === 0
+    ? []
+    : [
+        `left out of the file set, as examples that gate themselves (section 6.5): ${examples.join(", ")}`,
+      ];
+
+function noteOf(notes: readonly string[]): { note?: string } {
+  return notes.length === 0 ? {} : { note: notes.join("; ") };
+}
 
 function noProject(): string {
   return "no tsconfig project selects a file";
@@ -165,10 +192,11 @@ export function readLaw(facts: Facts, law: LawEntry): LawReading {
     return { law: law.id, verdict: "not-evaluated", reason: noProject(), findings };
   }
   const seen = seenOf(facts, law);
+  const left = ownsStrict(law) ? leftOut(facts) : [];
   return {
     law: law.id,
     verdict: verdictOf(findings, seen, facts.held),
     findings,
-    ...noteOf(seen, facts.held),
+    ...noteOf([...seenNote(seen, facts.held), ...leftNote(left)]),
   };
 }
