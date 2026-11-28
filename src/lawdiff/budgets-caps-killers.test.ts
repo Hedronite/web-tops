@@ -4,6 +4,7 @@ import type { WebTopsConfig } from "../config/types.ts";
 import {
   budgetEntriesOf,
   compareBudgetSettings,
+  directionOf,
   effectiveCapBytes,
   isBudgetCapKey,
   judgedCapKeys,
@@ -100,6 +101,26 @@ describe("budget cap keys and judged comparisons", () => {
       config('budgets:\n  routes:\n    "/api": 77000\n  route_js_bytes: 55\n', "web-app"),
     );
     expect(values.get("budgets.route_js_bytes")?.shown).toBe("55");
+  });
+
+  it("reads explicit route_js_bytes through the slash routes map entry", () => {
+    const values = budgetEntriesOf(
+      config('budgets:\n  route_js_bytes: 42\n  routes:\n    "/": 9001\n', "web-app"),
+    );
+    expect(values.get("budgets.route_js_bytes")?.shown).toBe("9001");
+    expect(
+      effectiveCapBytes(
+        "budgets.route_js_bytes",
+        config('budgets:\n  route_js_bytes: 42\n  routes:\n    "/": 9001\n', "web-app"),
+      ),
+    ).toBe(9001);
+  });
+
+  it("classifies partial cap direction for absent and numeric pairs", () => {
+    expect(directionOf(undefined, undefined)).toBe("unchanged");
+    expect(directionOf(100, 100)).toBe("unchanged");
+    expect(directionOf(100, undefined)).toBe("weakened");
+    expect(directionOf(undefined, 200)).toBe("strengthened");
   });
 
   it("skips budget ceilings when the surface is absent", () => {
@@ -214,6 +235,15 @@ describe("budget cap keys and judged comparisons", () => {
   it("reads per-page ceilings from the pages map", () => {
     const cfg = config('budgets:\n  pages:\n    "/home/": 9000\n', "astro-site");
     expect(effectiveCapBytes("budgets.pages./home/", cfg)).toBe(9000);
+  });
+
+  it("keeps page and route caps distinct for the same path", () => {
+    const cfg = config(
+      'budgets:\n  pages:\n    "/shared/": 77\n  routes:\n    "/shared/": 88\n',
+      "web-app",
+    );
+    expect(effectiveCapBytes("budgets.pages./shared/", cfg)).toBe(77);
+    expect(effectiveCapBytes("budgets.routes./shared/", cfg)).toBe(88);
   });
 
   it("omits page rows when budgets.pages is absent, not merely empty", () => {

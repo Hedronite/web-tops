@@ -217,7 +217,6 @@ function classJsForBudgetedClass(config: WebTopsConfig): number {
 }
 
 function classJsCeiling(config: WebTopsConfig): number | undefined {
-  if (!budgetedClass(config.class)) return undefined;
   return classJsForBudgetedClass(config);
 }
 
@@ -273,17 +272,11 @@ function ceilingEntries(config: WebTopsConfig): Map<string, Ranked> {
 }
 
 function pageBudgetEntries(config: WebTopsConfig): Map<string, Ranked> {
-  const values = new Map<string, Ranked>();
   const pages = config.budgets?.pages;
-  if (pages === undefined) return values;
-  const budgets = budgetsSettings(config);
-  for (const route of sortedKeys(pages)) {
-    values.set(
-      `budgets.pages.${route}`,
-      capRank(budgetForPage(route, config.class, true, budgets)),
-    );
-  }
-  return values;
+  const caps = pages ?? {};
+  return new Map(
+    sortedKeys(pages).map((route) => [`budgets.pages.${route}`, capRank(caps[route])] as const),
+  );
 }
 
 function routeBudgetEntries(config: WebTopsConfig): Map<string, Ranked> {
@@ -388,7 +381,7 @@ function comparePartialCaps(before: number | undefined, after: number | undefine
   return after === undefined ? "weakened" : "unchanged";
 }
 
-function directionOf(before: number | undefined, after: number | undefined): Item["change"] {
+export function directionOf(before: number | undefined, after: number | undefined): Item["change"] {
   if (typeof before === "number" && typeof after === "number") {
     return compareCapNumbers(before, after);
   }
@@ -423,9 +416,9 @@ const subsetValues = (
 };
 
 const nonCapSettingKeys = (base: Settings, head: Settings): string[] =>
-  [...new Set([...base.values.keys(), ...head.values.keys()])]
-    .filter((key) => !isBudgetCapKey(key))
-    .sort();
+  [...new Set([...base.values.keys(), ...head.values.keys()])].filter(
+    (key) => !isBudgetCapKey(key),
+  );
 
 /** Compare gate settings, using effective byte ceilings instead of generic rank add/remove for caps. */
 export function compareBudgetSettings(base: Settings, head: Settings): Item[] {
