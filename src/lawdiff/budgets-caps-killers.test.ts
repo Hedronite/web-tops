@@ -227,4 +227,20 @@ describe("budget cap keys and judged comparisons", () => {
     const cfg = config("budgets:\n  route_js_bytes: 4444\n", "ts-library");
     expect(budgetEntriesOf(cfg).get("budgets.route_js_bytes")?.shown).toBe("4444");
   });
+
+  it("strengthens a cap that appears only on head", () => {
+    expect(
+      compareYaml(
+        "",
+        "layers:\n  size_limit:\n    default_bytes: 5000\n",
+        "ts-library",
+        "ts-library",
+      ),
+    ).toContainEqual({
+      what: "layers.size_limit.default_bytes",
+      change: "strengthened",
+      before: "absent",
+      after: "5000",
+    });
+  });
 });

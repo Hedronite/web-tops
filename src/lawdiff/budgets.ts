@@ -384,17 +384,16 @@ function compareCapNumbers(before: number, after: number): Item["change"] {
   return "unchanged";
 }
 
-function capAbsentChange(before: number | undefined, after: number | undefined): Item["change"] {
-  if (before === undefined && after === undefined) return "unchanged";
-  if (before === undefined) return "strengthened";
-  return "weakened";
+function comparePartialCaps(before: number | undefined, after: number | undefined): Item["change"] {
+  if (before === undefined) return after === undefined ? "unchanged" : "strengthened";
+  return after === undefined ? "weakened" : "unchanged";
 }
 
 function directionOf(before: number | undefined, after: number | undefined): Item["change"] {
   if (typeof before === "number" && typeof after === "number") {
     return compareCapNumbers(before, after);
   }
-  return capAbsentChange(before, after);
+  return comparePartialCaps(before, after);
 }
 
 function compareCapKey(key: string, base: WebTopsConfig, head: WebTopsConfig): Item[] {
