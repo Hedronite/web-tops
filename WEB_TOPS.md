@@ -404,7 +404,7 @@ banned shortcuts, `!` and `as`, cheaper than handling the case. The profile key
   judged. A pure deletion belongs to the smallest function that holds the lines on both sides of
   it, else to the file's `<module>` (§6.7). The data trees of §17, `fixtures/` and `probes/` at the top of the tree, are
   not part of the diff: a file changed under them is neither mutated nor run, because it breaks rules on purpose. Nor
-  is a file under `examples/<name>/` when that folder holds its own `web-tops.yaml`: such an example is a project that
+  is a file under `examples/<name>/` when that folder tracks its own `web-tops.yaml`: such an example is a project that
   gates itself, with its own tools and tests. Any other file under `examples/` is part of the diff.
 - **Statuses.** Stryker's status of each mutant decides what counts:
 
@@ -476,7 +476,8 @@ TypeScript or Astro file is `not-evaluated`, never a pass. The compiler reader r
 checked tsconfig project, `tsconfig.json` and the projects it references, through the `extends` chain: `strict` must
 be on, no member of its family may be `false` beside it, and every flag W-04 lists must be set. File-set completeness: a checked project is `tsconfig.json` and the projects it references, followed
 transitively, and nothing else; a nested tsconfig that no reference reaches is not checked, and its files are in no
-project. A tracked source file (`.ts`, `.tsx`, `.mts`, `.cts`) in no checked project's program is `refuse` at that
+project. The compiler's file set leaves out what the diff leaves out as an example that gates itself (section 6.4: a file
+under `examples/<name>/` when that folder tracks its own `web-tops.yaml`), and the reading names each example left out. A tracked source file (`.ts`, `.tsx`, `.mts`, `.cts`) in no checked project's program is `refuse` at that
 file. The same holds for ESLint, over `.ts`, `.tsx`, `.mts`, `.cts` and `.astro` files: a tracked source file that no config block reaches, or that an `ignores` entry drops,
 is a `refuse` file-set finding, because no lint law judges it. A nested project reaches ESLint through its own
 `eslint.config`, which ESLint looks up from each file's directory: ESLint finds the nearest config for each file, so a nested `eslint.config.js` governs its folder, and law-diff reads each tracked file, so it sees a nested config that is weaker than the root's. The data trees `fixtures/` and `probes/`

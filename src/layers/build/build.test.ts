@@ -837,6 +837,11 @@ describe("static server spaFallback option", () => {
     cleanups.push(() => plainSrv.close());
     const defaultSrv = await ensureServer(ctx, join(dir, "app-dist"));
     expect(defaultSrv).toBe(plainSrv);
+    const ctxSpa: LayerContext = { ...ctx, spaFallback: true };
+    expect(await ensureServer(ctxSpa, join(dir, "app-dist"))).toBe(spaSrv);
+    expect(await ensureServer(ctxSpa, join(dir, "app-dist"), { spaFallback: false })).toBe(
+      plainSrv,
+    );
     expect(spaSrv).not.toBe(plainSrv);
     expect((await fetch(`${spaSrv.origin}/spa-route`)).status).toBe(200);
     expect((await fetch(`${plainSrv.origin}/spa-route`)).status).toBe(404);
