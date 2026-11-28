@@ -42,6 +42,12 @@ describe("budget mutant killers", () => {
     expect(keys).not.toContain("layers.size_limit.default_bytes");
   });
 
+  it("does not emit class_js_ceiling on node-service even with budgets set", () => {
+    const values = budgetEntriesOf(config("budgets:\n  page_js_bytes: 1000\n", "node-service"));
+    expect(values.has("budgets.class_js_ceiling")).toBe(false);
+    expect(values.get("budgets.page_js_bytes")?.shown).toBe("1000");
+  });
+
   it("uses explicit numeric static_page_js_bytes", () => {
     const values = budgetEntriesOf(
       config("budgets:\n  static_page_js_bytes: 42\n  page_js_bytes: 10\n", "astro-site"),
