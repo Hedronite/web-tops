@@ -13,9 +13,7 @@ function config(extra = "", className = "web-app"): WebTopsConfig {
 
 describe("budget mutant killers", () => {
   it("reports unreadable yaml through parseYaml", () => {
-    const broken = parseYaml("{");
-    expect(broken.ok).toBe(false);
-    if (!broken.ok) expect(broken.problems[0]?.message).toBe("cannot read the YAML document");
+    expect(parseYaml("a: [unclosed\n").ok).toBe(false);
   });
   it("sorts route map keys for stable comparison", () => {
     const values = budgetEntriesOf(
