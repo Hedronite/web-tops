@@ -6,11 +6,6 @@ import type { NotCompared } from "./types.ts";
  */
 export function notCompared(): readonly NotCompared[] {
   return [
-    {
-      what: "size budgets",
-      reason:
-        "only whether size_limit is on is compared; the byte budget of each entry arrives with M4",
-    },
     { what: "package.json scripts", reason: "not read" },
     {
       what: "CI workflow files",

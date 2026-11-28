@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { parseConfig } from "../config/validate.ts";
+import type { WebTopsConfig } from "../config/types.ts";
 import { compareSnapshots, weakenedCount } from "./compare.ts";
 import { compareProfiles, profileNote } from "./profile.ts";
 import type { Cruise, Part, Profile, ProjectSets, Ranked, Snapshot, Surface } from "./types.ts";
@@ -30,9 +32,17 @@ const rulesAt = (level: number): Snapshot["levels"] => ({
   value: new Map([["a.ts", new Map([["r", { level, options: "[]" }]])]]),
 });
 
+const minimalConfig = (): WebTopsConfig => {
+  const read = parseConfig(
+    'protocol: "0.3.0"\nversion: "1"\npackage: fixture\nclass: ts-library\n',
+  );
+  if (!read.ok) throw new Error("fixture config");
+  return read.value;
+};
+
 const settingsOf = (key: string, value: Ranked, globs: string[] = []): Snapshot["settings"] => ({
   state: "ok",
-  value: { values: new Map([[key, value]]), globs },
+  value: { values: new Map([[key, value]]), globs, config: minimalConfig() },
 });
 
 const snapshot = (extra: Partial<Snapshot> = {}): Snapshot => ({
@@ -120,7 +130,6 @@ describe("every surface of the diff", () => {
       [],
       [],
     ]);
-    expect(surfaces[2]?.note).toContain("size budgets: only whether size_limit is on, until M4");
     expect(surfaces[4]?.note).toBe("class ts-library became web-app");
     expect(weakenedCount(surfaces)).toBe(3);
   });

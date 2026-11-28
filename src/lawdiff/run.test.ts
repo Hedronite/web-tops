@@ -63,7 +63,6 @@ describe("the diff of a head against its merge base", () => {
       "snapshot /tree/abc123def4567890 src/new.ts|a.css",
       "cleanup abc123def4567890",
     ]);
-    expect(done.ok && done.report.notCompared.map((left) => left.what)).toContain("size budgets");
     expect(done.ok && done.report).toMatchObject({
       base: "origin/main",
       head: "feature",

@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The protocol version and th
 
 ## [Unreleased]
 
+- `law-diff` compares effective byte budgets from `web-tops.yaml` (`budgets.*` ceilings and maps, `layers.size_limit`, and declared `routes`); loosening a ceiling without the `protocol-change` label fails the command.
+
 ## [0.4.0] - 2026-11-25
 
 The `webtops` CLI in this release implements protocol 0.3.0, and adds Laws v1 of milestone M3 and mutation sharding. The laws are data in `laws/W-NN.yaml` with law fixtures, judged at tier 1 by the laws layer from the lint presets, `eslint-plugin-webtops` and the other tools' reports; soft laws take acknowledgements, `webtops law-diff` fails a change that weakens a law without the `protocol-change` label, and the kit and `examples/node-service` run the layer at `hard`. A mutation run can be split into shards and joined into one judgment. The protocol stays 0.3.0; `report_version` is 2.4.0.

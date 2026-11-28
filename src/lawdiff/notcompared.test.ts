@@ -4,7 +4,6 @@ import { notCompared } from "./notcompared.ts";
 describe("what the diff does not compare", () => {
   it("is listed with the reason for each, as a fixed list", () => {
     expect(notCompared().map((left) => left.what)).toEqual([
-      "size budgets",
       "package.json scripts",
       "CI workflow files",
       "tsconfig options that are not W-04 flags",
@@ -17,8 +16,7 @@ describe("what the diff does not compare", () => {
       "who applied the protocol-change label",
     ]);
     for (const left of notCompared()) expect(left.reason.length).toBeGreaterThan(0);
-    expect(notCompared()[0]?.reason).toContain("M4");
-    expect(notCompared()[10]?.reason).toBe(
+    expect(notCompared()[9]?.reason).toBe(
       "in CI only an account with maintain or admin permission counts (R111); a local run trusts the label's presence",
     );
   });

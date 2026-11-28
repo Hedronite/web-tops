@@ -1,6 +1,7 @@
 import { profileFor } from "../config/profiles.ts";
 import type { WebTopsConfig } from "../config/types.ts";
 import type { Ranked, Settings } from "./types.ts";
+import { budgetEntriesOf } from "./budgets.ts";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -130,12 +131,13 @@ function globsOf(config: WebTopsConfig): string[] {
 
 /** What the settings surface leaves out, said in its note. */
 export function notCompared(): string {
-  return "not compared: gates.tests.runner, the hygiene format tool and ESLint config path, mutation engine, base and time budget, toolchain, custom layers, the details of rendered and themes, report.path; an .eslintignore file, which ESLint 10 does not read (flat config only); size budgets: only whether size_limit is on, until M4 brings the per-entry byte budgets";
+  return "not compared: gates.tests.runner, the hygiene format tool and ESLint config path, mutation engine, base and time budget, toolchain, custom layers, the details of rendered and themes, report.path; an .eslintignore file, which ESLint 10 does not read (flat config only)";
 }
 
 /** The settings of a `web-tops.yaml` that hold the gate: what is on, how high each floor, how low each cap, and the exclusions. */
 export function settingsOf(config: WebTopsConfig): Settings {
   return {
+    config,
     values: new Map([
       ...switchPaths().map((path) => switchOf(config, path)),
       ...limitEntries(config),
@@ -143,6 +145,7 @@ export function settingsOf(config: WebTopsConfig): Settings {
       exemptionEntry(config),
       shuffleEntry(config),
       ...reviewEntries(config),
+      ...budgetEntriesOf(config),
     ]),
     globs: globsOf(config),
   };

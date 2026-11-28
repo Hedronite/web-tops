@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
+import { parseConfig } from "../config/validate.ts";
+import type { WebTopsConfig } from "../config/types.ts";
 import { compareSnapshots } from "./compare.ts";
 import { notCompared } from "./settings.ts";
 import type { Part, Snapshot } from "./types.ts";
+
+const bareConfig = (): WebTopsConfig => {
+  const read = parseConfig(
+    'protocol: "0.3.0"\nversion: "1"\npackage: fixture\nclass: ts-library\n',
+  );
+  if (!read.ok) throw new Error("fixture");
+  return read.value;
+};
 
 const absent: Part<never> = { state: "absent" };
 
@@ -26,7 +36,9 @@ const noteOf = (settings: Snapshot["settings"]): string | undefined =>
 
 describe("the note of the settings surface", () => {
   it("is what is not compared, alone, when the settings were compared", () => {
-    expect(noteOf({ state: "ok", value: { values: new Map(), globs: [] } })).toBe(notCompared());
+    expect(
+      noteOf({ state: "ok", value: { values: new Map(), globs: [], config: bareConfig() } }),
+    ).toBe(notCompared());
   });
 
   it("follows the surface's own note, after a semicolon, when it has one", () => {

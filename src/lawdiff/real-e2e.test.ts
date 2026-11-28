@@ -176,4 +176,48 @@ describe.skipIf(insideStryker)("webtops law-diff on a real repository", () => {
     },
     SLOW,
   );
+  it(
+    "refuses a commit that loosens budgets.page_js_bytes without the protocol-change label",
+    () => {
+      const dir = tempDir();
+      symlinkSync(join(REPO, "node_modules"), join(dir, "node_modules"));
+      const webTops = [
+        'protocol: "0.3.0"',
+        'version: "1"',
+        "package: fixture",
+        "class: web-app",
+        "gates:",
+        "  hygiene:",
+        '    astro_check: { enabled: false, reason: "fixture" }',
+        "budgets:",
+        "  page_js_bytes: 1000",
+        "",
+      ].join("\n");
+      put(dir, {
+        ".gitignore": "node_modules\n.web-tops\n",
+        "package.json": '{ "type": "module" }\n',
+        "tsconfig.json": tsconfig(true),
+        "src/a.ts": "export const a: number = 1;\n",
+        "eslint.config.js": eslintConfig(""),
+        "web-tops.yaml": webTops,
+      });
+      git(dir, "init", "-q", "-b", "main");
+      git(dir, "add", "-A");
+      git(dir, "commit", "-q", "-m", "base");
+      git(dir, "switch", "-q", "-c", "feature");
+      put(dir, {
+        "web-tops.yaml": webTops.replace("page_js_bytes: 1000", "page_js_bytes: 900000"),
+      });
+      git(dir, "add", "-A");
+      git(dir, "commit", "-q", "-m", "loosen budget");
+      const refused = lawDiff(dir);
+      expect(refused.err).toBe("");
+      expect(refused.status).toBe(1);
+      expect(refused.out).toContain("weakened: budgets.page_js_bytes: 1000 -> 900000");
+      expect(refused.out).toContain("not excused");
+      const excused = lawDiff(dir, "--label-present");
+      expect(excused.status).toBe(0);
+    },
+    SLOW,
+  );
 });
