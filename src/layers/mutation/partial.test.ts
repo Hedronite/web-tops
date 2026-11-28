@@ -234,6 +234,11 @@ describe("fromDiff, shardPlan, vacuousDiff, vacuousResult, overBudget, readShard
       entries: ["src/a.ts:1-5"],
       base: "sha-cov",
     });
+    // The range is cut from the last colon, so a path that holds a colon keeps its file whole.
+    expect(await fromDiff(ctx, scopeOf(["src/a:b.ts:1-5"]), (entries) => [...entries])).toEqual({
+      entries: ["src/a:b.ts:1-5"],
+      base: "sha-cov",
+    });
     expect(
       await fromDiff(ctx, scopeOf(["vitest.config.ts:1-9"]), (entries) => [...entries]),
     ).toEqual({

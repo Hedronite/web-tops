@@ -52,6 +52,31 @@ describe("G4c glob: the subset the coverage scope reads", () => {
     expect(matchesGlob("src/$a.ts", "src/$a.ts")).toBe(true);
   });
 
+  it("splits an optional group on its bars, so each alternative may be longer than one character", () => {
+    expect(matchesGlob("x.bc", "x.?(a|bc)")).toBe(true);
+    expect(matchesGlob("x.b", "x.?(a|bc)")).toBe(false);
+  });
+
+  it("matches a character outside the Basic Multilingual Plane as one character", () => {
+    expect(matchesGlob("src/\u{1F600}.ts", "src/?.ts")).toBe(true);
+  });
+
+  it("splits alternatives only on top-level commas, past nested braces and groups", () => {
+    expect(matchesGlob("b", "{a,{b,c}}")).toBe(true);
+    expect(matchesGlob("d", "{a,{b,c},d}")).toBe(true);
+    expect(matchesGlob("b,c", "{a,?(b,c)}")).toBe(true);
+    expect(matchesGlob("y", "{?(x),y}")).toBe(true);
+    expect(matchesGlob("b", "{a,{b,?(c,d)}}")).toBe(true);
+  });
+
+  it("makes exactly the alternatives the braces name, and no other", () => {
+    expect(matchesGlob("Stryker was here", "{a,b}")).toBe(false);
+  });
+
+  it("starts a character class at its own bracket, even after a closing one", () => {
+    expect(matchesGlob("x]a", "x][ab]")).toBe(true);
+  });
+
   it("does not treat an unclosed brace or group as a pattern", () => {
     expect(matchesGlob("src/{a.ts", "src/{a.ts")).toBe(true);
     expect(matchesGlob("src/x(a.ts", "src/?(a.ts")).toBe(true);
