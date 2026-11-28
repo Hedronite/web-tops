@@ -46,9 +46,9 @@ describe("G11a: the kit runs the laws layer at hard", () => {
     });
   });
 
-  it("gives knip the data trees and the example to leave alone, and no other ignore", () => {
+  it("gives knip the data trees and the projects that gate themselves to leave alone, and no other ignore", () => {
     const knip = jsonOf("knip.json");
-    expect(get(knip, "ignore")).toEqual(["fixtures/**", "probes/**", "examples/**"]);
+    expect(get(knip, "ignore")).toEqual(["fixtures/**", "probes/**", "examples/**", "poire/**"]);
     expect(get(knip, "ignoreExportsUsedInFile")).toBe(true);
   });
 

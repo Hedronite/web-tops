@@ -83,7 +83,14 @@ export function vacuousDiff(
     : { entries: [], base: mergeBase, vacuousReason: reason };
 }
 
-/** The diff's ranges, with the functions the changed tests run, widened to whole scored units (R64). */
+/** The file of a `mutate` entry, `<file>:<start>-<end>`. */
+const entryFile = (entry: string): string => entry.replace(/:[^:]*$/u, "");
+
+/**
+ * The diff's ranges, with the functions the changed tests run, widened to whole scored units (R64). Like the whole
+ * project, the diff is held to the coverage scope (section 6.1): a changed `*.config.*` or an excluded file is not
+ * mutated, and a diff with nothing left in scope is `vacuous`.
+ */
 export async function fromDiff(
   ctx: LayerContext,
   diff: DiffProvider,
@@ -96,10 +103,16 @@ export async function fromDiff(
   if (found.outcome === "vacuous") {
     return vacuousDiff(ctx.shard, found.reason, found.scope.mergeBase);
   }
-  return {
-    entries: snap(found.scope.mutate),
-    base: found.scope.mergeBase,
-  };
+  const excludes = excludesOf(ctx.config);
+  const mutate = found.scope.mutate.filter((entry) => inScope(entryFile(entry), excludes));
+  if (mutate.length === 0) {
+    return vacuousDiff(
+      ctx.shard,
+      "the diff changes no file in coverage scope",
+      found.scope.mergeBase,
+    );
+  }
+  return { entries: snap(mutate), base: found.scope.mergeBase };
 }
 
 async function entriesOf(ctx: LayerContext, ts: Ts): Promise<Entries> {

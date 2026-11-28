@@ -1,0 +1,7 @@
+# Not formatted by Prettier: dependencies, output and the lockfile.
+/node_modules/
+/coverage/
+/dist/
+/.web-tops/
+bun.lock
+*.md

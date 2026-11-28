@@ -214,6 +214,39 @@ describe("fromDiff, shardPlan, vacuousDiff, vacuousResult, overBudget, readShard
       base: "sha-scope",
     });
 
+    // The diff is held to the coverage scope, as the whole project is: a changed config or test is not mutated.
+    const scopeOf =
+      (mutate: string[]): DiffProvider =>
+      () =>
+        Promise.resolve({
+          outcome: "scope",
+          scope: {
+            mergeBase: "sha-cov",
+            files: [],
+            changedFunctions: [],
+            testFiles: [],
+            coveredFunctions: [],
+            mutate,
+          },
+        });
+    const mixed = ["vitest.config.ts:1-9", "src/a.ts:1-5", "src/a.test.ts:1-2", "scripts/x.ts:1-1"];
+    expect(await fromDiff(ctx, scopeOf(mixed), (entries) => [...entries])).toEqual({
+      entries: ["src/a.ts:1-5"],
+      base: "sha-cov",
+    });
+    // The range is cut from the last colon, so a path that holds a colon keeps its file whole.
+    expect(await fromDiff(ctx, scopeOf(["src/a:b.ts:1-5"]), (entries) => [...entries])).toEqual({
+      entries: ["src/a:b.ts:1-5"],
+      base: "sha-cov",
+    });
+    expect(
+      await fromDiff(ctx, scopeOf(["vitest.config.ts:1-9"]), (entries) => [...entries]),
+    ).toEqual({
+      entries: [],
+      base: "sha-cov",
+      vacuousReason: "the diff changes no file in coverage scope",
+    });
+
     const noShardPlan = shardPlan(makeCtx(dir), { entries: ["src/a.ts:1-5"], base: "sha1" });
     expect(noShardPlan).toEqual({ entries: ["src/a.ts:1-5"] });
 

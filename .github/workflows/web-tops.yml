@@ -34,6 +34,9 @@ jobs:
       # The example project is reached by the root tsconfig references and gates itself with the kit's source.
       - run: bun install --frozen-lockfile
         working-directory: examples/node-service
+      # The TS-POIRE exemplars (poire/ts) are reached by the root tsconfig references too, and gate themselves.
+      - run: bun install --frozen-lockfile
+        working-directory: poire/ts
       # Browser tests need the Chromium of the pinned Playwright. `--with-deps` adds its system libraries on Linux.
       - run: bunx playwright install --with-deps chromium
       - run: bun src/cli/main.ts gate --max-tier 1 --shard ${{ matrix.shard }}/4
@@ -66,6 +69,9 @@ jobs:
       # The example project is reached by the root tsconfig references and gates itself with the kit's source.
       - run: bun install --frozen-lockfile
         working-directory: examples/node-service
+      # The TS-POIRE exemplars (poire/ts) are reached by the root tsconfig references too, and gate themselves.
+      - run: bun install --frozen-lockfile
+        working-directory: poire/ts
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: mutation-partial-${{ matrix.os }}-*-${{ github.run_id }}
@@ -73,3 +79,5 @@ jobs:
       - run: bun src/cli/main.ts gate --join .web-tops/out/shards
       - run: bun ../../src/cli/main.ts gate --max-tier 1
         working-directory: examples/node-service
+      - run: bun ../../src/cli/main.ts gate --max-tier 1
+        working-directory: poire/ts

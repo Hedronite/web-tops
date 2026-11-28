@@ -1,0 +1,19 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignore": [".web-tops/**", "coverage/**", "dist/**", "fixtures/**"],
+  "ignoreDependencies": [
+    "@arethetypeswrong/cli",
+    "@eslint-community/eslint-plugin-eslint-comments",
+    "@eslint/js",
+    "@secretlint/secretlint-rule-preset-recommend",
+    "@stryker-mutator/core",
+    "@stryker-mutator/typescript-checker",
+    "@stryker-mutator/vitest-runner",
+    "@vitest/eslint-plugin",
+    "dependency-cruiser",
+    "publint",
+    "secretlint",
+    "typescript-eslint"
+  ],
+  "ignoreExportsUsedInFile": true
+}

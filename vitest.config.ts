@@ -14,6 +14,7 @@ export default defineConfig({
       // Reserved (M3): bad twins break rules on purpose; the example gates itself (G11).
       "fixtures/laws/**",
       "examples/node-service/**",
+      "poire/**",
     ],
     coverage: {
       provider: "v8",

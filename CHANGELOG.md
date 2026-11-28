@@ -4,6 +4,22 @@ All notable changes to this project are listed here. The protocol version and th
 
 ## [Unreleased]
 
+### Changed
+
+- The diff (§6.4) and W-04's file set (§6.5) treat `poire/<name>/` as they treat `examples/<name>/`: a folder there
+  that tracks its own `web-tops.yaml` is a project that gates itself, left out of the root's diff and file set.
+- The diff is taken with `git diff --relative`, and merge-base files are read as `<ref>:./<path>`, so a project that
+  gates itself in a subdirectory gets its own files with paths from its own directory. Before, mutation on the diff
+  could not run there ("could not run <root-relative path> to find the functions it covers").
+- Mutation on the diff is held to the coverage scope (§6.1), as mutation of the whole project already was: a changed
+  `*.config.*`, test or excluded file is not mutated, and a diff with nothing left in scope is `vacuous`. Before, a
+  changed `vitest.config.ts` was mutated and every mutant counted as `NoCoverage`.
+
+### Added
+
+- `poire/ts/`: the checked exemplars of TS-POIRE 0.2, a `ts-library` project under `enforce: hard` that gates itself,
+  with a lint proof that holds each counter-example to the rule that must report it.
+
 ## [0.4.0] - 2026-11-25
 
 The `webtops` CLI in this release implements protocol 0.3.0, and adds Laws v1 of milestone M3 and mutation sharding. The laws are data in `laws/W-NN.yaml` with law fixtures, judged at tier 1 by the laws layer from the lint presets, `eslint-plugin-webtops` and the other tools' reports; soft laws take acknowledgements, `webtops law-diff` fails a change that weakens a law without the `protocol-change` label, and the kit and `examples/node-service` run the layer at `hard`. A mutation run can be split into shards and joined into one judgment. The protocol stays 0.3.0; `report_version` is 2.4.0.

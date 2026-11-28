@@ -357,3 +357,43 @@ survivors:
     reason: lower is only used to compare two paths with each other, so folding both
       to upper case compares them the same.
     owner: web-platform
+  - file: src/layers/coverage/glob.ts
+    function: src/layers/coverage/glob.ts::translate
+    mutator: EqualityOperator
+    original: "at < glob.length"
+    replacement: "at <= glob.length"
+    occurrence: 1
+    reason: "Equivalent. One more step at the end reads past the glob, where no rule matches, so it appends the literal of an empty character: an empty string, and the pattern is unchanged."
+    owner: web-platform
+  - file: src/layers/coverage/glob.ts
+    function: src/layers/coverage/glob.ts::closing
+    mutator: EqualityOperator
+    original: "index < glob.length"
+    replacement: "index <= glob.length"
+    occurrence: 1
+    reason: "Equivalent. The extra step reads an empty character, which weighs nothing, so the depth is unchanged and an unclosed bracket still ends at -1."
+    owner: web-platform
+  - file: src/layers/coverage/glob.ts
+    function: src/layers/coverage/glob.ts::closing
+    mutator: AssignmentOperator
+    original: "depth += weight(glob.charAt(index), open, close)"
+    replacement: "depth -= weight(glob.charAt(index), open, close)"
+    occurrence: 1
+    reason: "Equivalent. Subtracting every weight negates the depth at every step, and only depth === 0 is tested, which holds at the same index either way."
+    owner: web-platform
+  - file: src/layers/coverage/glob.ts
+    function: src/layers/coverage/glob.ts::splitTop
+    mutator: EqualityOperator
+    original: "index < text.length"
+    replacement: "index <= text.length"
+    occurrence: 1
+    reason: "Equivalent. The extra step reads an empty character: it weighs nothing and is not a comma, so no part is pushed."
+    owner: web-platform
+  - file: src/layers/coverage/glob.ts
+    function: src/layers/coverage/glob.ts::splitTop
+    mutator: AssignmentOperator
+    original: "depth += weight(char, \"{\", \"}\") + weight(char, \"(\", \")\")"
+    replacement: "depth -= weight(char, \"{\", \"}\") + weight(char, \"(\", \")\")"
+    occurrence: 1
+    reason: "Equivalent. Subtracting the whole sum negates the depth at every step, and a comma splits only at depth 0, which holds at the same commas either way."
+    owner: web-platform
