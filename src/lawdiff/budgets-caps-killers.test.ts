@@ -243,4 +243,41 @@ describe("budget cap keys and judged comparisons", () => {
       after: "5000",
     });
   });
+
+  it("weakens when an explicit page_js_bytes row is dropped on head", () => {
+    expect(
+      compareYaml("budgets:\n  page_js_bytes: 1000\n", "", "web-app", "web-app"),
+    ).toContainEqual({
+      what: "budgets.page_js_bytes",
+      change: "weakened",
+      before: "1000",
+      after: "absent",
+    });
+  });
+
+  it("weakens when an explicit route_js_bytes row is dropped on head", () => {
+    expect(
+      compareYaml("budgets:\n  route_js_bytes: 2000\n", "", "web-app", "web-app"),
+    ).toContainEqual({
+      what: "budgets.route_js_bytes",
+      change: "weakened",
+      before: "2000",
+      after: "absent",
+    });
+  });
+
+  it("maps the slash route using the root path", () => {
+    const onlySlash = config('budgets:\n  routes:\n    "/": 12345\n', "web-app");
+    const explicit = config("budgets:\n  route_js_bytes: 88\n", "web-app");
+    expect(effectiveCapBytes("budgets.routes./", onlySlash)).toBe(12345);
+    expect(effectiveCapBytes("budgets.route_js_bytes", explicit)).toBe(88);
+  });
+
+  it("sorts three non-cap settings keys", () => {
+    const items = compareYaml(
+      'routes:\n  - /a\n  - /b\nbuild:\n  command: "x"\n  dir: z\n',
+      'routes:\n  - /a\nbuild:\n  command: "y"\n  dir: w\n',
+    );
+    expect(items.map((item) => item.what)).toEqual(["build.command", "build.dir", "routes./b"]);
+  });
 });
